@@ -1,52 +1,35 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: biodiversity-maplibre-ingress
+  name: ca-lands-ingress
   annotations:
-    # Enable CORS for this Ingress
-    haproxy.org/cors-enable: "true"
+    # CORS configuration for HAProxy Ingress
+    haproxy-ingress.github.io/cors-enable: "true"
+    haproxy-ingress.github.io/cors-allow-origin: "*"
+    haproxy-ingress.github.io/cors-allow-methods: "GET, POST, OPTIONS"
+    haproxy-ingress.github.io/cors-allow-headers: "DNT,X-CustomHeader,Keep-Alive,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Authorization,mcp-session-id"
+    haproxy-ingress.github.io/cors-allow-credentials: "true"
+    haproxy-ingress.github.io/cors-max-age: "86400"
     
-    # Allow requests from any origin
-    haproxy.org/cors-allow-origin: "*"
-    
-    # Allow GET and OPTIONS methods
-    haproxy.org/cors-allow-methods: "GET, OPTIONS"
-    
-    # Allow necessary headers
-    haproxy.org/cors-allow-headers: "DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Accept,Accept-Encoding,Accept-Language,Connection,Host,Origin,Referer,Sec-Fetch-Dest,Sec-Fetch-Mode,Sec-Fetch-Site,Priority"
-    
-    # Expose headers in responses
-    haproxy.org/cors-expose-headers: "Content-Length,Content-Range"
-    
-    # Cannot use credentials with wildcard origin
-    haproxy.org/cors-allow-credentials: "false"
-    
-    # Cache preflight responses for 1 hour
-    haproxy.org/cors-max-age: "3600"
-    
-    # Standard timeouts for static content
-    haproxy.org/timeout-http-request: "60s"
-    haproxy.org/timeout-server: "60s"
-    haproxy.org/timeout-client: "60s"
-    haproxy.org/timeout-connect: "10s"
-    
-    # Return CORS headers even on error responses
+    # Timeout settings for long-running queries
+    haproxy-ingress.github.io/timeout-server: "600s"
+    haproxy-ingress.github.io/timeout-tunnel: "3600s"
 
 spec:
   ingressClassName: haproxy
   tls:
     - hosts:
-        - nature.nrp-nautilus.io
+        - ca-lands.nrp-nautilus.io
       # Uncomment and add secretName if managing your own certificates
-      # secretName: biodiversity-maplibre-tls
+      # secretName: ca-lands-tls
   rules:
-    - host: nature.nrp-nautilus.io
+    - host: ca-lands.nrp-nautilus.io
       http:
         paths:
           - path: /
             pathType: Prefix
             backend:
               service:
-                name: biodiversity-maplibre
+                name: ca-lands
                 port:
                   number: 80

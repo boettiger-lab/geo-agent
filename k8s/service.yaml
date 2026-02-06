@@ -1,13 +1,13 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: biodiversity-maplibre
+  name: ca-lands
   labels:
-    app: biodiversity-maplibre
+    app: ca-lands
 spec:
   type: ClusterIP
   selector:
-    app: biodiversity-maplibre
+    app: ca-lands
   ports:
     - protocol: TCP
       port: 80

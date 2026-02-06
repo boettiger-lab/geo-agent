@@ -1,9 +1,9 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: biodiversity-maplibre
+  name: ca-lands
   labels:
-    app: biodiversity-maplibre
+    app: ca-lands
 spec:
   replicas: 2
   strategy:
@@ -13,11 +13,11 @@ spec:
       maxSurge: 1
   selector:
     matchLabels:
-      app: biodiversity-maplibre
+      app: ca-lands
   template:
     metadata:
       labels:
-        app: biodiversity-maplibre
+        app: ca-lands
     spec:
       initContainers:
       - name: git-clone
@@ -26,7 +26,7 @@ spec:
         - sh
         - -c
         - |
-          git clone --depth 1 https://github.com/boettiger-lab/biodiversity.git /tmp/repo
+          git clone --depth 1 https://github.com/boettiger-lab/ca-protected-lands.git /tmp/repo
           # Copy all files except config.json (will be generated from template)
           cd /tmp/repo/app
           find . -type f ! -name 'config.json' -exec cp --parents {} /usr/share/nginx/html/ \;
@@ -34,7 +34,7 @@ spec:
         - name: website-content
           mountPath: /usr/share/nginx/html
       containers:
-      - name: biodiversity-maplibre
+      - name: ca-lands
         image: nginx:alpine
         ports:
         - containerPort: 80
@@ -104,7 +104,7 @@ spec:
         emptyDir: {}
       - name: config-template
         configMap:
-          name: biodiversity-maplibre-config
+          name: ca-lands-config
       - name: nginx-config
         configMap:
-          name: biodiversity-maplibre-nginx
+          name: ca-lands-nginx

@@ -1,6 +1,6 @@
-# Kubernetes Deployment for Wetlands Maplibre Website
+# Kubernetes Deployment for CA Protected Lands Website
 
-This directory contains Kubernetes manifests for deploying the wetlands maplibre visualization website.
+This directory contains Kubernetes manifests for deploying the CA Protected Lands visualization website.
 
 ## Files
 
@@ -11,7 +11,7 @@ This directory contains Kubernetes manifests for deploying the wetlands maplibre
 
 ## Deployment
 
-The deployment uses an init container to clone the repository and serve the maplibre directory contents.
+The deployment uses an init container to clone the repository and serve the app directory contents.
 
 ### Deploy the Application
 
@@ -27,7 +27,7 @@ kubectl apply -f k8s/ingress.yaml
 To pull the latest code from the repository, simply restart the deployment:
 
 ```bash
-kubectl rollout restart deployment/wetlands-maplibre
+kubectl rollout restart deployment/ca-lands
 ```
 
 The init container will clone the latest version of the repository on each pod restart.
@@ -43,12 +43,12 @@ If you modify the ConfigMap (`configmap-nginx.yaml`), you need to:
 
 2. Restart the deployment to pick up the changes:
    ```bash
-   kubectl rollout restart deployment wetlands-maplibre
+   kubectl rollout restart deployment ca-lands
    ```
 
 3. Check the rollout status:
    ```bash
-   kubectl rollout status deployment wetlands-maplibre
+   kubectl rollout status deployment ca-lands
    ```
 
 **Note:** ConfigMap changes don't automatically trigger pod restarts. You must manually restart the deployment for pods to pick up the new configuration.
@@ -56,21 +56,21 @@ If you modify the ConfigMap (`configmap-nginx.yaml`), you need to:
 ## Access
 
 After deployment, the website will be available at:
-- Internal: http://wetlands-maplibre.default.svc.cluster.local
-- External: https://wetlands.nrp-nautilus.io
+- Internal: http://ca-lands.default.svc.cluster.local
+- External: https://nature.nrp-nautilus.io
 
 ## Configuration
 
 The application uses a two-layer configuration approach:
 
-1. **ConfigMap** (`wetlands-maplibre-config`) - Contains the config template with placeholders
+1. **ConfigMap** (`ca-lands-config`) - Contains the config template with placeholders
 2. **Secrets** (`llm-proxy-secrets`) - Contains the shared API key for the LLM proxy
 
 ### Environment Variables
 
 The deployment injects these environment variables into the runtime config:
 
-- `MCP_SERVER_URL` - MCP server SSE endpoint (default: https://biodiversity-mcp.nrp-nautilus.io/sse)
+- `MCP_SERVER_URL` - MCP server SSE endpoint (default: https://duckdb-mcp.nrp-nautilus.io/mcp)
 - `LLM_ENDPOINT` - Shared LLM proxy base URL (default: https://llm-proxy.nrp-nautilus.io/v1)
 - `PROXY_KEY` - Shared API key for all models using the same endpoint (from `llm-proxy-secrets`)
 
@@ -112,7 +112,7 @@ kubectl delete secret llm-proxy-secrets
 kubectl apply -f k8s/secrets.yaml
 
 # Restart deployment to use new secret
-kubectl rollout restart deployment wetlands-maplibre
+kubectl rollout restart deployment ca-lands
 ```
 
 **Important:** Changing secrets requires a deployment restart, as pods don't automatically reload secret values.
@@ -166,7 +166,7 @@ kubectl apply -f k8s/ingress.yaml
 2. Apply the updated ConfigMap and restart:
    ```bash
    kubectl apply -f k8s/configmap-nginx.yaml
-   kubectl rollout restart deployment wetlands-maplibre
+   kubectl rollout restart deployment ca-lands
    ```
 
 ### Changing the Default Model
@@ -175,7 +175,7 @@ kubectl apply -f k8s/ingress.yaml
 2. Apply changes:
    ```bash
    kubectl apply -f k8s/configmap-nginx.yaml
-   kubectl rollout restart deployment wetlands-maplibre
+   kubectl rollout restart deployment ca-lands
    ```
 
 ### Updating MCP Server URL
@@ -191,19 +191,19 @@ kubectl apply -f k8s/ingress.yaml
 
 Check deployment status:
 ```bash
-kubectl get deployments wetlands-maplibre
-kubectl get pods -l app=wetlands-maplibre
-kubectl get service wetlands-maplibre
-kubectl get ingress wetlands-maplibre-ingress
+kubectl get deployments ca-lands
+kubectl get pods -l app=ca-lands
+kubectl get service ca-lands
+kubectl get ingress ca-lands-ingress
 ```
 
 View logs:
 ```bash
 # View nginx logs
-kubectl logs -l app=wetlands-maplibre --tail=100 -f
+kubectl logs -l app=ca-lands --tail=100 -f
 
 # View init container logs (git clone)
-kubectl logs -l app=wetlands-maplibre -c git-clone
+kubectl logs -l app=ca-lands -c git-clone
 ```
 
 ## Configuration
@@ -223,5 +223,5 @@ kubectl logs <pod-name> -c git-clone
 
 Common issues:
 - Git clone failures: Check network connectivity and repository URL
-- Empty content: Verify the maplibre directory exists in the repository
+- Empty content: Verify the app directory exists in the repository
 - Secret errors: Ensure secrets are created or set `optional: true` in deployment

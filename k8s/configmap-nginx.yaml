@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: biodiversity-maplibre-config
+  name: ca-lands-config
 data:
   config.template.json: |
     {
@@ -82,7 +82,7 @@ data:
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: biodiversity-maplibre-nginx
+  name: ca-lands-nginx
 data:
   nginx.conf: |
     server {
