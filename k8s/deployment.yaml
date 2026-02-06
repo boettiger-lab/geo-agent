@@ -27,9 +27,8 @@ spec:
         - -c
         - |
           git clone --depth 1 https://github.com/boettiger-lab/ca-protected-lands.git /tmp/repo
-          # Copy all files except config.json (will be generated from template)
-          cd /tmp/repo/app
-          find . -type f ! -name 'config.json' -exec cp --parents {} /usr/share/nginx/html/ \;
+          # Copy all files
+          cp -r /tmp/repo/app/* /usr/share/nginx/html/
         volumeMounts:
         - name: website-content
           mountPath: /usr/share/nginx/html

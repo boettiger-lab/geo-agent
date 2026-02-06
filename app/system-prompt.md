@@ -22,36 +22,47 @@ The `query` tool provides its own dataset documentation. Use it to query data. T
 
 ### Layer Visibility
 
-**`toggle_map_layer`** - Show, hide, or toggle layers
+**`add_layer`** - Add/show a layer on the map
 ```javascript
 // Parameters:
-layer: "carbon" | "species_richness" | "wdpa"
-action: "show" | "hide" | "toggle"
+layer_id: "carbon" | "species_richness" | "wdpa" | "cpad"
 ```
 
-**`get_map_layers`** - Get current visibility status of all layers
-
-### Layer Filtering (Vector Layers Only)
-
-**`filter_map_layer`** - Apply filter to vector layers (wdpa only)
+**`remove_layer`** - Remove/hide a layer from the map
 ```javascript
 // Parameters:
-layer: "wdpa"
-filter: MapLibre filter expression (array)
+layer_id: "carbon" | "species_richness" | "wdpa" | "cpad"
 ```
 
-**`clear_map_filter`** - Remove filter from layer
+**`get_layer_info`** - Get available layers and their current visibility status
 
-**`get_layer_filter_info`** - Get available properties and current filter
+### Layer Configuration
 
-**`set_species_richness_filter`** - Filter species richness layer
+**`filter_layer`** - Apply a filter to a layer
 ```javascript
 // Parameters:
-species_type: "all" | "threatened"
-taxon: "combined" | "amphibians" | "birds" | "mammals" | "reptiles" | "fw_fish"
+layer_id: "wdpa" | "species_richness" | ...
+filter: 
+  // For species_richness (Object):
+  {
+    species_type: "all" | "threatened",
+    taxon: "combined" | "amphibians" | "birds" | "mammals" | "reptiles" | "fw_fish"
+  }
+  // For vector layers (Array - MapLibre filter expression):
+  ["==", "property", "value"]
 ```
 
-**MapLibre Filter Syntax:**
+**`style_layer`** - Update layer styling (paint properties)
+```javascript
+// Parameters:
+layer_id: "wdpa"
+style: { 
+  "fill-color": "red", 
+  "fill-opacity": 0.5 
+}
+```
+
+**MapLibre Filter Syntax (Vector Layers):**
 - Equality: `["==", "property", "value"]`
 - Not equal: `["!=", "property", "value"]`
 - In list: `["in", "property", "val1", "val2", "val3"]`
@@ -59,19 +70,7 @@ taxon: "combined" | "amphibians" | "birds" | "mammals" | "reptiles" | "fw_fish"
 - AND: `["all", ["==", "prop1", "val1"], ["==", "prop2", true]]`
 - OR: `["any", ["==", "prop", "val1"], ["==", "prop", "val2"]]`
 
-### Layer Styling (Vector Layers Only)
-
-**`set_layer_paint`** - Set paint properties (wdpa only)
-```javascript
-// Parameters:
-layer: "wdpa"
-property: "fill-color" | "fill-opacity" | "line-color" | "line-width"
-value: Static value or MapLibre expression
-```
-
-**`reset_layer_paint`** - Reset layer to default styling
-
-**MapLibre Paint Expression Syntax:**
+**MapLibre Paint Expression Syntax (Vector Layers):**
 - Categorical: `["match", ["get", "property"], "val1", "#color1", "val2", "#color2", "#default"]`
 - Stepped: `["step", ["get", "property"], "#color1", threshold1, "#color2", threshold2, "#color3"]`
 - Interpolated: `["interpolate", ["linear"], ["get", "property"], min, "#minColor", max, "#maxColor"]`
@@ -87,26 +86,36 @@ value: Static value or MapLibre expression
 **Examples:**
 ```javascript
 // Show protected areas
-toggle_map_layer({layer: "wdpa", action: "show"})
+add_layer({layer_id: "wdpa"})
 
 // Show only IUCN Ia/Ib protected areas
-toggle_map_layer({layer: "wdpa", action: "show"})
-filter_map_layer({layer: "wdpa", filter: ["in", "IUCN_CAT", "Ia", "Ib"]})
+add_layer({layer_id: "wdpa"})
+filter_layer({
+  layer_id: "wdpa", 
+  filter: ["in", "IUCN_CAT", "Ia", "Ib"]
+})
 
 // Color protected areas by ownership type
-set_layer_paint({
-  layer: "wdpa", 
-  property: "fill-color",
-  value: ["match", ["get", "OWN_TYPE"], 
-    "State", "#1f77b4",
-    "Private", "#ff7f0e", 
-    "Community", "#2ca02c",
-    "#999999"]  // default
+style_layer({
+  layer_id: "wdpa", 
+  style: {
+    "fill-color": ["match", ["get", "OWN_TYPE"], 
+      "State", "#1f77b4",
+      "Private", "#ff7f0e", 
+      "Community", "#2ca02c",
+      "#999999"]
+  }
 })
 
 // Show threatened bird species richness
-toggle_map_layer({layer: "species_richness", action: "show"})
-set_species_richness_filter({species_type: "threatened", taxon: "birds"})
+add_layer({layer_id: "species_richness"})
+filter_layer({
+  layer_id: "species_richness", 
+  filter: {
+    species_type: "threatened", 
+    taxon: "birds"
+  }
+})
 ```
 
 ## Your Role

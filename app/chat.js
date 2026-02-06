@@ -13,7 +13,7 @@ import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/
 
 // Import generic map control modules
 import { layerRegistry } from './layer-registry.js';
-import { MCPToolFactory } from './mcp-tool-factory.js';
+import { generateTools } from './mcp-tools.js';
 
 class BiodiversityChatbot {
     constructor(config) {
@@ -31,7 +31,6 @@ class BiodiversityChatbot {
         this.healthCheckInterval = null; // For periodic health checks
 
         // Initialize layer registry and tools (will be loaded after map is ready)
-        this.toolFactory = null;
         this.localTools = [];
 
         this.initializeUI();
@@ -62,11 +61,8 @@ class BiodiversityChatbot {
 
             await waitForMapController();
 
-            // Create tool factory with layer registry and map controller
-            this.toolFactory = new MCPToolFactory(layerRegistry, window.MapController);
-
             // Generate tools dynamically from layer metadata
-            this.localTools = this.toolFactory.generateTools();
+            this.localTools = generateTools(layerRegistry, window.MapController);
             console.log('✓ Generated', this.localTools.length, 'map control tools:',
                 this.localTools.map(t => t.name).join(', '));
         } catch (error) {

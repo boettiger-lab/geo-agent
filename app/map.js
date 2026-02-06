@@ -569,6 +569,64 @@ window.MapController = {
             console.error('[MapController] Error setting species richness filter:', error);
             return { success: false, error: error.message };
         }
+    },
+
+    // Generic filter method for any layer
+    filterLayer: function (layerId, filterParams) {
+        // Handle species_richness (logic moved from updateLayer)
+        if (layerId === 'species_richness') {
+            // filterParams should be an object: { taxon: '...', species_type: '...' }
+            // Only update if params are provided, otherwise keep existing
+            const currentTaxon = this.layers.species_richness.currentTaxon || 'combined';
+            // stored: 'sr' or 'thr_sr'.
+            const currentType = (this.layers.species_richness.currentSpeciesType === 'thr_sr') ? 'threatened' : 'all';
+
+            // Check if filterParams is an array (MapLibre filter style) - ignore or warn?
+            if (Array.isArray(filterParams)) {
+                return { success: false, error: 'Species richness layer accepts parameters object, not MapLibre filter array.' };
+            }
+
+            const taxon = filterParams.taxon || currentTaxon;
+            const speciesType = filterParams.species_type || currentType;
+
+            return this.setSpeciesRichnessFilter(speciesType, taxon);
+        }
+
+        const config = this.layers[layerId];
+        if (!config) {
+            return { success: false, error: `Unknown layer: ${layerId}` };
+        }
+
+        if (config.isVector) {
+            // Vector layers expect MapLibre filter array
+            if (!Array.isArray(filterParams)) {
+                return { success: false, error: `Layer ${layerId} expects a MapLibre filter array, got ${typeof filterParams}` };
+            }
+            return this.setLayerFilter(layerId, filterParams);
+        }
+
+        return { success: false, error: `Layer ${layerId} does not support filtering.` };
+    },
+
+    // Generic style/paint method
+    styleLayer: function (layerId, styleParams) {
+        const config = this.layers[layerId];
+        if (!config) {
+            return { success: false, error: `Unknown layer: ${layerId}` };
+        }
+
+        // Currently only supporting vector paint updates as per original implementation
+        // But we could support raster-opacity for others if needed.
+        // For now, check if vector.
+        if (config.isVector) {
+            const results = [];
+            for (const [prop, val] of Object.entries(styleParams)) {
+                results.push(this.setLayerPaint(layerId, prop, val));
+            }
+            return { success: true, updates: results };
+        }
+
+        return { success: false, error: `Layer ${layerId} does not support dynamic paint styling.` };
     }
 };
 

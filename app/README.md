@@ -19,29 +19,15 @@ An interactive web application combining MapLibre GL JS for geospatial visualiza
 
 - **Chatbot-Controlled Map Layers** - The chatbot can show/hide map layers based on analysis context
 
-## Quick Start
+## Deployment
 
-### 1. Start the MCP Server
+This application is designed to be deployed on Kubernetes. See the [k8s directory](../k8s) for deployment manifests and instructions.
 
-The chatbot requires an MCP server to access the wetlands database:
+The application expects a `config.json` file to be present at runtime. In the Kubernetes deployment, this file is generated automatically from a ConfigMap template (`k8s/configmap-nginx.yaml`) with environment variables injected.
 
-```bash
-cd ../mcp
-uvx mcp-server-motherduck --transport stream --port 8001 --host 127.0.0.1 --db-path :memory: --json-response
-```
+## Local Development
 
-See `../mcp/README.md` for details.
-
-### 2. Start the Web Server
-
-```bash
-cd maplibre
-python3 -m http.server 8000
-```
-
-### 3. Open in Browser
-
-Navigate to `http://localhost:8000`
+For local development, you must manually create a `config.json` file in this directory based on `../k8s/configmap-nginx.yaml`. Note that the repository does not include a default `config.json`.
 
 
 ```
