@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Biodiversity Map</title>
+
+    <!-- Import map for MCP SDK -->
+    <script type="importmap">
+    {
+        "imports": {
+            "@modelcontextprotocol/sdk/client/index.js": "https://esm.sh/@modelcontextprotocol/sdk@1.12.0/client/index",
+            "@modelcontextprotocol/sdk/client/sse.js": "https://esm.sh/@modelcontextprotocol/sdk@1.12.0/client/sse",
+            "@modelcontextprotocol/sdk/client/streamableHttp.js": "https://esm.sh/@modelcontextprotocol/sdk@1.12.0/client/streamableHttp"
+        }
+    }
+    </script>
+
+    <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+    <link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet" />
+    <script src="https://unpkg.com/pmtiles@3.0.7/dist/pmtiles.js"></script>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="chat.css">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/sql.min.js"></script>
+    <script defer src="https://cloud.umami.is/script.js"
+        data-website-id="c66896e8-8838-4423-8386-2002a5736268"></script>
+</head>
+
+<body>
+    <div id="map"></div>
+    <div id="menu">
+        <div class="menu-section">
+            <label class="section-title">Overlays</label>
+            <div class="checkbox-group">
+                <label>
+                    <input id="carbon-layer" type="checkbox" name="rtoggle" value="carbon">
+                    <span>Vulnerable Carbon</span>
+                </label>
+                <label>
+                    <input id="species-richness-layer" type="checkbox" name="rtoggle" value="species_richness">
+                    <span>🦜 Species Richness</span>
+                </label>
+                <div id="species-richness-controls" class="layer-controls"
+                    style="display: none; margin-left: 20px; margin-top: 5px;">
+                    <div style="margin-bottom: 8px;">
+                        <label style="font-size: 11px; color: #666; display: block; margin-bottom: 3px;">Species
+                            Type:</label>
+                        <label style="font-size: 12px; margin-right: 10px;">
+                            <input type="radio" name="species-type" value="all" checked>
+                            <span>All Species</span>
+                        </label>
+                        <label style="font-size: 12px;">
+                            <input type="radio" name="species-type" value="threatened">
+                            <span>Threatened</span>
+                        </label>
+                    </div>
+                    <div>
+                        <label style="font-size: 11px; color: #666; display: block; margin-bottom: 3px;">Taxonomic
+                            Group:</label>
+                        <select id="species-taxon" style="width: 100%; font-size: 12px;">
+                            <option value="combined">🌍 All Groups</option>
+                            <option value="amphibians">🐸 Amphibians</option>
+                            <option value="birds">🦜 Birds</option>
+                            <option value="mammals">🦁 Mammals</option>
+                            <option value="reptiles">🦎 Reptiles</option>
+                            <option value="fw_fish">🐟 Freshwater Fish</option>
+                        </select>
+                    </div>
+                </div>
+                <label>
+                    <input id="wdpa-layer" type="checkbox" name="rtoggle" value="wdpa">
+                    <span>Protected Areas (WDPA)</span>
+                </label>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="map.js"></script>
+    <script type="module" src="chat.js"></script>
+</body>
+
+</html>

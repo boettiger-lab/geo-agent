@@ -1,0 +1,35 @@
+Z,name,description,category
+0,No data,Transparent - no wetland data,
+1,Freshwater lake,Freshwater lake - deep blue,Open Water
+2,Saline lake,Saline lake - cyan,Open Water
+3,Reservoir,Reservoir - dark blue,Open Water
+4,Large river,Large river - very dark blue,Open Water
+5,Large estuarine river,Large estuarine river - gray-blue,Open Water
+6,Other permanent waterbody,Other permanent waterbody - gray,Open Water
+7,Small streams,Small streams - light blue,Open Water
+8,"Lacustrine, forested","Lacustrine wetland, forested - dark green",Lacustrine Wetlands
+9,"Lacustrine, non-forested","Lacustrine wetland, non-forested - light green",Lacustrine Wetlands
+10,"Regularly flooded, forested","Riverine wetland, regularly flooded, forested - teal",Riverine Wetlands
+11,"Regularly flooded, non-forested","Riverine wetland, regularly flooded, non-forested - pale teal",Riverine Wetlands
+12,"Seasonally flooded, forested","Riverine wetland, seasonally flooded, forested - olive",Riverine Wetlands
+13,"Seasonally flooded, non-forested","Riverine wetland, seasonally flooded, non-forested - yellow-green",Riverine Wetlands
+14,"Seasonally saturated, forested","Riverine wetland, seasonally saturated, forested - green",Riverine Wetlands
+15,"Seasonally saturated, non-forested","Riverine wetland, seasonally saturated, non-forested - light gray",Riverine Wetlands
+16,"Regularly flooded, forested","Palustrine wetland, regularly flooded, forested - brown",Palustrine Wetlands
+17,"Regularly flooded, non-forested","Palustrine wetland, regularly flooded, non-forested - orange",Palustrine Wetlands
+18,"Seasonally saturated, forested","Palustrine wetland, seasonally saturated, forested - dark yellow",Palustrine Wetlands
+19,"Seasonally saturated, non-forested","Palustrine wetland, seasonally saturated, non-forested - beige",Palustrine Wetlands
+20,"Ephemeral, forested","Ephemeral wetland, forested - dark orange",Ephemeral Wetlands
+21,"Ephemeral, non-forested","Ephemeral wetland, non-forested - bright orange",Ephemeral Wetlands
+22,"Arctic/boreal, forested","Arctic/boreal peatland, forested - light blue-gray",Peatlands
+23,"Arctic/boreal, non-forested","Arctic/boreal peatland, non-forested - very pale blue",Peatlands
+24,"Temperate, forested","Temperate peatland, forested - periwinkle",Peatlands
+25,"Temperate, non-forested","Temperate peatland, non-forested - light purple",Peatlands
+26,"Tropical, forested","Tropical peatland, forested - magenta",Peatlands
+27,"Tropical, non-forested","Tropical peatland, non-forested - pink",Peatlands
+28,Mangrove,Mangrove - purple,Coastal & Other
+29,Saltmarsh,Saltmarsh - yellow,Coastal & Other
+30,Delta,Delta - light purple,Coastal & Other
+31,Other coastal wetland,Other coastal wetland - aqua,Coastal & Other
+32,Salt pan/saline wetland,"Salt pan, saline/brackish wetland - pale tan",Coastal & Other
+33,Rice paddies,Rice paddies - light pink,Coastal & Other

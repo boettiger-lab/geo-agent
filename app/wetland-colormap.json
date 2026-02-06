@@ -1,0 +1,343 @@
+{
+    "0": {
+        "color": [
+            0,
+            0,
+            0,
+            0
+        ],
+        "name": "No data",
+        "description": "Transparent - no wetland data",
+        "category": null
+    },
+    "1": {
+        "color": [
+            0,
+            112,
+            255
+        ],
+        "name": "Freshwater lake",
+        "description": "Freshwater lake - deep blue",
+        "category": "Open Water"
+    },
+    "2": {
+        "color": [
+            0,
+            197,
+            255
+        ],
+        "name": "Saline lake",
+        "description": "Saline lake - cyan",
+        "category": "Open Water"
+    },
+    "3": {
+        "color": [
+            0,
+            92,
+            230
+        ],
+        "name": "Reservoir",
+        "description": "Reservoir - dark blue",
+        "category": "Open Water"
+    },
+    "4": {
+        "color": [
+            0,
+            38,
+            115
+        ],
+        "name": "Large river",
+        "description": "Large river - very dark blue",
+        "category": "Open Water"
+    },
+    "5": {
+        "color": [
+            83,
+            115,
+            115
+        ],
+        "name": "Large estuarine river",
+        "description": "Large estuarine river - gray-blue",
+        "category": "Open Water"
+    },
+    "6": {
+        "color": [
+            156,
+            156,
+            156
+        ],
+        "name": "Other permanent waterbody",
+        "description": "Other permanent waterbody - gray",
+        "category": "Open Water"
+    },
+    "7": {
+        "color": [
+            115,
+            178,
+            255
+        ],
+        "name": "Small streams",
+        "description": "Small streams - light blue",
+        "category": "Open Water"
+    },
+    "8": {
+        "color": [
+            38,
+            115,
+            0
+        ],
+        "name": "Lacustrine, forested",
+        "description": "Lacustrine wetland, forested - dark green",
+        "category": "Lacustrine Wetlands"
+    },
+    "9": {
+        "color": [
+            163,
+            255,
+            115
+        ],
+        "name": "Lacustrine, non-forested",
+        "description": "Lacustrine wetland, non-forested - light green",
+        "category": "Lacustrine Wetlands"
+    },
+    "10": {
+        "color": [
+            0,
+            168,
+            132
+        ],
+        "name": "Regularly flooded, forested",
+        "description": "Riverine wetland, regularly flooded, forested - teal",
+        "category": "Riverine Wetlands"
+    },
+    "11": {
+        "color": [
+            163,
+            255,
+            184
+        ],
+        "name": "Regularly flooded, non-forested",
+        "description": "Riverine wetland, regularly flooded, non-forested - pale teal",
+        "category": "Riverine Wetlands"
+    },
+    "12": {
+        "color": [
+            76,
+            115,
+            0
+        ],
+        "name": "Seasonally flooded, forested",
+        "description": "Riverine wetland, seasonally flooded, forested - olive",
+        "category": "Riverine Wetlands"
+    },
+    "13": {
+        "color": [
+            204,
+            242,
+            77
+        ],
+        "name": "Seasonally flooded, non-forested",
+        "description": "Riverine wetland, seasonally flooded, non-forested - yellow-green",
+        "category": "Riverine Wetlands"
+    },
+    "14": {
+        "color": [
+            0,
+            100,
+            0
+        ],
+        "name": "Seasonally saturated, forested",
+        "description": "Riverine wetland, seasonally saturated, forested - green",
+        "category": "Riverine Wetlands"
+    },
+    "15": {
+        "color": [
+            178,
+            178,
+            178
+        ],
+        "name": "Seasonally saturated, non-forested",
+        "description": "Riverine wetland, seasonally saturated, non-forested - light gray",
+        "category": "Riverine Wetlands"
+    },
+    "16": {
+        "color": [
+            115,
+            76,
+            0
+        ],
+        "name": "Regularly flooded, forested",
+        "description": "Palustrine wetland, regularly flooded, forested - brown",
+        "category": "Palustrine Wetlands"
+    },
+    "17": {
+        "color": [
+            230,
+            152,
+            0
+        ],
+        "name": "Regularly flooded, non-forested",
+        "description": "Palustrine wetland, regularly flooded, non-forested - orange",
+        "category": "Palustrine Wetlands"
+    },
+    "18": {
+        "color": [
+            115,
+            115,
+            0
+        ],
+        "name": "Seasonally saturated, forested",
+        "description": "Palustrine wetland, seasonally saturated, forested - dark yellow",
+        "category": "Palustrine Wetlands"
+    },
+    "19": {
+        "color": [
+            255,
+            235,
+            175
+        ],
+        "name": "Seasonally saturated, non-forested",
+        "description": "Palustrine wetland, seasonally saturated, non-forested - beige",
+        "category": "Palustrine Wetlands"
+    },
+    "20": {
+        "color": [
+            168,
+            112,
+            0
+        ],
+        "name": "Ephemeral, forested",
+        "description": "Ephemeral wetland, forested - dark orange",
+        "category": "Ephemeral Wetlands"
+    },
+    "21": {
+        "color": [
+            255,
+            170,
+            0
+        ],
+        "name": "Ephemeral, non-forested",
+        "description": "Ephemeral wetland, non-forested - bright orange",
+        "category": "Ephemeral Wetlands"
+    },
+    "22": {
+        "color": [
+            158,
+            187,
+            215
+        ],
+        "name": "Arctic/boreal, forested",
+        "description": "Arctic/boreal peatland, forested - light blue-gray",
+        "category": "Peatlands"
+    },
+    "23": {
+        "color": [
+            218,
+            218,
+            235
+        ],
+        "name": "Arctic/boreal, non-forested",
+        "description": "Arctic/boreal peatland, non-forested - very pale blue",
+        "category": "Peatlands"
+    },
+    "24": {
+        "color": [
+            122,
+            142,
+            245
+        ],
+        "name": "Temperate, forested",
+        "description": "Temperate peatland, forested - periwinkle",
+        "category": "Peatlands"
+    },
+    "25": {
+        "color": [
+            175,
+            175,
+            255
+        ],
+        "name": "Temperate, non-forested",
+        "description": "Temperate peatland, non-forested - light purple",
+        "category": "Peatlands"
+    },
+    "26": {
+        "color": [
+            168,
+            0,
+            132
+        ],
+        "name": "Tropical, forested",
+        "description": "Tropical peatland, forested - magenta",
+        "category": "Peatlands"
+    },
+    "27": {
+        "color": [
+            255,
+            115,
+            223
+        ],
+        "name": "Tropical, non-forested",
+        "description": "Tropical peatland, non-forested - pink",
+        "category": "Peatlands"
+    },
+    "28": {
+        "color": [
+            197,
+            0,
+            255
+        ],
+        "name": "Mangrove",
+        "description": "Mangrove - purple",
+        "category": "Coastal & Other"
+    },
+    "29": {
+        "color": [
+            255,
+            255,
+            115
+        ],
+        "name": "Saltmarsh",
+        "description": "Saltmarsh - yellow",
+        "category": "Coastal & Other"
+    },
+    "30": {
+        "color": [
+            223,
+            115,
+            255
+        ],
+        "name": "Delta",
+        "description": "Delta - light purple",
+        "category": "Coastal & Other"
+    },
+    "31": {
+        "color": [
+            0,
+            255,
+            197
+        ],
+        "name": "Other coastal wetland",
+        "description": "Other coastal wetland - aqua",
+        "category": "Coastal & Other"
+    },
+    "32": {
+        "color": [
+            255,
+            235,
+            190
+        ],
+        "name": "Salt pan/saline wetland",
+        "description": "Salt pan, saline/brackish wetland - pale tan",
+        "category": "Coastal & Other"
+    },
+    "33": {
+        "color": [
+            255,
+            190,
+            232
+        ],
+        "name": "Rice paddies",
+        "description": "Rice paddies - light pink",
+        "category": "Coastal & Other"
+    }
+}

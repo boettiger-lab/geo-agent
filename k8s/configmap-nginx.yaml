@@ -1,0 +1,115 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: biodiversity-maplibre-config
+data:
+  config.template.json: |
+    {
+        "mcp_server_url": "${MCP_SERVER_URL}",
+        "llm_model": "glm-4.7",
+        "llm_models": [
+            {
+                "value": "glm-4.7",
+                "label": "NRP GLM-4.7",
+                "endpoint": "${LLM_ENDPOINT}",
+                "api_key": "${PROXY_KEY}"
+            },
+            {
+                "value": "minimax-m2",
+                "label": "NRP minimax-m2",
+                "endpoint": "${LLM_ENDPOINT}",
+                "api_key": "${PROXY_KEY}"
+            },
+            {
+                "value": "gpt-oss",
+                "label": "NRP gpt-oss-120b",
+                "endpoint": "${LLM_ENDPOINT}",
+                "api_key": "${PROXY_KEY}"
+            },
+            {
+                "value": "nvidia/nemotron-3-nano-30b-a3b:free",
+                "label": "nemotron3-nano",
+                "endpoint": "${LLM_ENDPOINT}",
+                "api_key": "${PROXY_KEY}"
+            },
+            {
+                "value": "qwen3",
+                "label": "NRP Qwen3",
+                "endpoint": "${LLM_ENDPOINT}",
+                "api_key": "${PROXY_KEY}"
+            },
+            {
+                "value": "kimi",
+                "label": "NRP Kimi",
+                "endpoint": "${LLM_ENDPOINT}",
+                "api_key": "${PROXY_KEY}"
+            },
+            {
+                "value": "mistralai/devstral-2512:free",
+                "label": "devstral",
+                "endpoint": "${LLM_ENDPOINT}",
+                "api_key": "${PROXY_KEY}"
+            },
+            {
+                "value": "amazon/nova-2-lite-v1:free",
+                "label": "nova-2-lite",
+                "endpoint": "${LLM_ENDPOINT}",
+                "api_key": "${PROXY_KEY}"
+            },
+            {
+                "value": "openai/gpt-oss-120b:free",
+                "label": "gpt-oss-120b",
+                "endpoint": "${LLM_ENDPOINT}",
+                "api_key": "${PROXY_KEY}"
+            },
+            {
+                "value": "anthropic/claude-sonnet-4.5",
+                "label": "claude",
+                "endpoint": "${LLM_ENDPOINT}",
+                "api_key": "${PROXY_KEY}"
+            },
+            {
+                "value": "qwen/qwen3-next-80b-a3b-thinking",
+                "label": "qwen3-next-80b",
+                "endpoint": "${LLM_ENDPOINT}",
+                "api_key": "${PROXY_KEY}"
+            }
+            
+        ]
+    }
+    
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: biodiversity-maplibre-nginx
+data:
+  nginx.conf: |
+    server {
+        listen 80;
+        server_name _;
+
+        root /usr/share/nginx/html;
+        index index.html;
+
+        # Enable CORS for API calls from the browser
+        add_header Access-Control-Allow-Origin *;
+        add_header Access-Control-Allow-Methods "GET, POST, OPTIONS";
+        add_header Access-Control-Allow-Headers "DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Accept";
+        
+        # Serve static files - NO caching for dev environment
+        location / {
+            try_files $uri $uri/ /index.html;
+            # Disable all caching for development
+            add_header Cache-Control "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0";
+            add_header Pragma "no-cache";
+            add_header Expires "0";
+        }
+
+        # Health check endpoint
+        location /health {
+            access_log off;
+            return 200 "healthy\n";
+            add_header Content-Type text/plain;
+        }
+    }
