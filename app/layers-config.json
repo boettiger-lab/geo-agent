@@ -10,6 +10,7 @@
             "checkboxId": "cpad-layer",
             "hasLegend": false,
             "isVector": true,
+            "sourceLayer": "cpad",
             "source": {
                 "type": "vector",
                 "url": "pmtiles://https://s3-west.nrp-nautilus.io/public-cpad/cpad-2025b-units.pmtiles",

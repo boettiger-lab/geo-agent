@@ -100,20 +100,24 @@ def generate_layer_config(
     # Build layer config based on type
     if layer_type == "pmtiles":
         # Vector layer (PMTiles)
+        # Extract source-layer name - use layer_key as default
+        source_layer_name = layer_key
+        
         layer_config = {
             "displayName": final_display_name,
             "layerIds": [f"{layer_key}-layer"],
             "checkboxId": f"{layer_key}-layer",
             "hasLegend": False,
             "isVector": True,
+            "sourceLayer": source_layer_name,  # Required by LayerRegistry validation
             "source": {
                 "type": "vector",
-                "url": f"pmtiles://{asset_href}",
+                "url":f"pmtiles://{asset_href}",
                 "attribution": attribution
             },
             "layer": {
                 "type": "fill",
-                "source-layer": layer_key,  # May need manual adjustment
+                "source-layer": source_layer_name,
                 "minzoom": 0,
                 "maxzoom": 22,
                 "paint": {
