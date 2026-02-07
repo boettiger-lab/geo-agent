@@ -82,7 +82,14 @@ export function generateTools(layerRegistry, mapController) {
         },
         {
             name: 'filter_layer',
-            description: `Apply a filter to a layer. 
+            description: `Apply a filter to a layer and check how many features match.
+            
+            IMPORTANT: After filtering, the result includes 'featuresInView' - the number of visible features matching your filter.
+            - If featuresInView is 0, your filter may be too restrictive or use incorrect property values
+            - If you get 0 results, consider using the 'query' tool to check what values actually exist in the data
+            - Common mistakes: wrong property name, exact match when partial needed, case sensitivity
+            
+            For example, if you filter by property name and get 0 results, query the data first to see available values. 
             
             For 'species_richness', the filter object should contain:
             - species_type: "all" | "threatened"

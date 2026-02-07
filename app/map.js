@@ -173,13 +173,33 @@ window.MapController = {
             // Build a human-readable description of the filter
             const filterDescription = this.describeFilter(filter);
 
-            return {
+            // Query rendered features to count what's visible after filtering
+            let featuresInView = 0;
+            for (const layerId of config.layerIds) {
+                if (window.map.getLayer(layerId)) {
+                    const features = window.map.queryRenderedFeatures({ layers: [layerId] });
+                    featuresInView += features.length;
+                }
+            }
+
+            console.log(`[MapController] Filter result: ${featuresInView} features visible in current view`);
+
+            // Build result with feature count
+            const result = {
                 success: true,
                 layer: layerKey,
                 displayName: config.displayName,
                 filter: filter,
-                description: filterDescription
+                description: filterDescription,
+                featuresInView: featuresInView
             };
+
+            // Add warning if no features match
+            if (featuresInView === 0 && filter !== null) {
+                result.warning = "No features match this filter in the current map view. The filter may be too restrictive, or the property values may not match the data. Consider checking available property values first.";
+            }
+
+            return result;
         } catch (error) {
             console.error('[MapController] Error setting filter:', error);
             return { success: false, error: `Failed to apply filter: ${error.message}` };
