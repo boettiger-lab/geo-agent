@@ -20,6 +20,17 @@ The application consists of two main parts:
 1.  **Frontend Map**: A MapLibre GL JS visualization that renders PMTiles directly from S3.
 2.  **Data Backend**: A DuckDB-powered backend (via MCP) that queries Parquet datasets indexed with H3 for fast analysis.
 
+## Deployment
+
+The application is deployed on Kubernetes. Changes pushed to the repository are not automatically deployed. You must trigger a rollout restart to update the running pods.
+
+```bash
+kubectl rollout restart deployment/ca-lands
+```
+
+For detailed deployment instructions, including secret management and configuration, see [k8s/README.md](k8s/README.md).
+
+
 ## Development
 
 ### Prerequisites
