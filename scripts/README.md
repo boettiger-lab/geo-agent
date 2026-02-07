@@ -2,20 +2,71 @@
 
 This directory contains a helper script to generate `layers-config.json` from STAC catalog entries.
 
-## Usage
+## Quick Start
+
+**Recommended: Use a JSON input file** (clearer what you need to specify vs what comes from STAC):
 
 ```bash
-python scripts/stac-to-layers-config.py \
-    --catalog https://s3-west.nrp-nautilus.io/public-data/stac/catalog.json \
-    --output app/layers-config.json \
-    --layer COLLECTION_ID:ASSET_ID:LAYER_KEY:DISPLAY_NAME
+python3 scripts/stac-to-layers-config.py \
+    --input scripts/layers-input-example.json \
+    --output app/layers-config.json
 ```
 
-### Examples
+## Input JSON Format
 
-**Generate CPAD layer config:**
+Create a JSON file specifying which layers to generate:
+
+```json
+{
+    "catalog": "https://s3-west.nrp-nautilus.io/public-data/stac/catalog.json",
+    "titiler_url": "https://titiler.nrp-nautilus.io",
+    "layers": [
+        {
+            "collection_id": "cpad-2025b",
+            "asset_id": "cpad-units-pmtiles",
+            "layer_key": "cpad",
+            "display_name": "California Protected Areas (CPAD)",
+            "comment": "PMTiles vector - filterable properties auto-extracted from STAC"
+        },
+        {
+            "collection_id": "irrecoverable-carbon",
+            "asset_id": "vulnerable-total-2018-cog",
+            "layer_key": "carbon",
+            "display_name": "Vulnerable Carbon",
+            "options": {
+                "colormap": "reds",
+                "rescale": "0,100"
+            },
+            "comment": "COG raster - served via TiTiler"
+        }
+    ]
+}
+```
+
+### What You Specify vs What Comes from STAC
+
+**User-specified (required):**
+- `collection_id`: STAC collection ID
+- `asset_id`: Asset ID from the collection
+- `layer_key`: Key to use in layers-config.json
+
+**User-specified (optional):**
+- `display_name`: Layer display name (falls back to STAC asset title)
+- `options.colormap`: Colormap for raster layers (default: "reds")
+- `options.rescale`: Rescale range for rasters (e.g., "0,100")
+
+**Auto-extracted from STAC:**
+- Attribution (from collection providers/links)
+- Filterable properties (from `table:columns` for vector layers)
+- Asset URLs and types
+- Layer metadata
+
+## Legacy CLI Usage
+
+The script also supports command-line arguments for backward compatibility:
+
 ```bash
-python scripts/stac-to-layers-config.py \
+python3 scripts/stac-to-layers-config.py \
     --catalog https://s3-west.nrp-nautilus.io/public-data/stac/catalog.json \
     --output test-config.json \
     --layer cpad-2025b:cpad-units-pmtiles:cpad:"California Protected Areas (CPAD)"

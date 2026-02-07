@@ -202,10 +202,17 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=__doc__
     )
+    
+    # Input method 1: JSON file
+    parser.add_argument(
+        "--input",
+        help="Path to input JSON file specifying layers (recommended)"
+    )
+    
+    # Input method 2: Command line arguments (legacy)
     parser.add_argument(
         "--catalog",
-        required=True,
-        help="URL to STAC catalog.json"
+        help="URL to STAC catalog.json (required if not using --input)"
     )
     parser.add_argument(
         "--output",
@@ -215,7 +222,6 @@ def main():
     parser.add_argument(
         "--layer",
         action="append",
-        required=True,
         metavar="COLLECTION:ASSET:KEY:NAME",
         help="Layer specification: collection_id:asset_id:layer_key:display_name (can be specified multiple times)"
     )
@@ -232,29 +238,73 @@ def main():
     
     args = parser.parse_args()
     
-    # Parse layer specifications
+    # Determine input method
+    if args.input:
+        # Load from JSON file
+        input_path = Path(args.input)
+        if not input_path.exists():
+            print(f"Error: Input file '{args.input}' not found", file=sys.stderr)
+            sys.exit(1)
+        
+        with open(input_path) as f:
+            input_config = json.load(f)
+        
+        catalog_url = input_config.get("catalog")
+        if not catalog_url:
+            print("Error: 'catalog' field required in input JSON", file=sys.stderr)
+            sys.exit(1)
+        
+        titiler_url = input_config.get("titiler_url", args.titiler)
+        layer_specs = input_config.get("layers", [])
+        
+        if not layer_specs:
+            print("Error: 'layers' array is empty in input JSON", file=sys.stderr)
+            sys.exit(1)
+    
+    elif args.catalog and args.layer:
+        # Use command-line arguments (legacy mode)
+        catalog_url = args.catalog
+        titiler_url = args.titiler
+        layer_specs = []
+        
+        for layer_spec in args.layer:
+            parts = layer_spec.split(":", 3)
+            if len(parts) < 3:
+                print(f"Error: Invalid layer specification '{layer_spec}'", file=sys.stderr)
+                print("Format: collection_id:asset_id:layer_key[:display_name]", file=sys.stderr)
+                sys.exit(1)
+            
+            layer_specs.append({
+                "collection_id": parts[0],
+                "asset_id": parts[1],
+                "layer_key": parts[2],
+                "display_name": parts[3] if len(parts) > 3 else None,
+                "options": {}
+            })
+    
+    else:
+        print("Error: Must specify either --input or both --catalog and --layer", file=sys.stderr)
+        parser.print_help()
+        sys.exit(1)
+    
+    # Generate layers configuration
     layers_config = {
         "version": "1.0",
         "description": "Map layer configuration for California Protected Lands application",
         "layers": {}
     }
     
-    for layer_spec in args.layer:
-        parts = layer_spec.split(":", 3)
-        if len(parts) < 3:
-            print(f"Error: Invalid layer specification '{layer_spec}'", file=sys.stderr)
-            print("Format: collection_id:asset_id:layer_key[:display_name]", file=sys.stderr)
-            sys.exit(1)
-        
-        collection_id = parts[0]
-        asset_id = parts[1]
-        layer_key = parts[2]
-        display_name = parts[3] if len(parts) > 3 else None
+    for spec in layer_specs:
+        collection_id = spec.get("collection_id")
+        asset_id = spec.get("asset_id")
+        layer_key = spec.get("layer_key")
+        display_name = spec.get("display_name")
+        options = spec.get("options", {})
         
         print(f"Processing {collection_id}:{asset_id} -> {layer_key}...", file=sys.stderr)
         
         # Find collection URL
-        collection_url = find_collection_url(args.catalog, collection_id)
+        collection_url = find_collection_url(catalog_url, collection_id)
         if not collection_url:
             print(f"Error: Collection '{collection_id}' not found in catalog", file=sys.stderr)
             sys.exit(1)
@@ -262,19 +312,18 @@ def main():
         # Fetch collection
         collection = fetch_json(collection_url)
         
-        # Generate layer config
-        # For COG layers, try to infer rescale from asset title or use default
-        rescale = None
-        if "carbon" in asset_id.lower():
-            rescale = "0,100"  # Reasonable default for carbon data
+        # Get options with defaults
+        colormap = options.get("colormap", args.colormap)
+        rescale = options.get("rescale")
         
+        # Generate layer config
         layer_config = generate_layer_config(
             collection,
             asset_id,
             layer_key,
             display_name,
-            args.titiler,
-            args.colormap,
+            titiler_url,
+            colormap,
             rescale
         )
         
