@@ -2,20 +2,16 @@
 """
 Generate layers-config.json from STAC catalog entries.
 
-This script reads STAC collections and generates layer configurations
-for the CA Protected Lands maplibre application.
+This script reads a JSON input file specifying STAC collections and assets,
+then generates layer configurations for the CA Protected Lands maplibre application.
 
 Usage:
-    python stac-to-layers-config.py --catalog CATALOG_URL --output layers-config.json \
-        --layer collection_id:asset_id:layer_key:display_name
+    python3 stac-to-layers-config.py --input layers-input.json --output layers-config.json
 
-Examples:
-    # Generate config for CPAD and carbon layers
-    python stac-to-layers-config.py \
-        --catalog https://s3-west.nrp-nautilus.io/public-data/stac/catalog.json \
-        --output app/layers-config.json \
-        --layer cpad-2025b:cpad-units-pmtiles:cpad:"California Protected Areas (CPAD)" \
-        --layer irrecoverable-carbon:vulnerable-total-2018-cog:carbon:"Vulnerable Carbon"
+Example:
+    python3 stac-to-layers-config.py \
+        --input scripts/layers-input-example.json \
+        --output app/layers-config.json
 """
 
 import argparse
@@ -202,89 +198,39 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=__doc__
     )
-    
-    # Input method 1: JSON file
     parser.add_argument(
         "--input",
-        help="Path to input JSON file specifying layers (recommended)"
-    )
-    
-    # Input method 2: Command line arguments (legacy)
-    parser.add_argument(
-        "--catalog",
-        help="URL to STAC catalog.json (required if not using --input)"
+        required=True,
+        help="Path to input JSON file specifying layers"
     )
     parser.add_argument(
         "--output",
         required=True,
         help="Output path for layers-config.json"
     )
-    parser.add_argument(
-        "--layer",
-        action="append",
-        metavar="COLLECTION:ASSET:KEY:NAME",
-        help="Layer specification: collection_id:asset_id:layer_key:display_name (can be specified multiple times)"
-    )
-    parser.add_argument(
-        "--titiler",
-        default="https://titiler.nrp-nautilus.io",
-        help="TiTiler base URL for COG tiles (default: https://titiler.nrp-nautilus.io)"
-    )
-    parser.add_argument(
-        "--colormap",
-        default="reds",
-        help="Default colormap for raster layers (default: reds)"
-    )
     
     args = parser.parse_args()
     
-    # Determine input method
-    if args.input:
-        # Load from JSON file
-        input_path = Path(args.input)
-        if not input_path.exists():
-            print(f"Error: Input file '{args.input}' not found", file=sys.stderr)
-            sys.exit(1)
-        
-        with open(input_path) as f:
-            input_config = json.load(f)
-        
-        catalog_url = input_config.get("catalog")
-        if not catalog_url:
-            print("Error: 'catalog' field required in input JSON", file=sys.stderr)
-            sys.exit(1)
-        
-        titiler_url = input_config.get("titiler_url", args.titiler)
-        layer_specs = input_config.get("layers", [])
-        
-        if not layer_specs:
-            print("Error: 'layers' array is empty in input JSON", file=sys.stderr)
-            sys.exit(1)
+    # Load JSON input file
+    input_path = Path(args.input)
+    if not input_path.exists():
+        print(f"Error: Input file '{args.input}' not found", file=sys.stderr)
+        sys.exit(1)
     
-    elif args.catalog and args.layer:
-        # Use command-line arguments (legacy mode)
-        catalog_url = args.catalog
-        titiler_url = args.titiler
-        layer_specs = []
-        
-        for layer_spec in args.layer:
-            parts = layer_spec.split(":", 3)
-            if len(parts) < 3:
-                print(f"Error: Invalid layer specification '{layer_spec}'", file=sys.stderr)
-                print("Format: collection_id:asset_id:layer_key[:display_name]", file=sys.stderr)
-                sys.exit(1)
-            
-            layer_specs.append({
-                "collection_id": parts[0],
-                "asset_id": parts[1],
-                "layer_key": parts[2],
-                "display_name": parts[3] if len(parts) > 3 else None,
-                "options": {}
-            })
+    with open(input_path) as f:
+        input_config = json.load(f)
     
-    else:
-        print("Error: Must specify either --input or both --catalog and --layer", file=sys.stderr)
-        parser.print_help()
+    catalog_url = input_config.get("catalog")
+    if not catalog_url:
+        print("Error: 'catalog' field required in input JSON", file=sys.stderr)
+        sys.exit(1)
+    
+    titiler_url = input_config.get("titiler_url", "https://titiler.nrp-nautilus.io")
+    default_colormap = input_config.get("default_colormap", "reds")
+    layer_specs = input_config.get("layers", [])
+    
+    if not layer_specs:
+        print("Error: 'layers' array is empty in input JSON", file=sys.stderr)
         sys.exit(1)
     
     # Generate layers configuration
@@ -301,6 +247,10 @@ def main():
         display_name = spec.get("display_name")
         options = spec.get("options", {})
         
+        if not all([collection_id, asset_id, layer_key]):
+            print(f"Error: Layer spec missing required fields: {spec}", file=sys.stderr)
+            sys.exit(1)
+        
         print(f"Processing {collection_id}:{asset_id} -> {layer_key}...", file=sys.stderr)
         
         # Find collection URL
@@ -313,7 +263,7 @@ def main():
         collection = fetch_json(collection_url)
         
         # Get options with defaults
-        colormap = options.get("colormap", args.colormap)
+        colormap = options.get("colormap", default_colormap)
         rescale = options.get("rescale")
         
         # Generate layer config

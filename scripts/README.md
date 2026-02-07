@@ -61,45 +61,10 @@ Create a JSON file specifying which layers to generate:
 - Asset URLs and types
 - Layer metadata
 
-## Legacy CLI Usage
-
-The script also supports command-line arguments for backward compatibility:
-
-```bash
-python3 scripts/stac-to-layers-config.py \
-    --catalog https://s3-west.nrp-nautilus.io/public-data/stac/catalog.json \
-    --output test-config.json \
-    --layer cpad-2025b:cpad-units-pmtiles:cpad:"California Protected Areas (CPAD)"
-```
-
-**Generate carbon layer config:**
-```bash
-python scripts/stac-to-layers-config.py \
-    --catalog https://s3-west.nrp-nautilus.io/public-data/stac/catalog.json \
-    --output test-config.json \
-    --layer irrecoverable-carbon:vulnerable-total-2018-cog:carbon:"Vulnerable Carbon"
-```
-
-**Generate both together:**
-```bash
-python scripts/stac-to-layers-config.py \
-    --catalog https://s3-west.nrp-nautilus.io/public-data/stac/catalog.json \
-    --output app/layers-config-generated.json \
-    --layer cpad-2025b:cpad-units-pmtiles:cpad:"California Protected Areas (CPAD)" \
-    --layer irrecoverable-carbon:vulnerable-total-2018-cog:carbon:"Vulnerable Carbon"
-```
-
 ## Arguments
 
-- `--catalog`: URL to the STAC catalog.json file
-- `--output`: Path where the layers-config.json should be written
-- `--layer`: Layer specification in format `COLLECTION:ASSET:KEY:NAME` (can be repeated)
-  - `COLLECTION`: STAC collection ID (e.g., `cpad-2025b`)
-  - `ASSET`: Asset ID from the collection (e.g., `cpad-units-pmtiles`)
-  - `KEY`: Layer key to use in the config (e.g., `cpad`)
-  - `NAME`: Display name for the layer (optional, will use asset title if omitted)
-- `--titiler`: TiTiler base URL for COG tiles (default: `https://titiler.nrp-nautilus.io`)
-- `--colormap`: Default colormap for raster layers (default: `reds`)
+- `--input`: Path to input JSON file (required)
+- `--output`: Path where layers-config.json should be written (required)
 
 ## How It Works
 
