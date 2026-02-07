@@ -29,6 +29,7 @@ class BiodiversityChatbot {
         this.reconnectAttempts = 0; // Track reconnection attempts
         this.maxReconnectAttempts = 3; // Maximum reconnection attempts
         this.healthCheckInterval = null; // For periodic health checks
+        this.datasetCatalog = ''; // Dataset catalog from MCP resources
 
         // Initialize layer registry and tools (will be loaded after map is ready)
         this.localTools = [];
@@ -142,6 +143,31 @@ class BiodiversityChatbot {
             const toolsResponse = await this.mcpClient.listTools();
             this.mcpTools = toolsResponse.tools;
             console.log('✓ Available MCP tools:', this.mcpTools.map(t => t.name));
+
+            // Fetch dataset catalog from MCP resources
+            try {
+                console.log('📚 Fetching dataset catalog from MCP resources...');
+                const resourcesResponse = await this.mcpClient.listResources();
+                console.log('Available resources:', resourcesResponse.resources?.map(r => r.uri));
+
+                // Find catalog resource
+                const catalogResource = resourcesResponse.resources?.find(r =>
+                    r.uri === 'catalog://list' || r.name === 'list_datasets'
+                );
+
+                if (catalogResource) {
+                    const readResult = await this.mcpClient.readResource({ uri: catalogResource.uri });
+                    if (readResult?.contents?.[0]?.text) {
+                        this.datasetCatalog = readResult.contents[0].text;
+                        console.log('✓ Dataset catalog loaded:', this.datasetCatalog.substring(0, 200) + '...');
+                    }
+                } else {
+                    console.warn('⚠️ No dataset catalog resource found');
+                }
+            } catch (resourceError) {
+                console.warn('⚠️ Could not fetch dataset catalog:', resourceError);
+                this.datasetCatalog = '';
+            }
 
         } catch (error) {
             console.error('❌ MCP initialization error:', error);
@@ -678,11 +704,17 @@ class BiodiversityChatbot {
         this.currentTurnQueries = [];
 
         // Build the prompt with system context
+        // Enhance system prompt with dataset catalog if available
+        let enhancedSystemPrompt = this.systemPrompt;
+        if (this.datasetCatalog) {
+            enhancedSystemPrompt += `\n\n## Available Datasets for SQL Queries\n\nWhen using the \`query\` tool, the following datasets are available:\n\n${this.datasetCatalog}\n`;
+        }
+
         // We will maintain this conversation history for the duration of this turn
         let currentTurnMessages = [
             {
                 role: 'system',
-                content: this.systemPrompt
+                content: enhancedSystemPrompt
             },
             ...this.messages.slice(-10), // Keep last 10 messages for context
             {

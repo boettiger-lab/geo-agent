@@ -9,6 +9,8 @@ Each dataset is available in two forms:
 
 The `query` tool provides its own dataset documentation. Use it to query data. This prompt focuses on the map visualization layer.
 
+**Note:** Available datasets for SQL queries are automatically discovered from the MCP server and injected into this prompt at runtime. Check the "Available Datasets for SQL Queries" section that appears below for the current catalog.
+
 
 ## Map Control Tools
 
