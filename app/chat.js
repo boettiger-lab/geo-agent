@@ -613,11 +613,30 @@ class BiodiversityChatbot {
             const result = typeof item === 'object' ? item.content : item;
             const toolName = typeof item === 'object' ? item.name : 'Unknown Tool';
 
-            // Skip showing results for 'query' tool (SQL results) as requested
-            if (toolName === 'query' || toolName === 'sql_query') {
+            // 1. Map Tool Results: Minimize specific "map updated" messages
+            if (this.isLocalTool(toolName)) {
+                // Just show a small checkmark or status, not the full JSON output
+                content += `
+                    <div style="font-size: 0.9em; color: #666; margin-top: 4px;">
+                        ✅ Map updated (${toolName})
+                    </div>
+                `;
                 return;
             }
 
+            // 2. SQL Results: ALWAYS show them (unless purely internal/empty)
+            // The user explicitly requested to see the data.
+            if (toolName === 'query' || toolName === 'sql_query') {
+                content += `
+                    <details open>
+                        <summary class="query-summary-btn" style="cursor: pointer; user-select: none;">📊 Query Result</summary>
+                        <pre style="margin-top: 8px; background: rgba(0,0,0,0.05); padding: 8px; border-radius: 4px; overflow-x: auto; max-height: 400px;"><code>${this.escapeHtml(result.substring(0, 5000))}${result.length > 5000 ? '\n... (truncated)' : ''}</code></pre>
+                    </details>
+                `;
+                return;
+            }
+
+            // 3. Other tools (fallback)
             content += `
                 <details>
                     <summary class="query-summary-btn" style="cursor: pointer; user-select: none;">Tool Result: ${toolName}</summary>
