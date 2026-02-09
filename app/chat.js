@@ -109,6 +109,66 @@ class BiodiversityChatbot {
         return result;
     }
 
+    // Unified tool execution method
+    // Returns: { success: boolean, result: string, type: 'map'|'sql'|'error', sqlQuery?: string }
+    async executeTool(toolName, args) {
+        // 1. Check if it's a local tool (Map control)
+        if (this.isLocalTool(toolName)) {
+            console.log(`[Tool] Executing local tool: ${toolName}`);
+            try {
+                const result = this.executeLocalTool(toolName, args);
+                return {
+                    success: true,
+                    result: result,
+                    type: 'map',
+                    name: toolName
+                };
+            } catch (err) {
+                console.error(`[Tool] Local tool error (${toolName}):`, err);
+                return {
+                    success: false,
+                    result: JSON.stringify({ success: false, error: err.message }),
+                    type: 'error',
+                    name: toolName
+                };
+            }
+        }
+
+        // 2. Assume it's an MCP tool (SQL query)
+        // Extract the SQL query from arguments
+        const sqlQuery = args.sql_query || args.query;
+
+        if (!sqlQuery || (typeof sqlQuery === 'string' && sqlQuery.trim() === '')) {
+            console.warn(`[Tool] Missing 'query' argument for ${toolName}`);
+            return {
+                success: false,
+                result: "Error: The 'query' argument was missing or empty. Please provide a valid SQL query.",
+                type: 'error',
+                name: toolName
+            };
+        }
+
+        console.log(`[Tool] Executing MCP query via ${toolName}`);
+        try {
+            const result = await this.executeMCPQuery(sqlQuery);
+            return {
+                success: true,
+                result: result,
+                type: 'sql',
+                sqlQuery: sqlQuery,
+                name: toolName
+            };
+        } catch (err) {
+            console.error(`[Tool] MCP query error (${toolName}):`, err);
+            return {
+                success: false,
+                result: `Error executing query: ${err.message}`,
+                type: 'error',
+                name: toolName
+            };
+        }
+    }
+
     // Parse embedded tool calls from message content (fallback for models that don't use structured tool_calls)
     // Supports formats:
     //   <tool_call>tool_name</tool_call>  
@@ -1015,72 +1075,25 @@ class BiodiversityChatbot {
                         continue;
                     }
 
-                    // Check if this is a local tool (map control) or MCP tool (database query)
+                    // Execute the tool (unified handler for both local and MCP tools)
                     const toolName = toolCall.function.name;
+                    const execution = await this.executeTool(toolName, functionArgs);
 
-                    if (this.isLocalTool(toolName)) {
-                        // Execute local tool (no MCP needed)
-                        console.log(`[Local Tool] Executing ${toolName}...`);
-                        let toolResult;
-                        try {
-                            toolResult = this.executeLocalTool(toolName, functionArgs);
-                            console.log(`[Local Tool] ✅ ${toolName} completed`);
-                            toolResults.push({ name: toolName, content: toolResult });
-                        } catch (err) {
-                            console.error('[Local Tool] Execution error:', err);
-                            toolResult = JSON.stringify({ success: false, error: err.message });
-                            toolResults.push({ name: toolName, content: toolResult });
-                        }
-
-                        // Add tool result to messages
-                        currentTurnMessages.push({
-                            role: 'tool',
-                            tool_call_id: toolCall.id,
-                            content: toolResult
-                        });
-                    } else {
-                        // This is an MCP tool (database query)
-                        // Capture the SQL query
-                        const sqlQuery = functionArgs.sql_query || functionArgs.query;
-
-                        if (sqlQuery) {
-                            this.currentTurnQueries.push(sqlQuery);
-                            console.log(`[SQL] ✅ SQL query ${this.currentTurnQueries.length} captured`);
-                        }
-
-                        // Check if the query argument is missing or empty
-                        if (!sqlQuery || sqlQuery.trim() === '') {
-                            console.warn('[LLM] ⚠️  WARNING: Tool call missing or empty "query" argument!');
-                            const errorMsg = "Error: The 'query' argument was missing or empty. Please provide a valid SQL query.";
-                            currentTurnMessages.push({
-                                role: 'tool',
-                                tool_call_id: toolCall.id,
-                                content: errorMsg
-                            });
-                            toolResults.push({ name: toolName, content: errorMsg });
-                            continue;
-                        }
-
-                        // Execute the query via MCP
-                        console.log('[MCP] Executing query via MCP...');
-                        let queryResult;
-                        try {
-                            queryResult = await this.executeMCPQuery(sqlQuery);
-                            console.log(`[SQL] ✅ Query ${this.currentTurnQueries.length} completed`);
-                            toolResults.push({ name: toolName, content: queryResult });
-                        } catch (err) {
-                            console.error('[MCP] Execution error:', err);
-                            queryResult = `Error executing query: ${err.message}`;
-                            toolResults.push({ name: toolName, content: queryResult });
-                        }
-
-                        // Add tool result to messages
-                        currentTurnMessages.push({
-                            role: 'tool',
-                            tool_call_id: toolCall.id,
-                            content: queryResult
-                        });
+                    // Track SQL queries if present
+                    if (execution.type === 'sql' && execution.sqlQuery) {
+                        this.currentTurnQueries.push(execution.sqlQuery);
+                        console.log(`[SQL] ✅ SQL query ${this.currentTurnQueries.length} captured`);
                     }
+
+                    // Add result to collection
+                    toolResults.push({ name: execution.name || toolName, content: execution.result });
+
+                    // Add tool result to conversation history
+                    currentTurnMessages.push({
+                        role: 'tool',
+                        tool_call_id: toolCall.id,
+                        content: execution.result
+                    });
                 }
 
                 // Remove the running button now that query is complete
@@ -1147,34 +1160,17 @@ class BiodiversityChatbot {
 
                         console.log(`[Embedded Tool] Executing ${toolName}...`);
 
-                        if (this.isLocalTool(toolName)) {
-                            try {
-                                const result = this.executeLocalTool(toolName, functionArgs);
-                                console.log(`[Embedded Tool] ✅ ${toolName} completed`);
-                                toolResults.push({ name: toolName, content: result });
-                            } catch (err) {
-                                console.error('[Embedded Tool] Execution error:', err);
-                                toolResults.push({ name: toolName, content: JSON.stringify({ success: false, error: err.message }) });
-                            }
-                        } else {
-                            // MCP tool call
-                            try {
-                                const result = await this.executeMCPToolCall(toolName, functionArgs);
-                                toolResults.push({ name: toolName, content: result });
-                            } catch (err) {
-                                console.error('[Embedded Tool] MCP execution error:', err);
-                                toolResults.push({ name: toolName, content: JSON.stringify({ success: false, error: err.message }) });
-                            }
-                        }
+                        const execution = await this.executeTool(toolName, functionArgs);
 
                         // Add tool result to messages
-                        const lastResult = toolResults[toolResults.length - 1];
                         currentTurnMessages.push({
                             role: 'tool',
                             tool_call_id: toolCall.id,
-                            content: typeof lastResult === 'object' && lastResult.content ? lastResult.content : lastResult
+                            content: execution.result
                         });
 
+                        // Add to toolResults collection with proper format
+                        toolResults.push({ name: execution.name || toolName, content: execution.result });
                     }
 
                     // Show results and continue the loop
