@@ -19,11 +19,11 @@ That's it. **No JavaScript to write.** The core modules (map, chat, agent, tools
 
 ```html
 <!-- Core styles -->
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/boettiger-lab/ca-protected-lands@v1.0.0/app/style.css">
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/boettiger-lab/ca-protected-lands@v1.0.0/app/chat.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/boettiger-lab/geo-agent@v1.0.0/app/style.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/boettiger-lab/geo-agent@v1.0.0/app/chat.css">
 
 <!-- Core app (all modules resolve from CDN) -->
-<script type="module" src="https://cdn.jsdelivr.net/gh/boettiger-lab/ca-protected-lands@v1.0.0/app/main.js"></script>
+<script type="module" src="https://cdn.jsdelivr.net/gh/boettiger-lab/geo-agent@v1.0.0/app/main.js"></script>
 ```
 
 When `main.js` runs, it fetches `layers-input.json`, `system-prompt.md`, and `config.json` **from the same server** as the HTML page — i.e., from your app's own files. So each app provides its own data configuration while sharing the same application code.
@@ -41,13 +41,13 @@ When `main.js` runs, it fetches `layers-input.json`, `system-prompt.md`, and `co
 For production, pin to a tagged release:
 
 ```html
-<script type="module" src="https://cdn.jsdelivr.net/gh/boettiger-lab/ca-protected-lands@v1.0.0/app/main.js"></script>
+<script type="module" src="https://cdn.jsdelivr.net/gh/boettiger-lab/geo-agent@v1.0.0/app/main.js"></script>
 ```
 
 For staging/development, track `main`:
 
 ```html
-<script type="module" src="https://cdn.jsdelivr.net/gh/boettiger-lab/ca-protected-lands@main/app/main.js"></script>
+<script type="module" src="https://cdn.jsdelivr.net/gh/boettiger-lab/geo-agent@main/app/main.js"></script>
 ```
 
 ## layers-input.json reference

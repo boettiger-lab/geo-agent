@@ -32,7 +32,7 @@ These are the shared ES modules that power all geo-chat client apps. They are se
 Client apps use a `<script type="module">` tag pointing at the CDN:
 
 ```html
-<script type="module" src="https://cdn.jsdelivr.net/gh/boettiger-lab/ca-protected-lands@v1.0.0/app/main.js"></script>
+<script type="module" src="https://cdn.jsdelivr.net/gh/boettiger-lab/geo-agent@v1.0.0/app/main.js"></script>
 ```
 
 All internal imports (`./dataset-catalog.js`, `./agent.js`, etc.) resolve relative to `main.js` on the CDN. The client app provides `layers-input.json`, `system-prompt.md`, and `config.json` locally — `main.js` fetches these relative to the HTML page.

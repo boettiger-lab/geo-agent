@@ -1,4 +1,4 @@
-# Geo-Chat: Map + AI Data Analyst
+# Geo-Agent: Map + AI Data Analyst
 
 A reusable JavaScript library for interactive map applications with LLM-powered data analysis. MapLibre GL JS on the front end, agentic tool-use with MCP (Model Context Protocol) for SQL analytics via DuckDB.
 
@@ -19,11 +19,11 @@ Client apps load the core modules directly from jsdelivr:
 
 ```html
 <!-- Styles -->
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/boettiger-lab/ca-protected-lands@v1.0.0/app/style.css">
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/boettiger-lab/ca-protected-lands@v1.0.0/app/chat.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/boettiger-lab/geo-agent@v1.0.0/app/style.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/boettiger-lab/geo-agent@v1.0.0/app/chat.css">
 
 <!-- App (all modules resolve from CDN via relative imports) -->
-<script type="module" src="https://cdn.jsdelivr.net/gh/boettiger-lab/ca-protected-lands@v1.0.0/app/main.js"></script>
+<script type="module" src="https://cdn.jsdelivr.net/gh/boettiger-lab/geo-agent@v1.0.0/app/main.js"></script>
 ```
 
 ### Versioning
