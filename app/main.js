@@ -47,6 +47,52 @@ async function main() {
     mapManager.generateControls('layer-controls-container');
     console.log('[main] Map ready');
 
+    /* ── 3b. H3 hex-grid toggle (optional — requires h3-js global) ──── */
+    if (typeof h3 !== 'undefined') {
+        const { H3DynamicLayer } = await import('./h3geo.js');
+        const h3Layer = new H3DynamicLayer(mapManager.map, {
+            fillColor: '#007cbf',
+            fillOpacity: 0.05,
+            outlineColor: '#333333',
+            outlineWidth: 1,
+            outlineOpacity: 0.35,
+        });
+
+        // Create toggle button
+        const btn = document.createElement('button');
+        btn.id = 'h3-toggle';
+        btn.title = 'Toggle H3 hex grid';
+        btn.innerHTML = '⬡';
+        document.body.appendChild(btn);
+
+        // Resolution badge (hidden until active)
+        const badge = document.createElement('span');
+        badge.id = 'h3-res-badge';
+        badge.style.display = 'none';
+        document.body.appendChild(badge);
+
+        let h3Active = false;
+        btn.addEventListener('click', () => {
+            h3Active = !h3Active;
+            if (h3Active) {
+                h3Layer.start();
+                btn.classList.add('active');
+                badge.style.display = '';
+            } else {
+                h3Layer.stop();
+                btn.classList.remove('active');
+                badge.style.display = 'none';
+            }
+        });
+
+        // Update badge on hex refresh
+        window.addEventListener('h3update', (e) => {
+            badge.textContent = `${e.detail.resolution}`;
+        });
+
+        console.log('[main] H3 grid toggle ready');
+    }
+
     /* ── 4. Set up MCP client ─────────────────────────────────────────── */
     const mcpUrl = appConfig.mcp_url || 'https://duckdb-mcp.nrp-nautilus.io/mcp';
     const mcp = new MCPClient(mcpUrl);
