@@ -1,0 +1,56 @@
+{
+    "catalog": "https://s3-west.nrp-nautilus.io/public-data/stac/catalog.json",
+    "titiler_url": "https://titiler.nrp-nautilus.io",
+    "mcp_url": "https://duckdb-mcp.nrp-nautilus.io/mcp",
+    "view": {
+        "center": [
+            -119.4179,
+            36.7783
+        ],
+        "zoom": 6
+    },
+    "llm": {
+        "user_provided": true,
+        "default_endpoint": "https://openrouter.ai/api/v1",
+        "models": [
+            {
+                "value": "anthropic/claude-sonnet-4",
+                "label": "Claude Sonnet"
+            },
+            {
+                "value": "google/gemini-2.5-flash",
+                "label": "Gemini Flash"
+            },
+            {
+                "value": "openai/gpt-4.1-mini",
+                "label": "GPT-4.1 mini"
+            }
+        ]
+    },
+    "collections": [
+        {
+            "collection_id": "cpad-2025b",
+            "assets": [
+                "cpad-holdings-pmtiles",
+                "cpad-units-pmtiles"
+            ]
+        },
+        {
+            "collection_id": "irrecoverable-carbon",
+            "assets": [
+                {
+                    "id": "irrecoverable-total-2018-cog",
+                    "display_name": "Irrecoverable Carbon (2018)"
+                },
+                {
+                    "id": "manageable-total-2018-cog",
+                    "display_name": "Manageable Carbon (2018)"
+                },
+                {
+                    "id": "vulnerable-total-2018-cog",
+                    "display_name": "Vulnerable Carbon (2018)"
+                }
+            ]
+        }
+    ]
+}
