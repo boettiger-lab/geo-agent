@@ -30,6 +30,17 @@ async function main() {
         if (runtimeConfig.llm_model) appConfig.llm_model = runtimeConfig.llm_model;
         if (runtimeConfig.mcp_server_url) appConfig.mcp_url = runtimeConfig.mcp_server_url;
     }
+
+    // If no server-provided LLM config, check for user-provided key mode
+    if (!appConfig.llm_models && appConfig.llm?.user_provided) {
+        const saved = loadUserLLMConfig(appConfig.llm);
+        if (saved) {
+            appConfig.llm_models = saved.llm_models;
+            appConfig.llm_model = saved.llm_models[0]?.value;
+        }
+        // Flag for ChatUI to show settings button
+        appConfig._userProvidedMode = true;
+    }
     console.log('[main] Config loaded');
 
     /* ── 2. Build dataset catalog from STAC ────────────────────────────── */
@@ -147,6 +158,40 @@ async function main() {
 }
 
 /* ── Helpers ────────────────────────────────────────────────────────────── */
+
+const STORAGE_KEY_API = 'geo-agent-api-key';
+const STORAGE_KEY_ENDPOINT = 'geo-agent-endpoint';
+
+/**
+ * Build llm_models array from localStorage + app llm config.
+ * Returns null if no saved API key.
+ */
+function loadUserLLMConfig(llmConfig) {
+    const apiKey = localStorage.getItem(STORAGE_KEY_API);
+    if (!apiKey) return null;
+
+    const endpoint = localStorage.getItem(STORAGE_KEY_ENDPOINT)
+        || llmConfig.default_endpoint
+        || 'https://openrouter.ai/api/v1';
+
+    const models = (llmConfig.models || []).map(m => ({
+        ...m,
+        endpoint,
+        api_key: apiKey,
+    }));
+
+    // If no models configured, create a generic one
+    if (models.length === 0) {
+        models.push({
+            value: 'auto',
+            label: 'Auto',
+            endpoint,
+            api_key: apiKey,
+        });
+    }
+
+    return { llm_models: models };
+}
 
 async function fetchJson(url) {
     const res = await fetch(url);
