@@ -154,7 +154,7 @@ export class DatasetCatalog {
                     layerType: 'vector',
                     title: perAsset.display_name || asset.title || assetId,
                     url: asset.href,
-                    sourceLayer: asset['pmtiles:layer'] || assetId,
+                    sourceLayer: asset['vector:layers']?.[0] || asset['pmtiles:layer'] || assetId,
                     description: asset.description || '',
                 });
             } else if (type.includes('geotiff') || type.includes('tiff')) {
