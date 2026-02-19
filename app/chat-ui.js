@@ -51,6 +51,15 @@ export class ChatUI {
             this.agent.setModel(this.modelSelector.value);
         });
 
+        // If in user-provided API key mode, add settings button
+        if (this.config._userProvidedMode) {
+            this.initSettingsUI();
+            // If no API key saved yet, show the setup prompt
+            if (!this.config.llm_models?.length) {
+                this.showSettingsPanel();
+            }
+        }
+
         // Wire agent callbacks
         this.agent.onThinkingStart = () => this.showThinking();
         this.agent.onThinkingEnd = () => this.hideThinking();
@@ -76,12 +85,131 @@ export class ChatUI {
     }
 
     /* ------------------------------------------------------------------ */
+    /*  Settings panel (user-provided API key mode)                         */
+    /* ------------------------------------------------------------------ */
+
+    initSettingsUI() {
+        const footer = document.getElementById('chat-footer');
+        if (!footer) return;
+
+        const btn = document.createElement('button');
+        btn.id = 'settings-btn';
+        btn.title = 'API settings';
+        btn.textContent = '\u2699';
+        btn.addEventListener('click', () => this.toggleSettingsPanel());
+        footer.prepend(btn);
+    }
+
+    toggleSettingsPanel() {
+        const existing = document.getElementById('api-settings-panel');
+        if (existing) {
+            existing.remove();
+            return;
+        }
+        this.showSettingsPanel();
+    }
+
+    showSettingsPanel() {
+        // Remove any existing panel
+        document.getElementById('api-settings-panel')?.remove();
+
+        const llmConfig = this.config.llm || {};
+        const savedKey = localStorage.getItem('geo-agent-api-key') || '';
+        const savedEndpoint = localStorage.getItem('geo-agent-endpoint')
+            || llmConfig.default_endpoint || 'https://openrouter.ai/api/v1';
+
+        const panel = document.createElement('div');
+        panel.id = 'api-settings-panel';
+        panel.innerHTML = `
+            <div class="settings-title">API Settings</div>
+            <label class="settings-label" for="settings-endpoint">Endpoint</label>
+            <input id="settings-endpoint" type="url" value="${this.escapeHtml(savedEndpoint)}" 
+                   placeholder="https://openrouter.ai/api/v1" spellcheck="false">
+            <label class="settings-label" for="settings-api-key">API Key</label>
+            <input id="settings-api-key" type="password" value="${savedKey ? '••••••••' : ''}" 
+                   placeholder="sk-..." spellcheck="false"
+                   onfocus="if(this.value.startsWith('••'))this.value=''">
+            <div class="settings-actions">
+                <button id="settings-save" class="settings-save-btn">Save</button>
+                <button id="settings-cancel" class="settings-cancel-btn">Cancel</button>
+            </div>
+            <div class="settings-hint">
+                Keys are stored in your browser only and never sent to this server.
+            </div>
+        `;
+
+        // Insert before messages area
+        this.messagesEl.parentNode.insertBefore(panel, this.messagesEl);
+
+        // Wire buttons
+        panel.querySelector('#settings-save').addEventListener('click', () => {
+            const endpoint = panel.querySelector('#settings-endpoint').value.trim();
+            const apiKey = panel.querySelector('#settings-api-key').value.trim();
+
+            if (!apiKey || apiKey.startsWith('\u2022')) {
+                // No change to key if user didn't type a new one
+                if (!savedKey) {
+                    panel.querySelector('#settings-api-key').style.borderColor = '#dc3545';
+                    return;
+                }
+            } else {
+                localStorage.setItem('geo-agent-api-key', apiKey);
+            }
+            if (endpoint) {
+                localStorage.setItem('geo-agent-endpoint', endpoint);
+            }
+
+            // Rebuild LLM models from new settings
+            this.applyUserLLMConfig();
+            panel.remove();
+        });
+
+        panel.querySelector('#settings-cancel').addEventListener('click', () => {
+            panel.remove();
+        });
+    }
+
+    /**
+     * Rebuild llm_models from localStorage and update the agent.
+     */
+    applyUserLLMConfig() {
+        const llmConfig = this.config.llm || {};
+        const apiKey = localStorage.getItem('geo-agent-api-key');
+        const endpoint = localStorage.getItem('geo-agent-endpoint')
+            || llmConfig.default_endpoint || 'https://openrouter.ai/api/v1';
+
+        if (!apiKey) return;
+
+        const models = (llmConfig.models || []).map(m => ({
+            ...m,
+            endpoint,
+            api_key: apiKey,
+        }));
+
+        if (models.length === 0) {
+            models.push({ value: 'auto', label: 'Auto', endpoint, api_key: apiKey });
+        }
+
+        this.config.llm_models = models;
+        this.config.llm_model = models[0]?.value;
+        this.agent.config = this.config;
+        this.agent.selectedModel = this.config.llm_model;
+        this.populateModelSelector();
+    }
+
+    /* ------------------------------------------------------------------ */
     /*  Send handler                                                       */
     /* ------------------------------------------------------------------ */
 
     async handleSend() {
         const text = this.inputEl.value.trim();
         if (!text || this.busy) return;
+
+        // In user-provided mode, check for API key before sending
+        if (this.config._userProvidedMode && !localStorage.getItem('geo-agent-api-key')) {
+            this.showSettingsPanel();
+            return;
+        }
 
         this.busy = true;
         this.sendBtn.disabled = true;
