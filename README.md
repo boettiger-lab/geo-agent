@@ -2,14 +2,21 @@
 
 A reusable JavaScript library for interactive map applications with LLM-powered data analysis. MapLibre GL JS on the front end, agentic tool-use with MCP (Model Context Protocol) for SQL analytics via DuckDB.
 
-**This repo is the core library.** Individual apps (different datasets, URLs, branding) import these modules from the CDN and provide their own configuration. See [`example/`](example/) for a complete client app template.
+**This repo is the core library.** Individual apps (different datasets, URLs, branding) import these modules from the CDN and provide their own configuration.
+
+**Live demo (GitHub Pages):** <https://boettiger-lab.github.io/geo-agent/>
 
 ## Quick start: create a new app
 
-1. Copy [`example/`](example/) into a new repo
-2. Edit `layers-input.json` — choose your STAC collections and assets
+1. Copy one of the example templates into a new repo
+2. Edit `layers-input.json` — choose your STAC collections, assets, and LLM config
 3. Edit `index.html` — set page title, pin CDN version
-4. Deploy with `kubectl apply -f k8s/`
+4. Deploy (see options below)
+
+| Template | Deployment | API key handling |
+|---|---|---|
+| [`example/`](example/) | Kubernetes / managed host | Injected server-side via `config.json` |
+| [`example-ghpages/`](example-ghpages/) | GitHub Pages / any static host | Entered by the user in-browser |
 
 See the [example README](example/README.md) for full details.
 
@@ -55,11 +62,11 @@ Client apps load the core modules directly from jsdelivr:
      └────────────┘     └────────────┘     └──────────────┘
 ```
 
-Each client app is a tiny repo (~5 files) that provides:
+Each client app is a tiny repo (~4–5 files) that provides:
 - `index.html` — loads core JS/CSS from CDN, sets page title
-- `layers-input.json` — which STAC collections + assets to show
+- `layers-input.json` — STAC collections, assets, and (optionally) LLM config
 - `system-prompt.md` — LLM personality and guidelines
-- `k8s/` — deployment manifests (hostname, replicas, secrets)
+- `k8s/` — Kubernetes deployment manifests (hostname, replicas, secrets) — optional
 
 ### Core modules (`app/`)
 
@@ -82,7 +89,7 @@ Each client app is a tiny repo (~5 files) that provides:
 
 ## Configuration
 
-Client apps provide `layers-input.json`:
+Client apps provide `layers-input.json`. All fields except `collections` are optional.
 
 ```json
 {
@@ -90,6 +97,16 @@ Client apps provide `layers-input.json`:
     "titiler_url": "https://titiler.nrp-nautilus.io",
     "mcp_url": "https://duckdb-mcp.nrp-nautilus.io/mcp",
     "view": { "center": [-119.4, 36.8], "zoom": 6 },
+
+    "llm": {
+        "user_provided": true,
+        "default_endpoint": "https://openrouter.ai/api/v1",
+        "models": [
+            { "value": "anthropic/claude-sonnet-4", "label": "Claude Sonnet" },
+            { "value": "google/gemini-2.5-flash",  "label": "Gemini Flash" }
+        ]
+    },
+
     "collections": [
         {
             "collection_id": "cpad-2025b",
@@ -110,6 +127,14 @@ Client apps provide `layers-input.json`:
 - **Object** entries with `assets` cherry-pick specific STAC asset IDs for map layers
 - Asset filtering only affects map toggles — all parquet/H3 data remains available for SQL
 
+### LLM configuration
+
+There are two ways to supply model credentials:
+
+**Server-provided** (Kubernetes / managed deployments): omit the `llm` section from `layers-input.json` and provide a `config.json` on the same server with `llm_models` + API keys. The `k8s/` manifests in `example/` inject secrets this way at deploy time.
+
+**User-provided** (static sites — GitHub Pages, Netlify, etc.): set `"user_provided": true` in the `llm` section. A ⚙ button appears in the chat footer; visitors enter their own API key (stored in `localStorage`, never sent to the hosting server). The `default_endpoint` is pre-filled — [OpenRouter](https://openrouter.ai) is a good default giving access to many models via a single key.
+
 ## Development
 
 ### Working on the core library
@@ -129,5 +154,11 @@ The `app/` directory includes its own `index.html`, `layers-input.json`, and `sy
 
 ## Deployment
 
-The `k8s/` directory in this repo deploys the core library's own demo instance. See [`example/k8s/`](example/k8s/) for the client app deployment template.
+| Option | Template | How secrets are handled |
+|---|---|---|
+| **GitHub Pages** (or any static host) | [`example-ghpages/`](example-ghpages/) | User enters their own API key in-browser |
+| **Hugging Face Spaces** | Start from either example | Mount a `config.json` as a Space secret-file |
+| **Kubernetes** | [`example/`](example/) with [`k8s/`](example/k8s/) | Secrets injected into `config.json` via ConfigMap + init container |
+
+The `k8s/` directory in this repo deploys the core library's own demo instance on the [NRP](https://nrp-nautilus.io) cluster. See [`example/k8s/`](example/k8s/) for the client app deployment template, and [`example/README.md`](example/README.md) for a full walkthrough of all three options.
 
