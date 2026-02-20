@@ -25,11 +25,40 @@ Map-based application for exploring California's protected lands. Interactive Ma
 - `config.json` — Generated at deploy time by k8s (LLM models + API keys from secrets)
 - Both are merged by `main.js` at startup; runtime config overrides static config
 
+## Git workflow — branch protection
+
+The `main` branch is protected: **direct pushes are rejected**. All changes must go through a pull request.
+
+**Committing and pushing changes:**
+1. Make changes, then commit:
+   ```bash
+   git add <files>
+   git commit -m "<message>"
+   ```
+2. Create a feature branch and push:
+   ```bash
+   git checkout -b <branch-name>
+   git push -u origin <branch-name>
+   ```
+3. The push output includes a PR URL — open it to create the pull request:
+   ```
+   remote: Create a pull request ... by visiting:
+   remote:   https://github.com/boettiger-lab/geo-agent/pull/new/<branch-name>
+   ```
+4. After the PR is merged, **always clean up**:
+   ```bash
+   git checkout main
+   git pull
+   git branch -d <branch-name>
+   ```
+
+> If the user confirms the PR has been merged and asks to "clean up" or "switch back to main", run all three cleanup commands together.
+
 ## Deployment
 Deployment is managed via Kubernetes. The application runs in an nginx container that clones the repo on startup.
 
 **To deploy changes:**
-1. Commit and push changes to the `main` branch.
+1. Merge changes to `main` via PR (see above).
 2. Restart the deployment:
    ```bash
    kubectl rollout restart deployment/ca-lands
