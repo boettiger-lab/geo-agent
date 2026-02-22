@@ -158,6 +158,7 @@ export class DatasetCatalog {
                 if (type.includes('pmtiles')) {
                     layers.push({
                         assetId: key,
+                        sourceAssetId: assetId,  // original STAC key — used to share one MapLibre source across aliases
                         layerType: 'vector',
                         title: config.display_name || asset.title || assetId,
                         url: asset.href,
@@ -390,11 +391,16 @@ export class DatasetCatalog {
                 const layerId = `${ds.id}/${ml.assetId}`;
 
                 if (ml.layerType === 'vector') {
+                    // Use original STAC asset key for source ID so alias layers share one source
+                    const sourceAssetKey = (ml.sourceAssetId || ml.assetId).replace(/[^a-zA-Z0-9]/g, '-');
+                    const sharedSourceId = `src-${ds.id.replace(/[^a-zA-Z0-9]/g, '-')}-${sourceAssetKey}`;
+
                     configs.push({
                         layerId,
                         datasetId: ds.id,
                         displayName: ml.title,
                         type: 'vector',
+                        sourceId: sharedSourceId,
                         source: {
                             type: 'vector',
                             url: `pmtiles://${ml.url}`,
