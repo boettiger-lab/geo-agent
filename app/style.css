@@ -251,6 +251,44 @@ body {
     border-color: rgba(0, 124, 191, 0.35);
 }
 
+/* Hover tooltip */
+.map-tooltip {
+    display: none;
+    position: fixed;
+    z-index: 100;
+    background: rgba(255, 255, 255, 0.95);
+    -webkit-backdrop-filter: blur(4px);
+    backdrop-filter: blur(4px);
+    border: 1px solid rgba(0, 0, 0, 0.2);
+    border-radius: 4px;
+    padding: 8px 10px;
+    font-family: 'Open Sans', sans-serif;
+    font-size: 12px;
+    color: #333;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+    pointer-events: none;
+    max-width: 260px;
+}
+
+.map-tooltip table {
+    border-collapse: collapse;
+    width: 100%;
+}
+
+.map-tooltip th {
+    font-weight: 600;
+    color: #666;
+    text-align: left;
+    padding: 2px 10px 2px 0;
+    white-space: nowrap;
+}
+
+.map-tooltip td {
+    color: #333;
+    padding: 2px 0;
+    word-break: break-word;
+}
+
 #h3-res-badge {
     position: absolute;
     z-index: 1;
