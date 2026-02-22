@@ -78,7 +78,7 @@ export class MapManager {
      * Register a single layer on the map.
      */
     registerLayer(config) {
-        const { layerId, datasetId, displayName, type, source, sourceLayer, paint, columns, tooltipFields, defaultVisible } = config;
+        const { layerId, datasetId, displayName, type, source, sourceLayer, paint, columns, tooltipFields, defaultVisible, defaultFilter } = config;
         const sourceId = `src-${layerId.replace(/\//g, '-')}`;
         const mapLayerId = `layer-${layerId.replace(/\//g, '-')}`;
 
@@ -105,6 +105,11 @@ export class MapManager {
 
         this.map.addLayer(layerDef);
 
+        // Apply default filter if declared
+        if (defaultFilter) {
+            this.map.setFilter(mapLayerId, defaultFilter);
+        }
+
         // Store state
         this.layers.set(layerId, {
             layerId,
@@ -115,7 +120,7 @@ export class MapManager {
             type,
             sourceLayer: sourceLayer || null,
             visible: defaultVisible || false,
-            filter: null,
+            filter: defaultFilter || null,
             columns: columns || [],
             defaultPaint: { ...(paint || {}) },
             tooltipFields: tooltipFields || null,
