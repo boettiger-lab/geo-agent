@@ -156,6 +156,9 @@ export class DatasetCatalog {
                     url: asset.href,
                     sourceLayer: asset['vector:layers']?.[0] || asset['pmtiles:layer'] || assetId,
                     description: asset.description || '',
+                    defaultStyle: perAsset.default_style || null,
+                    tooltipFields: perAsset.tooltip_fields || null,
+                    defaultVisible: perAsset.visible === true,
                 });
             } else if (type.includes('geotiff') || type.includes('tiff')) {
                 const colormap = perAsset.colormap || options.colormap || 'reds';
@@ -357,8 +360,10 @@ export class DatasetCatalog {
                             url: `pmtiles://${ml.url}`,
                         },
                         sourceLayer: ml.sourceLayer,
-                        paint: { 'fill-color': '#2E7D32', 'fill-opacity': 0.5 },
+                        paint: ml.defaultStyle || { 'fill-color': '#2E7D32', 'fill-opacity': 0.5 },
                         columns: ds.columns,
+                        tooltipFields: ml.tooltipFields || null,
+                        defaultVisible: ml.defaultVisible || false,
                     });
                 } else if (ml.layerType === 'raster') {
                     let tilesUrl = `${this.titilerUrl}/cog/tiles/WebMercatorQuad/{z}/{x}/{y}.png?url=${encodeURIComponent(ml.cogUrl)}&colormap_name=${ml.colormap}`;
