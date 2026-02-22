@@ -1,9 +1,9 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: ca-lands
+  name: padus
   labels:
-    app: ca-lands
+    app: padus
 spec:
   replicas: 2
   strategy:
@@ -13,11 +13,11 @@ spec:
       maxSurge: 1
   selector:
     matchLabels:
-      app: ca-lands
+      app: padus
   template:
     metadata:
       labels:
-        app: ca-lands
+        app: padus
     spec:
       initContainers:
       - name: git-clone
@@ -28,7 +28,7 @@ spec:
         - |
           # Clone this app repo (tiny — just HTML + config files)
           # Replace URL with your own app repo:
-          git clone --depth 1 https://github.com/boettiger-lab/ca-lands-app.git /tmp/repo
+          git clone --depth 1 https://github.com/boettiger-lab/padus-app.git /tmp/repo
           cp /tmp/repo/index.html /usr/share/nginx/html/
           cp /tmp/repo/layers-input.json /usr/share/nginx/html/
           cp /tmp/repo/system-prompt.md /usr/share/nginx/html/
@@ -101,7 +101,7 @@ spec:
         emptyDir: {}
       - name: config-template
         configMap:
-          name: ca-lands-config
+          name: padus-config
       - name: nginx-config
         configMap:
-          name: ca-lands-nginx
+          name: padus-nginx
