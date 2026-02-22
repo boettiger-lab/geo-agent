@@ -6,7 +6,7 @@ This example shows how to deploy a geo-agent app as a **static site on GitHub Pa
 
 ## How it works
 
-The key difference from the [Kubernetes example](../example/) is the `llm` section in `layers-input.json`:
+The key difference from the [Kubernetes example](../example-k8s/) is the `llm` section in `layers-input.json`:
 
 ```json
 "llm": {

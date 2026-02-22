@@ -13,12 +13,12 @@ A reusable JavaScript library for interactive map applications with LLM-powered 
 3. Edit `index.html` — set page title, pin CDN version
 4. Deploy (see options below)
 
-| Template | Deployment | API key handling |
-|---|---|---|
-| [`example/`](example/) | Kubernetes / managed host | Injected server-side via `config.json` |
-| [`example-ghpages/`](example-ghpages/) | GitHub Pages / any static host | Entered by the user in-browser |
+| Template | Deployment | API key handling | Live demo |
+|---|---|---|---|
+| [`example-k8s/`](example-k8s/) | Kubernetes / managed host | Injected server-side via `config.json` | not currently deployed |
+| [`example-ghpages/`](example-ghpages/) | GitHub Pages / any static host | Entered by the user in-browser | [live](https://boettiger-lab.github.io/geo-agent/) |
 
-See the [example README](example/README.md) for full details.
+See the [example-k8s README](example-k8s/README.md) or [example-ghpages README](example-ghpages/README.md) for full details.
 
 ## Using the CDN
 
@@ -131,7 +131,7 @@ Client apps provide `layers-input.json`. All fields except `collections` are opt
 
 There are two ways to supply model credentials:
 
-**Server-provided** (Kubernetes / managed deployments): omit the `llm` section from `layers-input.json` and provide a `config.json` on the same server with `llm_models` + API keys. The `k8s/` manifests in `example/` inject secrets this way at deploy time.
+**Server-provided** (Kubernetes / managed deployments): omit the `llm` section from `layers-input.json` and provide a `config.json` on the same server with `llm_models` + API keys. The `k8s/` manifests in `example-k8s/` inject secrets this way at deploy time.
 
 **User-provided** (static sites — GitHub Pages, Netlify, etc.): set `"user_provided": true` in the `llm` section. A ⚙ button appears in the chat footer; visitors enter their own API key (stored in `localStorage`, never sent to the hosting server). The `default_endpoint` is pre-filled — [OpenRouter](https://openrouter.ai) is a good default giving access to many models via a single key.
 
@@ -154,11 +154,11 @@ The `app/` directory includes its own `index.html`, `layers-input.json`, and `sy
 
 ## Deployment
 
-| Option | Template | How secrets are handled |
-|---|---|---|
-| **GitHub Pages** (or any static host) | [`example-ghpages/`](example-ghpages/) | User enters their own API key in-browser |
-| **Hugging Face Spaces** | Start from either example | Mount a `config.json` as a Space secret-file |
-| **Kubernetes** | [`example/`](example/) with [`k8s/`](example/k8s/) | Secrets injected into `config.json` via ConfigMap + init container |
+| Option | Template | How secrets are handled | Live demo |
+|---|---|---|---|
+| **GitHub Pages** (or any static host) | [`example-ghpages/`](example-ghpages/) | User enters their own API key in-browser | [live](https://boettiger-lab.github.io/geo-agent/) |
+| **Hugging Face Spaces** | Start from either example | Mount a `config.json` as a Space secret-file | — |
+| **Kubernetes** | [`example-k8s/`](example-k8s/) with [`k8s/`](example-k8s/k8s/) | Secrets injected into `config.json` via ConfigMap + init container | not currently deployed |
 
-The `k8s/` directory in this repo deploys the core library's own demo instance on the [NRP](https://nrp-nautilus.io) cluster. See [`example/k8s/`](example/k8s/) for the client app deployment template, and [`example/README.md`](example/README.md) for a full walkthrough of all three options.
+See [`example-k8s/k8s/`](example-k8s/k8s/) for the client app Kubernetes deployment template, and [`example-k8s/README.md`](example-k8s/README.md) for a full walkthrough of all three options.
 
