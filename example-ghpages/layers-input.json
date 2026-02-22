@@ -33,18 +33,41 @@
             "assets": [
                 {
                     "id": "pmtiles",
-                    "display_name": "Protected Areas (PAD-US)",
+                    "alias": "fee",
+                    "display_name": "Protected Areas - Fee (GAP 1 & 2)",
                     "visible": true,
                     "default_style": {
                         "fill-color": ["match", ["get", "GAP_Sts"],
-                            1, "#26633A",
-                            2, "#3E9C47",
-                            3, "#7EB3D3",
-                            4, "#BDBDBD",
+                            "1", "#26633A",
+                            "2", "#3E9C47",
+                            "3", "#7EB3D3",
+                            "4", "#BDBDBD",
                             "#888888"
                         ],
                         "fill-opacity": 0.7
                     },
+                    "default_filter": ["all",
+                        ["==", "FeatClass", "Fee"],
+                        ["in", "GAP_Sts", "1", "2"]
+                    ],
+                    "tooltip_fields": ["Unit_Nm", "GAP_Sts", "Mang_Type"]
+                },
+                {
+                    "id": "pmtiles",
+                    "alias": "easement",
+                    "display_name": "Protected Areas - Easement",
+                    "visible": false,
+                    "default_style": {
+                        "fill-color": ["match", ["get", "GAP_Sts"],
+                            "1", "#26633A",
+                            "2", "#3E9C47",
+                            "3", "#7EB3D3",
+                            "4", "#BDBDBD",
+                            "#888888"
+                        ],
+                        "fill-opacity": 0.7
+                    },
+                    "default_filter": ["==", "FeatClass", "Easement"],
                     "tooltip_fields": ["Unit_Nm", "GAP_Sts", "Mang_Type"]
                 }
             ]
