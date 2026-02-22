@@ -47,6 +47,7 @@ export class MapManager {
             },
             center: options.center || [-119.4, 36.8],
             zoom: options.zoom || 6,
+            renderWorldCopies: false,
         });
 
         this.map.addControl(new maplibregl.NavigationControl(), 'top-left');
