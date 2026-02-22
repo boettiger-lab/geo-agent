@@ -85,17 +85,19 @@ export class DatasetCatalog {
      * Process a single STAC collection into a DatasetEntry.
      */
     processCollection(collection, options = {}) {
-        // Build asset allowlist and per-asset overrides from config
-        let allowedAssets = null;
-        const assetOptions = new Map();
+        // Build ordered asset config list.
+        // Using an array (not a Map) so the same STAC asset can appear multiple times
+        // under different aliases — e.g. one PMTiles split into "fee" and "easement" layers
+        // via { id: "pmtiles", alias: "fee", ... } and { id: "pmtiles", alias: "easement", ... }.
+        let assetConfigList = null;
         if (Array.isArray(options.assets)) {
-            allowedAssets = new Set();
+            assetConfigList = [];
             for (const a of options.assets) {
                 if (typeof a === 'string') {
-                    allowedAssets.add(a);
+                    assetConfigList.push({ key: a, assetId: a, config: {} });
                 } else if (a && a.id) {
-                    allowedAssets.add(a.id);
-                    assetOptions.set(a.id, a);
+                    const key = a.alias || a.id;
+                    assetConfigList.push({ key, assetId: a.id, config: a });
                 }
             }
         }
@@ -114,7 +116,7 @@ export class DatasetCatalog {
             columns: this.extractColumns(collection),
 
             // Visual assets (for map display) — filtered by config
-            mapLayers: this.extractMapLayers(collection, options, allowedAssets, assetOptions),
+            mapLayers: this.extractMapLayers(collection, options, assetConfigList),
 
             // Parquet/H3 assets (for SQL via MCP) — always load all
             parquetAssets: this.extractParquetAssets(collection),
@@ -132,47 +134,85 @@ export class DatasetCatalog {
     /**
      * Extract map-displayable assets (PMTiles and COGs).
      * Each becomes a potential map layer.
+     *
+     * When assetConfigList is provided (filtered mode), iterates the config entries
+     * in order — supporting multiple logical layers from one STAC asset via alias.
+     * When null, all visual assets from the STAC collection are included.
+     *
      * @param {Object} collection - STAC collection
      * @param {Object} options - Collection-level options
-     * @param {Set|null} allowedAssets - If set, only include these asset IDs
-     * @param {Map} assetOptions - Per-asset overrides keyed by asset ID
+     * @param {Array|null} assetConfigList - Ordered list of {key, assetId, config}
      */
-    extractMapLayers(collection, options = {}, allowedAssets = null, assetOptions = new Map()) {
+    extractMapLayers(collection, options = {}, assetConfigList = null) {
         const layers = [];
-        const assets = collection.assets || {};
+        const stacAssets = collection.assets || {};
 
-        for (const [assetId, asset] of Object.entries(assets)) {
-            // Skip if an asset allowlist is specified and this asset isn't in it
-            if (allowedAssets && !allowedAssets.has(assetId)) continue;
+        if (assetConfigList) {
+            // Filtered mode: iterate config entries so aliases and ordering are respected
+            for (const { key, assetId, config } of assetConfigList) {
+                const asset = stacAssets[assetId];
+                if (!asset) continue;
 
-            const type = asset.type || '';
-            const perAsset = assetOptions.get(assetId) || {};
+                const type = asset.type || '';
 
-            if (type.includes('pmtiles')) {
-                layers.push({
-                    assetId,
-                    layerType: 'vector',
-                    title: perAsset.display_name || asset.title || assetId,
-                    url: asset.href,
-                    sourceLayer: asset['vector:layers']?.[0] || asset['pmtiles:layer'] || assetId,
-                    description: asset.description || '',
-                    defaultStyle: perAsset.default_style || null,
-                    tooltipFields: perAsset.tooltip_fields || null,
-                    defaultVisible: perAsset.visible === true,
-                });
-            } else if (type.includes('geotiff') || type.includes('tiff')) {
-                const colormap = perAsset.colormap || options.colormap || 'reds';
-                const rescale = perAsset.rescale || options.rescale || null;
+                if (type.includes('pmtiles')) {
+                    layers.push({
+                        assetId: key,
+                        layerType: 'vector',
+                        title: config.display_name || asset.title || assetId,
+                        url: asset.href,
+                        sourceLayer: asset['vector:layers']?.[0] || asset['pmtiles:layer'] || assetId,
+                        description: asset.description || '',
+                        defaultStyle: config.default_style || null,
+                        tooltipFields: config.tooltip_fields || null,
+                        defaultVisible: config.visible === true,
+                        defaultFilter: config.default_filter || null,
+                    });
+                } else if (type.includes('geotiff') || type.includes('tiff')) {
+                    layers.push({
+                        assetId: key,
+                        layerType: 'raster',
+                        title: config.display_name || asset.title || assetId,
+                        cogUrl: asset.href,
+                        colormap: config.colormap || options.colormap || 'reds',
+                        rescale: config.rescale || options.rescale || null,
+                        description: asset.description || '',
+                        defaultVisible: config.visible === true,
+                        defaultFilter: config.default_filter || null,
+                    });
+                }
+            }
+        } else {
+            // Unfiltered mode: include all visual assets from the STAC collection
+            for (const [assetId, asset] of Object.entries(stacAssets)) {
+                const type = asset.type || '';
 
-                layers.push({
-                    assetId,
-                    layerType: 'raster',
-                    title: perAsset.display_name || asset.title || assetId,
-                    cogUrl: asset.href,
-                    colormap,
-                    rescale,
-                    description: asset.description || '',
-                });
+                if (type.includes('pmtiles')) {
+                    layers.push({
+                        assetId,
+                        layerType: 'vector',
+                        title: asset.title || assetId,
+                        url: asset.href,
+                        sourceLayer: asset['vector:layers']?.[0] || asset['pmtiles:layer'] || assetId,
+                        description: asset.description || '',
+                        defaultStyle: null,
+                        tooltipFields: null,
+                        defaultVisible: false,
+                        defaultFilter: null,
+                    });
+                } else if (type.includes('geotiff') || type.includes('tiff')) {
+                    layers.push({
+                        assetId,
+                        layerType: 'raster',
+                        title: asset.title || assetId,
+                        cogUrl: asset.href,
+                        colormap: options.colormap || 'reds',
+                        rescale: options.rescale || null,
+                        description: asset.description || '',
+                        defaultVisible: false,
+                        defaultFilter: null,
+                    });
+                }
             }
         }
 
@@ -364,6 +404,7 @@ export class DatasetCatalog {
                         columns: ds.columns,
                         tooltipFields: ml.tooltipFields || null,
                         defaultVisible: ml.defaultVisible || false,
+                        defaultFilter: ml.defaultFilter || null,
                     });
                 } else if (ml.layerType === 'raster') {
                     let tilesUrl = `${this.titilerUrl}/cog/tiles/WebMercatorQuad/{z}/{x}/{y}.png?url=${encodeURIComponent(ml.cogUrl)}&colormap_name=${ml.colormap}`;
