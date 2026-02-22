@@ -1,13 +1,13 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: ca-lands
+  name: padus
   labels:
-    app: ca-lands
+    app: padus
 spec:
   type: ClusterIP
   selector:
-    app: ca-lands
+    app: padus
   ports:
     - protocol: TCP
       port: 80

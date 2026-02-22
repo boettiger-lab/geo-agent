@@ -2,7 +2,7 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: ca-lands-config
+  name: padus-config
 data:
   config.template.json: |
     {
@@ -35,7 +35,7 @@ data:
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: ca-lands-nginx
+  name: padus-nginx
 data:
   nginx.conf: |
     server {
