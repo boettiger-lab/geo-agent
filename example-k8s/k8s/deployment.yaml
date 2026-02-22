@@ -26,12 +26,11 @@ spec:
         - sh
         - -c
         - |
-          # Clone this app repo (tiny — just HTML + config files)
-          # Replace URL with your own app repo:
-          git clone --depth 1 https://github.com/boettiger-lab/padus-app.git /tmp/repo
-          cp /tmp/repo/index.html /usr/share/nginx/html/
-          cp /tmp/repo/layers-input.json /usr/share/nginx/html/
-          cp /tmp/repo/system-prompt.md /usr/share/nginx/html/
+          # Clone the geo-agent repo and serve the example-k8s app files
+          git clone --depth 1 https://github.com/boettiger-lab/geo-agent.git /tmp/repo
+          cp /tmp/repo/example-k8s/index.html /usr/share/nginx/html/
+          cp /tmp/repo/example-k8s/layers-input.json /usr/share/nginx/html/
+          cp /tmp/repo/example-k8s/system-prompt.md /usr/share/nginx/html/
         volumeMounts:
         - name: website-content
           mountPath: /usr/share/nginx/html
