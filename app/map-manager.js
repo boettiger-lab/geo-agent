@@ -55,6 +55,11 @@ export class MapManager {
         this.ready = new Promise(resolve => {
             this.map.on('load', resolve);
         });
+
+        // Shared hover tooltip element
+        this._tooltip = document.createElement('div');
+        this._tooltip.className = 'map-tooltip';
+        document.body.appendChild(this._tooltip);
     }
 
     /**
@@ -72,7 +77,7 @@ export class MapManager {
      * Register a single layer on the map.
      */
     registerLayer(config) {
-        const { layerId, datasetId, displayName, type, source, sourceLayer, paint, columns } = config;
+        const { layerId, datasetId, displayName, type, source, sourceLayer, paint, columns, tooltipFields, defaultVisible } = config;
         const sourceId = `src-${layerId.replace(/\//g, '-')}`;
         const mapLayerId = `layer-${layerId.replace(/\//g, '-')}`;
 
@@ -85,7 +90,7 @@ export class MapManager {
         const layerDef = {
             id: mapLayerId,
             source: sourceId,
-            layout: { visibility: 'none' },
+            layout: { visibility: defaultVisible ? 'visible' : 'none' },
         };
 
         if (type === 'vector') {
@@ -108,11 +113,35 @@ export class MapManager {
             displayName,
             type,
             sourceLayer: sourceLayer || null,
-            visible: false,
+            visible: defaultVisible || false,
             filter: null,
             columns: columns || [],
             defaultPaint: { ...(paint || {}) },
+            tooltipFields: tooltipFields || null,
         });
+
+        // Wire hover tooltip if fields are declared
+        if (tooltipFields && tooltipFields.length > 0) {
+            this.map.on('mousemove', mapLayerId, (e) => {
+                if (!e.features || e.features.length === 0) return;
+                const props = e.features[0].properties;
+                const rows = tooltipFields
+                    .filter(f => props[f] !== undefined && props[f] !== null && props[f] !== '')
+                    .map(f => `<tr><th>${f}</th><td>${props[f]}</td></tr>`)
+                    .join('');
+                if (!rows) return;
+                this._tooltip.innerHTML = `<table>${rows}</table>`;
+                this._tooltip.style.display = 'block';
+                this._tooltip.style.left = (e.originalEvent.clientX + 12) + 'px';
+                this._tooltip.style.top = (e.originalEvent.clientY - 12) + 'px';
+                this.map.getCanvas().style.cursor = 'pointer';
+            });
+
+            this.map.on('mouseleave', mapLayerId, () => {
+                this._tooltip.style.display = 'none';
+                this.map.getCanvas().style.cursor = '';
+            });
+        }
     }
 
     // ---- Layer Visibility ----
