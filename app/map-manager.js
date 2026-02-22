@@ -79,7 +79,8 @@ export class MapManager {
      */
     registerLayer(config) {
         const { layerId, datasetId, displayName, type, source, sourceLayer, paint, columns, tooltipFields, defaultVisible, defaultFilter } = config;
-        const sourceId = `src-${layerId.replace(/\//g, '-')}`;
+        // Use pre-computed sourceId (shared between alias layers) or derive from layerId
+        const sourceId = config.sourceId || `src-${layerId.replace(/\//g, '-')}`;
         const mapLayerId = `layer-${layerId.replace(/\//g, '-')}`;
 
         // Add source if not exists
@@ -107,7 +108,11 @@ export class MapManager {
 
         // Apply default filter if declared
         if (defaultFilter) {
-            this.map.setFilter(mapLayerId, defaultFilter);
+            try {
+                this.map.setFilter(mapLayerId, defaultFilter);
+            } catch (err) {
+                console.error(`[Map] Failed to apply default filter to ${layerId}:`, err);
+            }
         }
 
         // Store state

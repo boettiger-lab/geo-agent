@@ -34,7 +34,7 @@
                 {
                     "id": "pmtiles",
                     "alias": "fee",
-                    "display_name": "Protected Areas - Fee (GAP 1 & 2)",
+                    "display_name": "Fee Lands",
                     "visible": true,
                     "default_style": {
                         "fill-color": ["match", ["get", "GAP_Sts"],
@@ -55,7 +55,7 @@
                 {
                     "id": "pmtiles",
                     "alias": "easement",
-                    "display_name": "Protected Areas - Easement",
+                    "display_name": "Easements",
                     "visible": false,
                     "default_style": {
                         "fill-color": ["match", ["get", "GAP_Sts"],
