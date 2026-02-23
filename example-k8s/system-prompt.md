@@ -52,7 +52,7 @@ WITH county_carbon AS (
 SELECT * FROM county_carbon
 ```
 
-Then visualize: `show_layer("overturemaps/overturemaps-admins")` and `set_filter("overturemaps/overturemaps-admins", ["in", "NAMELSAD", "County1", "County2", …])`.
+Then visualize: `show_layer("overturemaps/overturemaps-admins")` and `set_filter("overturemaps/overturemaps-admins", ["match", ["get", "NAMELSAD"], ["County1", "County2"], true, false])`.
 
 ## Available datasets
 
