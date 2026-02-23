@@ -78,13 +78,15 @@ export function createMapTools(mapManager, catalog) {
 
 IMPORTANT: After filtering, check 'featuresInView' in the result. If 0, the filter may be wrong.
 
-Filter syntax:
-- Equality: ["==", "property", "value"]
-- Inequality: ["!=", "property", "value"]  
-- Comparison: [">", "property", 100]
-- In list: ["in", "property", "val1", "val2", "val3"]
-- AND: ["all", ["==", "p1", "v1"], [">", "p2", 100]]
-- OR: ["any", ["==", "p", "v1"], ["==", "p", "v2"]]
+Filter syntax (use MapLibre expressions — NOT legacy filter arrays):
+- Equality: ["==", ["get", "property"], "value"]
+- Inequality: ["!=", ["get", "property"], "value"]
+- Comparison: [">", ["get", "property"], 100]
+- In list: ["match", ["get", "property"], ["val1", "val2", "val3"], true, false]
+- AND: ["all", ["==", ["get", "p1"], "v1"], [">", ["get", "p2"], 100]]
+- OR: ["any", ["==", ["get", "p"], "v1"], ["==", ["get", "p"], "v2"]]
+
+IMPORTANT: Do NOT use the legacy ["in", "property", val1, val2] form — it is silently ignored in current MapLibre. Always use ["match", ["get", "property"], [...values], true, false] for list membership.
 
 Vector layers: ${vectorLayerIds().join(', ')}
 ${getPropertyDocs()}`,
