@@ -45,7 +45,7 @@
                         ],
                         "fill-opacity": 0.7
                     },
-                    "default_filter": ["in", "GAP_Sts", "1", "2"],
+                    "default_filter": ["match", ["get", "GAP_Sts"], ["1", "2"], true, false],
                     "tooltip_fields": ["Unit_Nm", "GAP_Sts", "Mang_Type"]
                 }
             ]
