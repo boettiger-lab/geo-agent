@@ -29,12 +29,11 @@
     },
     "collections": [
         {
-            "collection_id": "pad-us-4.1-combined",
+            "collection_id": "pad-us-4.1-fee",
             "assets": [
                 {
                     "id": "pmtiles",
-                    "alias": "fee",
-                    "display_name": "Protected Areas - Fee (GAP 1 & 2)",
+                    "display_name": "Fee Lands",
                     "visible": true,
                     "default_style": {
                         "fill-color": ["match", ["get", "GAP_Sts"],
@@ -46,16 +45,17 @@
                         ],
                         "fill-opacity": 0.7
                     },
-                    "default_filter": ["all",
-                        ["==", "FeatClass", "Fee"],
-                        ["in", "GAP_Sts", "1", "2"]
-                    ],
+                    "default_filter": ["in", "GAP_Sts", "1", "2"],
                     "tooltip_fields": ["Unit_Nm", "GAP_Sts", "Mang_Type"]
-                },
+                }
+            ]
+        },
+        {
+            "collection_id": "pad-us-4-1-easement",
+            "assets": [
                 {
                     "id": "pmtiles",
-                    "alias": "easement",
-                    "display_name": "Protected Areas - Easement",
+                    "display_name": "Easements",
                     "visible": false,
                     "default_style": {
                         "fill-color": ["match", ["get", "GAP_Sts"],
@@ -67,7 +67,6 @@
                         ],
                         "fill-opacity": 0.7
                     },
-                    "default_filter": ["==", "FeatClass", "Easement"],
                     "tooltip_fields": ["Unit_Nm", "GAP_Sts", "Mang_Type"]
                 }
             ]
