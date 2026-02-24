@@ -19,6 +19,7 @@ export class MCPClient {
         this.tools = [];
         this.reconnectAttempts = 0;
         this.maxReconnectAttempts = 3;
+        this._connectPromise = null;
     }
 
     /**
@@ -27,6 +28,17 @@ export class MCPClient {
     async connect() {
         if (this.connected && this.client) return;
 
+        // Deduplicate parallel connect calls
+        if (this._connectPromise) return this._connectPromise;
+        this._connectPromise = this._doConnect();
+        try {
+            await this._connectPromise;
+        } finally {
+            this._connectPromise = null;
+        }
+    }
+
+    async _doConnect() {
         try {
             const transport = new StreamableHTTPClientTransport(new URL(this.serverUrl), {
                 requestInit: { headers: this.headers }
@@ -124,6 +136,7 @@ export class MCPClient {
 
         try {
             const result = await this.client.callTool({ name, arguments: args });
+            this.reconnectAttempts = 0;
 
             if (result.content && result.content.length > 0) {
                 const text = result.content[0].text;
