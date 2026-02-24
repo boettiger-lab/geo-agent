@@ -29,6 +29,7 @@ async function main() {
         if (runtimeConfig.llm_models) appConfig.llm_models = runtimeConfig.llm_models;
         if (runtimeConfig.llm_model) appConfig.llm_model = runtimeConfig.llm_model;
         if (runtimeConfig.mcp_server_url) appConfig.mcp_url = runtimeConfig.mcp_server_url;
+        if (runtimeConfig.mcp_auth_token) appConfig.mcp_auth_token = runtimeConfig.mcp_auth_token;
     }
 
     // If no server-provided LLM config, check for user-provided key mode
@@ -106,7 +107,11 @@ async function main() {
 
     /* ── 4. Set up MCP client ─────────────────────────────────────────── */
     const mcpUrl = appConfig.mcp_url || 'https://duckdb-mcp.nrp-nautilus.io/mcp';
-    const mcp = new MCPClient(mcpUrl);
+    const mcpHeaders = {};
+    if (appConfig.mcp_auth_token) {
+        mcpHeaders['Authorization'] = `Bearer ${appConfig.mcp_auth_token}`;
+    }
+    const mcp = new MCPClient(mcpUrl, mcpHeaders);
     // Connect eagerly but don't block boot
     mcp.connect().catch(err => console.warn('[main] Initial MCP connect failed (will retry):', err.message));
 
