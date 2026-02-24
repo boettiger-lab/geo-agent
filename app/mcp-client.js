@@ -11,8 +11,9 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 
 export class MCPClient {
-    constructor(serverUrl) {
+    constructor(serverUrl, headers = {}) {
         this.serverUrl = serverUrl;
+        this.headers = headers;
         this.client = null;
         this.connected = false;
         this.tools = [];
@@ -27,7 +28,9 @@ export class MCPClient {
         if (this.connected && this.client) return;
 
         try {
-            const transport = new StreamableHTTPClientTransport(new URL(this.serverUrl));
+            const transport = new StreamableHTTPClientTransport(new URL(this.serverUrl), {
+                requestInit: { headers: this.headers }
+            });
             this.client = new Client(
                 { name: 'geo-chat-client', version: '2.0.0' },
                 { capabilities: {} }
