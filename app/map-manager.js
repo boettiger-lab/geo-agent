@@ -95,6 +95,7 @@ export class MapManager {
             layout: { visibility: defaultVisible ? 'visible' : 'none' },
         };
 
+        let outlineLayerId = null;
         if (type === 'vector') {
             layerDef.type = 'fill';
             layerDef['source-layer'] = sourceLayer;
@@ -106,10 +107,27 @@ export class MapManager {
 
         this.map.addLayer(layerDef);
 
+        // Add outline layer for vector fills
+        if (type === 'vector') {
+            outlineLayerId = `${mapLayerId}-outline`;
+            this.map.addLayer({
+                id: outlineLayerId,
+                type: 'line',
+                source: sourceId,
+                'source-layer': sourceLayer,
+                layout: { visibility: defaultVisible ? 'visible' : 'none' },
+                paint: {
+                    'line-color': 'rgba(0,0,0,0.4)',
+                    'line-width': 0.5,
+                },
+            });
+        }
+
         // Apply default filter if declared
         if (defaultFilter) {
             try {
                 this.map.setFilter(mapLayerId, defaultFilter);
+                if (outlineLayerId) this.map.setFilter(outlineLayerId, defaultFilter);
             } catch (err) {
                 console.error(`[Map] Failed to apply default filter to ${layerId}:`, err);
             }
@@ -119,6 +137,7 @@ export class MapManager {
         this.layers.set(layerId, {
             layerId,
             mapLayerId,
+            outlineLayerId,
             sourceId,
             datasetId,
             displayName,
@@ -138,7 +157,7 @@ export class MapManager {
                 const props = e.features[0].properties;
                 const rows = tooltipFields
                     .filter(f => props[f] !== undefined && props[f] !== null && props[f] !== '')
-                    .map(f => `<tr><th>${f}</th><td>${props[f]}</td></tr>`)
+                    .map(f => `<tr><th>${f}</th><td>${this._formatTooltipValue(f, props[f])}</td></tr>`)
                     .join('');
                 if (!rows) return;
                 this._tooltip.innerHTML = `<table>${rows}</table>`;
@@ -167,6 +186,7 @@ export class MapManager {
         if (!state) return { success: false, error: `Unknown layer: ${layerId}. Available: ${this.getLayerIds().join(', ')}` };
 
         this.map.setLayoutProperty(state.mapLayerId, 'visibility', 'visible');
+        if (state.outlineLayerId) this.map.setLayoutProperty(state.outlineLayerId, 'visibility', 'visible');
         state.visible = true;
         return { success: true, layer: layerId, displayName: state.displayName, visible: true };
     }
@@ -181,6 +201,7 @@ export class MapManager {
         if (!state) return { success: false, error: `Unknown layer: ${layerId}. Available: ${this.getLayerIds().join(', ')}` };
 
         this.map.setLayoutProperty(state.mapLayerId, 'visibility', 'none');
+        if (state.outlineLayerId) this.map.setLayoutProperty(state.outlineLayerId, 'visibility', 'none');
         state.visible = false;
         return { success: true, layer: layerId, displayName: state.displayName, visible: false };
     }
@@ -199,6 +220,7 @@ export class MapManager {
         if (state.type !== 'vector') return { success: false, error: `Layer '${layerId}' is raster — filtering only works on vector layers` };
 
         this.map.setFilter(state.mapLayerId, filter);
+        if (state.outlineLayerId) this.map.setFilter(state.outlineLayerId, filter);
         state.filter = filter;
 
         // Count features in view
@@ -354,6 +376,17 @@ export class MapManager {
     }
 
     // ---- Utilities ----
+
+    _formatTooltipValue(field, value) {
+        const lf = field.toLowerCase();
+        if (typeof value === 'number' && (lf.includes('value') || lf.includes('price') || lf.includes('cost'))) {
+            return '$' + value.toLocaleString('en-US', { maximumFractionDigits: 0 });
+        }
+        if (typeof value === 'number' && (lf.includes('acres') || lf.includes('area'))) {
+            return value.toLocaleString('en-US', { maximumFractionDigits: 1 });
+        }
+        return value;
+    }
 
     describeFilter(filter) {
         if (!filter || !Array.isArray(filter)) return 'No filter';
