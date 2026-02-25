@@ -282,8 +282,27 @@ export class ChatUI {
         for (const tc of calls) {
             let args;
             try { args = JSON.parse(tc.function.arguments); } catch { args = tc.function.arguments; }
-            const argsStr = typeof args === 'object' ? JSON.stringify(args, null, 2) : String(args);
-            html += `<div class="tool-call-item"><strong>${tc.function.name}</strong><pre><code>${this.escapeHtml(argsStr)}</code></pre></div>`;
+
+            let argDisplay = '';
+            if (typeof args === 'object' && args !== null) {
+                // Extract SQL query field and display it highlighted with real newlines
+                const sqlText = args.query || args.sql || null;
+                if (sqlText) {
+                    argDisplay += `<pre><code class="language-sql">${this.escapeHtml(sqlText)}</code></pre>`;
+                    const otherArgs = Object.fromEntries(
+                        Object.entries(args).filter(([k]) => k !== 'query' && k !== 'sql')
+                    );
+                    if (Object.keys(otherArgs).length > 0) {
+                        argDisplay += `<pre><code>${this.escapeHtml(JSON.stringify(otherArgs, null, 2))}</code></pre>`;
+                    }
+                } else {
+                    argDisplay = `<pre><code>${this.escapeHtml(JSON.stringify(args, null, 2))}</code></pre>`;
+                }
+            } else {
+                argDisplay = `<pre><code>${this.escapeHtml(String(args))}</code></pre>`;
+            }
+
+            html += `<div class="tool-call-item"><strong>${tc.function.name}</strong>${argDisplay}</div>`;
         }
 
         html += '</div>';
@@ -295,6 +314,12 @@ export class ChatUI {
         html += '</details>';
         block.innerHTML = html;
         this.messagesEl.appendChild(block);
+
+        // Highlight any SQL blocks in the proposal
+        block.querySelectorAll('code.language-sql').forEach(el => {
+            if (typeof hljs !== 'undefined') hljs.highlightElement(el);
+        });
+
         this.scrollToBottom();
 
         if (autoApproved) {

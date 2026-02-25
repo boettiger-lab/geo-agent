@@ -23,7 +23,7 @@ export class Agent {
         this.systemPrompt = '';
         this.messages = [];
         this.selectedModel = config.llm_model || config.llm_models?.[0]?.value || 'default';
-        this.maxToolCalls = 8;
+        this.maxToolCalls = 20;
 
         // Event callbacks (set by chat-ui.js)
         this.onThinkingStart = () => { };
