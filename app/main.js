@@ -111,6 +111,7 @@ async function main() {
     if (appConfig.mcp_auth_token) {
         mcpHeaders['Authorization'] = `Bearer ${appConfig.mcp_auth_token}`;
     }
+    console.log('[main] MCP URL:', mcpUrl, 'auth token present:', !!appConfig.mcp_auth_token);
     const mcp = new MCPClient(mcpUrl, mcpHeaders);
     // Connect eagerly but don't block boot
     mcp.connect().catch(err => console.warn('[main] Initial MCP connect failed (will retry):', err.message));
