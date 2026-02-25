@@ -40,6 +40,7 @@ export class MCPClient {
 
     async _doConnect() {
         try {
+            console.log('[MCP] Auth header present:', !!this.headers['Authorization'], 'URL:', this.serverUrl);
             const transport = new StreamableHTTPClientTransport(new URL(this.serverUrl), {
                 requestInit: { headers: this.headers }
             });
