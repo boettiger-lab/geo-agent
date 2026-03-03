@@ -286,11 +286,12 @@ export class ChatUI {
             let argDisplay = '';
             if (typeof args === 'object' && args !== null) {
                 // Extract SQL query field and display it highlighted with real newlines
-                const sqlText = args.query || args.sql || null;
+                const sqlText = args.sql_query || args.query || args.sql || null;
+                const sqlKey = args.sql_query !== undefined ? 'sql_query' : args.query !== undefined ? 'query' : 'sql';
                 if (sqlText) {
-                    argDisplay += `<pre><code class="language-sql">${this.escapeHtml(sqlText)}</code></pre>`;
+                    argDisplay += `<details class="sql-detail"><summary>SQL</summary><pre><code class="language-sql">${this.escapeHtml(sqlText)}</code></pre></details>`;
                     const otherArgs = Object.fromEntries(
-                        Object.entries(args).filter(([k]) => k !== 'query' && k !== 'sql')
+                        Object.entries(args).filter(([k]) => k !== sqlKey)
                     );
                     if (Object.keys(otherArgs).length > 0) {
                         argDisplay += `<pre><code>${this.escapeHtml(JSON.stringify(otherArgs, null, 2))}</code></pre>`;
