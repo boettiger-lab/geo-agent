@@ -153,19 +153,19 @@ async function main() {
     const catalogText = catalog.generatePromptCatalog();
     let systemPrompt = basePrompt + '\n\n' + catalogText;
 
-    // Read server-provided system instructions (if any)
+    // Read server-provided prompt (if any)
     try {
-        const resources = await mcp.listResources();
-        const instructions = resources?.find(r => r.uri === 'instructions://system');
-        if (instructions) {
-            const content = await mcp.readResource(instructions.uri);
+        const prompts = await mcp.listPrompts();
+        const analyst = prompts?.find(p => p.name === 'geospatial-analyst');
+        if (analyst) {
+            const content = await mcp.getPrompt(analyst.name);
             if (content) {
                 systemPrompt += '\n\n' + content;
-                console.log('[main] Loaded MCP system instructions');
+                console.log('[main] Loaded MCP geospatial-analyst prompt');
             }
         }
     } catch (e) {
-        console.warn('[main] No system instructions resource available:', e.message);
+        console.warn('[main] No MCP prompts available:', e.message);
     }
 
     /* ── 7. Create agent ──────────────────────────────────────────────── */

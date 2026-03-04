@@ -192,6 +192,29 @@ export class MCPClient {
     }
 
     /**
+     * List available MCP prompts.
+     * @returns {Array} Prompt definitions
+     */
+    async listPrompts() {
+        await this.ensureConnected();
+        const result = await this.client.listPrompts();
+        return result?.prompts || [];
+    }
+
+    /**
+     * Get an MCP prompt by name.
+     * @param {string} name - Prompt name (e.g., 'geospatial-analyst')
+     * @param {Object} [args] - Optional prompt arguments
+     * @returns {string} Prompt content (concatenated message text)
+     */
+    async getPrompt(name, args = {}) {
+        await this.ensureConnected();
+        const result = await this.client.getPrompt({ name, arguments: args });
+        const messages = result?.messages || [];
+        return messages.map(m => m.content?.text || '').join('\n\n');
+    }
+
+    /**
      * Disconnect and clean up.
      */
     async disconnect() {
