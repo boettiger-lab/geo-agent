@@ -151,7 +151,22 @@ async function main() {
     /* ── 6. Build system prompt ────────────────────────────────────────── */
     const basePrompt = await fetchText('system-prompt.md');
     const catalogText = catalog.generatePromptCatalog();
-    const systemPrompt = basePrompt + '\n\n' + catalogText;
+    let systemPrompt = basePrompt + '\n\n' + catalogText;
+
+    // Read server-provided system instructions (if any)
+    try {
+        const resources = await mcp.listResources();
+        const instructions = resources?.find(r => r.uri === 'instructions://system');
+        if (instructions) {
+            const content = await mcp.readResource(instructions.uri);
+            if (content) {
+                systemPrompt += '\n\n' + content;
+                console.log('[main] Loaded MCP system instructions');
+            }
+        }
+    } catch (e) {
+        console.warn('[main] No system instructions resource available:', e.message);
+    }
 
     /* ── 7. Create agent ──────────────────────────────────────────────── */
     const agent = new Agent(appConfig, toolRegistry);
