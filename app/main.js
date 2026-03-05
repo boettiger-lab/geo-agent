@@ -151,7 +151,22 @@ async function main() {
     /* ── 6. Build system prompt ────────────────────────────────────────── */
     const basePrompt = await fetchText('system-prompt.md');
     const catalogText = catalog.generatePromptCatalog();
-    const systemPrompt = basePrompt + '\n\n' + catalogText;
+    let systemPrompt = basePrompt + '\n\n' + catalogText;
+
+    // Read server-provided prompt (if any)
+    try {
+        const prompts = await mcp.listPrompts();
+        const analyst = prompts?.find(p => p.name === 'geospatial-analyst');
+        if (analyst) {
+            const content = await mcp.getPrompt(analyst.name);
+            if (content) {
+                systemPrompt += '\n\n' + content;
+                console.log('[main] Loaded MCP geospatial-analyst prompt');
+            }
+        }
+    } catch (e) {
+        console.warn('[main] No MCP prompts available:', e.message);
+    }
 
     /* ── 7. Create agent ──────────────────────────────────────────────── */
     const agent = new Agent(appConfig, toolRegistry);
