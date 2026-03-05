@@ -8,7 +8,7 @@ data:
     {
         "mcp_server_url": "${MCP_SERVER_URL}",
         "mcp_auth_token": "${MCP_AUTH_TOKEN}",
-        "llm_model": "glm-4.7",
+        "llm_model": "minimax-m2",
         "llm_models": [
             {
                 "value": "glm-4.7",
