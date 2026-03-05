@@ -444,7 +444,7 @@ export class MapManager {
     async _getColormapGradient(colormap) {
         if (this._colormapCache.has(colormap)) return this._colormapCache.get(colormap);
         try {
-            const resp = await fetch(`${this.titilerUrl}/colormap?colormap_name=${colormap}`);
+            const resp = await fetch(`${this.titilerUrl}/colorMaps/${colormap}`);
             if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
             const data = await resp.json();
             const stops = [0, 28, 57, 85, 113, 141, 170, 198, 226, 255].map(i => {
