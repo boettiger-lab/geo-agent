@@ -180,6 +180,7 @@ export class DatasetCatalog {
                         cogUrl: asset.href,
                         colormap: config.colormap || options.colormap || 'reds',
                         rescale: config.rescale || options.rescale || null,
+                        legendLabel: config.legend_label || null,
                         description: asset.description || '',
                         defaultVisible: config.visible === true,
                         defaultFilter: config.default_filter || null,
@@ -426,6 +427,9 @@ export class DatasetCatalog {
                         group: ml.group || ds.group,
                         displayName: ml.title,
                         type: 'raster',
+                        colormap: ml.colormap,
+                        rescale: ml.rescale,
+                        legendLabel: ml.legendLabel,
                         source: {
                             type: 'raster',
                             tiles: [tilesUrl],
