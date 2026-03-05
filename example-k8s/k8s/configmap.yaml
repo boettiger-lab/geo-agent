@@ -23,8 +23,20 @@ data:
                 "api_key": "${PROXY_KEY}"
             },
             {
-                "value": "anthropic/claude-sonnet-4.5",
-                "label": "claude",
+                "value": "gpt-oss",
+                "label": "NRP GPT-OSS 120B",
+                "endpoint": "${LLM_ENDPOINT}",
+                "api_key": "${PROXY_KEY}"
+            },
+            {
+                "value": "kimi",
+                "label": "NRP Kimi K2.5",
+                "endpoint": "${LLM_ENDPOINT}",
+                "api_key": "${PROXY_KEY}"
+            },
+            {
+                "value": "minimax-m2",
+                "label": "NRP MiniMax M2.5",
                 "endpoint": "${LLM_ENDPOINT}",
                 "api_key": "${PROXY_KEY}"
             }
