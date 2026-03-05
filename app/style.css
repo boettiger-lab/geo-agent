@@ -74,6 +74,63 @@ body {
     cursor: pointer;
 }
 
+/* Layer groups */
+.layer-group {
+    margin-bottom: 8px;
+}
+
+.layer-group:last-child {
+    margin-bottom: 0;
+}
+
+.layer-group-title {
+    font-size: 11px;
+    font-weight: 600;
+    color: #666;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    cursor: pointer;
+    user-select: none;
+    margin-bottom: 6px;
+    list-style: none;
+}
+
+.layer-group-title::-webkit-details-marker {
+    display: none;
+}
+
+.layer-group-title::before {
+    content: '▾ ';
+    font-size: 10px;
+    color: #999;
+}
+
+details.layer-group:not([open]) .layer-group-title::before {
+    content: '▸ ';
+}
+
+.layer-item {
+    margin-bottom: 6px;
+    padding-left: 8px;
+}
+
+.layer-item:last-child {
+    margin-bottom: 0;
+}
+
+.layer-toggle {
+    display: flex;
+    align-items: center;
+    font-size: 13px;
+    color: #404040;
+    cursor: pointer;
+}
+
+.layer-toggle input[type="checkbox"] {
+    margin: 0 6px 0 0;
+    cursor: pointer;
+}
+
 /* Glass effect for species richness dropdown */
 #species-taxon {
     background: rgba(255, 255, 255, 0.1) !important;

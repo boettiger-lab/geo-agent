@@ -78,7 +78,7 @@ export class MapManager {
      * Register a single layer on the map.
      */
     registerLayer(config) {
-        const { layerId, datasetId, displayName, type, source, sourceLayer, paint, columns, tooltipFields, defaultVisible, defaultFilter } = config;
+        const { layerId, datasetId, group, displayName, type, source, sourceLayer, paint, columns, tooltipFields, defaultVisible, defaultFilter } = config;
         // Use pre-computed sourceId (shared between alias layers) or derive from layerId
         const sourceId = config.sourceId || `src-${layerId.replace(/\//g, '-')}`;
         const mapLayerId = `layer-${layerId.replace(/\//g, '-')}`;
@@ -140,6 +140,7 @@ export class MapManager {
             outlineLayerId,
             sourceId,
             datasetId,
+            group: group || null,
             displayName,
             type,
             sourceLayer: sourceLayer || null,
@@ -338,29 +339,58 @@ export class MapManager {
         }
         if (!container) return;
         container.innerHTML = '';
+
+        // Group layers by their group name (null → ungrouped)
+        const groups = new Map();
         for (const [layerId, state] of this.layers) {
-            const wrapper = document.createElement('div');
-            wrapper.className = 'layer-item';
+            const key = state.group || '';
+            if (!groups.has(key)) groups.set(key, []);
+            groups.get(key).push([layerId, state]);
+        }
 
-            const label = document.createElement('label');
-            label.className = 'layer-toggle';
+        for (const [groupName, entries] of groups) {
+            let itemContainer;
 
-            const checkbox = document.createElement('input');
-            checkbox.type = 'checkbox';
-            checkbox.id = `toggle-${layerId.replace(/\//g, '-')}`;
-            checkbox.checked = state.visible;
-            checkbox.addEventListener('change', () => {
-                if (checkbox.checked) this.showLayer(layerId);
-                else this.hideLayer(layerId);
-            });
+            if (groupName) {
+                const details = document.createElement('details');
+                details.open = true;
+                details.className = 'layer-group';
 
-            const span = document.createElement('span');
-            span.textContent = state.displayName;
+                const summary = document.createElement('summary');
+                summary.className = 'layer-group-title';
+                summary.textContent = groupName;
+                details.appendChild(summary);
 
-            label.appendChild(checkbox);
-            label.appendChild(span);
-            wrapper.appendChild(label);
-            container.appendChild(wrapper);
+                container.appendChild(details);
+                itemContainer = details;
+            } else {
+                itemContainer = container;
+            }
+
+            for (const [layerId, state] of entries) {
+                const wrapper = document.createElement('div');
+                wrapper.className = 'layer-item';
+
+                const label = document.createElement('label');
+                label.className = 'layer-toggle';
+
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.id = `toggle-${layerId.replace(/\//g, '-')}`;
+                checkbox.checked = state.visible;
+                checkbox.addEventListener('change', () => {
+                    if (checkbox.checked) this.showLayer(layerId);
+                    else this.hideLayer(layerId);
+                });
+
+                const span = document.createElement('span');
+                span.textContent = state.displayName;
+
+                label.appendChild(checkbox);
+                label.appendChild(span);
+                wrapper.appendChild(label);
+                itemContainer.appendChild(wrapper);
+            }
         }
     }
 
