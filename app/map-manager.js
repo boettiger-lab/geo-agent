@@ -21,6 +21,13 @@ export class MapManager {
         /** @type {Map<string, LayerState>} */
         this.layers = new Map();
 
+        // Raster legend state
+        this._legendEl = null;
+        this._legendContent = null;
+        this._legendItems = new Map();   // layerId → DOM element
+        this._colormapCache = new Map(); // colormap name → CSS gradient string
+        this.titilerUrl = options.titilerUrl || 'https://titiler.nrp-nautilus.io';
+
         // Register PMTiles protocol
         const protocol = new pmtiles.Protocol();
         maplibregl.addProtocol('pmtiles', protocol.tile);
@@ -78,7 +85,7 @@ export class MapManager {
      * Register a single layer on the map.
      */
     registerLayer(config) {
-        const { layerId, datasetId, group, displayName, type, source, sourceLayer, paint, columns, tooltipFields, defaultVisible, defaultFilter } = config;
+        const { layerId, datasetId, group, displayName, type, source, sourceLayer, paint, columns, tooltipFields, defaultVisible, defaultFilter, colormap, rescale, legendLabel } = config;
         // Use pre-computed sourceId (shared between alias layers) or derive from layerId
         const sourceId = config.sourceId || `src-${layerId.replace(/\//g, '-')}`;
         const mapLayerId = `layer-${layerId.replace(/\//g, '-')}`;
@@ -149,6 +156,9 @@ export class MapManager {
             columns: columns || [],
             defaultPaint: { ...(paint || {}) },
             tooltipFields: tooltipFields || null,
+            colormap: colormap || null,
+            rescale: rescale || null,
+            legendLabel: legendLabel || null,
         });
 
         // Wire hover tooltip if fields are declared
@@ -189,6 +199,7 @@ export class MapManager {
         this.map.setLayoutProperty(state.mapLayerId, 'visibility', 'visible');
         if (state.outlineLayerId) this.map.setLayoutProperty(state.outlineLayerId, 'visibility', 'visible');
         state.visible = true;
+        if (state.type === 'raster') this._showRasterLegend(layerId);
         return { success: true, layer: layerId, displayName: state.displayName, visible: true };
     }
 
@@ -204,6 +215,7 @@ export class MapManager {
         this.map.setLayoutProperty(state.mapLayerId, 'visibility', 'none');
         if (state.outlineLayerId) this.map.setLayoutProperty(state.outlineLayerId, 'visibility', 'none');
         state.visible = false;
+        if (state.type === 'raster') this._hideRasterLegend(layerId);
         return { success: true, layer: layerId, displayName: state.displayName, visible: false };
     }
 
@@ -403,6 +415,88 @@ export class MapManager {
         if (!state) return;
         const checkbox = document.getElementById(`toggle-${layerId.replace(/\//g, '-')}`);
         if (checkbox) checkbox.checked = state.visible;
+    }
+
+    // ---- Raster Legend ----
+
+    _ensureLegend() {
+        if (this._legendEl) return;
+
+        const legend = document.createElement('div');
+        legend.id = 'legend';
+        legend.innerHTML = `
+            <div id="legend-header">
+                <h3>Legend</h3>
+                <button id="legend-toggle" title="Toggle legend">−</button>
+            </div>
+            <div id="legend-content"></div>
+        `;
+        document.body.appendChild(legend);
+        this._legendEl = legend;
+        this._legendContent = legend.querySelector('#legend-content');
+
+        legend.querySelector('#legend-toggle').addEventListener('click', () => {
+            const collapsed = this._legendContent.classList.toggle('collapsed');
+            legend.querySelector('#legend-toggle').textContent = collapsed ? '+' : '−';
+        });
+    }
+
+    async _getColormapGradient(colormap) {
+        if (this._colormapCache.has(colormap)) return this._colormapCache.get(colormap);
+        try {
+            const resp = await fetch(`${this.titilerUrl}/colormap?colormap_name=${colormap}`);
+            if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+            const data = await resp.json();
+            const stops = [0, 28, 57, 85, 113, 141, 170, 198, 226, 255].map(i => {
+                const [r, g, b, a] = data[String(i)] || [128, 128, 128, 255];
+                return `rgba(${r},${g},${b},${(a / 255).toFixed(2)})`;
+            });
+            const gradient = `linear-gradient(to right, ${stops.join(', ')})`;
+            this._colormapCache.set(colormap, gradient);
+            return gradient;
+        } catch {
+            return 'linear-gradient(to right, #eee, #333)';
+        }
+    }
+
+    async _showRasterLegend(layerId) {
+        const state = this.layers.get(layerId);
+        if (!state) return;
+
+        this._ensureLegend();
+        this._legendEl.style.display = '';
+
+        if (this._legendItems.has(layerId)) {
+            this._legendItems.get(layerId).style.display = '';
+            return;
+        }
+
+        const gradient = await this._getColormapGradient(state.colormap || 'reds');
+        const [minVal, maxVal] = (state.rescale || '0,1').split(',');
+        const unit = state.legendLabel ? ` ${state.legendLabel}` : '';
+
+        const item = document.createElement('div');
+        item.className = 'legend-section';
+        item.innerHTML = `
+            <h4>${state.displayName}</h4>
+            <div class="legend-colorbar" style="background: ${gradient};"></div>
+            <div class="legend-labels">
+                <span>${minVal}${unit}</span>
+                <span>${maxVal}${unit}</span>
+            </div>
+        `;
+        this._legendContent.appendChild(item);
+        this._legendItems.set(layerId, item);
+    }
+
+    _hideRasterLegend(layerId) {
+        const item = this._legendItems.get(layerId);
+        if (item) item.style.display = 'none';
+        // Hide the whole panel when nothing is visible
+        if (this._legendEl) {
+            const anyVisible = [...this._legendItems.values()].some(el => el.style.display !== 'none');
+            this._legendEl.style.display = anyVisible ? '' : 'none';
+        }
     }
 
     // ---- Utilities ----
