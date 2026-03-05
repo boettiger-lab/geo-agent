@@ -29,6 +29,7 @@ export class DatasetCatalog {
      * @param {Array<Object>} appConfig.collections - Collection specs
      */
     async load(appConfig) {
+        this.appConfig = appConfig;
         this.catalogUrl = appConfig.catalog;
         this.titilerUrl = appConfig.titiler_url || 'https://titiler.nrp-nautilus.io';
 
@@ -180,6 +181,7 @@ export class DatasetCatalog {
                         cogUrl: asset.href,
                         colormap: config.colormap || options.colormap || 'reds',
                         rescale: config.rescale || options.rescale || null,
+                        paint: config.paint || null,
                         legendLabel: config.legend_label || null,
                         description: asset.description || '',
                         defaultVisible: config.visible === true,
@@ -390,7 +392,15 @@ export class DatasetCatalog {
     getMapLayerConfigs() {
         const configs = [];
 
-        for (const ds of this.datasets.values()) {
+        // Iterate in the order specified by appConfig.collections so that
+        // layer insertion order on the map matches the user's config order.
+        const orderedIds = this.appConfig?.collections
+            ? this.appConfig.collections.map(c => typeof c === 'string' ? c : c.collection_id)
+            : [...this.datasets.keys()];
+
+        for (const id of orderedIds) {
+            const ds = this.datasets.get(id);
+            if (!ds) continue;
             for (const ml of ds.mapLayers) {
                 const layerId = `${ds.id}/${ml.assetId}`;
 
@@ -435,7 +445,7 @@ export class DatasetCatalog {
                             tiles: [tilesUrl],
                             tileSize: 256,
                         },
-                        paint: { 'raster-opacity': 0.7 },
+                        paint: ml.paint || { 'raster-opacity': 0.7 },
                         columns: [], // rasters don't have filterable columns
                     });
                 }
