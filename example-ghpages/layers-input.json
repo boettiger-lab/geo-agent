@@ -14,16 +14,24 @@
         "default_endpoint": "https://openrouter.ai/api/v1",
         "models": [
             {
+                "value": "qwen/qwen3-235b-a22b",
+                "label": "Qwen3 235B"
+            },
+            {
+                "value": "moonshotai/kimi-k2",
+                "label": "Kimi K2"
+            },
+            {
+                "value": "minimax/minimax-m1",
+                "label": "MiniMax M1"
+            },
+            {
                 "value": "anthropic/claude-sonnet-4",
                 "label": "Claude Sonnet"
             },
             {
                 "value": "google/gemini-2.5-flash",
                 "label": "Gemini Flash"
-            },
-            {
-                "value": "openai/gpt-4.1-mini",
-                "label": "GPT-4.1 mini"
             }
         ]
     },
