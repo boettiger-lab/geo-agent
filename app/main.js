@@ -53,6 +53,7 @@ async function main() {
     const mapManager = new MapManager('map', {
         center: appConfig.view?.center || [-119.4, 36.8],
         zoom: appConfig.view?.zoom || 6,
+        titilerUrl: appConfig.titiler_url || 'https://titiler.nrp-nautilus.io',
     });
     await mapManager.ready;                        // wait for style to load
     mapManager.addLayersFromCatalog(catalog.getMapLayerConfigs());

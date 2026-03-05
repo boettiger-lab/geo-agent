@@ -230,6 +230,21 @@ details.layer-group:not([open]) .layer-group-title::before {
     letter-spacing: 0.5px;
 }
 
+.legend-colorbar {
+    height: 12px;
+    border-radius: 2px;
+    margin: 4px 0 2px;
+    border: 1px solid rgba(0,0,0,0.1);
+}
+
+.legend-labels {
+    display: flex;
+    justify-content: space-between;
+    font-size: 10px;
+    color: #666;
+    margin-bottom: 4px;
+}
+
 .legend-item {
     display: flex;
     align-items: center;
