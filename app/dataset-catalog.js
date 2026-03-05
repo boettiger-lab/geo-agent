@@ -104,6 +104,7 @@ export class DatasetCatalog {
 
         const entry = {
             id: collection.id,
+            group: options.group || null,
             title: options.display_name || collection.title || collection.id,
             description: collection.description || '',
             license: collection.license || 'N/A',
@@ -160,6 +161,7 @@ export class DatasetCatalog {
                         assetId: key,
                         sourceAssetId: assetId,  // original STAC key — used to share one MapLibre source across aliases
                         layerType: 'vector',
+                        group: config.group || null,
                         title: config.display_name || asset.title || assetId,
                         url: asset.href,
                         sourceLayer: asset['vector:layers']?.[0] || asset['pmtiles:layer'] || assetId,
@@ -173,6 +175,7 @@ export class DatasetCatalog {
                     layers.push({
                         assetId: key,
                         layerType: 'raster',
+                        group: config.group || null,
                         title: config.display_name || asset.title || assetId,
                         cogUrl: asset.href,
                         colormap: config.colormap || options.colormap || 'reds',
@@ -398,6 +401,7 @@ export class DatasetCatalog {
                     configs.push({
                         layerId,
                         datasetId: ds.id,
+                        group: ml.group || ds.group,
                         displayName: ml.title,
                         type: 'vector',
                         sourceId: sharedSourceId,
@@ -419,6 +423,7 @@ export class DatasetCatalog {
                     configs.push({
                         layerId,
                         datasetId: ds.id,
+                        group: ml.group || ds.group,
                         displayName: ml.title,
                         type: 'raster',
                         source: {
