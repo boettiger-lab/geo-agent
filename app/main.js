@@ -58,6 +58,15 @@ async function main() {
     await mapManager.ready;                        // wait for style to load
     mapManager.addLayersFromCatalog(catalog.getMapLayerConfigs());
     mapManager.generateControls('layer-controls-container');
+
+    // Wire overlays panel toggle
+    const menuToggle = document.getElementById('menu-toggle');
+    const menuEl = document.getElementById('menu');
+    menuToggle?.addEventListener('click', () => {
+        menuEl.classList.toggle('collapsed');
+        menuToggle.textContent = menuEl.classList.contains('collapsed') ? '+' : '−';
+    });
+
     console.log('[main] Map ready');
 
     /* ── 3b. H3 hex-grid toggle (optional — requires h3-js global) ──── */
