@@ -273,11 +273,18 @@ export class ChatUI {
         const block = document.createElement('div');
         block.className = 'chat-message tool-block';
 
+        // Show plain-english description above the fold for proposals requiring approval
+        let html = '';
+        if (!autoApproved && reasoningText && reasoningText.trim()) {
+            const descHtml = typeof marked !== 'undefined' ? marked.parse(reasoningText.trim()) : this.escapeHtml(reasoningText.trim());
+            html += `<div class="tool-reasoning">${descHtml}</div>`;
+        }
+
         // Build collapsible header
         const names = calls.map(c => c.function.name).join(', ');
-        const label = autoApproved ? `⚙️ Running: ${names}` : `🔧 Tool proposal: ${names}`;
+        const label = autoApproved ? `Running: ${names}` : `Details: ${names}`;
 
-        let html = `<details${autoApproved ? '' : ' open'}><summary class="query-summary-btn">${label}</summary><div class="tool-detail">`;
+        html += `<details><summary class="query-summary-btn">${label}</summary><div class="tool-detail">`;
 
         for (const tc of calls) {
             let args;
@@ -306,13 +313,11 @@ export class ChatUI {
             html += `<div class="tool-call-item"><strong>${tc.function.name}</strong>${argDisplay}</div>`;
         }
 
-        html += '</div>';
+        html += '</div></details>';
 
         if (!autoApproved) {
             html += '<div class="tool-approval-buttons"><button class="approve-btn approve-yes">▶ Run</button><button class="approve-btn approve-no" style="background:#dc3545">✕ Cancel</button></div>';
         }
-
-        html += '</details>';
         block.innerHTML = html;
         this.messagesEl.appendChild(block);
 

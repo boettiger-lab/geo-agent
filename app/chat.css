@@ -278,6 +278,18 @@
 
 /* ── Tool blocks (collapsible) ──────────────────────────── */
 
+.tool-reasoning {
+    font-size: 13px;
+    line-height: 1.5;
+    color: #1a1a2e;
+    margin-bottom: 6px;
+    padding: 0 2px;
+}
+
+.tool-reasoning p {
+    margin: 0;
+}
+
 .chat-message.tool-block {
     align-self: flex-start;
     background: rgba(245, 248, 255, 0.6);
