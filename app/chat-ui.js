@@ -273,11 +273,17 @@ export class ChatUI {
         const block = document.createElement('div');
         block.className = 'chat-message tool-block';
 
-        // Show plain-english description above the fold for proposals requiring approval
+        // Show plain-english description above the fold for proposals requiring approval.
+        // Use model-provided reasoning if available, otherwise derive from tool args.
         let html = '';
-        if (!autoApproved && reasoningText && reasoningText.trim()) {
-            const descHtml = typeof marked !== 'undefined' ? marked.parse(reasoningText.trim()) : this.escapeHtml(reasoningText.trim());
-            html += `<div class="tool-reasoning">${descHtml}</div>`;
+        if (!autoApproved) {
+            const desc = (reasoningText && reasoningText.trim())
+                ? reasoningText.trim()
+                : this.describeToolCalls(calls);
+            if (desc) {
+                const descHtml = typeof marked !== 'undefined' ? marked.parse(desc) : this.escapeHtml(desc);
+                html += `<div class="tool-reasoning">${descHtml}</div>`;
+            }
         }
 
         // Build collapsible header
@@ -424,6 +430,26 @@ export class ChatUI {
         requestAnimationFrame(() => {
             this.messagesEl.scrollTop = this.messagesEl.scrollHeight;
         });
+    }
+
+    /**
+     * Generate a fallback plain-english description from tool call arguments
+     * when the model does not provide reasoning text alongside tool calls.
+     */
+    describeToolCalls(calls) {
+        const parts = calls.map(tc => {
+            let args;
+            try { args = JSON.parse(tc.function.arguments); } catch { args = {}; }
+            const sql = args.sql_query || args.query || args.sql;
+            if (sql) {
+                // Extract the first SELECT…FROM clause for a minimal summary
+                const m = sql.match(/SELECT\s+.+?\s+FROM\s+([\w./'"-]+)/is);
+                const table = m ? m[1].replace(/read_parquet\(['"]([^'"]+)['"]\)/i, '$1').split('/').filter(Boolean).slice(-2).join('/') : null;
+                return table ? `Will run a data query against \`${table}\`.` : 'Will run a data query.';
+            }
+            return `Will call \`${tc.function.name}\`.`;
+        });
+        return parts.join(' ');
     }
 
     escapeHtml(str) {
