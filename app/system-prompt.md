@@ -54,6 +54,12 @@ SELECT * FROM county_carbon
 
 Then visualize: `show_layer("overturemaps/overturemaps-admins")` and `set_filter("overturemaps/overturemaps-admins", ["in", "NAMELSAD", "County1", "County2", …])`.
 
+## Before calling a remote tool
+
+Before calling the SQL `query` tool, always write a brief plain-english sentence (1–2 sentences) in your `content` describing what you are about to query and why. This text is shown to the user above the Run/Cancel approval prompt so they understand what will run before clicking.
+
+Example: *"I'll query the data to find the largest county in Wyoming by area."*
+
 ## Available datasets
 
 The section below is automatically injected at runtime with full dataset details including layer IDs, parquet paths, column schemas, and filterable properties. Use `list_datasets` or `get_dataset_details` tools for live info.
