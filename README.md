@@ -80,6 +80,8 @@ Each client app is a tiny repo (~4–5 files) that provides:
 | `agent.js` | LLM orchestration loop — agentic while-loop with tool-use |
 | `chat-ui.js` | Chat UI with collapsible tool-call blocks |
 
+See [`docs/agent-loop.md`](docs/agent-loop.md) for a detailed walkthrough of the agentic loop, how pre-call explanations are generated, and options for extending the approval flow.
+
 ### Data flow
 
 1. **STAC catalog** is the single source of truth for dataset metadata

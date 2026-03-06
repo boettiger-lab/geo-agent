@@ -435,21 +435,59 @@ export class ChatUI {
     /**
      * Generate a fallback plain-english description from tool call arguments
      * when the model does not provide reasoning text alongside tool calls.
+     * See docs/agent-loop.md for why this fallback exists and alternatives.
      */
     describeToolCalls(calls) {
         const parts = calls.map(tc => {
             let args;
             try { args = JSON.parse(tc.function.arguments); } catch { args = {}; }
             const sql = args.sql_query || args.query || args.sql;
-            if (sql) {
-                // Extract the first SELECT…FROM clause for a minimal summary
-                const m = sql.match(/SELECT\s+.+?\s+FROM\s+([\w./'"-]+)/is);
-                const table = m ? m[1].replace(/read_parquet\(['"]([^'"]+)['"]\)/i, '$1').split('/').filter(Boolean).slice(-2).join('/') : null;
-                return table ? `Will run a data query against \`${table}\`.` : 'Will run a data query.';
-            }
+            if (sql) return this.describeSql(sql);
             return `Will call \`${tc.function.name}\`.`;
         });
         return parts.join(' ');
+    }
+
+    /**
+     * Parse a SQL string and produce a concise plain-english summary.
+     * Detects tables, joins, aggregations, filtering, and grouping.
+     */
+    describeSql(sql) {
+        const s = sql.replace(/\s+/g, ' ');
+
+        // Extract all read_parquet paths → short two-segment names
+        const tableNames = [...s.matchAll(/read_parquet\s*\(\s*['"]([^'"]+)['"]\s*\)/gi)]
+            .map(m => m[1].split('/').filter(p => p && !p.includes('*')).slice(-2).join('/'));
+        const uniqueTables = [...new Set(tableNames)];
+
+        // Detect operation types
+        const hasAgg   = /\b(SUM|AVG|COUNT|MIN|MAX)\s*\(/i.test(s);
+        const hasJoin  = /\bJOIN\b/i.test(s);
+        const hasWhere = /\bWHERE\b/i.test(s);
+        const hasGroup = /\bGROUP\s+BY\b/i.test(s);
+        const hasOrder = /\bORDER\s+BY\b/i.test(s);
+        const hasLimit = /\bLIMIT\s+\d+/i.test(s);
+
+        // Build description
+        let action = hasAgg ? 'Computing aggregates' : 'Querying data';
+
+        let tableDesc = '';
+        if (uniqueTables.length === 1) {
+            tableDesc = ` from \`${uniqueTables[0]}\``;
+        } else if (uniqueTables.length === 2) {
+            tableDesc = ` joining \`${uniqueTables[0]}\` with \`${uniqueTables[1]}\``;
+        } else if (uniqueTables.length > 2) {
+            tableDesc = ` across ${uniqueTables.length} datasets`;
+        }
+
+        const qualifiers = [];
+        if (hasWhere) qualifiers.push('filtered by conditions');
+        if (hasGroup) qualifiers.push('grouped by category');
+        if (hasOrder && hasLimit) qualifiers.push('returning top results');
+
+        let desc = action + tableDesc;
+        if (qualifiers.length > 0) desc += ', ' + qualifiers.join(', ');
+        return desc + '.';
     }
 
     escapeHtml(str) {
