@@ -108,14 +108,19 @@ export class Agent {
                 // Classify: are all calls local (auto-approve) or mixed?
                 const allLocal = calls.every(tc => this.toolRegistry.isLocal(tc.function.name));
 
+                // Strip embedded <tool_call> tags from content before displaying to user
+                const displayContent = message.content
+                    ? message.content.replace(/<tool_call>[\s\S]*?<\/tool_call>/gi, '').trim()
+                    : null;
+
                 let approved = true;
                 if (!allLocal) {
                     // Show proposal and wait for approval
-                    const result = await this.onToolProposal(calls, message.content, iterations);
+                    const result = await this.onToolProposal(calls, displayContent, iterations);
                     approved = result.approved;
                 } else {
                     // Auto-approve local tools, but still show what's happening
-                    this.onToolProposal(calls, message.content, iterations, true /* autoApproved */);
+                    this.onToolProposal(calls, displayContent, iterations, true /* autoApproved */);
                 }
 
                 if (!approved) {
