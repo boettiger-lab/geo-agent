@@ -8,14 +8,13 @@ A reusable JavaScript library for interactive map applications with LLM-powered 
 
 ## Quick start: create a new app
 
-1. Copy one of the example templates into a new repo
-2. Edit `layers-input.json` — choose your STAC collections, assets, and LLM config
-3. Edit `index.html` — set page title, pin CDN version
-4. Deploy (see options below)
+**The easiest way to start a new app is to use [boettiger-lab/geo-agent-template](https://github.com/boettiger-lab/geo-agent-template)** — click "Use this template" on GitHub. It gives you a ready-to-deploy repo with `index.html`, `layers-input.json`, `system-prompt.md`, and `k8s/` manifests pre-wired. Edit those four files for your dataset and you're done.
+
+Alternatively, you can copy one of the example templates in this repo manually:
 
 | Template | Deployment | API key handling | Live demo |
 |---|---|---|---|
-| [`example-k8s/`](example-k8s/) | Kubernetes / managed host | Injected server-side via `config.json` | not currently deployed |
+| [`example-k8s/`](example-k8s/) | Kubernetes / managed host | Injected server-side via `config.json` | [live (padus)](https://padus.nrp-nautilus.io) |
 | [`example-ghpages/`](example-ghpages/) | GitHub Pages / any static host | Entered by the user in-browser | [live](https://boettiger-lab.github.io/geo-agent/) |
 
 See the [example-k8s README](example-k8s/README.md) or [example-ghpages README](example-ghpages/README.md) for full details.
@@ -158,7 +157,7 @@ The `app/` directory includes its own `index.html`, `layers-input.json`, and `sy
 |---|---|---|---|
 | **GitHub Pages** (or any static host) | [`example-ghpages/`](example-ghpages/) | User enters their own API key in-browser | [live](https://boettiger-lab.github.io/geo-agent/) |
 | **Hugging Face Spaces** | Start from either example | Mount a `config.json` as a Space secret-file | — |
-| **Kubernetes** | [`example-k8s/`](example-k8s/) with [`k8s/`](example-k8s/k8s/) | Secrets injected into `config.json` via ConfigMap + init container | not currently deployed |
+| **Kubernetes** | [`example-k8s/`](example-k8s/) with [`k8s/`](example-k8s/k8s/) | Secrets injected into `config.json` via ConfigMap + init container | [live (padus)](https://padus.nrp-nautilus.io) |
 
 See [`example-k8s/k8s/`](example-k8s/k8s/) for the client app Kubernetes deployment template, and [`example-k8s/README.md`](example-k8s/README.md) for a full walkthrough of all three options.
 
