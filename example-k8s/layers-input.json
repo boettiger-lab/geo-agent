@@ -12,6 +12,7 @@
     "collections": [
         {
             "collection_id": "pad-us-4.1-fee",
+            "collection_url": "https://s3-west.nrp-nautilus.io/public-padus/padus-4-1/fee/stac-collection.json",
             "assets": [
                 {
                     "id": "pmtiles",
@@ -33,7 +34,8 @@
             ]
         },
         {
-            "collection_id": "pad-us-4-1-easement",
+            "collection_id": "pad-us-4.1-easement",
+            "collection_url": "https://s3-west.nrp-nautilus.io/public-padus/padus-4-1/easement/stac-collection.json",
             "assets": [
                 {
                     "id": "pmtiles",
