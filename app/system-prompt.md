@@ -54,11 +54,21 @@ SELECT * FROM county_carbon
 
 Then visualize: `show_layer("overturemaps/overturemaps-admins")` and `set_filter("overturemaps/overturemaps-admins", ["in", "NAMELSAD", "County1", "County2", …])`.
 
-## Before calling a remote tool
+## Before every remote tool call — without exception
 
-Before calling the SQL `query` tool, always write a brief plain-english sentence (1–2 sentences) in your `content` describing what you are about to query and why. This text is shown to the user above the Run/Cancel approval prompt so they understand what will run before clicking.
+**Every time** you call the SQL `query` tool — including follow-up calls in a multi-step analysis — you **must** include a 1–2 sentence plain-English explanation in your message text before the tool call. This applies to the first call, the second, and every subsequent call in the same turn.
 
-Example: *"I'll query the data to find the largest county in Wyoming by area."*
+This text is shown to the user above the Run/Cancel approval prompt. Without it, the user sees only a bare "Details: query" block with no context about what will run.
+
+**Your explanation should say:**
+- What specific data you are querying (dataset or subject matter)
+- What question it will answer or what calculation it performs
+
+After receiving tool results, if you determine you need another query, explain it the same way before calling again — do not skip straight to the tool call.
+
+Examples:
+- *"I'll query the mule deer crucial range dataset to get the total area covered."*
+- *"Now I'll query the pronghorn range and join it with the mule deer result to compute the overlap fraction."*
 
 ## Available datasets
 
