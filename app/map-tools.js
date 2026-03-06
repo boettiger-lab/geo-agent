@@ -106,7 +106,7 @@ ${getPropertyDocs()}`,
 
         {
             name: 'clear_filter',
-            description: `Remove all filters from a layer, showing all features. Use when the user asks to "clear filters", "reset", or "show all".\n\nVector layers: ${vectorLayerIds().join(', ')}`,
+            description: `Remove ALL filters from a layer, showing every feature regardless of properties. Use when the user wants to see everything (e.g. "show all GAP codes", "remove filter", "show everything").\n\nNote: some layers have a config default filter applied at startup. This tool removes that too. Use reset_filter instead if you want to restore the default.\n\nVector layers: ${vectorLayerIds().join(', ')}`,
             inputSchema: {
                 type: 'object',
                 properties: {
@@ -115,6 +115,19 @@ ${getPropertyDocs()}`,
                 required: ['layer_id']
             },
             execute: (args) => JSON.stringify(mapManager.clearFilter(args.layer_id)),
+        },
+
+        {
+            name: 'reset_filter',
+            description: `Reset a layer's filter to its config default (the filter it had when the app loaded). If the layer had no default filter, this clears all filters. Use when the user asks to "reset to default", "restore original view", or "go back to how it was".\n\nVector layers: ${vectorLayerIds().join(', ')}`,
+            inputSchema: {
+                type: 'object',
+                properties: {
+                    layer_id: { type: 'string', description: 'Layer ID to reset filter on' }
+                },
+                required: ['layer_id']
+            },
+            execute: (args) => JSON.stringify(mapManager.resetFilter(args.layer_id)),
         },
 
         {
