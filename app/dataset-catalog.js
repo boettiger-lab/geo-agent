@@ -351,7 +351,11 @@ export class DatasetCatalog {
                 section += `\n**Map Layers (use with map tools):**\n`;
                 for (const ml of ds.mapLayers) {
                     const layerId = `${ds.id}/${ml.assetId}`;
-                    section += `- layer_id: \`${layerId}\` — ${ml.title} (${ml.layerType})\n`;
+                    let layerLine = `- layer_id: \`${layerId}\` — ${ml.title} (${ml.layerType})`;
+                    if (ml.defaultFilter) {
+                        layerLine += ` [default filter: ${JSON.stringify(ml.defaultFilter)}]`;
+                    }
+                    section += layerLine + '\n';
                 }
             }
 

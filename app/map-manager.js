@@ -153,6 +153,7 @@ export class MapManager {
             sourceLayer: sourceLayer || null,
             visible: defaultVisible || false,
             filter: defaultFilter || null,
+            defaultFilter: defaultFilter || null,
             columns: columns || [],
             defaultPaint: { ...(paint || {}) },
             tooltipFields: tooltipFields || null,
@@ -255,10 +256,19 @@ export class MapManager {
     }
 
     /**
-     * Clear filter from a layer.
+     * Clear filter from a layer (show all features).
      */
     clearFilter(layerId) {
         return this.setFilter(layerId, null);
+    }
+
+    /**
+     * Reset filter to the layer's config default (or clear if no default).
+     */
+    resetFilter(layerId) {
+        const state = this.layers.get(layerId);
+        if (!state) return { success: false, error: `Unknown layer: ${layerId}` };
+        return this.setFilter(layerId, state.defaultFilter);
     }
 
     // ---- Styling ----
@@ -309,6 +319,8 @@ export class MapManager {
                 visible: state.visible,
                 hasFilter: state.filter !== null,
                 filterDescription: state.filter ? this.describeFilter(state.filter) : null,
+                hasDefaultFilter: state.defaultFilter !== null,
+                defaultFilterDescription: state.defaultFilter ? this.describeFilter(state.defaultFilter) : null,
             };
         }
         return { success: true, layers };
