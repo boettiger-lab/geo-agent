@@ -55,12 +55,32 @@ export class DatasetCatalog {
 
         console.log(`[Catalog] Looking for ${requestedIds.size} collections: ${[...requestedIds].join(', ')}`);
 
+        // Collections with explicit collection_url are fetched directly — no catalog traversal needed
+        const directFetches = appConfig.collections
+            .filter(c => typeof c === 'object' && c.collection_url)
+            .map(async (c) => {
+                try {
+                    const collection = await this.fetchJson(c.collection_url);
+                    const options = optionsMap.get(c.collection_id) || {};
+                    return this.processCollection(collection, options);
+                } catch (error) {
+                    console.warn(`[Catalog] Failed to fetch direct collection: ${c.collection_url}`, error.message);
+                }
+                return null;
+            });
+
+        // Remaining collections are resolved by scanning the root catalog's child links
+        const directIds = new Set(appConfig.collections
+            .filter(c => typeof c === 'object' && c.collection_url)
+            .map(c => c.collection_id));
+        const catalogIds = new Set([...requestedIds].filter(id => !directIds.has(id)));
+
         // Fetch all child collections in parallel
         const fetchPromises = childLinks.map(async (link) => {
             try {
                 const url = new URL(link.href, this.catalogUrl).href;
                 const collection = await this.fetchJson(url);
-                if (requestedIds.has(collection.id)) {
+                if (catalogIds.has(collection.id)) {
                     const options = optionsMap.get(collection.id) || {};
                     return this.processCollection(collection, options);
                 }
@@ -70,7 +90,7 @@ export class DatasetCatalog {
             return null;
         });
 
-        const results = await Promise.allSettled(fetchPromises);
+        const results = await Promise.allSettled([...directFetches, ...fetchPromises]);
         const loaded = results.filter(r => r.status === 'fulfilled' && r.value).length;
         console.log(`[Catalog] Loaded ${loaded}/${requestedIds.size} collections`);
 
