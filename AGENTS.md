@@ -8,7 +8,7 @@ Map-based application for exploring California's protected lands. Interactive Ma
 - **Data**: STAC catalog → unified dataset records with visual + parquet assets
 - **Analytics**: SQL queries via MCP (Model Context Protocol) to DuckDB on H3-indexed parquet
 - **LLM**: OpenAI-compatible Chat Completions API (multiple models via proxy)
-- **Deployment**: Kubernetes (nginx + git-clone init container)
+- **Deployment**: App JS/CSS is loaded from jsDelivr CDN (`@main` or a pinned tag). Downstream apps only need a static HTML file — see `example-k8s/` and `example-ghpages/`.
 
 ## Architecture (app/ modules)
 - `main.js` — Bootstrap: loads config, initializes catalog → map → tools → agent → UI
@@ -55,18 +55,18 @@ The `main` branch is protected: **direct pushes are rejected**. All changes must
 > If the user confirms the PR has been merged and asks to "clean up" or "switch back to main", run all three cleanup commands together.
 
 ## Deployment
-Deployment is managed via Kubernetes. The application runs in an nginx container that clones the repo on startup.
 
-**To deploy changes:**
-1. Merge changes to `main` via PR (see above).
-2. Restart the deployment:
-   ```bash
-   kubectl rollout restart deployment/padus
-   ```
+Changes merged to `main` are picked up automatically by downstream apps via jsDelivr CDN — no restarts needed. jsDelivr caches `@main` aggressively; to force immediate refresh, purge the affected files:
 
-**Kubernetes Resources:**
-- Manifests are in the `k8s/` directory.
-- See `k8s/README.md` for detailed deployment and secret management instructions.
+```
+https://purge.jsdelivr.net/gh/boettiger-lab/geo-agent@main/app/main.js
+https://purge.jsdelivr.net/gh/boettiger-lab/geo-agent@main/app/chat-ui.js
+https://purge.jsdelivr.net/gh/boettiger-lab/geo-agent@main/app/chat.css
+```
+
+**Kubernetes resources for specific deployments (e.g. padus):**
+- Manifests live in [boettiger-lab/geo-agent-template](https://github.com/boettiger-lab/geo-agent-template), not in this repo.
+- Those deployments serve a static HTML file that loads app code from jsDelivr, so a `kubectl rollout restart` is not required after merging here.
 
 ## Development
 - Local: `cd app && python -m http.server 8000`
