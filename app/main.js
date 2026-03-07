@@ -54,10 +54,14 @@ async function main() {
         center: appConfig.view?.center || [-119.4, 36.8],
         zoom: appConfig.view?.zoom || 6,
         titilerUrl: appConfig.titiler_url || 'https://titiler.nrp-nautilus.io',
+        maptilerKey: runtimeConfig?.maptiler_key || '',
     });
     await mapManager.ready;                        // wait for style to load
     mapManager.addLayersFromCatalog(catalog.getMapLayerConfigs());
     mapManager.generateControls('layer-controls-container');
+
+    // Expose basemap switcher for HTML button onclick handlers
+    window._setBasemap = name => mapManager.setBasemap(name);
 
     // Wire overlays panel toggle
     const menuToggle = document.getElementById('menu-toggle');
