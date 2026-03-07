@@ -133,7 +133,7 @@ export class MapManager {
      * Register a single layer on the map.
      */
     registerLayer(config) {
-        const { layerId, datasetId, group, displayName, type, source, sourceLayer, paint, columns, tooltipFields, defaultVisible, defaultFilter, colormap, rescale, legendLabel } = config;
+        const { layerId, datasetId, group, displayName, type, source, sourceLayer, paint, columns, tooltipFields, defaultVisible, defaultFilter, colormap, rescale, legendLabel, legendType, legendClasses } = config;
         // Use pre-computed sourceId (shared between alias layers) or derive from layerId
         const sourceId = config.sourceId || `src-${layerId.replace(/\//g, '-')}`;
         const mapLayerId = `layer-${layerId.replace(/\//g, '-')}`;
@@ -208,6 +208,8 @@ export class MapManager {
             colormap: colormap || null,
             rescale: rescale || null,
             legendLabel: legendLabel || null,
+            legendType: legendType || null,
+            legendClasses: legendClasses || null,
         });
 
         // Wire hover tooltip if fields are declared
@@ -557,20 +559,30 @@ export class MapManager {
             return;
         }
 
-        const gradient = await this._getColormapGradient(state.colormap || 'reds');
-        const [minVal, maxVal] = (state.rescale || '0,1').split(',');
-        const unit = state.legendLabel ? ` ${state.legendLabel}` : '';
-
         const item = document.createElement('div');
         item.className = 'legend-section';
-        item.innerHTML = `
-            <h4>${state.displayName}</h4>
-            <div class="legend-colorbar" style="background: ${gradient};"></div>
-            <div class="legend-labels">
-                <span>${minVal}${unit}</span>
-                <span>${maxVal}${unit}</span>
-            </div>
-        `;
+
+        if (state.legendType === 'categorical' && state.legendClasses?.length) {
+            const rows = state.legendClasses.map(cls => {
+                const color = cls.color_hint ? `#${cls.color_hint}` : '#888888';
+                const label = cls.name || `Class ${cls.value}`;
+                return `<div class="legend-item"><span style="background:${color};"></span>${label}</div>`;
+            }).join('');
+            item.innerHTML = `<h4>${state.displayName}</h4>${rows}`;
+        } else {
+            const gradient = await this._getColormapGradient(state.colormap || 'reds');
+            const [minVal, maxVal] = (state.rescale || '0,1').split(',');
+            const unit = state.legendLabel ? ` ${state.legendLabel}` : '';
+            item.innerHTML = `
+                <h4>${state.displayName}</h4>
+                <div class="legend-colorbar" style="background: ${gradient};"></div>
+                <div class="legend-labels">
+                    <span>${minVal}${unit}</span>
+                    <span>${maxVal}${unit}</span>
+                </div>
+            `;
+        }
+
         this._legendContent.appendChild(item);
         this._legendItems.set(layerId, item);
     }
