@@ -455,8 +455,21 @@ export class DatasetCatalog {
                         defaultFilter: ml.defaultFilter || null,
                     });
                 } else if (ml.layerType === 'raster') {
-                    let tilesUrl = `${this.titilerUrl}/cog/tiles/WebMercatorQuad/{z}/{x}/{y}.png?url=${encodeURIComponent(ml.cogUrl)}&colormap_name=${ml.colormap}`;
-                    if (ml.rescale) tilesUrl += `&rescale=${ml.rescale}`;
+                    let tilesUrl = `${this.titilerUrl}/cog/tiles/WebMercatorQuad/{z}/{x}/{y}.png?url=${encodeURIComponent(ml.cogUrl)}`;
+                    if (ml.legendType === 'categorical' && ml.legendClasses?.length) {
+                        // Build inline colormap JSON from STAC classification:classes color_hint values
+                        const colormap = {};
+                        for (const cls of ml.legendClasses) {
+                            if (cls.color_hint) {
+                                const h = cls.color_hint;
+                                colormap[String(cls.value)] = [parseInt(h.slice(0,2),16), parseInt(h.slice(2,4),16), parseInt(h.slice(4,6),16), 255];
+                            }
+                        }
+                        tilesUrl += `&colormap=${encodeURIComponent(JSON.stringify(colormap))}`;
+                    } else {
+                        tilesUrl += `&colormap_name=${ml.colormap}`;
+                        if (ml.rescale) tilesUrl += `&rescale=${ml.rescale}`;
+                    }
 
                     configs.push({
                         layerId,
