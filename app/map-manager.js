@@ -1,6 +1,6 @@
 /**
  * MapManager - Map initialization and layer control API
- * 
+ *
  * Owns the MapLibre map instance and provides a clean API for:
  * - Initializing layers from DatasetCatalog configs
  * - Show/hide layers
@@ -8,14 +8,47 @@
  * - Apply paint/style properties
  * - Query visible features
  * - Generate layer control UI
- * 
+ *
  * No knowledge of LLMs, tools, or chat — pure map operations.
  */
+
+const BASEMAPS = {
+    natgeo: {
+        source: {
+            type: 'raster',
+            tiles: ['https://services.arcgisonline.com/ArcGIS/rest/services/NatGeo_World_Map/MapServer/tile/{z}/{y}/{x}'],
+            tileSize: 256,
+            maxzoom: 16,
+            attribution: 'Tiles &copy; Esri &mdash; National Geographic, Esri, DeLorme, NAVTEQ, UNEP-WCMC, USGS, NASA, ESA, METI, NRCAN, GEBCO, NOAA'
+        },
+        terrain: true
+    },
+    satellite: {
+        source: {
+            type: 'raster',
+            tiles: ['https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'],
+            tileSize: 256,
+            maxzoom: 19,
+            attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community'
+        },
+        terrain: true
+    },
+    plain: {
+        source: {
+            type: 'raster',
+            tiles: ['https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png'],
+            tileSize: 256,
+            maxzoom: 19,
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/">CARTO</a>'
+        },
+        terrain: false
+    }
+};
 
 export class MapManager {
     /**
      * @param {string} containerId - DOM element ID for the map
-     * @param {Object} options - { center, zoom }
+     * @param {Object} options - { center, zoom, maptilerKey, pitch, maxPitch }
      */
     constructor(containerId, options = {}) {
         /** @type {Map<string, LayerState>} */
@@ -27,41 +60,56 @@ export class MapManager {
         this._legendItems = new Map();   // layerId → DOM element
         this._colormapCache = new Map(); // colormap name → CSS gradient string
         this.titilerUrl = options.titilerUrl || 'https://titiler.nrp-nautilus.io';
+        this._maptilerKey = options.maptilerKey || '';
+        this._currentBasemap = 'natgeo';
 
         // Register PMTiles protocol
         const protocol = new pmtiles.Protocol();
         maplibregl.addProtocol('pmtiles', protocol.tile);
 
-        // Create map
+        // Create map with all three basemap sources; natgeo visible by default
         this.map = new maplibregl.Map({
             container: containerId,
             style: {
                 version: 8,
                 glyphs: 'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf',
                 sources: {
-                    'carto-light': {
-                        type: 'raster',
-                        tiles: [
-                            'https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png',
-                            'https://b.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png',
-                            'https://c.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png',
-                        ],
-                        tileSize: 256,
-                        attribution: '© <a href="https://carto.com/">CARTO</a> © <a href="https://www.openstreetmap.org/copyright">OSM</a>',
-                    }
+                    natgeo:    BASEMAPS.natgeo.source,
+                    satellite: BASEMAPS.satellite.source,
+                    plain:     BASEMAPS.plain.source,
                 },
-                layers: [{ id: 'carto-light', type: 'raster', source: 'carto-light' }],
+                layers: [
+                    { id: 'natgeo-base',    type: 'raster', source: 'natgeo',    layout: { visibility: 'visible' } },
+                    { id: 'satellite-base', type: 'raster', source: 'satellite', layout: { visibility: 'none' } },
+                    { id: 'plain-base',     type: 'raster', source: 'plain',     layout: { visibility: 'none' } },
+                ],
             },
             center: options.center || [-119.4, 36.8],
             zoom: options.zoom || 6,
+            pitch: options.pitch ?? 20,
+            maxPitch: options.maxPitch ?? 75,
             renderWorldCopies: false,
         });
 
         this.map.addControl(new maplibregl.NavigationControl(), 'top-left');
 
-        // Promise that resolves when the map style is loaded
+        // Promise that resolves when the map style is loaded (and terrain is set up)
         this.ready = new Promise(resolve => {
-            this.map.on('load', resolve);
+            this.map.on('load', async () => {
+                if (this._maptilerKey) {
+                    try {
+                        this.map.addSource('terrain-dem', {
+                            type: 'raster-dem',
+                            url: `https://api.maptiler.com/tiles/terrain-rgb-v2/tiles.json?key=${this._maptilerKey}`,
+                            tileSize: 256
+                        });
+                        this.map.setTerrain({ source: 'terrain-dem', exaggeration: 1.5 });
+                    } catch (e) {
+                        console.warn('[MapManager] terrain setup failed:', e);
+                    }
+                }
+                resolve();
+            });
         });
 
         // Shared hover tooltip element
@@ -352,6 +400,32 @@ export class MapManager {
     }
 
     // ---- UI Generation ----
+
+    /**
+     * Switch the active basemap by name ('natgeo' | 'satellite' | 'plain').
+     * Also toggles 3D terrain on/off based on the basemap's terrain flag.
+     * @param {string} name
+     */
+    setBasemap(name) {
+        if (!BASEMAPS[name]) return;
+        this._currentBasemap = name;
+        Object.keys(BASEMAPS).forEach(key => {
+            const vis = key === name ? 'visible' : 'none';
+            if (this.map.getLayer(key + '-base')) {
+                this.map.setLayoutProperty(key + '-base', 'visibility', vis);
+            }
+        });
+        if (this._maptilerKey && this.map.getSource('terrain-dem')) {
+            if (BASEMAPS[name].terrain) {
+                this.map.setTerrain({ source: 'terrain-dem', exaggeration: 1.5 });
+            } else {
+                this.map.setTerrain(null);
+            }
+        }
+        document.querySelectorAll('.basemap-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.basemap === name);
+        });
+    }
 
     /**
      * Generate checkbox controls in a container element.
