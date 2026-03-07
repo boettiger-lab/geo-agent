@@ -193,6 +193,7 @@ export class DatasetCatalog {
                         defaultFilter: config.default_filter || null,
                     });
                 } else if (type.includes('geotiff') || type.includes('tiff')) {
+                    const band0 = asset['raster:bands']?.[0];
                     layers.push({
                         assetId: key,
                         layerType: 'raster',
@@ -203,6 +204,8 @@ export class DatasetCatalog {
                         rescale: config.rescale || options.rescale || null,
                         paint: config.paint || null,
                         legendLabel: config.legend_label || null,
+                        legendType: config.legend_type || null,
+                        legendClasses: band0?.['classification:classes'] || null,
                         description: asset.description || '',
                         defaultVisible: config.visible === true,
                         defaultFilter: config.default_filter || null,
@@ -464,6 +467,8 @@ export class DatasetCatalog {
                         colormap: ml.colormap,
                         rescale: ml.rescale,
                         legendLabel: ml.legendLabel,
+                        legendType: ml.legendType,
+                        legendClasses: ml.legendClasses,
                         source: {
                             type: 'raster',
                             tiles: [tilesUrl],
