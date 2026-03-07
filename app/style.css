@@ -96,7 +96,7 @@ body {
     color: #333;
 }
 
-#menu.collapsed #layer-controls-container {
+#menu.collapsed #menu-body {
     display: none;
 }
 
