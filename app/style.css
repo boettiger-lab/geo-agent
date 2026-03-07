@@ -100,6 +100,16 @@ body {
     display: none;
 }
 
+/* Hide the "Layers" title when expanded — only show it in the collapsed state */
+#menu:not(.collapsed) .menu-header .section-title {
+    display: none;
+}
+
+#menu:not(.collapsed) .menu-header {
+    justify-content: flex-end;
+    margin-bottom: 4px;
+}
+
 .radio-group label,
 .checkbox-group label {
     display: flex;
