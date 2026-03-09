@@ -205,7 +205,7 @@ ${getPropertyDocs()}`,
 
         {
             name: 'get_dataset_details',
-            description: 'Get detailed information about a specific dataset: full description, all columns with types and descriptions, available parquet paths for SQL, and map layer IDs. Use when you need column names or data paths before writing a query.',
+            description: 'Get detailed information about a specific dataset: full description, all columns with types and descriptions, coded values for categorical columns, available parquet paths for SQL, and map layer IDs. Use when you need column names, valid values, or data paths before writing a query. IMPORTANT: Always call this before running SELECT DISTINCT queries — many columns already have their valid values documented here.',
             inputSchema: {
                 type: 'object',
                 properties: {
@@ -221,6 +221,9 @@ ${getPropertyDocs()}`,
                         error: `Dataset not found: ${args.dataset_id}. Available: ${catalog.getIds().join(', ')}`
                     });
                 }
+                const columnsWithValues = ds.columns
+                    .filter(c => c.values?.length > 0)
+                    .map(c => ({ name: c.name, valueCount: c.values.length }));
                 return JSON.stringify({
                     success: true,
                     id: ds.id,
@@ -228,6 +231,7 @@ ${getPropertyDocs()}`,
                     description: ds.description,
                     provider: ds.provider,
                     license: ds.license,
+                    columnsWithValues,
                     columns: ds.columns,
                     parquetAssets: ds.parquetAssets.map(a => ({ title: a.title, s3Path: a.s3Path, description: a.description })),
                     mapLayers: ds.mapLayers.map(a => ({
