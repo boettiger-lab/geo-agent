@@ -133,7 +133,7 @@ export class MapManager {
      * Register a single layer on the map.
      */
     registerLayer(config) {
-        const { layerId, datasetId, group, displayName, type, source, sourceLayer, paint, columns, tooltipFields, defaultVisible, defaultFilter, colormap, rescale, legendLabel, legendType, legendClasses } = config;
+        const { layerId, datasetId, group, displayName, type, source, sourceLayer, paint, outlinePaint, columns, tooltipFields, defaultVisible, defaultFilter, colormap, rescale, legendLabel, legendType, legendClasses } = config;
         // Use pre-computed sourceId (shared between alias layers) or derive from layerId
         const sourceId = config.sourceId || `src-${layerId.replace(/\//g, '-')}`;
         const mapLayerId = `layer-${layerId.replace(/\//g, '-')}`;
@@ -171,7 +171,7 @@ export class MapManager {
                 source: sourceId,
                 'source-layer': sourceLayer,
                 layout: { visibility: defaultVisible ? 'visible' : 'none' },
-                paint: {
+                paint: outlinePaint || {
                     'line-color': 'rgba(0,0,0,0.4)',
                     'line-width': 0.5,
                 },
