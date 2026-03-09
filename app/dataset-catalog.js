@@ -300,6 +300,7 @@ export class DatasetCatalog {
                 name: col.name,
                 type: col.type || 'string',
                 description: col.description || '',
+                ...(col.values?.length ? { values: col.values } : {}),
             }));
     }
 
@@ -397,6 +398,14 @@ export class DatasetCatalog {
                     const h3Cols = ds.columns.filter(c => ['h0', 'h8', 'h9', 'h10'].includes(c.name));
                     if (h3Cols.length > 0) {
                         section += `- H3 index columns: ${h3Cols.map(c => c.name).join(', ')}\n`;
+                    }
+
+                    // Hint about columns with documented coded values
+                    const codedCols = cols.filter(c => c.values?.length > 0);
+                    if (codedCols.length > 0) {
+                        const summary = codedCols.map(c => `${c.name} (${c.values.length})`).join(', ');
+                        section += `\n**Columns with known coded values:** ${summary}\n`;
+                        section += `→ Call \`get_dataset_details("${ds.id}")\` to see all valid values before querying.\n`;
                     }
                 }
             }
