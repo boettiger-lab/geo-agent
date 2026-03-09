@@ -133,7 +133,7 @@ export class MapManager {
      * Register a single layer on the map.
      */
     registerLayer(config) {
-        const { layerId, datasetId, group, displayName, type, source, sourceLayer, paint, outlinePaint, columns, tooltipFields, defaultVisible, defaultFilter, colormap, rescale, legendLabel, legendType, legendClasses } = config;
+        const { layerId, datasetId, group, displayName, type, source, sourceLayer, paint, outlinePaint, renderType, columns, tooltipFields, defaultVisible, defaultFilter, colormap, rescale, legendLabel, legendType, legendClasses } = config;
         // Use pre-computed sourceId (shared between alias layers) or derive from layerId
         const sourceId = config.sourceId || `src-${layerId.replace(/\//g, '-')}`;
         const mapLayerId = `layer-${layerId.replace(/\//g, '-')}`;
@@ -151,7 +151,11 @@ export class MapManager {
         };
 
         let outlineLayerId = null;
-        if (type === 'vector') {
+        if (type === 'vector' && renderType === 'line') {
+            layerDef.type = 'line';
+            layerDef['source-layer'] = sourceLayer;
+            layerDef.paint = paint || { 'line-color': '#2E7D32', 'line-width': 1.5 };
+        } else if (type === 'vector') {
             layerDef.type = 'fill';
             layerDef['source-layer'] = sourceLayer;
             layerDef.paint = paint || { 'fill-color': '#2E7D32', 'fill-opacity': 0.5 };
@@ -162,8 +166,8 @@ export class MapManager {
 
         this.map.addLayer(layerDef);
 
-        // Add outline layer for vector fills
-        if (type === 'vector') {
+        // Add outline layer for vector fills (not for explicit line layers)
+        if (type === 'vector' && renderType !== 'line') {
             outlineLayerId = `${mapLayerId}-outline`;
             this.map.addLayer({
                 id: outlineLayerId,
