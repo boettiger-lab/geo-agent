@@ -105,7 +105,7 @@ export class DatasetCatalog {
     /**
      * Process a single STAC collection into a DatasetEntry.
      */
-    processCollection(collection, options = {}) {
+    async processCollection(collection, options = {}) {
         // Build ordered asset config list.
         // Using an array (not a Map) so the same STAC asset can appear multiple times
         // under different aliases — e.g. one PMTiles split into "fee" and "easement" layers
@@ -123,6 +123,41 @@ export class DatasetCatalog {
             }
         }
 
+        // Extract parquet assets and columns from this collection
+        let parquetAssets = this.extractParquetAssets(collection);
+        let columns = this.extractColumns(collection);
+
+        // One-level child expansion: if this collection has child links,
+        // fetch them to find additional parquet/hex assets and column schemas
+        // that aren't on the parent (e.g. wyoming-wildlife-lands has per-species
+        // sub-collections each with h3-parquet assets). Does NOT recurse further.
+        const childLinks = (collection.links || []).filter(l => l.rel === 'child');
+        if (childLinks.length > 0) {
+            const childResults = await Promise.allSettled(
+                childLinks.map(async (link) => {
+                    try {
+                        const url = new URL(link.href, this.catalogUrl).href;
+                        return await this.fetchJson(url);
+                    } catch (e) {
+                        console.warn(`[Catalog] Failed to fetch sub-collection: ${link.href}`, e.message);
+                        return null;
+                    }
+                })
+            );
+            for (const r of childResults) {
+                if (r.status !== 'fulfilled' || !r.value) continue;
+                const child = r.value;
+                const childParquet = this.extractParquetAssets(child);
+                if (childParquet.length > 0) {
+                    parquetAssets = parquetAssets.concat(childParquet);
+                }
+                // Use child columns if parent has none
+                if (columns.length === 0) {
+                    columns = this.extractColumns(child);
+                }
+            }
+        }
+
         const entry = {
             id: collection.id,
             group: options.group || null,
@@ -135,13 +170,13 @@ export class DatasetCatalog {
             documentationUrl: this.extractDocUrl(collection),
 
             // Schema from table:columns
-            columns: this.extractColumns(collection),
+            columns,
 
             // Visual assets (for map display) — filtered by config
             mapLayers: this.extractMapLayers(collection, options, assetConfigList),
 
             // Parquet/H3 assets (for SQL via MCP) — always load all
-            parquetAssets: this.extractParquetAssets(collection),
+            parquetAssets,
 
             // Raw STAC extent
             extent: collection.extent,
