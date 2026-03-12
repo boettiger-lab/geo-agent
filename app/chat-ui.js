@@ -67,6 +67,9 @@ export class ChatUI {
             this.showToolProposal(calls, text, iter, autoApproved);
         this.agent.onToolResults = (results, iter) => this.showToolResults(results, iter);
         this.agent.onError = (err) => this.addMessage('error', err);
+
+        // Render welcome message if configured
+        this.renderWelcome();
     }
 
     populateModelSelector() {
@@ -82,6 +85,42 @@ export class ChatUI {
         if (models.length > 0) {
             this.modelSelector.value = this.agent.selectedModel;
         }
+    }
+
+    /* ------------------------------------------------------------------ */
+    /*  Welcome message                                                    */
+    /* ------------------------------------------------------------------ */
+
+    renderWelcome() {
+        const welcome = this.config.welcome;
+        if (!welcome) return;
+
+        const el = document.createElement('div');
+        el.className = 'chat-message assistant welcome-message';
+
+        let html = '';
+        if (welcome.message) {
+            html += `<p>${this.escapeHtml(welcome.message)}</p>`;
+        }
+        if (welcome.examples?.length) {
+            html += '<ul class="welcome-examples">';
+            for (const ex of welcome.examples) {
+                html += `<li><button class="welcome-example-btn">${this.escapeHtml(ex)}</button></li>`;
+            }
+            html += '</ul>';
+        }
+
+        el.innerHTML = html;
+
+        // Click handler: populate input field
+        el.querySelectorAll('.welcome-example-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                this.inputEl.value = btn.textContent;
+                this.inputEl.focus();
+            });
+        });
+
+        this.messagesEl.appendChild(el);
     }
 
     /* ------------------------------------------------------------------ */

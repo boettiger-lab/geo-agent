@@ -276,6 +276,39 @@
     font-weight: 600;
 }
 
+/* ── Welcome message ───────────────────────────────────── */
+
+.welcome-message p {
+    margin: 0 0 8px;
+}
+
+.welcome-examples {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.welcome-example-btn {
+    background: rgba(0, 122, 255, 0.08);
+    border: 1px solid rgba(0, 122, 255, 0.2);
+    border-radius: 6px;
+    padding: 6px 10px;
+    font-size: 13px;
+    color: #2c5282;
+    cursor: pointer;
+    text-align: left;
+    width: 100%;
+    transition: background 0.15s, border-color 0.15s;
+}
+
+.welcome-example-btn:hover {
+    background: rgba(0, 122, 255, 0.15);
+    border-color: rgba(0, 122, 255, 0.4);
+}
+
 /* ── Tool blocks (collapsible) ──────────────────────────── */
 
 .tool-reasoning {
