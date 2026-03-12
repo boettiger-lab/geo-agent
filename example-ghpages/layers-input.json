@@ -35,6 +35,15 @@
             }
         ]
     },
+    "welcome": {
+        "message": "Hi! I can help you explore protected areas and carbon data. Try asking:",
+        "examples": [
+            "Tell me about the datasets you have access to.",
+            "Show only GAP Status 1 lands on the map.",
+            "What are the top 10 counties by total protected area?",
+            "Color the fee lands by management type."
+        ]
+    },
     "collections": [
         {
             "collection_id": "pad-us-4.1-fee",
