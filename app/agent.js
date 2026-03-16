@@ -24,6 +24,7 @@ export class Agent {
         this.messages = [];
         this.selectedModel = config.llm_model || config.llm_models?.[0]?.value || 'default';
         this.maxToolCalls = 20;
+        this.autoApprove = config.auto_approve ?? false;
 
         // Event callbacks (set by chat-ui.js)
         this.onThinkingStart = () => { };
@@ -115,12 +116,12 @@ export class Agent {
                     : null;
 
                 let approved = true;
-                if (!allLocal) {
+                if (!allLocal && !this.autoApprove) {
                     // Show proposal and wait for approval
                     const result = await this.onToolProposal(calls, displayContent, iterations);
                     approved = result.approved;
                 } else {
-                    // Auto-approve local tools, but still show what's happening
+                    // Auto-approve: local tools always, remote tools when autoApprove is on
                     this.onToolProposal(calls, displayContent, iterations, true /* autoApproved */);
                 }
 
