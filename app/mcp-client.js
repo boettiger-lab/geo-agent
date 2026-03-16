@@ -136,7 +136,7 @@ export class MCPClient {
         await this.ensureConnected();
 
         try {
-            const result = await this.client.callTool({ name, arguments: args });
+            const result = await this.client.callTool({ name, arguments: args }, undefined, { timeout: 300000 });
             this.reconnectAttempts = 0;
 
             if (result.content && result.content.length > 0) {
@@ -161,7 +161,7 @@ export class MCPClient {
                 this.connected = false;
                 await this.ensureConnected();
                 // Retry once
-                const result = await this.client.callTool({ name, arguments: args });
+                const result = await this.client.callTool({ name, arguments: args }, undefined, { timeout: 300000 });
                 if (result.content?.[0]?.text) return result.content[0].text;
                 throw new Error('No content in MCP response after retry');
             }
