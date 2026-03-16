@@ -60,6 +60,9 @@ export class ChatUI {
             }
         }
 
+        // Auto-approve toggle (always shown)
+        this.initAutoApproveToggle();
+
         // Wire agent callbacks
         this.agent.onThinkingStart = () => this.showThinking();
         this.agent.onThinkingEnd = () => this.hideThinking();
@@ -235,6 +238,34 @@ export class ChatUI {
         this.agent.config = this.config;
         this.agent.selectedModel = this.config.llm_model;
         this.populateModelSelector();
+    }
+
+    /* ------------------------------------------------------------------ */
+    /*  Auto-approve toggle                                                */
+    /* ------------------------------------------------------------------ */
+
+    initAutoApproveToggle() {
+        const footer = document.getElementById('chat-footer');
+        if (!footer) return;
+
+        // Resolve initial state: localStorage > config
+        const stored = localStorage.getItem('geo-agent-auto-approve');
+        const initial = stored !== null ? stored === 'true' : (this.config.auto_approve ?? false);
+        this.agent.autoApprove = initial;
+
+        const btn = document.createElement('button');
+        btn.id = 'auto-approve-btn';
+        btn.title = 'Auto-approve tool calls (skip confirmation prompts)';
+        btn.textContent = '⚡';
+        btn.classList.toggle('active', initial);
+
+        btn.addEventListener('click', () => {
+            this.agent.autoApprove = !this.agent.autoApprove;
+            btn.classList.toggle('active', this.agent.autoApprove);
+            localStorage.setItem('geo-agent-auto-approve', this.agent.autoApprove);
+        });
+
+        footer.prepend(btn);
     }
 
     /* ------------------------------------------------------------------ */
