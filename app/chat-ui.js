@@ -65,6 +65,7 @@ export class ChatUI {
         this.agent.onThinkingEnd = () => this.hideThinking();
         this.agent.onToolProposal = (calls, text, iter, autoApproved) =>
             this.showToolProposal(calls, text, iter, autoApproved);
+        this.agent.onToolExecuting = (calls) => this.showToolExecuting(calls);
         this.agent.onToolResults = (results, iter) => this.showToolResults(results, iter);
         this.agent.onError = (err) => this.addMessage('error', err);
 
@@ -297,6 +298,27 @@ export class ChatUI {
         document.getElementById('thinking-indicator')?.remove();
     }
 
+    showToolExecuting(calls) {
+        this.removeToolExecuting();
+        const hasSql = calls.some(tc => {
+            try {
+                const args = JSON.parse(tc.function.arguments);
+                return !!(args.sql_query || args.query || args.sql);
+            } catch { return false; }
+        });
+        const label = hasSql ? 'Running query' : 'Running';
+        const el = document.createElement('div');
+        el.className = 'chat-message assistant-thinking';
+        el.id = 'tool-executing-indicator';
+        el.innerHTML = `${label}<span class="loading-dots"></span>`;
+        this.messagesEl.appendChild(el);
+        this.scrollToBottom();
+    }
+
+    removeToolExecuting() {
+        document.getElementById('tool-executing-indicator')?.remove();
+    }
+
     /* ------------------------------------------------------------------ */
     /*  Tool proposal & results (collapsible blocks)                       */
     /* ------------------------------------------------------------------ */
@@ -402,6 +424,7 @@ export class ChatUI {
      * Show tool results as a collapsible block.
      */
     showToolResults(results, iteration) {
+        this.removeToolExecuting();
         const block = document.createElement('div');
         block.className = 'chat-message tool-block';
 

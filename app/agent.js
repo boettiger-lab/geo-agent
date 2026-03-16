@@ -29,6 +29,7 @@ export class Agent {
         this.onThinkingStart = () => { };
         this.onThinkingEnd = () => { };
         this.onToolProposal = async () => ({ approved: true }); // auto-approve by default
+        this.onToolExecuting = () => { };
         this.onToolResults = () => { };
         this.onResponse = () => { };
         this.onError = () => { };
@@ -126,6 +127,9 @@ export class Agent {
                 if (!approved) {
                     return { response: null, sqlQueries, cancelled: true };
                 }
+
+                // Signal that tools are now executing
+                this.onToolExecuting(calls);
 
                 // Execute all tool calls
                 const results = [];
