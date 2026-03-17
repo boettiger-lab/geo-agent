@@ -72,6 +72,27 @@
                     "display_name": "Vulnerable Carbon (2024)"
                 }
             ]
+        },
+        {
+            "collection_id": "pad-us-4.1-fee",
+            "collection_url": "https://s3-west.nrp-nautilus.io/public-padus/padus-4-1/fee/stac-collection.json",
+            "assets": [
+                {
+                    "id": "pmtiles",
+                    "alias": "fee-outline",
+                    "display_name": "Protected Areas (outline)",
+                    "visible": false,
+                    "default_style": {
+                        "fill-color": "#000000",
+                        "fill-opacity": 0
+                    },
+                    "outline_style": {
+                        "line-color": "#1565C0",
+                        "line-width": 1.5
+                    },
+                    "tooltip_fields": ["Unit_Nm", "GAP_Sts", "Mang_Type"]
+                }
+            ]
         }
     ]
 }
