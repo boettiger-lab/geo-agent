@@ -46,6 +46,11 @@ config.json
 config.local.json
 secrets.yaml
 
+# Node / VitePress
+node_modules/
+docs/.vitepress/dist/
+docs/.vitepress/cache/
+
 # Local runtime files
 *.log
 *.pid
