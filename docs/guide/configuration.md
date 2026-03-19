@@ -38,7 +38,7 @@ Each entry in `assets` may be a **bare string** (the STAC asset key, loaded with
 | `visible` | boolean | Default visibility on load. Default: `false`. |
 | `default_style` | object | MapLibre **fill** paint properties for polygon layers (e.g., `fill-color`, `fill-opacity`). |
 | `outline_style` | object | MapLibre **line** paint for an auto-added outline on top of the fill. Use this — not `layer_type` — to draw polygon borders. |
-| `layer_type` | `"line"` | Set **only** when tile features are true LineString/MultiLineString geometries. |
+| `layer_type` | `"line"` or `"circle"` | `"line"` for LineString/MultiLineString features; `"circle"` for Point/MultiPoint features. |
 | `default_filter` | array | MapLibre filter expression applied at load time. |
 | `tooltip_fields` | array | Feature property names shown in the hover tooltip. |
 | `group` | string | Overrides the collection-level `group` for this specific layer. |
@@ -80,6 +80,23 @@ https://radiantearth.github.io/stac-browser/#/external/s3-west.nrp-nautilus.io/p
 Open a collection → click the **Assets** tab. The keys listed there (e.g., `"pmtiles"`, `"v2-total-2024-cog"`) are the `id` values to use. For PMTiles vector layers, the asset's `vector:layers` field gives the internal layer name used by MapLibre (the app reads this automatically).
 
 ## Worked examples
+
+### Point features as circles
+
+```json
+{
+  "id": "pmtiles",
+  "display_name": "Observation Points",
+  "visible": true,
+  "layer_type": "circle",
+  "default_style": {
+    "circle-color": "#E53935",
+    "circle-radius": 5,
+    "circle-opacity": 0.7
+  },
+  "tooltip_fields": ["species", "date", "count"]
+}
+```
 
 ### Polygon fill with categorical coloring
 
@@ -125,7 +142,11 @@ To render polygon features as outlines only (census tracts, admin boundaries), k
 ```
 
 ::: warning Common mistake
-Do **not** use `"layer_type": "line"` for polygon outline layers. That flag tells the renderer the tile features are LineString geometries — on a polygon layer it causes features to silently not render. `outline_style` is the correct approach.
+`layer_type` is for the geometry type of the tile features, not a styling choice. Only set it when the features really are lines or points:
+- `"line"` — LineString/MultiLineString features (roads, rivers, transects)
+- `"circle"` — Point/MultiPoint features (observations, stations, events)
+
+For polygon outline styling, use `outline_style` instead — see the example below.
 :::
 
 ### Filter syntax
