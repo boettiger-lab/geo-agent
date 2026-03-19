@@ -76,6 +76,8 @@ export function createMapTools(mapManager, catalog) {
             name: 'set_filter',
             description: `Apply a MapLibre filter expression to a vector layer. Use when the user asks to filter features by property values.
 
+IMPORTANT: Never guess categorical values used in filters. Call get_dataset_details first to find documented coded values; only use SELECT DISTINCT via SQL if the metadata doesn't cover it.
+
 IMPORTANT: After filtering, check 'featuresInView' in the result. If 0, the filter may be wrong.
 
 Filter syntax (use MapLibre expressions — NOT legacy filter arrays):
@@ -133,6 +135,8 @@ ${getPropertyDocs()}`,
         {
             name: 'set_style',
             description: `Update a layer's paint/style properties. Provide MapLibre paint properties.
+
+IMPORTANT: For categorical coloring (e.g., a "match" expression), never guess or assume valid values. Always call get_dataset_details first — most categorical columns list every valid code there. Only fall back to SELECT DISTINCT via SQL if the metadata doesn't cover it.
 
 Examples:
   Simple: { "fill-color": "red", "fill-opacity": 0.5 }
