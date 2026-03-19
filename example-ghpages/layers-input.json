@@ -49,7 +49,7 @@
             "collection_id": "pad-us-4.1-fee",
             "assets": [
                 {
-                    "id": "pmtiles",
+                    "id": "fee-pmtiles",
                     "display_name": "Fee Lands",
                     "visible": true,
                     "default_style": {
@@ -71,7 +71,7 @@
             "collection_id": "pad-us-4-1-easement",
             "assets": [
                 {
-                    "id": "pmtiles",
+                    "id": "easement-pmtiles",
                     "display_name": "Easements",
                     "visible": false,
                     "default_style": {
