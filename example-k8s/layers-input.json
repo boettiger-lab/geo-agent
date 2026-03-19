@@ -24,7 +24,7 @@
             "collection_url": "https://s3-west.nrp-nautilus.io/public-padus/padus-4-1/fee/stac-collection.json",
             "assets": [
                 {
-                    "id": "pmtiles",
+                    "id": "fee-pmtiles",
                     "display_name": "Fee Lands",
                     "visible": true,
                     "default_style": {
@@ -47,7 +47,7 @@
             "collection_url": "https://s3-west.nrp-nautilus.io/public-padus/padus-4-1/easement/stac-collection.json",
             "assets": [
                 {
-                    "id": "pmtiles",
+                    "id": "easement-pmtiles",
                     "display_name": "Easements",
                     "visible": false,
                     "default_style": {
@@ -78,7 +78,7 @@
             "collection_url": "https://s3-west.nrp-nautilus.io/public-padus/padus-4-1/fee/stac-collection.json",
             "assets": [
                 {
-                    "id": "pmtiles",
+                    "id": "fee-pmtiles",
                     "alias": "fee-outline",
                     "display_name": "Protected Areas (outline)",
                     "visible": false,
