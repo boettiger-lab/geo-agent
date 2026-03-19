@@ -155,6 +155,10 @@ export class MapManager {
             layerDef.type = 'line';
             layerDef['source-layer'] = sourceLayer;
             layerDef.paint = paint || { 'line-color': '#2E7D32', 'line-width': 1.5 };
+        } else if (type === 'vector' && renderType === 'circle') {
+            layerDef.type = 'circle';
+            layerDef['source-layer'] = sourceLayer;
+            layerDef.paint = paint || { 'circle-color': '#2E7D32', 'circle-radius': 6, 'circle-opacity': 0.8 };
         } else if (type === 'vector') {
             layerDef.type = 'fill';
             layerDef['source-layer'] = sourceLayer;
@@ -166,8 +170,8 @@ export class MapManager {
 
         this.map.addLayer(layerDef);
 
-        // Add outline layer for vector fills (not for explicit line layers)
-        if (type === 'vector' && renderType !== 'line') {
+        // Add outline layer for vector fills (not for line or circle layers)
+        if (type === 'vector' && renderType !== 'line' && renderType !== 'circle') {
             outlineLayerId = `${mapLayerId}-outline`;
             this.map.addLayer({
                 id: outlineLayerId,
