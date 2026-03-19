@@ -16,27 +16,11 @@ Users visit the app and enter their own API key (e.g., from [OpenRouter](https:/
 
 Works equally well on Netlify, Vercel, Cloudflare Pages, or any static host.
 
-## Option 2: Hugging Face Spaces
+::: tip Free hosting with a pre-configured key
+If you want visitors to use the app without supplying their own API key, but don't have access to Kubernetes, [Hugging Face Spaces](https://huggingface.co/spaces) is a free option. Create a static Space and store your `config.json` (containing the API key) as a Space secret — it gets mounted as a file at runtime, never committed to the repo. The app works the same as any static host, but the key is managed by HF.
+:::
 
-Good for sharing demos with a pre-configured API key stored as a Space secret, so visitors don't need their own key.
-
-1. Create a **static** Space on Hugging Face
-2. Add a `config.json` as a secret-mounted file:
-   ```json
-   {
-     "llm_models": [
-       {
-         "value": "anthropic/claude-sonnet-4",
-         "label": "Claude Sonnet",
-         "endpoint": "https://openrouter.ai/api/v1",
-         "api_key": "sk-or-..."
-       }
-     ]
-   }
-   ```
-3. Push the app files — the rest works the same as any static host
-
-## Option 3: Kubernetes (NRP / cloud)
+## Option 2: Kubernetes (NRP / cloud)
 
 For production deployments with managed API keys and a private LLM proxy.
 
