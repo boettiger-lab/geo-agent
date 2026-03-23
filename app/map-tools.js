@@ -184,7 +184,7 @@ ${getPropertyDocs()}`,
 
         {
             name: 'fly_to',
-            description: 'Animate the map to a location. Use when the user asks to navigate to, zoom in on, or center the map on a place or set of coordinates.\n\nIMPORTANT: The center parameter is [longitude, latitude] (lon first, lat second — MapLibre order).\n\nTo obtain coordinates: for well-known places you may use your geographic knowledge, but prefer querying the geoparquet data for accuracy — especially for specific features (e.g. a named park, county, or region). Use a SQL query to extract centroid coordinates, e.g.:\n  SELECT ST_X(ST_Centroid(geometry)) AS lon, ST_Y(ST_Centroid(geometry)) AS lat FROM parquet WHERE name = \'...\' LIMIT 1',
+            description: 'Animate the map to a location. Use when the user asks to navigate to, zoom in on, or center the map on a place or set of coordinates.\n\nIMPORTANT: The center parameter is [longitude, latitude] (lon first, lat second — MapLibre order).\n\nTo obtain coordinates, query the H3 parquet data using the h3 extension (pre-loaded on the MCP server). H3 cell columns are typically named h8. Example:\n  LOAD h3; SELECT h3_cell_to_lng(h8) AS lon, h3_cell_to_lat(h8) AS lat FROM read_parquet(\'s3://...\') WHERE name = \'...\' LIMIT 1',
             inputSchema: {
                 type: 'object',
                 properties: {
