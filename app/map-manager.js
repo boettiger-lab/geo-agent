@@ -368,6 +368,13 @@ export class MapManager {
     /**
      * Get summary of all layers and their current state.
      */
+    flyTo({ center, zoom }) {
+        const options = { center };
+        if (zoom !== undefined) options.zoom = zoom;
+        this.map.flyTo(options);
+        return { success: true, center, zoom: zoom ?? this.map.getZoom() };
+    }
+
     getMapState() {
         const layers = {};
         for (const [id, state] of this.layers) {

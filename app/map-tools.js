@@ -10,6 +10,7 @@
  *     - set_filter / clear_filter
  *     - set_style / reset_style
  *     - get_map_state
+ *     - fly_to
  *   Dataset knowledge:
  *     - list_datasets
  *     - get_dataset_details
@@ -179,6 +180,27 @@ ${getPropertyDocs()}`,
                 required: []
             },
             execute: () => JSON.stringify(mapManager.getMapState()),
+        },
+
+        {
+            name: 'fly_to',
+            description: 'Animate the map to a location. Use when the user asks to navigate to, zoom in on, or center the map on a place or set of coordinates.\n\nIMPORTANT: The center parameter is [longitude, latitude] (lon first, lat second — MapLibre order). When the user names a place (e.g. "San Francisco", "Yellowstone"), use your geographic knowledge to supply the coordinates — do NOT ask the user for them.',
+            inputSchema: {
+                type: 'object',
+                properties: {
+                    center: {
+                        type: 'array',
+                        items: { type: 'number' },
+                        description: 'Target [longitude, latitude]'
+                    },
+                    zoom: {
+                        type: 'number',
+                        description: 'Target zoom level (0–22). Optional — omit to keep current zoom.'
+                    }
+                },
+                required: ['center']
+            },
+            execute: (args) => JSON.stringify(mapManager.flyTo(args)),
         },
 
         // ---- Dataset Knowledge Tools ----
