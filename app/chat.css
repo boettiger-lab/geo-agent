@@ -28,6 +28,50 @@
     display: none;
 }
 
+/* ── Resize handle ──────────────────────────────────────── */
+
+.resize-handle {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 18px;
+    height: 18px;
+    cursor: nw-resize;
+    z-index: 10;
+    border-radius: 12px 0 0 0;
+    opacity: 0.35;
+    transition: opacity 0.15s;
+}
+
+.resize-handle::before,
+.resize-handle::after {
+    content: '';
+    position: absolute;
+    background: rgba(100, 100, 120, 0.7);
+    border-radius: 1px;
+}
+
+/* Two small diagonal lines as a grip indicator */
+.resize-handle::before {
+    width: 8px;
+    height: 1.5px;
+    top: 7px;
+    left: 4px;
+    transform: rotate(-45deg);
+}
+
+.resize-handle::after {
+    width: 5px;
+    height: 1.5px;
+    top: 10px;
+    left: 5px;
+    transform: rotate(-45deg);
+}
+
+.resize-handle:hover {
+    opacity: 0.8;
+}
+
 /* ── Header ─────────────────────────────────────────────── */
 
 #chat-header {
