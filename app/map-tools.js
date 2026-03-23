@@ -184,7 +184,7 @@ ${getPropertyDocs()}`,
 
         {
             name: 'fly_to',
-            description: 'Animate the map to a location. Use when the user asks to navigate to, zoom in on, or center the map on a place or set of coordinates.',
+            description: 'Animate the map to a location. Use when the user asks to navigate to, zoom in on, or center the map on a place or set of coordinates.\n\nIMPORTANT: The center parameter is [longitude, latitude] (lon first, lat second — MapLibre order). When the user names a place (e.g. "San Francisco", "Yellowstone"), use your geographic knowledge to supply the coordinates — do NOT ask the user for them.',
             inputSchema: {
                 type: 'object',
                 properties: {
