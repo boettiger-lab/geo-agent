@@ -94,10 +94,13 @@ export class Agent {
             this.onThinkingStart();
 
             // Call LLM
-            const message = await this.callLLM(endpoint, modelConfig, turnMessages, tools);
+            let message;
+            try {
+                message = await this.callLLM(endpoint, modelConfig, turnMessages, tools);
+            } finally {
+                this.onThinkingEnd();
+            }
             turnMessages.push(message);
-
-            this.onThinkingEnd();
 
             // Check for tool calls
             const toolCalls = message.tool_calls || [];
