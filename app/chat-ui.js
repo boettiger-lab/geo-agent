@@ -338,7 +338,14 @@ export class ChatUI {
             }
         } catch (err) {
             console.error('[ChatUI] Error:', err);
-            this.addMessage('error', err.message || String(err));
+            const msg = err.message || String(err);
+            const isNetworkOrTimeout =
+                msg.toLowerCase().includes('fetch') ||
+                msg.toLowerCase().includes('timed out') ||
+                err.name === 'TypeError';
+            this.addMessage('error', isNetworkOrTimeout
+                ? 'LLM timeout or network error. Type "continue" to resume, or try selecting a different model if this persists.'
+                : msg);
         } finally {
             this.busy = false;
             this.sendBtn.disabled = false;
