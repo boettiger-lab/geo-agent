@@ -441,8 +441,9 @@ export class ChatUI {
                 const sqlKey = args.sql_query !== undefined ? 'sql_query' : args.query !== undefined ? 'query' : 'sql';
                 if (sqlText) {
                     argDisplay += `<details class="sql-detail"><summary>SQL</summary><pre><code class="language-sql">${this.escapeHtml(sqlText)}</code></pre></details>`;
+                    const REDACTED_KEYS = ['s3_key', 's3_secret', 's3_endpoint', 's3_scope', 'catalog_token'];
                     const otherArgs = Object.fromEntries(
-                        Object.entries(args).filter(([k]) => k !== sqlKey)
+                        Object.entries(args).filter(([k]) => k !== sqlKey && !REDACTED_KEYS.includes(k))
                     );
                     if (Object.keys(otherArgs).length > 0) {
                         argDisplay += `<pre><code>${this.escapeHtml(JSON.stringify(otherArgs, null, 2))}</code></pre>`;
