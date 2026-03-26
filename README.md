@@ -8,6 +8,8 @@ A reusable JavaScript library for interactive map applications with LLM-powered 
 
 **Use [boettiger-lab/geo-agent-template](https://github.com/boettiger-lab/geo-agent-template)** — click "Use this template" on GitHub. You get a ready-to-deploy repo with `index.html`, `layers-input.json`, `system-prompt.md`, and `k8s/` manifests pre-wired. Edit those four files for your dataset and you're done.
 
+**Live demo:** <https://boettiger-lab.github.io/geo-agent-template/>
+
 ## Using the CDN
 
 Client apps load the core modules directly from jsdelivr:

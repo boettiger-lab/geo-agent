@@ -13,6 +13,8 @@
 
 Go to [boettiger-lab/geo-agent-template](https://github.com/boettiger-lab/geo-agent-template) and click **Use this template → Create a new repository**. You get a ready-to-deploy repo with the three files you need. Edit them for your dataset and deploy.
 
+**Live demo:** <https://boettiger-lab.github.io/geo-agent-template/>
+
 ## Your app is just three files
 
 ```
