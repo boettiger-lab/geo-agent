@@ -8,7 +8,7 @@ Core library for map-based applications with LLM-powered data analysis. Interact
 - **Data**: STAC catalog → unified dataset records with visual + parquet assets
 - **Analytics**: SQL queries via MCP (Model Context Protocol) to DuckDB on H3-indexed parquet
 - **LLM**: OpenAI-compatible Chat Completions API (multiple models via proxy)
-- **Deployment**: App JS/CSS is loaded from jsDelivr CDN (`@main` or a pinned tag). Downstream apps only need a static HTML file — see `example-k8s/` and `example-ghpages/`, or the [geo-agent-template](https://github.com/boettiger-lab/geo-agent-template) repo.
+- **Deployment**: App JS/CSS is loaded from jsDelivr CDN (`@main` or a pinned tag). Downstream apps only need a static HTML file — see the [geo-agent-template](https://github.com/boettiger-lab/geo-agent-template) repo.
 
 ## Architecture (app/ modules)
 - `main.js` — Bootstrap: loads config, initializes catalog → map → tools → agent → UI
@@ -64,10 +64,8 @@ https://purge.jsdelivr.net/gh/boettiger-lab/geo-agent@main/app/chat-ui.js
 https://purge.jsdelivr.net/gh/boettiger-lab/geo-agent@main/app/chat.css
 ```
 
-**Live deployments and their source repos:**
-- `example-ghpages/` in this repo → [boettiger-lab.github.io/geo-agent](https://boettiger-lab.github.io/geo-agent/) (GitHub Pages, user-provided API key)
-- `example-k8s/` in this repo → [padus.nrp-nautilus.io](https://padus.nrp-nautilus.io) (Kubernetes, server-provided keys via ConfigMap + init container git clone)
-- [boettiger-lab/geo-agent-template](https://github.com/boettiger-lab/geo-agent-template) → separate repo users can fork/template; currently hosts a calenviroscreen deployment
+**Live deployments:**
+- [boettiger-lab/geo-agent-template](https://github.com/boettiger-lab/geo-agent-template) → canonical starting point for new apps; deployed to GitHub Pages as live demo
 
 All downstream apps serve a static HTML file that loads app code from jsDelivr, so a `kubectl rollout restart` is not required after merging changes here.
 
