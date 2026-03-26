@@ -4,7 +4,6 @@ on:
   push:
     branches: [main]
     paths:
-      - 'example-ghpages/**'
       - 'docs/**'
       - 'package.json'
       - '.github/workflows/gh-pages.yml'
@@ -38,21 +37,13 @@ jobs:
       - name: Build VitePress docs
         run: npm run docs:build
 
-      - name: Assemble site
-        run: |
-          mkdir -p _site/docs
-          # App at root
-          cp -r example-ghpages/. _site/
-          # Docs at /docs
-          cp -r docs/.vitepress/dist/. _site/docs/
-
       - name: Setup Pages
         uses: actions/configure-pages@v5
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: _site
+          path: docs/.vitepress/dist
 
   deploy:
     needs: build

@@ -4,20 +4,11 @@ A reusable JavaScript library for interactive map applications with LLM-powered 
 
 **This repo is the core library.** Individual apps (different datasets, URLs, branding) import these modules from the CDN and provide their own configuration.
 
-**Live demo (GitHub Pages):** <https://boettiger-lab.github.io/geo-agent/>
-
 ## Quick start: create a new app
 
-**The easiest way to start a new app is to use [boettiger-lab/geo-agent-template](https://github.com/boettiger-lab/geo-agent-template)** — click "Use this template" on GitHub. It gives you a ready-to-deploy repo with `index.html`, `layers-input.json`, `system-prompt.md`, and `k8s/` manifests pre-wired. Edit those four files for your dataset and you're done.
+**Use [boettiger-lab/geo-agent-template](https://github.com/boettiger-lab/geo-agent-template)** — click "Use this template" on GitHub. You get a ready-to-deploy repo with `index.html`, `layers-input.json`, `system-prompt.md`, and `k8s/` manifests pre-wired. Edit those four files for your dataset and you're done.
 
-Alternatively, you can copy one of the example templates in this repo manually:
-
-| Template | Deployment | API key handling | Live demo |
-|---|---|---|---|
-| [`example-k8s/`](example-k8s/) | Kubernetes / managed host | Injected server-side via `config.json` | [live (padus)](https://padus.nrp-nautilus.io) |
-| [`example-ghpages/`](example-ghpages/) | GitHub Pages / any static host | Entered by the user in-browser | [live](https://boettiger-lab.github.io/geo-agent/) |
-
-See the [example-k8s README](example-k8s/README.md) or [example-ghpages README](example-ghpages/README.md) for full details.
+**Live demo:** <https://boettiger-lab.github.io/geo-agent-template/>
 
 ## Using the CDN
 
@@ -132,7 +123,7 @@ Client apps provide `layers-input.json`. All fields except `collections` are opt
 
 There are two ways to supply model credentials:
 
-**Server-provided** (Kubernetes / managed deployments): omit the `llm` section from `layers-input.json` and provide a `config.json` on the same server with `llm_models` + API keys. The `k8s/` manifests in `example-k8s/` inject secrets this way at deploy time.
+**Server-provided** (Kubernetes / managed deployments): omit the `llm` section from `layers-input.json` and provide a `config.json` on the same server with `llm_models` + API keys. The `k8s/` manifests in the template repo inject secrets this way at deploy time.
 
 **User-provided** (static sites — GitHub Pages, Netlify, etc.): set `"user_provided": true` in the `llm` section. A ⚙ button appears in the chat footer; visitors enter their own API key (stored in `localStorage`, never sent to the hosting server). The `default_endpoint` is pre-filled — [OpenRouter](https://openrouter.ai) is a good default giving access to many models via a single key.
 
@@ -155,11 +146,11 @@ The `app/` directory includes its own `index.html`, `layers-input.json`, and `sy
 
 ## Deployment
 
-| Option | Template | How secrets are handled | Live demo |
-|---|---|---|---|
-| **GitHub Pages** (or any static host) | [`example-ghpages/`](example-ghpages/) | User enters their own API key in-browser | [live](https://boettiger-lab.github.io/geo-agent/) |
-| **Hugging Face Spaces** | Start from either example | Mount a `config.json` as a Space secret-file | — |
-| **Kubernetes** | [`example-k8s/`](example-k8s/) with [`k8s/`](example-k8s/k8s/) | Secrets injected into `config.json` via ConfigMap + init container | [live (padus)](https://padus.nrp-nautilus.io) |
+| Option | How secrets are handled |
+|---|---|
+| **GitHub Pages** (or any static host) | User enters their own API key in-browser |
+| **Hugging Face Spaces** | Mount a `config.json` as a Space secret-file |
+| **Kubernetes** | Secrets injected into `config.json` via ConfigMap + init container |
 
-See [`example-k8s/k8s/`](example-k8s/k8s/) for the client app Kubernetes deployment template, and [`example-k8s/README.md`](example-k8s/README.md) for a full walkthrough of all three options.
+See the [geo-agent-template](https://github.com/boettiger-lab/geo-agent-template) repo and [deployment docs](https://boettiger-lab.github.io/geo-agent/docs/guide/deployment) for full details.
 

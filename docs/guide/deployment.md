@@ -6,11 +6,11 @@ Geo-agent apps are **static sites** — just HTML, JSON, and Markdown files. The
 
 The simplest option. Each user supplies their own LLM API key via the in-app settings panel. No server-side secrets needed.
 
-**Use the [`example-ghpages/`](https://github.com/boettiger-lab/geo-agent/tree/main/example-ghpages) template.**
+**Use the [geo-agent-template](https://github.com/boettiger-lab/geo-agent-template)** — it includes a ready-to-use GitHub Actions workflow.
 
 1. Set `"user_provided": true` in the `llm` section of `layers-input.json`
 2. Push to a GitHub repo and enable Pages (Settings → Pages → Source: **GitHub Actions**)
-3. Add the [workflow](https://github.com/boettiger-lab/geo-agent/blob/main/.github/workflows/gh-pages.yml) — it deploys on push to `main`
+3. The workflow in the template deploys on push to `main`
 
 Users visit the app and enter their own API key (e.g., from [OpenRouter](https://openrouter.ai)) in the ⚙ settings panel. Keys are stored in `localStorage` only — never sent to your server.
 
@@ -24,7 +24,7 @@ If you want visitors to use the app without supplying their own API key, but don
 
 For production deployments with managed API keys and a private LLM proxy.
 
-**Use the [`example-k8s/`](https://github.com/boettiger-lab/geo-agent/tree/main/example-k8s) template.**
+**Use the [geo-agent-template](https://github.com/boettiger-lab/geo-agent-template)** — it includes `k8s/` manifests ready to adapt.
 
 API keys are injected into `config.json` at deploy time via a ConfigMap + init container:
 
