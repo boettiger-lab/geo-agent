@@ -1,5 +1,7 @@
 # Example: GitHub Pages Deployment
 
+> **Starting a new app?** Use the [geo-agent-template](https://github.com/boettiger-lab/geo-agent-template) repo — it's the canonical starting point. Fork or use it as a template, then customize `layers-input.json` and `system-prompt.md` for your data. This folder exists mainly as a live demo and integration test for this library.
+
 This example shows how to deploy a geo-agent app as a **static site on GitHub Pages**. Users supply their own LLM API key (e.g., from [OpenRouter](https://openrouter.ai)) via an in-app settings panel — no server-side secrets needed.
 
 **Live demo:** <https://boettiger-lab.github.io/geo-agent/>

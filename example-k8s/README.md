@@ -1,6 +1,8 @@
-# Example: CA Protected Lands App
+# Example: Kubernetes Deployment
 
-This is a **template** showing how to build a client app using the [geo-chat](../) core library. Copy this folder as a starting point for your own app.
+> **Starting a new app?** Use the [geo-agent-template](https://github.com/boettiger-lab/geo-agent-template) repo — it's the canonical starting point. Fork or use it as a template, then customize `layers-input.json` and `system-prompt.md` for your data. This folder exists mainly as a live demo and integration test for this library.
+
+This example shows how to deploy a geo-agent app on **Kubernetes** with server-provided LLM API keys (no user-facing key entry needed). API keys are injected at deploy time via a ConfigMap + init container.
 
 ## Structure
 

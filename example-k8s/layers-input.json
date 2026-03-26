@@ -10,11 +10,11 @@
         "zoom": 4
     },
     "welcome": {
-        "message": "Hi! I can help you explore protected areas data and control the map. Try asking:",
+        "message": "Hi! I can help you explore protected areas and carbon data. Try asking:",
         "examples": [
             "Tell me about the datasets you have access to.",
             "Show only GAP Status 1 and 2 lands.",
-            "What are the top 10 states by total protected area?",
+            "What are the top 10 counties by total protected area?",
             "Color the fee lands by management type."
         ]
     },
