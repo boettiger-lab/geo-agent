@@ -13,13 +13,6 @@
 
 Go to [boettiger-lab/geo-agent-template](https://github.com/boettiger-lab/geo-agent-template) and click **Use this template → Create a new repository**. You get a ready-to-deploy repo with the three files you need. Edit them for your dataset and deploy.
 
-Alternatively, copy one of the examples embedded in this repo:
-
-| Template | Deployment | API key handling | Live demo |
-|---|---|---|---|
-| [`example-ghpages/`](https://github.com/boettiger-lab/geo-agent/tree/main/example-ghpages) | GitHub Pages / any static host | Entered by the user in-browser | [live](https://boettiger-lab.github.io/geo-agent/) |
-| [`example-k8s/`](https://github.com/boettiger-lab/geo-agent/tree/main/example-k8s) | Kubernetes / managed host | Injected server-side via `config.json` | [live (padus)](https://padus.nrp-nautilus.io) |
-
 ## Your app is just three files
 
 ```
@@ -90,7 +83,7 @@ to answer quantitative questions about the data.
 ## Local development
 
 ```bash
-cd example-ghpages   # or your own folder
+# From your app folder (index.html + layers-input.json + system-prompt.md)
 python -m http.server 8000
 # Open http://localhost:8000
 # Enter your API key in the ⚙ settings panel
