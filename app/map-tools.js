@@ -206,7 +206,7 @@ ${getPropertyDocs()}`,
         // ---- Dataset Knowledge Tools ----
         {
             name: 'list_datasets',
-            description: 'List all available datasets with their collection IDs, titles, and what data formats are available (SQL/parquet and map layers). Use when the user asks "what data is available?" or you need to discover datasets.',
+            description: 'List all datasets pre-loaded for this app. Their schemas are already in your context — use `get_dataset_details` to look up columns and paths. To discover datasets outside your app, use `browse_stac_catalog` instead.',
             inputSchema: {
                 type: 'object',
                 properties: {},
@@ -231,7 +231,7 @@ ${getPropertyDocs()}`,
 
         {
             name: 'get_dataset_details',
-            description: 'Get detailed information about a specific dataset: full description, all columns with types and descriptions, coded values for categorical columns, available parquet paths for SQL, and map layer IDs. Use when you need column names, valid values, or data paths before writing a query. IMPORTANT: Always call this before running SELECT DISTINCT queries — many columns already have their valid values documented here.',
+            description: 'Get full schema (columns, parquet paths, coded values) for a pre-loaded dataset. **Always call this before writing SQL against any dataset in your app** — it is instant and requires no approval. For datasets outside your app config, use `get_stac_details` instead.',
             inputSchema: {
                 type: 'object',
                 properties: {
