@@ -132,6 +132,7 @@ export class DatasetCatalog {
         // that aren't on the parent (e.g. wyoming-wildlife-lands has per-species
         // sub-collections each with h3-parquet assets). Does NOT recurse further.
         const childLinks = (collection.links || []).filter(l => l.rel === 'child');
+        let childIds = [];
         if (childLinks.length > 0) {
             const childResults = await Promise.allSettled(
                 childLinks.map(async (link) => {
@@ -147,6 +148,7 @@ export class DatasetCatalog {
             for (const r of childResults) {
                 if (r.status !== 'fulfilled' || !r.value) continue;
                 const child = r.value;
+                if (child.id) childIds.push(child.id);
                 const childParquet = this.extractParquetAssets(child);
                 if (childParquet.length > 0) {
                     parquetAssets = parquetAssets.concat(childParquet);
@@ -171,6 +173,12 @@ export class DatasetCatalog {
 
             // Schema from table:columns
             columns,
+
+            // Child collection IDs (for parent container detection)
+            childIds,
+
+            // Whether to inject full schema into the prompt catalog
+            preload: options.preload === true,
 
             // Visual assets (for map display) — filtered by config
             mapLayers: this.extractMapLayers(collection, options, assetConfigList),
@@ -391,9 +399,26 @@ export class DatasetCatalog {
      * Includes both SQL (parquet) and map (visual) information.
      */
     generatePromptCatalog() {
-        const sections = [];
+        const preamble = 'The following datasets are pre-loaded for this app. Use `get_dataset_details` with their IDs — no catalog search needed, and do not run DESCRIBE queries against these datasets.\n';
+        const sections = [preamble];
 
         for (const ds of this.datasets.values()) {
+            // Parent container: has children but no own columns — render as directory node
+            const isParentContainer = ds.columns.length === 0 && ds.childIds.length > 0;
+            if (isParentContainer) {
+                let section = `### ${ds.title}\n`;
+                section += `**Collection ID:** ${ds.id}\n`;
+                section += `**Description:** ${ds.description}\n`;
+                const listed = ds.childIds.slice(0, 20);
+                section += `Sub-datasets — call \`get_dataset_details\` with one of these IDs:\n`;
+                section += `  ${listed.join(', ')}\n`;
+                if (ds.childIds.length > 20) {
+                    section += `  (${ds.childIds.length - 20} more — call \`get_dataset_details("${ds.id}")\` for the full list)\n`;
+                }
+                sections.push(section);
+                continue;
+            }
+
             let section = `### ${ds.title}\n`;
             section += `**Collection ID:** ${ds.id}\n`;
             section += `**Description:** ${ds.description}\n`;
@@ -420,30 +445,24 @@ export class DatasetCatalog {
                 }
             }
 
-            // Schema
-            if (ds.columns.length > 0) {
-                const cols = ds.columns
-                    .filter(c => !['h0', 'h8', 'h9', 'h10'].includes(c.name))
-                    .slice(0, 15); // Limit to most important
-                if (cols.length > 0) {
-                    section += `\n**Key Columns:**\n`;
-                    for (const col of cols) {
-                        section += `- \`${col.name}\` (${col.type}): ${col.description}\n`;
+            if (ds.preload && ds.columns.length > 0) {
+                // Full tier: all columns including H3, no cap
+                section += `\n**Columns:**\n`;
+                for (const col of ds.columns) {
+                    let line = `- \`${col.name}\` (${col.type}): ${col.description}`;
+                    if (col.values?.length > 0) {
+                        line += ` [${col.values.length} coded values — call \`get_dataset_details\` to see all]`;
                     }
-                    // Note H3 columns separately
-                    const h3Cols = ds.columns.filter(c => ['h0', 'h8', 'h9', 'h10'].includes(c.name));
-                    if (h3Cols.length > 0) {
-                        section += `- H3 index columns: ${h3Cols.map(c => c.name).join(', ')}\n`;
-                    }
-
-                    // Hint about columns with documented coded values
-                    const codedCols = cols.filter(c => c.values?.length > 0);
-                    if (codedCols.length > 0) {
-                        const summary = codedCols.map(c => `${c.name} (${c.values.length})`).join(', ');
-                        section += `\n**Columns with known coded values:** ${summary}\n`;
-                        section += `→ Call \`get_dataset_details("${ds.id}")\` to see all valid values before querying.\n`;
-                    }
+                    section += line + '\n';
                 }
+            } else if (ds.columns.length > 0) {
+                // Compact tier: hint to call get_dataset_details for schema
+                const codedCols = ds.columns.filter(c => c.values?.length > 0);
+                if (codedCols.length > 0) {
+                    const summary = codedCols.map(c => `${c.name} (${c.values.length})`).join(', ');
+                    section += `\n**Columns with known coded values:** ${summary}\n`;
+                }
+                section += `→ Call \`get_dataset_details("${ds.id}")\` for the full schema before writing SQL.\n`;
             }
 
             if (ds.aboutUrl) {
