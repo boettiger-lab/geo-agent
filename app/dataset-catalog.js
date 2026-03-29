@@ -133,9 +133,6 @@ export class DatasetCatalog {
         // sub-collections each with h3-parquet assets). Does NOT recurse further.
         const childLinks = (collection.links || []).filter(l => l.rel === 'child');
         if (childLinks.length > 0) {
-            // Track seen column names so we union across all children (dedup by name)
-            const columnsSeen = new Set(columns.map(c => c.name));
-
             const childResults = await Promise.allSettled(
                 childLinks.map(async (link) => {
                     try {
@@ -154,13 +151,9 @@ export class DatasetCatalog {
                 if (childParquet.length > 0) {
                     parquetAssets = parquetAssets.concat(childParquet);
                 }
-                // Merge columns from all children, deduplicating by name
-                const childCols = this.extractColumns(child);
-                for (const cc of childCols) {
-                    if (!columnsSeen.has(cc.name)) {
-                        columnsSeen.add(cc.name);
-                        columns.push(cc);
-                    }
+                // Use child columns if parent has none
+                if (columns.length === 0) {
+                    columns = this.extractColumns(child);
                 }
             }
         }
