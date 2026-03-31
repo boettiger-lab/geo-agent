@@ -13,6 +13,8 @@ Client apps configure geo-agent via `layers-input.json`. All fields except `cata
 | `view` | No | Initial map view: `{ "center": [lon, lat], "zoom": z }` |
 | `llm` | No | LLM configuration — see below. Omit for server-provided mode. |
 | `welcome` | No | Welcome message: `{ "message": "...", "examples": ["...", "..."] }` |
+| `default_basemap` | No | Which basemap is active on load: `"natgeo"` (default), `"satellite"`, or `"plain"`. |
+| `custom_basemap` | No | Replace the NatGeo slot with a custom tile URL — see below. |
 
 ## Collections
 
@@ -54,6 +56,43 @@ Each entry in `assets` may be a **bare string** (the STAC asset key, loaded with
 | `rescale` | string | TiTiler min,max range for color scaling (e.g., `"0,150"`). |
 | `legend_label` | string | Label shown next to the color legend. |
 | `legend_type` | string | `"categorical"` to use STAC `classification:classes` color codes for a discrete legend. |
+
+## Basemap configuration
+
+Three basemap presets are always available via the toggle buttons: **NatGeo** (default), **Satellite**, and **Plain**.
+
+**`default_basemap`** — controls which preset is active when the map loads:
+
+```json
+{ "default_basemap": "plain" }
+```
+
+Valid values: `"natgeo"` (default), `"satellite"`, `"plain"`.
+
+**`custom_basemap`** — replaces the NatGeo slot with a custom raster tile URL:
+
+```json
+{
+  "custom_basemap": {
+    "url": "https://example.com/tiles/{z}/{x}/{y}.png",
+    "label": "My Basemap"
+  }
+}
+```
+
+| Field | Description |
+|---|---|
+| `url` | XYZ raster tile URL with `{z}/{x}/{y}` placeholders. |
+| `label` | Button label to show in the basemap toggle group (replaces "NatGeo"). |
+
+Both fields are optional independently — you can swap the URL without changing the label, or vice versa. Terrain is disabled when a custom URL is set. The two options compose independently:
+
+```json
+{
+  "custom_basemap": { "url": "...", "label": "My Style" },
+  "default_basemap": "plain"
+}
+```
 
 ## LLM configuration
 

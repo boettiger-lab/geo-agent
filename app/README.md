@@ -2,7 +2,7 @@
 
 These are the shared ES modules that power all geo-chat client apps. They are served via [jsdelivr CDN](https://www.jsdelivr.com/github) and loaded by each client app's `index.html`.
 
-**Do not deploy this directory directly.** Use the [`example/`](../example/) template to create client apps.
+**Do not deploy this directory directly.** Use the [geo-agent-template](https://github.com/boettiger-lab/geo-agent-template) to create client apps.
 
 ## Modules
 
@@ -11,7 +11,7 @@ These are the shared ES modules that power all geo-chat client apps. They are se
 | `main.js` | Bootstrap — wires everything together |
 | `dataset-catalog.js` | Loads STAC collections, builds unified dataset records |
 | `map-manager.js` | Creates MapLibre map, manages layers/filters/styles |
-| `map-tools.js` | 9 local tools the LLM can call (show/hide/filter/style + dataset info) |
+| `map-tools.js` | 10 local tools the LLM can call (show/hide/filter/style + dataset info + fly_to) |
 | `tool-registry.js` | Unified registry for local + remote (MCP) tools, single dispatch |
 | `mcp-client.js` | MCP transport wrapper — connect, lazy reconnect, callTool |
 | `agent.js` | LLM orchestration loop — agentic while-loop with tool-use |
@@ -59,6 +59,7 @@ For LLM functionality, create `config.json`:
 **Local tools** (auto-approved, instant):
 - `show_layer`, `hide_layer`, `set_filter`, `clear_filter`, `set_style`, `reset_style`, `get_map_state`
 - `list_datasets`, `get_dataset_details`
+- `fly_to` — animates the map to a named place or coordinates (resolved via H3 parquet SQL)
 
 **Remote tools** (require user approval):
 - `query(sql_query)` — DuckDB SQL via MCP server
