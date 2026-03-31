@@ -399,7 +399,7 @@ export class DatasetCatalog {
      * Includes both SQL (parquet) and map (visual) information.
      */
     generatePromptCatalog() {
-        const preamble = 'The following datasets are pre-loaded for this app. Use `get_dataset_details` with their IDs — no catalog search needed, and do not run DESCRIBE queries against these datasets.\n';
+        const preamble = 'The following datasets are pre-loaded for this app. Call `get_dataset_details` with a dataset ID to get its parquet paths and full schema before writing any SQL.\n';
         const sections = [preamble];
 
         for (const ds of this.datasets.values()) {
@@ -424,12 +424,10 @@ export class DatasetCatalog {
             section += `**Description:** ${ds.description}\n`;
             section += `**Provider:** ${ds.provider}\n`;
 
-            // Parquet assets for SQL
+            // Parquet assets: indicate SQL-queryable but omit paths — model must call get_dataset_details
             if (ds.parquetAssets.length > 0) {
-                section += `\n**SQL Data (use with \`query\` tool):**\n`;
-                for (const pa of ds.parquetAssets) {
-                    section += `- ${pa.title}: \`read_parquet('${pa.s3Path}')\`\n`;
-                }
+                const titles = ds.parquetAssets.map(pa => pa.title).join(', ');
+                section += `\n**SQL assets** (paths via \`get_dataset_details\`): ${titles}\n`;
             }
 
             // Map layers for visualization
