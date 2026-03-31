@@ -160,9 +160,14 @@ export class DatasetCatalog {
             }
         }
 
+        const rawGroup = options.group || null;
+        const groupName = rawGroup && typeof rawGroup === 'object' ? rawGroup.name : rawGroup;
+        const groupCollapsed = rawGroup && typeof rawGroup === 'object' ? rawGroup.collapsed === true : false;
+
         const entry = {
             id: collection.id,
-            group: options.group || null,
+            group: groupName,
+            groupCollapsed,
             title: options.display_name || collection.title || collection.id,
             description: collection.description || '',
             license: collection.license || 'N/A',
@@ -503,6 +508,7 @@ export class DatasetCatalog {
                         layerId,
                         datasetId: ds.id,
                         group: ml.group || ds.group,
+                        groupCollapsed: ds.groupCollapsed || false,
                         displayName: ml.title,
                         type: 'vector',
                         sourceId: sharedSourceId,
@@ -540,6 +546,7 @@ export class DatasetCatalog {
                         layerId,
                         datasetId: ds.id,
                         group: ml.group || ds.group,
+                        groupCollapsed: ds.groupCollapsed || false,
                         displayName: ml.title,
                         type: 'raster',
                         colormap: ml.colormap,
