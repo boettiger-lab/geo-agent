@@ -18,6 +18,7 @@ export default {
           { text: 'Quick Start', link: '/guide/quickstart' },
           { text: 'Configuration Reference', link: '/guide/configuration' },
           { text: 'Deployment', link: '/guide/deployment' },
+          { text: 'Private Deployment', link: '/guide/private-deployment' },
         ],
       },
       {
