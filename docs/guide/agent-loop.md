@@ -51,7 +51,9 @@ user message
 
 ## Local vs. remote tools
 
-Tools registered via `toolRegistry.registerLocal()` (the 10 map tools) are **auto-approved** — they run silently with a collapsed "Running: …" block. No user interaction needed.
+Tools registered via `toolRegistry.registerLocal()` (the map tools) are **auto-approved** — they run silently with a collapsed "Running: …" block. No user interaction needed.
+
+The local map tools include: `show_layer`, `hide_layer`, `set_filter`, `reset_filter`, `set_style`, `get_dataset_details`, `list_datasets`, `fly_to`, and others. `fly_to` animates the map to any location — the agent looks up coordinates from parquet data via H3 SQL rather than guessing.
 
 Tools registered via `toolRegistry.registerRemote()` (the MCP `query` tool) require **explicit user approval** — a "Details: query" block appears with Approve / Cancel buttons.
 
