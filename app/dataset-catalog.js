@@ -525,8 +525,8 @@ export class DatasetCatalog {
                         // Build inline colormap JSON from STAC classification:classes color_hint values
                         const colormap = {};
                         for (const cls of ml.legendClasses) {
-                            if (cls.color_hint) {
-                                const h = cls.color_hint;
+                            const h = cls['color-hint'] || cls.color_hint;
+                            if (h) {
                                 colormap[String(cls.value)] = [parseInt(h.slice(0,2),16), parseInt(h.slice(2,4),16), parseInt(h.slice(4,6),16), 255];
                             }
                         }
