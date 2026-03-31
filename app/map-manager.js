@@ -599,7 +599,7 @@ export class MapManager {
 
         if (state.legendType === 'categorical' && state.legendClasses?.length) {
             const rows = state.legendClasses.map(cls => {
-                const color = cls.color_hint ? `#${cls.color_hint}` : '#888888';
+                const color = cls['color-hint'] || cls.color_hint ? `#${cls['color-hint'] || cls.color_hint}` : '#888888';
                 const label = cls.name || `Class ${cls.value}`;
                 return `<div class="legend-item"><span style="background:${color};"></span>${label}</div>`;
             }).join('');
