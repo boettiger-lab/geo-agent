@@ -153,7 +153,7 @@ export class MapManager {
      * Register a single layer on the map.
      */
     registerLayer(config) {
-        const { layerId, datasetId, group, displayName, type, source, sourceLayer, paint, outlinePaint, renderType, columns, tooltipFields, defaultVisible, defaultFilter, colormap, rescale, legendLabel, legendType, legendClasses } = config;
+        const { layerId, datasetId, group, groupCollapsed, displayName, type, source, sourceLayer, paint, outlinePaint, renderType, columns, tooltipFields, defaultVisible, defaultFilter, colormap, rescale, legendLabel, legendType, legendClasses } = config;
         // Use pre-computed sourceId (shared between alias layers) or derive from layerId
         const sourceId = config.sourceId || `src-${layerId.replace(/\//g, '-')}`;
         const mapLayerId = `layer-${layerId.replace(/\//g, '-')}`;
@@ -224,6 +224,7 @@ export class MapManager {
             sourceId,
             datasetId,
             group: group || null,
+            groupCollapsed: groupCollapsed || false,
             displayName,
             type,
             sourceLayer: sourceLayer || null,
@@ -488,7 +489,7 @@ export class MapManager {
 
             if (groupName) {
                 const details = document.createElement('details');
-                details.open = true;
+                details.open = !entries[0][1].groupCollapsed;
                 details.className = 'layer-group';
 
                 const summary = document.createElement('summary');
