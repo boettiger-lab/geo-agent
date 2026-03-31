@@ -66,6 +66,12 @@ export class MapManager {
             ? options.defaultBasemap
             : 'natgeo';
 
+        // Allow custom_basemap to replace the natgeo slot's URL and label
+        const customBasemap = options.customBasemap;
+        const natgeoSource = (customBasemap?.url)
+            ? { ...BASEMAPS.natgeo.source, tiles: [customBasemap.url], attribution: '' }
+            : BASEMAPS.natgeo.source;
+
         // Register PMTiles protocol
         const protocol = new pmtiles.Protocol();
         maplibregl.addProtocol('pmtiles', protocol.tile);
@@ -77,7 +83,7 @@ export class MapManager {
                 version: 8,
                 glyphs: 'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf',
                 sources: {
-                    natgeo:    BASEMAPS.natgeo.source,
+                    natgeo:    natgeoSource,
                     satellite: BASEMAPS.satellite.source,
                     plain:     BASEMAPS.plain.source,
                 },
@@ -110,6 +116,14 @@ export class MapManager {
                     } catch (e) {
                         console.warn('[MapManager] terrain setup failed:', e);
                     }
+                }
+                if (customBasemap?.label) {
+                    const btn = document.querySelector('.basemap-btn[data-basemap="natgeo"]');
+                    if (btn) btn.textContent = customBasemap.label;
+                }
+                if (customBasemap?.url) {
+                    // Custom basemap replaces natgeo slot; terrain not applicable
+                    BASEMAPS.natgeo.terrain = false;
                 }
                 if (defaultBasemap !== 'natgeo') {
                     this.setBasemap(defaultBasemap);
