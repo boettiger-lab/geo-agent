@@ -1,7 +1,7 @@
 export default {
   title: 'Geo-Agent',
   description: 'Map + AI Data Analyst — interactive MapLibre maps with LLM-powered data analysis.',
-  base: '/geo-agent/docs/',
+  base: '/geo-agent/',
 
   themeConfig: {
     nav: [
