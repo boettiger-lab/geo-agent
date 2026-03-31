@@ -62,15 +62,19 @@ export class MapManager {
         this.titilerUrl = options.titilerUrl || 'https://titiler.nrp-nautilus.io';
         this._maptilerKey = options.maptilerKey || '';
         this._currentBasemap = 'natgeo';
-        const defaultBasemap = (options.defaultBasemap && BASEMAPS[options.defaultBasemap])
+
+        // Build instance-level copy so customization never mutates module-level BASEMAPS
+        this._basemaps = structuredClone(BASEMAPS);
+        const customBasemap = options.customBasemap;
+        if (customBasemap?.url) {
+            this._basemaps.natgeo.source.tiles = [customBasemap.url];
+            this._basemaps.natgeo.source.attribution = '';
+            this._basemaps.natgeo.terrain = false;
+        }
+
+        const defaultBasemap = (options.defaultBasemap && this._basemaps[options.defaultBasemap])
             ? options.defaultBasemap
             : 'natgeo';
-
-        // Allow custom_basemap to replace the natgeo slot's URL and label
-        const customBasemap = options.customBasemap;
-        const natgeoSource = (customBasemap?.url)
-            ? { ...BASEMAPS.natgeo.source, tiles: [customBasemap.url], attribution: '' }
-            : BASEMAPS.natgeo.source;
 
         // Register PMTiles protocol
         const protocol = new pmtiles.Protocol();
@@ -83,9 +87,9 @@ export class MapManager {
                 version: 8,
                 glyphs: 'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf',
                 sources: {
-                    natgeo:    natgeoSource,
-                    satellite: BASEMAPS.satellite.source,
-                    plain:     BASEMAPS.plain.source,
+                    natgeo:    this._basemaps.natgeo.source,
+                    satellite: this._basemaps.satellite.source,
+                    plain:     this._basemaps.plain.source,
                 },
                 layers: [
                     { id: 'natgeo-base',    type: 'raster', source: 'natgeo',    layout: { visibility: 'visible' } },
@@ -120,10 +124,6 @@ export class MapManager {
                 if (customBasemap?.label) {
                     const btn = document.querySelector('.basemap-btn[data-basemap="natgeo"]');
                     if (btn) btn.textContent = customBasemap.label;
-                }
-                if (customBasemap?.url) {
-                    // Custom basemap replaces natgeo slot; terrain not applicable
-                    BASEMAPS.natgeo.terrain = false;
                 }
                 if (defaultBasemap !== 'natgeo') {
                     this.setBasemap(defaultBasemap);
@@ -444,16 +444,16 @@ export class MapManager {
      * @param {string} name
      */
     setBasemap(name) {
-        if (!BASEMAPS[name]) return;
+        if (!this._basemaps[name]) return;
         this._currentBasemap = name;
-        Object.keys(BASEMAPS).forEach(key => {
+        Object.keys(this._basemaps).forEach(key => {
             const vis = key === name ? 'visible' : 'none';
             if (this.map.getLayer(key + '-base')) {
                 this.map.setLayoutProperty(key + '-base', 'visibility', vis);
             }
         });
         if (this._maptilerKey && this.map.getSource('terrain-dem')) {
-            if (BASEMAPS[name].terrain) {
+            if (this._basemaps[name].terrain) {
                 this.map.setTerrain({ source: 'terrain-dem', exaggeration: 1.5 });
             } else {
                 this.map.setTerrain(null);
