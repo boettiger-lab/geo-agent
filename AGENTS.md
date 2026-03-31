@@ -25,6 +25,46 @@ Core library for map-based applications with LLM-powered data analysis. Interact
 - `config.json` — Generated at deploy time by k8s (LLM models + API keys from secrets)
 - Both are merged by `main.js` at startup; runtime config overrides static config
 
+### Asset formats in `layers-input.json`
+
+Each collection's `assets` array supports three formats:
+
+**1. Simple string** — include a STAC asset by ID, using defaults:
+```json
+"assets": ["cpad-holdings-pmtiles"]
+```
+
+**2. Object** — override display name, style, filters, etc.:
+```json
+"assets": [
+  {
+    "id": "irrecoverable-total-2018-cog",
+    "display_name": "Irrecoverable Carbon (2018)"
+  }
+]
+```
+
+**3. Versioned** — multiple STAC assets behind one logical layer, selectable via dropdown:
+```json
+"assets": [
+  {
+    "id": "watersheds",
+    "display_name": "Watersheds",
+    "versions": [
+      { "label": "L3 – Major Basins",   "asset_id": "hydrobasins_level_03" },
+      { "label": "L4",                   "asset_id": "hydrobasins_level_04" },
+      { "label": "L5",                   "asset_id": "hydrobasins_level_05" },
+      { "label": "L6 – Sub-catchments",  "asset_id": "hydrobasins_level_06" }
+    ],
+    "default_version": "L6 – Sub-catchments"
+  }
+]
+```
+
+When `versions` is present, the layer panel shows one checkbox + a `<select>` dropdown. Switching versions swaps the visible map asset without adding/removing layer entries. The `default_version` matches by label (falls back to first entry if not found). All per-asset config options (`default_style`, `default_filter`, `colormap`, etc.) apply to every version uniformly.
+
+Works for both PMTiles (vector) and COG (raster) assets. All versions must share the same layer type.
+
 ## Git workflow — branch protection
 
 The `main` branch is protected: **direct pushes are rejected**. All changes must go through a pull request.
