@@ -51,11 +51,19 @@ user message
 
 ## Local vs. remote tools
 
-Tools registered via `toolRegistry.registerLocal()` (the 9 map tools) are **auto-approved** — they run silently with a collapsed "Running: …" block. No user interaction needed.
+Tools registered via `toolRegistry.registerLocal()` (the 10 map tools) are **auto-approved** — they run silently with a collapsed "Running: …" block. No user interaction needed.
 
 Tools registered via `toolRegistry.registerRemote()` (the MCP `query` tool) require **explicit user approval** — a "Details: query" block appears with Approve / Cancel buttons.
 
-This distinction is checked with `toolRegistry.isLocal(name)` in `agent.js:109`.
+This distinction is checked with `toolRegistry.isLocal(name)` in `agent.js`.
+
+### Auto-approve toggle
+
+A toggle in the chat UI lets users switch remote tools to auto-approve mode, skipping the Approve / Cancel prompt for the rest of the session. Useful when running a series of analytical queries without wanting to confirm each one. The setting is session-only — it resets on page reload.
+
+### Credential redaction
+
+Tool call arguments displayed in the UI are filtered to strip S3 credentials, API tokens, and similar secrets before rendering. This applies to both the collapsed "Running: …" blocks and the expanded Details view, so sensitive values injected into SQL or tool parameters are never shown to the user.
 
 ## Pre-call explanation: how it works
 
