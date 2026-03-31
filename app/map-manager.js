@@ -62,6 +62,9 @@ export class MapManager {
         this.titilerUrl = options.titilerUrl || 'https://titiler.nrp-nautilus.io';
         this._maptilerKey = options.maptilerKey || '';
         this._currentBasemap = 'natgeo';
+        const defaultBasemap = (options.defaultBasemap && BASEMAPS[options.defaultBasemap])
+            ? options.defaultBasemap
+            : 'natgeo';
 
         // Register PMTiles protocol
         const protocol = new pmtiles.Protocol();
@@ -107,6 +110,9 @@ export class MapManager {
                     } catch (e) {
                         console.warn('[MapManager] terrain setup failed:', e);
                     }
+                }
+                if (defaultBasemap !== 'natgeo') {
+                    this.setBasemap(defaultBasemap);
                 }
                 resolve();
             });
