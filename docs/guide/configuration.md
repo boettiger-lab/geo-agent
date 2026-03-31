@@ -25,7 +25,7 @@ Each entry in `collections` is either a **bare string** (loads all visual assets
 |---|---|---|
 | `collection_id` | string | STAC collection ID to load. |
 | `collection_url` | string | Direct URL to the STAC collection JSON. Bypasses root catalog traversal — useful for private or external catalogs. |
-| `group` | string | Group label shown in the layer toggle panel. |
+| `group` | string or object | Group label shown in the layer toggle panel. Use an object `{ "name": "...", "collapsed": true }` to start the group folded — see [Collapsed groups](#collapsed-groups). |
 | `assets` | array | Asset selector — see below. Omit to load all visual assets. |
 | `display_name` | string | Override the collection title shown in the UI. |
 
@@ -57,6 +57,48 @@ Each entry in `assets` may be a **bare string** (the STAC asset key, loaded with
 | `rescale` | string | TiTiler min,max range for color scaling (e.g., `"0,150"`). |
 | `legend_label` | string | Label shown next to the color legend. |
 | `legend_type` | string | `"categorical"` to use STAC `classification:classes` color codes for a discrete legend. |
+
+## Collapsed groups
+
+By default, layer groups in the panel start expanded. To start a group folded (useful when a collection has many layers), use the object form for `group`:
+
+```json
+{
+  "collection_id": "fishing-effort",
+  "group": { "name": "Fishing Effort", "collapsed": true },
+  "assets": [
+    { "id": "fishing-effort-cog-2012", "display_name": "2012" },
+    { "id": "fishing-effort-cog-2024", "display_name": "2024", "visible": true }
+  ]
+}
+```
+
+The string form (`"group": "Fishing Effort"`) still works and defaults to expanded. The object form works on both the collection-level `group` and the per-asset `group` override.
+
+## Versioned assets
+
+When a dataset has multiple related assets that differ along one axis (resolution level, year, scenario), declare them as **versions** of a single logical layer. The layer panel shows one checkbox plus a dropdown selector instead of separate entries for each asset.
+
+```json
+{
+  "id": "watersheds",
+  "display_name": "Watersheds",
+  "versions": [
+    { "label": "L3 – Major Basins",   "asset_id": "hydrobasins_level_03" },
+    { "label": "L4",                   "asset_id": "hydrobasins_level_04" },
+    { "label": "L5",                   "asset_id": "hydrobasins_level_05" },
+    { "label": "L6 – Sub-catchments",  "asset_id": "hydrobasins_level_06" }
+  ],
+  "default_version": "L6 – Sub-catchments"
+}
+```
+
+| Field | Type | Description |
+|---|---|---|
+| `versions` | array | List of `{ "label": "...", "asset_id": "..." }` entries. Each `asset_id` must be a key in the STAC collection's assets. |
+| `default_version` | string | Label of the version to show by default. Falls back to the first entry if not found. |
+
+Switching versions swaps the visible map layer without adding or removing panel entries. All per-asset config options (`default_style`, `default_filter`, `colormap`, etc.) apply uniformly to every version. Works for both PMTiles (vector) and COG (raster) assets; all versions must share the same layer type.
 
 ## Basemap configuration
 

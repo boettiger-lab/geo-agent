@@ -24,6 +24,7 @@ Core library for map-based applications with LLM-powered data analysis. Interact
 - `app/layers-input.json` — Static config: STAC catalog URL, collection IDs, map view
 - `config.json` — Generated at deploy time by k8s (LLM models + API keys from secrets)
 - Both are merged by `main.js` at startup; runtime config overrides static config
+- **Full configuration reference:** `docs/guide/configuration.md` (the VitePress site is the canonical user docs)
 
 ### Asset formats in `layers-input.json`
 
