@@ -55,6 +55,7 @@ async function main() {
         zoom: appConfig.view?.zoom || 6,
         titilerUrl: appConfig.titiler_url || 'https://titiler.nrp-nautilus.io',
         maptilerKey: runtimeConfig?.maptiler_key || '',
+        defaultBasemap: appConfig.default_basemap || 'natgeo',
     });
     await mapManager.ready;                        // wait for style to load
     mapManager.addLayersFromCatalog(catalog.getMapLayerConfigs());
