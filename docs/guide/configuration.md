@@ -15,6 +15,7 @@ Client apps configure geo-agent via `layers-input.json`. All fields except `cata
 | `welcome` | No | Welcome message: `{ "message": "...", "examples": ["...", "..."] }` |
 | `default_basemap` | No | Which basemap is active on load: `"natgeo"` (default), `"satellite"`, or `"plain"`. |
 | `custom_basemap` | No | Replace the NatGeo slot with a custom tile URL — see below. |
+| `links` | No | Optional links shown in the chat UI — see below. |
 
 ## Collections
 
@@ -93,6 +94,26 @@ Both fields are optional independently — you can swap the URL without changing
   "default_basemap": "plain"
 }
 ```
+
+## Links
+
+Optional links surfaced in the chat UI. All fields are optional — omit any you don't need.
+
+```json
+{
+  "links": {
+    "github": "https://github.com/org/my-app",
+    "docs": "https://my-app-website.org",
+    "carbon": true
+  }
+}
+```
+
+| Field | Description |
+|---|---|
+| `github` | URL to the app's source repository. Renders as a GitHub octocat icon in the chat header. |
+| `docs` | URL to a documentation or about page for the app. Renders as an "About" text link in the chat header. |
+| `carbon` | Set to `true` to show a carbon dashboard link (leaf icon) in the chat footer. Only meaningful for apps using NRP-hosted LLMs — links to the NRP carbon API dashboard. |
 
 ## LLM configuration
 

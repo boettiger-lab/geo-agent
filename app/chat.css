@@ -185,7 +185,64 @@
     padding: 5px 12px;
     border-top: 1px solid rgba(255, 255, 255, 0.1);
     display: flex;
-    justify-content: flex-end;
+    align-items: center;
+    justify-content: space-between;
+}
+
+#chat-footer-right {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    margin-left: auto;
+}
+
+/* ── Header links (docs + github) ───────────────────────── */
+
+.header-links {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.header-link {
+    display: inline-flex;
+    align-items: center;
+    text-decoration: none;
+    opacity: 0.45;
+    transition: opacity 0.15s;
+    line-height: 1;
+}
+
+.header-link:hover {
+    opacity: 0.85;
+}
+
+.docs-link {
+    font-size: 11px;
+    font-weight: 500;
+    color: #333;
+    letter-spacing: 0.2px;
+}
+
+.github-link svg {
+    fill: #333;
+    display: block;
+}
+
+/* ── Footer left: carbon link ───────────────────────────── */
+
+.carbon-link {
+    display: inline-flex;
+    align-items: center;
+    text-decoration: none;
+    color: rgba(34, 120, 60, 0.65);
+    opacity: 0.7;
+    transition: opacity 0.15s;
+    line-height: 1;
+}
+
+.carbon-link:hover {
+    opacity: 1;
 }
 
 #model-selector {
