@@ -28,15 +28,6 @@ export function createMapTools(mapManager, catalog) {
     const vectorLayerIds = () => mapManager.getVectorLayerIds();
 
     // Build property docs for vector layers
-    const getPropertyDocs = () => {
-        return vectorLayerIds().map(id => {
-            const cols = mapManager.getLayerColumns(id);
-            if (!cols || cols.length === 0) return '';
-            const lines = cols.map(c => `  - ${c.name} (${c.type}): ${c.description}`).join('\n');
-            return `\nProperties for '${id}':\n${lines}`;
-        }).filter(Boolean).join('\n');
-    };
-
     return [
         // ---- Map Control Tools ----
         {
@@ -91,8 +82,7 @@ Filter syntax (use MapLibre expressions — NOT legacy filter arrays):
 
 IMPORTANT: Do NOT use the legacy ["in", "property", val1, val2] form — it is silently ignored in current MapLibre. Always use ["match", ["get", "property"], [...values], true, false] for list membership.
 
-Vector layers: ${vectorLayerIds().join(', ')}
-${getPropertyDocs()}`,
+Vector layers: ${vectorLayerIds().join(', ')}`,
             inputSchema: {
                 type: 'object',
                 properties: {
@@ -145,8 +135,7 @@ Examples:
   Data-driven gradient: { "fill-color": ["interpolate", ["linear"], ["get", "PROP"], 0, "#low", 100, "#high"] }
   Stepped: { "fill-color": ["step", ["get", "PROP"], "#c1", 10, "#c2", 50, "#c3"] }
 
-Available layers: ${allLayerIds().join(', ')}
-${getPropertyDocs()}`,
+Available layers: ${allLayerIds().join(', ')}`,
             inputSchema: {
                 type: 'object',
                 properties: {

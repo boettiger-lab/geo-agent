@@ -156,11 +156,15 @@ export class Agent {
                     // Track SQL queries
                     if (execResult.sqlQuery) sqlQueries.push(execResult.sqlQuery);
 
-                    // Add to conversation
+                    // Add to conversation — cap at 4K chars to prevent SQL results
+                    // from consuming the remaining context budget mid-turn
+                    const resultContent = execResult.result?.length > 4000
+                        ? execResult.result.substring(0, 4000) + '\n... (truncated)'
+                        : execResult.result;
                     turnMessages.push({
                         role: 'tool',
                         tool_call_id: tc.id,
-                        content: execResult.result,
+                        content: resultContent,
                     });
                 }
 
