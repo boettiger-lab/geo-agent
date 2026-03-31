@@ -6,6 +6,7 @@ export default {
   themeConfig: {
     nav: [
       { text: 'Guide', link: '/guide/quickstart' },
+      { text: 'Releases', link: 'https://github.com/boettiger-lab/geo-agent/releases', target: '_blank' },
       { text: 'Live Demo', link: 'https://boettiger-lab.github.io/geo-agent/', target: '_blank' },
       { text: 'GitHub', link: 'https://github.com/boettiger-lab/geo-agent', target: '_blank' },
     ],
