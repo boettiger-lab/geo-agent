@@ -197,6 +197,27 @@ details.layer-group:not([open]) .layer-group-title::before {
     cursor: pointer;
 }
 
+/* Version selector for versioned layers */
+.version-select {
+    display: block;
+    margin: 4px 0 0 22px;
+    font-size: 12px;
+    padding: 2px 6px;
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(0, 0, 0, 0.2);
+    border-radius: 3px;
+    color: #404040;
+    cursor: pointer;
+    max-width: 200px;
+}
+
+.version-select option {
+    background: rgba(255, 255, 255, 0.95);
+    color: #404040;
+}
+
 /* Glass effect for species richness dropdown */
 #species-taxon {
     background: rgba(255, 255, 255, 0.1) !important;

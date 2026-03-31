@@ -153,7 +153,115 @@ export class MapManager {
      * Register a single layer on the map.
      */
     registerLayer(config) {
-        const { layerId, datasetId, group, groupCollapsed, displayName, type, source, sourceLayer, paint, outlinePaint, renderType, columns, tooltipFields, defaultVisible, defaultFilter, colormap, rescale, legendLabel, legendType, legendClasses } = config;
+        const { layerId, datasetId, group, groupCollapsed, displayName, type, paint, outlinePaint, renderType, columns, tooltipFields, defaultVisible, defaultFilter, colormap, rescale, legendLabel, legendType, legendClasses } = config;
+
+        // ── Versioned layer: register N underlying MapLibre layers, one logical entry ──
+        if (config.versions && config.versions.length > 0) {
+            const versionStates = config.versions.map((v, i) => {
+                const isActive = (i === config.defaultVersionIndex);
+                const vis = (defaultVisible && isActive) ? 'visible' : 'none';
+                const vMapLayerId = `layer-${layerId.replace(/\//g, '-')}--v-${i}`;
+
+                // Add source
+                if (!this.map.getSource(v.sourceId)) {
+                    this.map.addSource(v.sourceId, v.source);
+                }
+
+                // Build MapLibre layer
+                const layerDef = {
+                    id: vMapLayerId,
+                    source: v.sourceId,
+                    layout: { visibility: vis },
+                };
+
+                let vOutlineLayerId = null;
+                if (v.type === 'vector' && renderType === 'line') {
+                    layerDef.type = 'line';
+                    layerDef['source-layer'] = v.sourceLayer;
+                    layerDef.paint = paint || { 'line-color': '#2E7D32', 'line-width': 1.5 };
+                } else if (v.type === 'vector' && renderType === 'circle') {
+                    layerDef.type = 'circle';
+                    layerDef['source-layer'] = v.sourceLayer;
+                    layerDef.paint = paint || { 'circle-color': '#2E7D32', 'circle-radius': 6, 'circle-opacity': 0.8 };
+                } else if (v.type === 'vector') {
+                    layerDef.type = 'fill';
+                    layerDef['source-layer'] = v.sourceLayer;
+                    layerDef.paint = paint || { 'fill-color': '#2E7D32', 'fill-opacity': 0.5 };
+                } else if (v.type === 'raster') {
+                    layerDef.type = 'raster';
+                    layerDef.paint = paint || { 'raster-opacity': 0.7 };
+                }
+
+                this.map.addLayer(layerDef);
+
+                // Outline for vector fills
+                if (v.type === 'vector' && renderType !== 'line' && renderType !== 'circle') {
+                    vOutlineLayerId = `${vMapLayerId}-outline`;
+                    this.map.addLayer({
+                        id: vOutlineLayerId,
+                        type: 'line',
+                        source: v.sourceId,
+                        'source-layer': v.sourceLayer,
+                        layout: { visibility: vis },
+                        paint: outlinePaint || { 'line-color': 'rgba(0,0,0,0.4)', 'line-width': 0.5 },
+                    });
+                }
+
+                // Default filter
+                if (defaultFilter) {
+                    try {
+                        this.map.setFilter(vMapLayerId, defaultFilter);
+                        if (vOutlineLayerId) this.map.setFilter(vOutlineLayerId, defaultFilter);
+                    } catch (err) {
+                        console.error(`[Map] Failed to apply default filter to ${layerId} v${i}:`, err);
+                    }
+                }
+
+                // Tooltip
+                if (tooltipFields && tooltipFields.length > 0) {
+                    this._wireTooltip(vMapLayerId, tooltipFields);
+                }
+
+                return {
+                    label: v.label,
+                    mapLayerId: vMapLayerId,
+                    outlineLayerId: vOutlineLayerId,
+                    sourceId: v.sourceId,
+                    sourceLayer: v.sourceLayer || null,
+                };
+            });
+
+            this.layers.set(layerId, {
+                layerId,
+                mapLayerId: versionStates[config.defaultVersionIndex].mapLayerId,
+                outlineLayerId: versionStates[config.defaultVersionIndex].outlineLayerId,
+                sourceId: versionStates[config.defaultVersionIndex].sourceId,
+                datasetId,
+                group: group || null,
+                groupCollapsed: groupCollapsed || false,
+                displayName,
+                type,
+                sourceLayer: versionStates[config.defaultVersionIndex].sourceLayer,
+                visible: defaultVisible || false,
+                filter: defaultFilter || null,
+                defaultFilter: defaultFilter || null,
+                columns: columns || [],
+                defaultPaint: { ...(paint || {}) },
+                tooltipFields: tooltipFields || null,
+                colormap: colormap || null,
+                rescale: rescale || null,
+                legendLabel: legendLabel || null,
+                legendType: legendType || null,
+                legendClasses: legendClasses || null,
+                // Version tracking
+                versions: versionStates,
+                activeVersionIndex: config.defaultVersionIndex,
+            });
+            return;
+        }
+
+        // ── Standard (non-versioned) layer ──
+        const { source, sourceLayer } = config;
         // Use pre-computed sourceId (shared between alias layers) or derive from layerId
         const sourceId = config.sourceId || `src-${layerId.replace(/\//g, '-')}`;
         const mapLayerId = `layer-${layerId.replace(/\//g, '-')}`;
@@ -243,25 +351,7 @@ export class MapManager {
 
         // Wire hover tooltip if fields are declared
         if (tooltipFields && tooltipFields.length > 0) {
-            this.map.on('mousemove', mapLayerId, (e) => {
-                if (!e.features || e.features.length === 0) return;
-                const props = e.features[0].properties;
-                const rows = tooltipFields
-                    .filter(f => props[f] !== undefined && props[f] !== null && props[f] !== '')
-                    .map(f => `<tr><th>${f}</th><td>${this._formatTooltipValue(f, props[f])}</td></tr>`)
-                    .join('');
-                if (!rows) return;
-                this._tooltip.innerHTML = `<table>${rows}</table>`;
-                this._tooltip.style.display = 'block';
-                this._tooltip.style.left = (e.originalEvent.clientX + 12) + 'px';
-                this._tooltip.style.top = (e.originalEvent.clientY - 12) + 'px';
-                this.map.getCanvas().style.cursor = 'pointer';
-            });
-
-            this.map.on('mouseleave', mapLayerId, () => {
-                this._tooltip.style.display = 'none';
-                this.map.getCanvas().style.cursor = '';
-            });
+            this._wireTooltip(mapLayerId, tooltipFields);
         }
     }
 
@@ -525,6 +615,25 @@ export class MapManager {
                 label.appendChild(checkbox);
                 label.appendChild(span);
                 wrapper.appendChild(label);
+
+                // Version selector dropdown for versioned layers
+                if (state.versions && state.versions.length > 1) {
+                    const select = document.createElement('select');
+                    select.className = 'version-select';
+                    select.id = `version-${layerId.replace(/\//g, '-')}`;
+                    for (let i = 0; i < state.versions.length; i++) {
+                        const opt = document.createElement('option');
+                        opt.value = i;
+                        opt.textContent = state.versions[i].label;
+                        if (i === state.activeVersionIndex) opt.selected = true;
+                        select.appendChild(opt);
+                    }
+                    select.addEventListener('change', () => {
+                        this.switchVersion(layerId, parseInt(select.value, 10));
+                    });
+                    wrapper.appendChild(select);
+                }
+
                 itemContainer.appendChild(wrapper);
             }
         }
@@ -539,6 +648,64 @@ export class MapManager {
         if (!state) return;
         const checkbox = document.getElementById(`toggle-${layerId.replace(/\//g, '-')}`);
         if (checkbox) checkbox.checked = state.visible;
+    }
+
+    /**
+     * Switch the active version of a versioned layer.
+     * Hides the old version, shows the new one (if the layer is visible),
+     * and carries over the current filter to the new version.
+     *
+     * @param {string} layerId - Logical layer ID
+     * @param {number} newIndex - Version index to activate
+     * @returns {Object} Result
+     */
+    switchVersion(layerId, newIndex) {
+        const state = this.layers.get(layerId);
+        if (!state) return { success: false, error: `Unknown layer: ${layerId}` };
+        if (!state.versions) return { success: false, error: `Layer '${layerId}' is not versioned` };
+        if (newIndex < 0 || newIndex >= state.versions.length) {
+            return { success: false, error: `Version index ${newIndex} out of range (0–${state.versions.length - 1})` };
+        }
+        if (newIndex === state.activeVersionIndex) return { success: true, layer: layerId, version: state.versions[newIndex].label, noChange: true };
+
+        const oldV = state.versions[state.activeVersionIndex];
+        const newV = state.versions[newIndex];
+
+        // Hide old version's MapLibre layers
+        this.map.setLayoutProperty(oldV.mapLayerId, 'visibility', 'none');
+        if (oldV.outlineLayerId) this.map.setLayoutProperty(oldV.outlineLayerId, 'visibility', 'none');
+
+        // Carry over filter to new version
+        if (state.filter) {
+            try {
+                this.map.setFilter(newV.mapLayerId, state.filter);
+                if (newV.outlineLayerId) this.map.setFilter(newV.outlineLayerId, state.filter);
+            } catch (e) {
+                console.warn(`[Map] Could not apply filter to new version:`, e);
+            }
+        }
+
+        // Show new version if the logical layer is visible
+        if (state.visible) {
+            this.map.setLayoutProperty(newV.mapLayerId, 'visibility', 'visible');
+            if (newV.outlineLayerId) this.map.setLayoutProperty(newV.outlineLayerId, 'visibility', 'visible');
+        }
+
+        // Update state pointers
+        state.activeVersionIndex = newIndex;
+        state.mapLayerId = newV.mapLayerId;
+        state.outlineLayerId = newV.outlineLayerId;
+        state.sourceId = newV.sourceId;
+        state.sourceLayer = newV.sourceLayer;
+
+        // Refresh raster legend if visible (tile URL changed)
+        if (state.type === 'raster' && state.visible) {
+            this._hideRasterLegend(layerId);
+            this._legendItems.delete(layerId);   // force re-creation with new source
+            this._showRasterLegend(layerId);
+        }
+
+        return { success: true, layer: layerId, version: newV.label };
     }
 
     // ---- Raster Legend ----
@@ -634,6 +801,28 @@ export class MapManager {
     }
 
     // ---- Utilities ----
+
+    _wireTooltip(mapLayerId, tooltipFields) {
+        this.map.on('mousemove', mapLayerId, (e) => {
+            if (!e.features || e.features.length === 0) return;
+            const props = e.features[0].properties;
+            const rows = tooltipFields
+                .filter(f => props[f] !== undefined && props[f] !== null && props[f] !== '')
+                .map(f => `<tr><th>${f}</th><td>${this._formatTooltipValue(f, props[f])}</td></tr>`)
+                .join('');
+            if (!rows) return;
+            this._tooltip.innerHTML = `<table>${rows}</table>`;
+            this._tooltip.style.display = 'block';
+            this._tooltip.style.left = (e.originalEvent.clientX + 12) + 'px';
+            this._tooltip.style.top = (e.originalEvent.clientY - 12) + 'px';
+            this.map.getCanvas().style.cursor = 'pointer';
+        });
+
+        this.map.on('mouseleave', mapLayerId, () => {
+            this._tooltip.style.display = 'none';
+            this.map.getCanvas().style.cursor = '';
+        });
+    }
 
     _formatTooltipValue(field, value) {
         const lf = field.toLowerCase();

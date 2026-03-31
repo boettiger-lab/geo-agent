@@ -220,6 +220,79 @@ export class DatasetCatalog {
         if (assetConfigList) {
             // Filtered mode: iterate config entries so aliases and ordering are respected
             for (const { key, assetId, config } of assetConfigList) {
+
+                // Asset-level group is always a plain string (group reassignment).
+                // Tolerate object form { name } for robustness, but ignore collapsed
+                // — collapsed is a group-level concern, set on the collection's group.
+                const rawAssetGroup = config.group || null;
+                const assetGroup = rawAssetGroup && typeof rawAssetGroup === 'object'
+                    ? rawAssetGroup.name : rawAssetGroup;
+
+                // ── Versioned asset: multiple STAC assets behind one logical layer ──
+                if (config.versions && Array.isArray(config.versions)) {
+                    const versions = [];
+                    for (const v of config.versions) {
+                        const vAsset = stacAssets[v.asset_id];
+                        if (!vAsset) continue;
+                        const vType = vAsset.type || '';
+                        if (vType.includes('pmtiles')) {
+                            versions.push({
+                                label: v.label,
+                                assetId: v.asset_id,
+                                layerType: 'vector',
+                                url: vAsset.href,
+                                sourceLayer: vAsset['vector:layers']?.[0] || vAsset['pmtiles:layer'] || v.asset_id,
+                                description: vAsset.description || '',
+                            });
+                        } else if (vType.includes('geotiff') || vType.includes('tiff')) {
+                            const band0 = vAsset['raster:bands']?.[0];
+                            versions.push({
+                                label: v.label,
+                                assetId: v.asset_id,
+                                layerType: 'raster',
+                                cogUrl: vAsset.href,
+                                legendClasses: band0?.['classification:classes'] || null,
+                                description: vAsset.description || '',
+                            });
+                        }
+                    }
+                    if (versions.length === 0) continue;
+
+                    // Resolve default version index
+                    const defaultLabel = config.default_version;
+                    let defaultIndex = defaultLabel
+                        ? versions.findIndex(v => v.label === defaultLabel)
+                        : -1;
+                    if (defaultIndex < 0) defaultIndex = 0;
+
+                    // All versions must share a layer type (vector or raster)
+                    const layerType = versions[0].layerType;
+
+                    layers.push({
+                        assetId: key,
+                        layerType,
+                        group: assetGroup,
+                        title: config.display_name || collection.title || key,
+                        description: versions[defaultIndex].description || '',
+                        defaultStyle: config.default_style || null,
+                        outlineStyle: config.outline_style || null,
+                        renderType: config.layer_type || null,
+                        tooltipFields: config.tooltip_fields || null,
+                        defaultVisible: config.visible === true,
+                        defaultFilter: config.default_filter || null,
+                        colormap: config.colormap || options.colormap || 'reds',
+                        rescale: config.rescale || options.rescale || null,
+                        paint: config.paint || null,
+                        legendLabel: config.legend_label || null,
+                        legendType: config.legend_type || null,
+                        // Versioned metadata
+                        versions,
+                        defaultVersionIndex: defaultIndex,
+                    });
+                    continue;
+                }
+
+                // ── Standard (non-versioned) asset ──
                 const asset = stacAssets[assetId];
                 if (!asset) continue;
 
@@ -230,7 +303,7 @@ export class DatasetCatalog {
                         assetId: key,
                         sourceAssetId: assetId,  // original STAC key — used to share one MapLibre source across aliases
                         layerType: 'vector',
-                        group: config.group || null,
+                        group: assetGroup,
                         title: config.display_name || asset.title || assetId,
                         url: asset.href,
                         sourceLayer: asset['vector:layers']?.[0] || asset['pmtiles:layer'] || assetId,
@@ -247,7 +320,7 @@ export class DatasetCatalog {
                     layers.push({
                         assetId: key,
                         layerType: 'raster',
-                        group: config.group || null,
+                        group: assetGroup,
                         title: config.display_name || asset.title || assetId,
                         cogUrl: asset.href,
                         colormap: config.colormap || options.colormap || 'reds',
@@ -441,6 +514,10 @@ export class DatasetCatalog {
                 for (const ml of ds.mapLayers) {
                     const layerId = `${ds.id}/${ml.assetId}`;
                     let layerLine = `- layer_id: \`${layerId}\` — ${ml.title} (${ml.layerType})`;
+                    if (ml.versions?.length > 1) {
+                        const labels = ml.versions.map(v => v.label).join(', ');
+                        layerLine += ` [versions: ${labels}]`;
+                    }
                     if (ml.defaultFilter) {
                         layerLine += ` [default filter: ${JSON.stringify(ml.defaultFilter)}]`;
                     }
@@ -499,6 +576,68 @@ export class DatasetCatalog {
             for (const ml of ds.mapLayers) {
                 const layerId = `${ds.id}/${ml.assetId}`;
 
+                // ── Versioned layer: build per-version configs for MapManager ──
+                if (ml.versions && ml.versions.length > 0) {
+                    const versionConfigs = ml.versions.map(v => {
+                        if (v.layerType === 'vector') {
+                            const srcKey = v.assetId.replace(/[^a-zA-Z0-9]/g, '-');
+                            return {
+                                label: v.label,
+                                type: 'vector',
+                                sourceId: `src-${ds.id.replace(/[^a-zA-Z0-9]/g, '-')}-${srcKey}`,
+                                source: { type: 'vector', url: `pmtiles://${v.url}` },
+                                sourceLayer: v.sourceLayer,
+                            };
+                        } else {
+                            let tilesUrl = `${this.titilerUrl}/cog/tiles/WebMercatorQuad/{z}/{x}/{y}.png?url=${encodeURIComponent(v.cogUrl)}`;
+                            if (ml.legendType === 'categorical' && v.legendClasses?.length) {
+                                const cmap = {};
+                                for (const cls of v.legendClasses) {
+                                    const h = cls['color-hint'] || cls.color_hint;
+                                    if (h) cmap[String(cls.value)] = [parseInt(h.slice(0,2),16), parseInt(h.slice(2,4),16), parseInt(h.slice(4,6),16), 255];
+                                }
+                                tilesUrl += `&colormap=${encodeURIComponent(JSON.stringify(cmap))}`;
+                            } else {
+                                tilesUrl += `&colormap_name=${ml.colormap || 'reds'}`;
+                                if (ml.rescale) tilesUrl += `&rescale=${ml.rescale}`;
+                            }
+                            return {
+                                label: v.label,
+                                type: 'raster',
+                                sourceId: `src-${ds.id.replace(/[^a-zA-Z0-9]/g, '-')}-${v.assetId.replace(/[^a-zA-Z0-9]/g, '-')}`,
+                                source: { type: 'raster', tiles: [tilesUrl], tileSize: 256 },
+                            };
+                        }
+                    });
+
+                    configs.push({
+                        layerId,
+                        datasetId: ds.id,
+                        group: ml.group || ds.group,
+                        groupCollapsed: ds.groupCollapsed || false,
+                        displayName: ml.title,
+                        type: ml.layerType,
+                        paint: ml.defaultStyle || (ml.layerType === 'raster'
+                            ? (ml.paint || { 'raster-opacity': 0.7 })
+                            : { 'fill-color': '#2E7D32', 'fill-opacity': 0.5 }),
+                        outlinePaint: ml.outlineStyle || null,
+                        renderType: ml.renderType || null,
+                        columns: ds.columns,
+                        tooltipFields: ml.tooltipFields || null,
+                        defaultVisible: ml.defaultVisible || false,
+                        defaultFilter: ml.defaultFilter || null,
+                        colormap: ml.colormap || null,
+                        rescale: ml.rescale || null,
+                        legendLabel: ml.legendLabel || null,
+                        legendType: ml.legendType || null,
+                        // Versioned metadata
+                        versions: versionConfigs,
+                        defaultVersionIndex: ml.defaultVersionIndex,
+                    });
+                    continue;
+                }
+
+                // ── Standard (non-versioned) layer ──
                 if (ml.layerType === 'vector') {
                     // Use original STAC asset key for source ID so alias layers share one source
                     const sourceAssetKey = (ml.sourceAssetId || ml.assetId).replace(/[^a-zA-Z0-9]/g, '-');
