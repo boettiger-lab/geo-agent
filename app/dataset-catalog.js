@@ -221,12 +221,12 @@ export class DatasetCatalog {
             // Filtered mode: iterate config entries so aliases and ordering are respected
             for (const { key, assetId, config } of assetConfigList) {
 
-                // Normalize asset-level group (string or { name, collapsed } object)
+                // Asset-level group is always a plain string (group reassignment).
+                // Tolerate object form { name } for robustness, but ignore collapsed
+                // — collapsed is a group-level concern, set on the collection's group.
                 const rawAssetGroup = config.group || null;
                 const assetGroup = rawAssetGroup && typeof rawAssetGroup === 'object'
                     ? rawAssetGroup.name : rawAssetGroup;
-                const assetGroupCollapsed = rawAssetGroup && typeof rawAssetGroup === 'object'
-                    ? rawAssetGroup.collapsed === true : false;
 
                 // ── Versioned asset: multiple STAC assets behind one logical layer ──
                 if (config.versions && Array.isArray(config.versions)) {
@@ -272,7 +272,6 @@ export class DatasetCatalog {
                         assetId: key,
                         layerType,
                         group: assetGroup,
-                        groupCollapsed: assetGroupCollapsed,
                         title: config.display_name || collection.title || key,
                         description: versions[defaultIndex].description || '',
                         defaultStyle: config.default_style || null,
@@ -305,7 +304,6 @@ export class DatasetCatalog {
                         sourceAssetId: assetId,  // original STAC key — used to share one MapLibre source across aliases
                         layerType: 'vector',
                         group: assetGroup,
-                        groupCollapsed: assetGroupCollapsed,
                         title: config.display_name || asset.title || assetId,
                         url: asset.href,
                         sourceLayer: asset['vector:layers']?.[0] || asset['pmtiles:layer'] || assetId,
@@ -323,7 +321,6 @@ export class DatasetCatalog {
                         assetId: key,
                         layerType: 'raster',
                         group: assetGroup,
-                        groupCollapsed: assetGroupCollapsed,
                         title: config.display_name || asset.title || assetId,
                         cogUrl: asset.href,
                         colormap: config.colormap || options.colormap || 'reds',
@@ -617,7 +614,7 @@ export class DatasetCatalog {
                         layerId,
                         datasetId: ds.id,
                         group: ml.group || ds.group,
-                        groupCollapsed: ml.groupCollapsed || ds.groupCollapsed || false,
+                        groupCollapsed: ds.groupCollapsed || false,
                         displayName: ml.title,
                         type: ml.layerType,
                         paint: ml.defaultStyle || (ml.layerType === 'raster'
@@ -650,7 +647,7 @@ export class DatasetCatalog {
                         layerId,
                         datasetId: ds.id,
                         group: ml.group || ds.group,
-                        groupCollapsed: ml.groupCollapsed || ds.groupCollapsed || false,
+                        groupCollapsed: ds.groupCollapsed || false,
                         displayName: ml.title,
                         type: 'vector',
                         sourceId: sharedSourceId,
@@ -688,7 +685,7 @@ export class DatasetCatalog {
                         layerId,
                         datasetId: ds.id,
                         group: ml.group || ds.group,
-                        groupCollapsed: ml.groupCollapsed || ds.groupCollapsed || false,
+                        groupCollapsed: ds.groupCollapsed || false,
                         displayName: ml.title,
                         type: 'raster',
                         colormap: ml.colormap,

@@ -73,7 +73,7 @@ By default, layer groups in the panel start expanded. To start a group folded (u
 }
 ```
 
-The string form (`"group": "Fishing Effort"`) still works and defaults to expanded. The object form works on both the collection-level `group` and the per-asset `group` override.
+The string form (`"group": "Fishing Effort"`) still works and defaults to expanded. The per-asset `group` field (used to reassign a layer to a different group) is always a plain string.
 
 ## Versioned assets
 
