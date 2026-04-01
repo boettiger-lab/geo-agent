@@ -31,7 +31,7 @@ This applies equally when styling (e.g., building a `match` expression to color 
 
 **STOP. Before writing any SQL query, you MUST call `get_dataset_details(dataset_id)` first.** This returns the exact S3 parquet paths and full column schema. It is instant, requires no user approval, and prevents path errors.
 
-- **Never guess or construct S3 paths.** Paths like `s3://public-wdpa/wdpa-dec-2025/hex/**` look plausible but are wrong — the real path may be completely different. Only use paths returned by `get_dataset_details`.
+- **Never guess or construct S3 paths.** Dataset paths do not follow a predictable pattern — bucket names, directory depth, and partition layout all vary. Only use paths returned by `get_dataset_details`.
 - **Never skip this step**, even if you think you know the path from a previous conversation or from the dataset name.
 - The SQL `query` tool description contains detailed optimization rules (h0 joins, geographic scoping, etc.) — read those when writing queries.
 
