@@ -67,6 +67,10 @@ LIMIT 10
 
 Then visualize: `show_layer("overturemaps/overturemaps-admins")` and `set_filter("overturemaps/overturemaps-admins", ["in", "NAMELSAD", "County1", "County2", …])`.
 
+## Recovering from SQL errors
+
+If a query fails with a 404, "No files found", or path-not-found error, call `get_dataset_details` with the collection ID you were using to get the correct parquet path. Do **not** call `list_datasets` — you already know which dataset you need.
+
 ## Before every remote tool call — without exception
 
 **Every time** you call the SQL `query` tool — including follow-up calls in a multi-step analysis — you **must** include a 1–2 sentence plain-English explanation in your message text before the tool call. This applies to the first call, the second, and every subsequent call in the same turn.
