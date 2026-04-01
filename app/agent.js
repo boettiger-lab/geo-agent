@@ -25,6 +25,7 @@ export class Agent {
         this.selectedModel = config.llm_model || config.llm_models?.[0]?.value || 'default';
         this.maxToolCalls = 20;
         this.autoApprove = config.auto_approve ?? false;
+        this.sessionId = crypto.randomUUID();
 
         // Event callbacks (set by chat-ui.js)
         this.onThinkingStart = () => { };
@@ -219,6 +220,7 @@ export class Agent {
                 headers: {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${modelConfig.api_key}`,
+                    'X-Session-Id': this.sessionId,
                 },
                 body: JSON.stringify(payload),
                 signal: controller.signal,
