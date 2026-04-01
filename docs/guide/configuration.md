@@ -28,6 +28,7 @@ Each entry in `collections` is either a **bare string** (loads all visual assets
 | `group` | string or object | Group label shown in the layer toggle panel. Use an object `{ "name": "...", "collapsed": true }` to start the group folded — see [Collapsed groups](#collapsed-groups). |
 | `assets` | array | Asset selector — see below. Omit to load all visual assets. |
 | `display_name` | string | Override the collection title shown in the UI. |
+| `preload` | boolean | Inject the full column schema into the LLM system prompt — see [Preloaded schemas](#preloaded-schemas). Default: `false`. |
 
 ## Asset config — vector (PMTiles)
 
@@ -74,6 +75,25 @@ By default, layer groups in the panel start expanded. To start a group folded (u
 ```
 
 The string form (`"group": "Fishing Effort"`) still works and defaults to expanded. The per-asset `group` field (used to reassign a layer to a different group) is always a plain string.
+
+## Preloaded schemas
+
+By default, the system prompt includes only a compact hint for each collection — enough for the LLM to know the dataset exists, but it must call `get_dataset_details` before writing SQL. This keeps token usage low when many collections are configured.
+
+Set `"preload": true` on a collection to inject its full column schema (names, types, descriptions, and H3 index columns) directly into the system prompt. This lets the LLM write correct SQL on the first turn without an extra tool call, at the cost of more prompt tokens.
+
+Use `preload` for the datasets users query most often:
+
+```json
+{
+  "collection_id": "cpad-2025b",
+  "preload": true,
+  "group": "Protected Areas",
+  "assets": [{ "id": "cpad-holdings-pmtiles", "visible": true }]
+}
+```
+
+Collections without `preload` (or with `preload: false`) show a compact summary with coded-value hints and a prompt to call `get_dataset_details`. The `get_dataset_details` tool always returns the full schema regardless of the `preload` setting.
 
 ## Versioned assets
 
