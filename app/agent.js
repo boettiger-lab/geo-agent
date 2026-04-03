@@ -209,6 +209,7 @@ export class Agent {
             messages,
             tools: tools.length > 0 ? tools : undefined,
             tool_choice: tools.length > 0 ? 'auto' : undefined,
+            user: this.sessionId,
         };
 
         const controller = new AbortController();
@@ -220,7 +221,6 @@ export class Agent {
                 headers: {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${modelConfig.api_key}`,
-                    'X-Session-Id': this.sessionId,
                 },
                 body: JSON.stringify(payload),
                 signal: controller.signal,
