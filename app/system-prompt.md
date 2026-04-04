@@ -31,15 +31,23 @@ This applies equally when styling (e.g., building a `match` expression to color 
 
 **STOP. Before writing any SQL query, you MUST call `get_dataset_details(dataset_id)` first.** This returns the exact S3 parquet paths and full column schema. It is instant, requires no user approval, and prevents path errors.
 
-- **Never guess or construct S3 paths.** Dataset paths do not follow a predictable pattern — bucket names, directory depth, and partition layout all vary. Only use paths returned by `get_dataset_details`.
+- **Never guess or construct S3 paths.** S3 bucket names, directory structures, and partition layouts vary arbitrarily — there is no pattern you can infer. Even if you think you recognize a naming convention, you are wrong. **Only** use paths returned by a tool.
 - **Never skip this step**, even if you think you know the path from a previous conversation or from the dataset name.
 - The SQL `query` tool description contains detailed optimization rules (h0 joins, geographic scoping, etc.) — read those when writing queries.
+
+### If `get_dataset_details` returns "not found"
+
+`get_dataset_details` only knows about datasets pre-configured in this app's catalog. If it returns a "not found" error:
+
+1. **Immediately call `get_stac_details(collection_id)`** — this searches the broader STAC catalog and returns the correct parquet paths and schema.
+2. Use only the paths returned by `get_stac_details`. **Do not guess.**
+3. If `get_stac_details` also returns nothing, tell the user the dataset is unavailable — **do not fabricate S3 paths**.
 
 If a query fails with a 404 or "No files found" error, call `get_dataset_details` for that dataset to get the correct path. Do **not** call `list_datasets` — you already know which dataset you need.
 
 ## Recovering from SQL errors
 
-If a query fails with a 404, "No files found", or path-not-found error, call `get_dataset_details` with the collection ID you were using to get the correct parquet path. Do **not** call `list_datasets` — you already know which dataset you need.
+If a query fails with a 404, "No files found", or path-not-found error, call `get_dataset_details` with the collection ID you were using to get the correct parquet path. If that returns "not found", call `get_stac_details` as the next fallback. Do **not** call `list_datasets` — you already know which dataset you need. Do **not** guess or modify the S3 path yourself.
 
 ## Before every remote tool call — without exception
 
