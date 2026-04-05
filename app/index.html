@@ -17,8 +17,8 @@
     </script>
 
     <!-- MapLibre GL JS -->
-    <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
-    <link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet" />
+    <script src="https://unpkg.com/maplibre-gl@5.22.0/dist/maplibre-gl.js"></script>
+    <link href="https://unpkg.com/maplibre-gl@5.22.0/dist/maplibre-gl.css" rel="stylesheet" />
 
     <!-- PMTiles protocol -->
     <script src="https://unpkg.com/pmtiles@3.0.7/dist/pmtiles.js"></script>
@@ -55,6 +55,12 @@
                 <button class="basemap-btn" data-basemap="natgeo"    onclick="window._setBasemap('natgeo')">NatGeo</button>
                 <button class="basemap-btn"         data-basemap="satellite" onclick="window._setBasemap('satellite')">Satellite</button>
                 <button class="basemap-btn"         data-basemap="plain"     onclick="window._setBasemap('plain')">Plain</button>
+            </div>
+            <div class="globe-toggle-row">
+                <label>
+                    <input type="checkbox" id="globe-checkbox" onchange="window._setGlobe(this.checked)">
+                    <span>Globe view</span>
+                </label>
             </div>
         </div>
         <div class="menu-header">
