@@ -62,6 +62,7 @@ export class MapManager {
         this.titilerUrl = options.titilerUrl || 'https://titiler.nrp-nautilus.io';
         this._maptilerKey = options.maptilerKey || '';
         this._currentBasemap = 'natgeo';
+        this._globeEnabled = options.globe ?? false;
 
         // Build instance-level copy so customization never mutates module-level BASEMAPS
         this._basemaps = structuredClone(BASEMAPS);
@@ -128,6 +129,11 @@ export class MapManager {
                 }
                 if (defaultBasemap !== 'natgeo') {
                     this.setBasemap(defaultBasemap);
+                }
+                if (this._globeEnabled) {
+                    this.map.setProjection({ type: 'globe' });
+                    const cb = document.getElementById('globe-checkbox');
+                    if (cb) cb.checked = true;
                 }
                 resolve();
             });
@@ -554,6 +560,17 @@ export class MapManager {
         document.querySelectorAll('.basemap-btn').forEach(btn => {
             btn.classList.toggle('active', btn.dataset.basemap === name);
         });
+    }
+
+    /**
+     * Switch between 'globe' and 'mercator' projection.
+     * @param {'globe'|'mercator'} type
+     */
+    setProjection(type) {
+        this._globeEnabled = type === 'globe';
+        this.map.setProjection({ type });
+        const cb = document.getElementById('globe-checkbox');
+        if (cb) cb.checked = this._globeEnabled;
     }
 
     /**

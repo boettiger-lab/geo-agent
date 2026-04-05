@@ -48,7 +48,7 @@ All deployment options load the core library from jsDelivr. Pin to a tagged rele
 ```html
 <!-- Pinned — immutable, recommended for production -->
 <script type="module"
-  src="https://cdn.jsdelivr.net/gh/boettiger-lab/geo-agent@v2.4.0/app/main.js">
+  src="https://cdn.jsdelivr.net/gh/boettiger-lab/geo-agent@v2.5.0/app/main.js">
 </script>
 
 <!-- Latest main — use for staging/development -->
@@ -57,12 +57,13 @@ All deployment options load the core library from jsDelivr. Pin to a tagged rele
 </script>
 ```
 
-To release a new version: `git tag v2.5.0 && git push --tags`. Production apps upgrade by changing their tag in `index.html`.
+To release a new version: create a GitHub release via `gh release create vX.Y.Z --target main`. Production apps upgrade by changing their tag in `index.html`.
 
 ::: tip jsDelivr cache
 jsDelivr caches `@main` aggressively. After merging to `main`, force a refresh by hitting the purge URLs:
 ```
 https://purge.jsdelivr.net/gh/boettiger-lab/geo-agent@main/app/main.js
 https://purge.jsdelivr.net/gh/boettiger-lab/geo-agent@main/app/chat-ui.js
+https://purge.jsdelivr.net/gh/boettiger-lab/geo-agent@main/app/style.css
 ```
 :::

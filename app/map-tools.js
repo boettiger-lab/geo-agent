@@ -306,6 +306,26 @@ Vector layers: ${vectorLayerIds().join(', ')}`,
         },
 
         {
+            name: 'set_projection',
+            description: 'Switch the map between globe (spherical 3D) and mercator (flat 2D) projection. Use when the user asks to "show a globe", "switch to globe view", "go back to flat map", etc.',
+            inputSchema: {
+                type: 'object',
+                properties: {
+                    type: {
+                        type: 'string',
+                        enum: ['globe', 'mercator'],
+                        description: 'Projection type: "globe" for spherical Earth, "mercator" for flat map'
+                    }
+                },
+                required: ['type']
+            },
+            execute: (args) => {
+                mapManager.setProjection(args.type);
+                return JSON.stringify({ success: true, projection: args.type });
+            },
+        },
+
+        {
             name: 'get_dataset_details',
             description: 'Get full schema (columns, parquet paths, coded values) for a pre-loaded dataset. **Always call this before writing SQL against any dataset in your app** — it is instant and requires no approval. For datasets outside your app config, use `get_stac_details` instead.',
             inputSchema: {
