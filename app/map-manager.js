@@ -67,6 +67,7 @@ export class MapManager {
         // Build instance-level copy so customization never mutates module-level BASEMAPS
         this._basemaps = structuredClone(BASEMAPS);
         const customBasemap = options.customBasemap;
+        this._customBasemapLabel = customBasemap?.label || null;
         if (customBasemap?.url) {
             this._basemaps.natgeo.source.tiles = [customBasemap.url];
             this._basemaps.natgeo.source.attribution = '';
@@ -122,10 +123,6 @@ export class MapManager {
                     } catch (e) {
                         console.warn('[MapManager] terrain setup failed:', e);
                     }
-                }
-                if (customBasemap?.label) {
-                    const btn = document.querySelector('.basemap-btn[data-basemap="natgeo"]');
-                    if (btn) btn.textContent = customBasemap.label;
                 }
                 if (defaultBasemap !== 'natgeo') {
                     this.setBasemap(defaultBasemap);
@@ -571,6 +568,95 @@ export class MapManager {
         this.map.setProjection({ type });
         const cb = document.getElementById('globe-checkbox');
         if (cb) cb.checked = this._globeEnabled;
+    }
+
+    /**
+     * Generate the full menu: collapse header, basemap buttons, globe toggle,
+     * overlays section, and layer-controls-container. Call once after map is ready.
+     * @param {HTMLElement|string} container - DOM element or element ID for #menu
+     */
+    generateMenu(container) {
+        if (typeof container === 'string') container = document.getElementById(container);
+        if (!container) return;
+
+        // ── Collapse header (always visible) ────────────────────────────
+        const menuHeader = document.createElement('div');
+        menuHeader.className = 'menu-header';
+        const layersTitle = document.createElement('label');
+        layersTitle.className = 'section-title';
+        layersTitle.textContent = 'Layers';
+        const menuToggle = document.createElement('button');
+        menuToggle.id = 'menu-toggle';
+        menuToggle.title = 'Toggle layers';
+        menuToggle.textContent = '−';
+        menuToggle.addEventListener('click', () => {
+            container.classList.toggle('collapsed');
+            menuToggle.textContent = container.classList.contains('collapsed') ? '+' : '−';
+        });
+        menuHeader.appendChild(layersTitle);
+        menuHeader.appendChild(menuToggle);
+        container.appendChild(menuHeader);
+
+        // ── Collapsible body ─────────────────────────────────────────────
+        const menuBody = document.createElement('div');
+        menuBody.id = 'menu-body';
+
+        // Basemap section
+        const basemapSection = document.createElement('div');
+        basemapSection.className = 'menu-section';
+        const basemapTitle = document.createElement('label');
+        basemapTitle.className = 'section-title';
+        basemapTitle.textContent = 'Basemap';
+        basemapSection.appendChild(basemapTitle);
+
+        const btnGroup = document.createElement('div');
+        btnGroup.className = 'basemap-toggle-group';
+        const basemapDefs = [
+            { key: 'natgeo',    label: this._customBasemapLabel || 'NatGeo' },
+            { key: 'satellite', label: 'Satellite' },
+            { key: 'plain',     label: 'Plain' },
+        ];
+        for (const { key, label } of basemapDefs) {
+            const btn = document.createElement('button');
+            btn.className = 'basemap-btn' + (key === this._currentBasemap ? ' active' : '');
+            btn.dataset.basemap = key;
+            btn.textContent = label;
+            btn.addEventListener('click', () => this.setBasemap(key));
+            btnGroup.appendChild(btn);
+        }
+        basemapSection.appendChild(btnGroup);
+
+        // Globe toggle
+        const globeRow = document.createElement('div');
+        globeRow.className = 'globe-toggle-row';
+        const globeLabel = document.createElement('label');
+        const globeCb = document.createElement('input');
+        globeCb.type = 'checkbox';
+        globeCb.id = 'globe-checkbox';
+        globeCb.checked = this._globeEnabled;
+        globeCb.addEventListener('change', e => this.setProjection(e.target.checked ? 'globe' : 'mercator'));
+        const globeSpan = document.createElement('span');
+        globeSpan.textContent = 'Globe view';
+        globeLabel.appendChild(globeCb);
+        globeLabel.appendChild(globeSpan);
+        globeRow.appendChild(globeLabel);
+        basemapSection.appendChild(globeRow);
+        menuBody.appendChild(basemapSection);
+
+        // Overlays section
+        const overlaysSection = document.createElement('div');
+        overlaysSection.className = 'menu-section';
+        const overlaysTitle = document.createElement('label');
+        overlaysTitle.className = 'section-title';
+        overlaysTitle.textContent = 'Overlays';
+        overlaysSection.appendChild(overlaysTitle);
+        const layerControls = document.createElement('div');
+        layerControls.id = 'layer-controls-container';
+        layerControls.className = 'checkbox-group';
+        overlaysSection.appendChild(layerControls);
+        menuBody.appendChild(overlaysSection);
+
+        container.appendChild(menuBody);
     }
 
     /**
