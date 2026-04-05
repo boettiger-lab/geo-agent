@@ -67,6 +67,7 @@ export class MapManager {
         // Build instance-level copy so customization never mutates module-level BASEMAPS
         this._basemaps = structuredClone(BASEMAPS);
         const customBasemap = options.customBasemap;
+        this._customBasemapLabel = customBasemap?.label || null;
         if (customBasemap?.url) {
             this._basemaps.natgeo.source.tiles = [customBasemap.url];
             this._basemaps.natgeo.source.attribution = '';
@@ -122,10 +123,6 @@ export class MapManager {
                     } catch (e) {
                         console.warn('[MapManager] terrain setup failed:', e);
                     }
-                }
-                if (customBasemap?.label) {
-                    const btn = document.querySelector('.basemap-btn[data-basemap="natgeo"]');
-                    if (btn) btn.textContent = customBasemap.label;
                 }
                 if (defaultBasemap !== 'natgeo') {
                     this.setBasemap(defaultBasemap);
@@ -571,6 +568,83 @@ export class MapManager {
         this.map.setProjection({ type });
         const cb = document.getElementById('globe-checkbox');
         if (cb) cb.checked = this._globeEnabled;
+    }
+
+    /**
+     * Generate the full menu: basemap buttons, globe toggle, overlays header,
+     * and the layer-controls-container div. Call once after map is ready.
+     * @param {HTMLElement|string} container - DOM element or element ID for #menu
+     */
+    generateMenu(container) {
+        if (typeof container === 'string') container = document.getElementById(container);
+        if (!container) return;
+
+        // ── Basemap section ──────────────────────────────────────────────
+        const section = document.createElement('div');
+        section.className = 'menu-section';
+
+        const basemapTitle = document.createElement('label');
+        basemapTitle.className = 'section-title';
+        basemapTitle.textContent = 'Basemap';
+        section.appendChild(basemapTitle);
+
+        const btnGroup = document.createElement('div');
+        btnGroup.className = 'basemap-toggle-group';
+        const basemapDefs = [
+            { key: 'natgeo',    label: this._customBasemapLabel || 'NatGeo' },
+            { key: 'satellite', label: 'Satellite' },
+            { key: 'plain',     label: 'Plain' },
+        ];
+        for (const { key, label } of basemapDefs) {
+            const btn = document.createElement('button');
+            btn.className = 'basemap-btn' + (key === this._currentBasemap ? ' active' : '');
+            btn.dataset.basemap = key;
+            btn.textContent = label;
+            btn.addEventListener('click', () => this.setBasemap(key));
+            btnGroup.appendChild(btn);
+        }
+        section.appendChild(btnGroup);
+
+        // ── Globe toggle ─────────────────────────────────────────────────
+        const globeRow = document.createElement('div');
+        globeRow.className = 'globe-toggle-row';
+        const globeLabel = document.createElement('label');
+        const globeCb = document.createElement('input');
+        globeCb.type = 'checkbox';
+        globeCb.id = 'globe-checkbox';
+        globeCb.checked = this._globeEnabled;
+        globeCb.addEventListener('change', e => this.setProjection(e.target.checked ? 'globe' : 'mercator'));
+        const globeSpan = document.createElement('span');
+        globeSpan.textContent = 'Globe view';
+        globeLabel.appendChild(globeCb);
+        globeLabel.appendChild(globeSpan);
+        globeRow.appendChild(globeLabel);
+        section.appendChild(globeRow);
+        container.appendChild(section);
+
+        // ── Overlays header ──────────────────────────────────────────────
+        const menuHeader = document.createElement('div');
+        menuHeader.className = 'menu-header';
+        const overlaysTitle = document.createElement('label');
+        overlaysTitle.className = 'section-title';
+        overlaysTitle.textContent = 'Overlays';
+        const menuToggle = document.createElement('button');
+        menuToggle.id = 'menu-toggle';
+        menuToggle.title = 'Toggle overlays';
+        menuToggle.textContent = '−';
+        menuToggle.addEventListener('click', () => {
+            container.classList.toggle('collapsed');
+            menuToggle.textContent = container.classList.contains('collapsed') ? '+' : '−';
+        });
+        menuHeader.appendChild(overlaysTitle);
+        menuHeader.appendChild(menuToggle);
+        container.appendChild(menuHeader);
+
+        // ── Layer controls container (populated by generateControls) ─────
+        const layerControls = document.createElement('div');
+        layerControls.id = 'layer-controls-container';
+        layerControls.className = 'checkbox-group';
+        container.appendChild(layerControls);
     }
 
     /**
