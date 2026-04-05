@@ -132,7 +132,7 @@ export class ToolRegistry {
 
         try {
             if (tool.source === 'local') {
-                const result = tool.execute(args);
+                const result = await tool.execute(args);
                 return {
                     success: true,
                     name,
