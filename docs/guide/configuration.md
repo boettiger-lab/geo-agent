@@ -27,7 +27,7 @@ Controls the initial camera position. All fields are optional.
 | `zoom` | number | `6` | Initial zoom level (0–22). |
 | `pitch` | number | `0` | Camera tilt in degrees (0 = flat, 60 = steep). |
 | `bearing` | number | `0` | Map rotation in degrees clockwise from north (0 = north-up). |
-| `globe` | boolean | `false` | Start in globe (spherical Earth) projection. Users can also toggle this at runtime via the "Globe view" checkbox in the basemap panel. |
+| `globe` | boolean | `false` | Start in globe (spherical Earth) projection. Users can also toggle this at runtime via the "Globe view" checkbox in the basemap panel. Globe view automatically transitions back to flat Mercator at zoom ~12, where the projections converge — this is handled by MapLibre internally. |
 
 ```json
 "view": { "center": [-119.4, 36.8], "zoom": 6, "pitch": 0, "bearing": 0 }
