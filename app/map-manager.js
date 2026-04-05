@@ -99,7 +99,8 @@ export class MapManager {
             },
             center: options.center || [-119.4, 36.8],
             zoom: options.zoom || 6,
-            pitch: options.pitch ?? 20,
+            pitch: options.pitch ?? 0,
+            bearing: options.bearing ?? 0,
             maxPitch: options.maxPitch ?? 75,
             renderWorldCopies: false,
         });
