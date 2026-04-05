@@ -246,9 +246,9 @@ Vector layers: ${vectorLayerIds().join(', ')}`,
             execute: async (args) => {
                 if (!mcpClient) return JSON.stringify({ success: false, error: 'MCP client not available' });
 
-                // Wrap user SQL to aggregate IDs into a JSON array via DuckDB
+                // Wrap user SQL to aggregate non-null IDs into a JSON array via DuckDB
                 const col = args.id_property;
-                const wrappedSql = `SELECT array_agg("${col}") FROM (${args.sql}) _filter_subquery`;
+                const wrappedSql = `SELECT array_agg("${col}") FILTER (WHERE "${col}" IS NOT NULL) FROM (${args.sql}) _filter_subquery`;
 
                 let rawResult;
                 try {
@@ -257,12 +257,20 @@ Vector layers: ${vectorLayerIds().join(', ')}`,
                     return JSON.stringify({ success: false, error: `SQL execution failed: ${err.message}` });
                 }
 
+                // DuckDB returns NULL (not []) when no rows match — treat as empty
+                if (!rawResult || /\bnull\b/i.test(rawResult.trim().replace(/.*\n/, ''))) {
+                    return JSON.stringify({ success: true, idCount: 0, featuresInView: 0, message: 'Query matched no features — filter not applied.' });
+                }
+
                 const ids = extractJsonArray(rawResult);
-                if (!ids || ids.length === 0) {
+                if (!ids) {
                     return JSON.stringify({
                         success: false,
-                        error: `Query returned no results or could not parse ID list. Raw: ${rawResult.substring(0, 200)}`
+                        error: `Could not parse ID list from query result. Check that id_property ("${col}") exactly matches the column name returned by the SQL. Raw: ${rawResult.substring(0, 300)}`
                     });
+                }
+                if (ids.length === 0) {
+                    return JSON.stringify({ success: true, idCount: 0, featuresInView: 0, message: 'Query matched no features — filter not applied.' });
                 }
 
                 const filter = ['in', ['get', col], ['literal', ids]];
