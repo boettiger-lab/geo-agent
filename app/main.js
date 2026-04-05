@@ -53,6 +53,8 @@ async function main() {
     const mapManager = new MapManager('map', {
         center: appConfig.view?.center || [-119.4, 36.8],
         zoom: appConfig.view?.zoom || 6,
+        pitch: appConfig.view?.pitch ?? 0,
+        bearing: appConfig.view?.bearing ?? 0,
         titilerUrl: appConfig.titiler_url || 'https://titiler.nrp-nautilus.io',
         maptilerKey: runtimeConfig?.maptiler_key || '',
         defaultBasemap: appConfig.default_basemap || 'natgeo',
