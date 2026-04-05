@@ -55,6 +55,7 @@ async function main() {
         zoom: appConfig.view?.zoom || 6,
         pitch: appConfig.view?.pitch ?? 0,
         bearing: appConfig.view?.bearing ?? 0,
+        globe: appConfig.view?.globe ?? false,
         titilerUrl: appConfig.titiler_url || 'https://titiler.nrp-nautilus.io',
         maptilerKey: runtimeConfig?.maptiler_key || '',
         defaultBasemap: appConfig.default_basemap || 'natgeo',
@@ -64,8 +65,9 @@ async function main() {
     mapManager.addLayersFromCatalog(catalog.getMapLayerConfigs());
     mapManager.generateControls('layer-controls-container');
 
-    // Expose basemap switcher for HTML button onclick handlers
+    // Expose basemap/projection switchers for HTML button/checkbox onclick handlers
     window._setBasemap = name => mapManager.setBasemap(name);
+    window._setGlobe = enabled => mapManager.setProjection(enabled ? 'globe' : 'mercator');
 
     // Wire overlays panel toggle
     const menuToggle = document.getElementById('menu-toggle');

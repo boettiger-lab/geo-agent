@@ -66,6 +66,24 @@ body {
     font-weight: 600;
 }
 
+.globe-toggle-row {
+    padding: 4px 0 0;
+}
+
+.globe-toggle-row label {
+    display: flex;
+    align-items: center;
+    font-size: 11px;
+    color: rgba(0,0,0,0.65);
+    cursor: pointer;
+    gap: 6px;
+}
+
+.globe-toggle-row input[type="checkbox"] {
+    cursor: pointer;
+    margin: 0;
+}
+
 .menu-header {
     display: flex;
     justify-content: space-between;

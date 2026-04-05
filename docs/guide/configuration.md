@@ -27,6 +27,7 @@ Controls the initial camera position. All fields are optional.
 | `zoom` | number | `6` | Initial zoom level (0–22). |
 | `pitch` | number | `0` | Camera tilt in degrees (0 = flat, 60 = steep). |
 | `bearing` | number | `0` | Map rotation in degrees clockwise from north (0 = north-up). |
+| `globe` | boolean | `false` | Start in globe (spherical Earth) projection. Users can also toggle this at runtime via the "Globe view" checkbox in the basemap panel. |
 
 ```json
 "view": { "center": [-119.4, 36.8], "zoom": 6, "pitch": 0, "bearing": 0 }
@@ -36,6 +37,12 @@ For apps with 3D terrain, a modest pitch reveals elevation more effectively:
 
 ```json
 "view": { "center": [-110, 43], "zoom": 6, "pitch": 45, "bearing": -15 }
+```
+
+To start in globe projection:
+
+```json
+"view": { "center": [0, 20], "zoom": 2, "globe": true }
 ```
 
 ## Collections
