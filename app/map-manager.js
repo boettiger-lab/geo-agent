@@ -571,22 +571,43 @@ export class MapManager {
     }
 
     /**
-     * Generate the full menu: basemap buttons, globe toggle, overlays header,
-     * and the layer-controls-container div. Call once after map is ready.
+     * Generate the full menu: collapse header, basemap buttons, globe toggle,
+     * overlays section, and layer-controls-container. Call once after map is ready.
      * @param {HTMLElement|string} container - DOM element or element ID for #menu
      */
     generateMenu(container) {
         if (typeof container === 'string') container = document.getElementById(container);
         if (!container) return;
 
-        // ── Basemap section ──────────────────────────────────────────────
-        const section = document.createElement('div');
-        section.className = 'menu-section';
+        // ── Collapse header (always visible) ────────────────────────────
+        const menuHeader = document.createElement('div');
+        menuHeader.className = 'menu-header';
+        const layersTitle = document.createElement('label');
+        layersTitle.className = 'section-title';
+        layersTitle.textContent = 'Layers';
+        const menuToggle = document.createElement('button');
+        menuToggle.id = 'menu-toggle';
+        menuToggle.title = 'Toggle layers';
+        menuToggle.textContent = '−';
+        menuToggle.addEventListener('click', () => {
+            container.classList.toggle('collapsed');
+            menuToggle.textContent = container.classList.contains('collapsed') ? '+' : '−';
+        });
+        menuHeader.appendChild(layersTitle);
+        menuHeader.appendChild(menuToggle);
+        container.appendChild(menuHeader);
 
+        // ── Collapsible body ─────────────────────────────────────────────
+        const menuBody = document.createElement('div');
+        menuBody.id = 'menu-body';
+
+        // Basemap section
+        const basemapSection = document.createElement('div');
+        basemapSection.className = 'menu-section';
         const basemapTitle = document.createElement('label');
         basemapTitle.className = 'section-title';
         basemapTitle.textContent = 'Basemap';
-        section.appendChild(basemapTitle);
+        basemapSection.appendChild(basemapTitle);
 
         const btnGroup = document.createElement('div');
         btnGroup.className = 'basemap-toggle-group';
@@ -603,9 +624,9 @@ export class MapManager {
             btn.addEventListener('click', () => this.setBasemap(key));
             btnGroup.appendChild(btn);
         }
-        section.appendChild(btnGroup);
+        basemapSection.appendChild(btnGroup);
 
-        // ── Globe toggle ─────────────────────────────────────────────────
+        // Globe toggle
         const globeRow = document.createElement('div');
         globeRow.className = 'globe-toggle-row';
         const globeLabel = document.createElement('label');
@@ -619,32 +640,23 @@ export class MapManager {
         globeLabel.appendChild(globeCb);
         globeLabel.appendChild(globeSpan);
         globeRow.appendChild(globeLabel);
-        section.appendChild(globeRow);
-        container.appendChild(section);
+        basemapSection.appendChild(globeRow);
+        menuBody.appendChild(basemapSection);
 
-        // ── Overlays header ──────────────────────────────────────────────
-        const menuHeader = document.createElement('div');
-        menuHeader.className = 'menu-header';
+        // Overlays section
+        const overlaysSection = document.createElement('div');
+        overlaysSection.className = 'menu-section';
         const overlaysTitle = document.createElement('label');
         overlaysTitle.className = 'section-title';
         overlaysTitle.textContent = 'Overlays';
-        const menuToggle = document.createElement('button');
-        menuToggle.id = 'menu-toggle';
-        menuToggle.title = 'Toggle overlays';
-        menuToggle.textContent = '−';
-        menuToggle.addEventListener('click', () => {
-            container.classList.toggle('collapsed');
-            menuToggle.textContent = container.classList.contains('collapsed') ? '+' : '−';
-        });
-        menuHeader.appendChild(overlaysTitle);
-        menuHeader.appendChild(menuToggle);
-        container.appendChild(menuHeader);
-
-        // ── Layer controls container (populated by generateControls) ─────
+        overlaysSection.appendChild(overlaysTitle);
         const layerControls = document.createElement('div');
         layerControls.id = 'layer-controls-container';
         layerControls.className = 'checkbox-group';
-        container.appendChild(layerControls);
+        overlaysSection.appendChild(layerControls);
+        menuBody.appendChild(overlaysSection);
+
+        container.appendChild(menuBody);
     }
 
     /**
