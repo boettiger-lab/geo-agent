@@ -136,7 +136,7 @@ async function main() {
     const toolRegistry = new ToolRegistry();
 
     // Register local map tools
-    for (const tool of createMapTools(mapManager, catalog)) {
+    for (const tool of createMapTools(mapManager, catalog, mcp)) {
         toolRegistry.registerLocal(tool);
     }
 

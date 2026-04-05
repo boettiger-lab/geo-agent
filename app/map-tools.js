@@ -17,13 +17,33 @@
  */
 
 /**
+ * Parse a JSON array from DuckDB MCP query result text.
+ * DuckDB may wrap the array in a markdown table or plain text — we extract
+ * by finding the first '[' and last ']' in the response.
+ *
+ * @param {string} text
+ * @returns {Array|null}
+ */
+function extractJsonArray(text) {
+    const start = text.indexOf('[');
+    const end = text.lastIndexOf(']');
+    if (start === -1 || end === -1 || end <= start) return null;
+    try {
+        return JSON.parse(text.slice(start, end + 1));
+    } catch {
+        return null;
+    }
+}
+
+/**
  * Generate all local tools given the app's MapManager and DatasetCatalog.
- * 
+ *
  * @param {import('./map-manager.js').MapManager} mapManager
  * @param {import('./dataset-catalog.js').DatasetCatalog} catalog
+ * @param {import('./mcp-client.js').MCPClient} [mcpClient]
  * @returns {Array<Object>} Tool definitions
  */
-export function createMapTools(mapManager, catalog) {
+export function createMapTools(mapManager, catalog, mcpClient) {
     const allLayerIds = () => mapManager.getLayerIds();
     const vectorLayerIds = () => mapManager.getVectorLayerIds();
 
@@ -191,6 +211,73 @@ Available layers: ${allLayerIds().join(', ')}`,
             },
             execute: (args) => JSON.stringify(mapManager.flyTo(args)),
         },
+
+        // ---- Query-driven Filter Tool ----
+        ...(mcpClient ? [{
+            name: 'filter_by_query',
+            description: `Filter a vector layer to features whose ID property matches the results of a SQL query — without passing thousands of IDs through the LLM.
+
+Use this instead of set_filter when:
+- The matching set comes from an MCP SQL query (e.g. "show parcels inside protected areas", "highlight counties above median income")
+- The result set could be large (hundreds to tens of thousands of features)
+
+How it works:
+1. Executes your SQL via the MCP query tool
+2. Extracts the ID column
+3. Applies a MapLibre filter programmatically — IDs never pass through the LLM output
+
+Parameters:
+- layer_id: the vector layer to filter (must already be loaded)
+- sql: a SELECT query returning ONE column — the feature ID values to keep. Alias that column to match id_property exactly. Example: SELECT GEOID FROM read_parquet('s3://...') WHERE ...
+- id_property: the property name in the vector tile features to match against. Check get_dataset_details or get_stac_details for the correct column — CNG-processed datasets use "_cng_fid"; source datasets vary (e.g. "OBJECTID", "HOLDING_ID").
+
+IMPORTANT: The sql must return only the id column — no extra columns. Write it as a plain SELECT, not wrapped in array_agg.
+
+Vector layers: ${vectorLayerIds().join(', ')}`,
+            inputSchema: {
+                type: 'object',
+                properties: {
+                    layer_id: { type: 'string', description: 'Vector layer ID to filter' },
+                    sql: { type: 'string', description: 'SELECT query returning a single column of ID values to keep' },
+                    id_property: { type: 'string', description: 'Feature property name in the vector tile to match against — check get_dataset_details or get_stac_details (CNG-processed datasets use "_cng_fid"; source datasets vary)' },
+                },
+                required: ['layer_id', 'sql', 'id_property'],
+            },
+            execute: async (args) => {
+                if (!mcpClient) return JSON.stringify({ success: false, error: 'MCP client not available' });
+
+                // Wrap user SQL to aggregate non-null IDs into a JSON array via DuckDB
+                const col = args.id_property;
+                const wrappedSql = `SELECT array_agg("${col}") FILTER (WHERE "${col}" IS NOT NULL) FROM (${args.sql}) _filter_subquery`;
+
+                let rawResult;
+                try {
+                    rawResult = await mcpClient.callTool('query', { sql_query: wrappedSql });
+                } catch (err) {
+                    return JSON.stringify({ success: false, error: `SQL execution failed: ${err.message}` });
+                }
+
+                // DuckDB returns NULL (not []) when no rows match — treat as empty
+                if (!rawResult || /\bnull\b/i.test(rawResult.trim().replace(/.*\n/, ''))) {
+                    return JSON.stringify({ success: true, idCount: 0, featuresInView: 0, message: 'Query matched no features — filter not applied.' });
+                }
+
+                const ids = extractJsonArray(rawResult);
+                if (!ids) {
+                    return JSON.stringify({
+                        success: false,
+                        error: `Could not parse ID list from query result. Check that id_property ("${col}") exactly matches the column name in the SQL output — verify via get_dataset_details or get_stac_details (CNG-processed datasets use "_cng_fid"). Raw: ${rawResult.substring(0, 300)}`
+                    });
+                }
+                if (ids.length === 0) {
+                    return JSON.stringify({ success: true, idCount: 0, featuresInView: 0, message: 'Query matched no features — filter not applied.' });
+                }
+
+                const filter = ['in', ['get', col], ['literal', ids]];
+                const result = mapManager.setFilter(args.layer_id, filter);
+                return JSON.stringify({ ...result, idCount: ids.length });
+            },
+        }] : []),
 
         // ---- Dataset Knowledge Tools ----
         {
