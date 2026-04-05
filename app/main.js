@@ -62,21 +62,9 @@ async function main() {
         customBasemap: appConfig.custom_basemap || null,
     });
     await mapManager.ready;                        // wait for style to load
+    mapManager.generateMenu('menu');
     mapManager.addLayersFromCatalog(catalog.getMapLayerConfigs());
     mapManager.generateControls('layer-controls-container');
-
-    // Expose basemap/projection switchers for HTML button/checkbox onclick handlers
-    window._setBasemap = name => mapManager.setBasemap(name);
-    window._setGlobe = enabled => mapManager.setProjection(enabled ? 'globe' : 'mercator');
-
-    // Wire overlays panel toggle
-    const menuToggle = document.getElementById('menu-toggle');
-    const menuEl = document.getElementById('menu');
-    menuToggle?.addEventListener('click', () => {
-        menuEl.classList.toggle('collapsed');
-        menuToggle.textContent = menuEl.classList.contains('collapsed') ? '+' : '−';
-    });
-
     console.log('[main] Map ready');
 
     /* ── 3b. H3 hex-grid toggle (optional — requires h3-js global) ──── */
