@@ -229,7 +229,7 @@ How it works:
 Parameters:
 - layer_id: the vector layer to filter (must already be loaded)
 - sql: a SELECT query returning ONE column — the feature ID values to keep. Alias that column to match id_property exactly. Example: SELECT GEOID FROM read_parquet('s3://...') WHERE ...
-- id_property: the property name in the vector tile features to match against (e.g. "GEOID", "fips", "id")
+- id_property: the property name in the vector tile features to match against. Check get_dataset_details or get_stac_details for the correct column — CNG-processed datasets use "_cng_fid"; source datasets vary (e.g. "OBJECTID", "HOLDING_ID").
 
 IMPORTANT: The sql must return only the id column — no extra columns. Write it as a plain SELECT, not wrapped in array_agg.
 
@@ -239,7 +239,7 @@ Vector layers: ${vectorLayerIds().join(', ')}`,
                 properties: {
                     layer_id: { type: 'string', description: 'Vector layer ID to filter' },
                     sql: { type: 'string', description: 'SELECT query returning a single column of ID values to keep' },
-                    id_property: { type: 'string', description: 'Feature property name in the vector tile to match against (e.g. "GEOID", "fips")' },
+                    id_property: { type: 'string', description: 'Feature property name in the vector tile to match against — check get_dataset_details or get_stac_details (CNG-processed datasets use "_cng_fid"; source datasets vary)' },
                 },
                 required: ['layer_id', 'sql', 'id_property'],
             },
@@ -266,7 +266,7 @@ Vector layers: ${vectorLayerIds().join(', ')}`,
                 if (!ids) {
                     return JSON.stringify({
                         success: false,
-                        error: `Could not parse ID list from query result. Check that id_property ("${col}") exactly matches the column name returned by the SQL. Raw: ${rawResult.substring(0, 300)}`
+                        error: `Could not parse ID list from query result. Check that id_property ("${col}") exactly matches the column name in the SQL output — verify via get_dataset_details or get_stac_details (CNG-processed datasets use "_cng_fid"). Raw: ${rawResult.substring(0, 300)}`
                     });
                 }
                 if (ids.length === 0) {
