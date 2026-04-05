@@ -10,12 +10,33 @@ Client apps configure geo-agent via `layers-input.json`. All fields except `cata
 | `collections` | Yes | Array of collection specs — see below. |
 | `titiler_url` | No | TiTiler server for COG/raster tile rendering. Defaults to `https://titiler.nrp-nautilus.io`. |
 | `mcp_url` | No | MCP server URL for DuckDB SQL queries. Omit to disable analytics. |
-| `view` | No | Initial map view: `{ "center": [lon, lat], "zoom": z }` |
+| `view` | No | Initial map view — see below. |
 | `llm` | No | LLM configuration — see below. Omit for server-provided mode. |
 | `welcome` | No | Welcome message: `{ "message": "...", "examples": ["...", "..."] }` |
 | `default_basemap` | No | Which basemap is active on load: `"natgeo"` (default), `"satellite"`, or `"plain"`. |
 | `custom_basemap` | No | Replace the NatGeo slot with a custom tile URL — see below. |
 | `links` | No | Optional links shown in the chat UI — see below. |
+
+## View
+
+Controls the initial camera position. All fields are optional.
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `center` | `[lon, lat]` | `[-119.4, 36.8]` | Initial map center (longitude first). |
+| `zoom` | number | `6` | Initial zoom level (0–22). |
+| `pitch` | number | `0` | Camera tilt in degrees (0 = flat, 60 = steep). |
+| `bearing` | number | `0` | Map rotation in degrees clockwise from north (0 = north-up). |
+
+```json
+"view": { "center": [-119.4, 36.8], "zoom": 6, "pitch": 0, "bearing": 0 }
+```
+
+For apps with 3D terrain, a modest pitch reveals elevation more effectively:
+
+```json
+"view": { "center": [-110, 43], "zoom": 6, "pitch": 45, "bearing": -15 }
+```
 
 ## Collections
 
@@ -282,7 +303,7 @@ Use `["match", ["get", "col"], ["val1", "val2"], true, false]` for list membersh
   "catalog": "https://s3-west.nrp-nautilus.io/public-data/stac/catalog.json",
   "titiler_url": "https://titiler.nrp-nautilus.io",
   "mcp_url": "https://duckdb-mcp.nrp-nautilus.io/mcp",
-  "view": { "center": [-119.4, 36.8], "zoom": 6 },
+  "view": { "center": [-119.4, 36.8], "zoom": 6, "pitch": 0, "bearing": 0 },
 
   "llm": {
     "user_provided": true,
