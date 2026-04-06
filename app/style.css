@@ -66,22 +66,32 @@ body {
     font-weight: 600;
 }
 
-.globe-toggle-row {
-    padding: 4px 0 0;
+.basemap-section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
 }
 
-.globe-toggle-row label {
+.globe-btn {
+    background: none;
+    border: none;
+    padding: 2px 3px;
+    cursor: pointer;
+    color: rgba(0,0,0,0.2);
+    border-radius: 3px;
+    line-height: 1;
+    transition: color 0.15s, background 0.15s;
     display: flex;
     align-items: center;
-    font-size: 11px;
-    color: rgba(0,0,0,0.65);
-    cursor: pointer;
-    gap: 6px;
 }
 
-.globe-toggle-row input[type="checkbox"] {
-    cursor: pointer;
-    margin: 0;
+.globe-btn:hover {
+    color: rgba(0,0,0,0.55);
+}
+
+.globe-btn.active {
+    color: #000;
+    background: rgba(134,194,116,0.35);
 }
 
 .menu-header {

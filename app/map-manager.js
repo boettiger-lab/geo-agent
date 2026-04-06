@@ -566,8 +566,8 @@ export class MapManager {
     setProjection(type) {
         this._globeEnabled = type === 'globe';
         this.map.setProjection({ type });
-        const cb = document.getElementById('globe-checkbox');
-        if (cb) cb.checked = this._globeEnabled;
+        const btn = document.getElementById('globe-btn');
+        if (btn) btn.classList.toggle('active', this._globeEnabled);
     }
 
     /**
@@ -604,10 +604,22 @@ export class MapManager {
         // Basemap section
         const basemapSection = document.createElement('div');
         basemapSection.className = 'menu-section';
+
+        // Basemap header: "BASEMAP" label + globe icon button inline
+        const basemapHeader = document.createElement('div');
+        basemapHeader.className = 'basemap-section-header';
         const basemapTitle = document.createElement('label');
         basemapTitle.className = 'section-title';
         basemapTitle.textContent = 'Basemap';
-        basemapSection.appendChild(basemapTitle);
+        const globeBtn = document.createElement('button');
+        globeBtn.id = 'globe-btn';
+        globeBtn.className = 'globe-btn' + (this._globeEnabled ? ' active' : '');
+        globeBtn.title = 'Toggle globe view';
+        globeBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>`;
+        globeBtn.addEventListener('click', () => this.setProjection(this._globeEnabled ? 'mercator' : 'globe'));
+        basemapHeader.appendChild(basemapTitle);
+        basemapHeader.appendChild(globeBtn);
+        basemapSection.appendChild(basemapHeader);
 
         const btnGroup = document.createElement('div');
         btnGroup.className = 'basemap-toggle-group';
@@ -625,22 +637,6 @@ export class MapManager {
             btnGroup.appendChild(btn);
         }
         basemapSection.appendChild(btnGroup);
-
-        // Globe toggle
-        const globeRow = document.createElement('div');
-        globeRow.className = 'globe-toggle-row';
-        const globeLabel = document.createElement('label');
-        const globeCb = document.createElement('input');
-        globeCb.type = 'checkbox';
-        globeCb.id = 'globe-checkbox';
-        globeCb.checked = this._globeEnabled;
-        globeCb.addEventListener('change', e => this.setProjection(e.target.checked ? 'globe' : 'mercator'));
-        const globeSpan = document.createElement('span');
-        globeSpan.textContent = 'Globe view';
-        globeLabel.appendChild(globeCb);
-        globeLabel.appendChild(globeSpan);
-        globeRow.appendChild(globeLabel);
-        basemapSection.appendChild(globeRow);
         menuBody.appendChild(basemapSection);
 
         // Overlays section
