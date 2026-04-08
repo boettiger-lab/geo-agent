@@ -688,6 +688,7 @@ export class DatasetCatalog {
                         groupCollapsed: ds.groupCollapsed || false,
                         displayName: ml.title,
                         type: 'raster',
+                        defaultVisible: ml.defaultVisible || false,
                         colormap: ml.colormap,
                         rescale: ml.rescale,
                         legendLabel: ml.legendLabel,
