@@ -11,7 +11,10 @@ hero:
       link: /guide/quickstart
     - theme: alt
       text: Live Demo
-      link: https://boettiger-lab.github.io/geo-agent/
+      link: https://padus.nrp-nautilus.io/
+    - theme: alt
+      text: Template Repo
+      link: https://github.com/boettiger-lab/geo-agent-template
 
 features:
   - title: Zero JavaScript
