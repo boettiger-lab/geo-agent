@@ -228,12 +228,27 @@ The voice pipeline runs in two phases:
 1. **Transcription** — the recorded audio is sent to `transcription_model` with a "transcribe exactly" prompt. The returned text lands in the chat input field so you can review and edit it before sending.
 2. **Agent** — pressing send dispatches the (possibly edited) text through the normal agent loop, using whichever model is selected in the model dropdown. Voice input therefore works with *any* agent model, not just audio-capable ones.
 
+**Server-provided mode** — add at the top level of `config.json`:
+
 ```json
 {
   "transcription_model": {
     "value": "google/gemma-3n-e4b-it",
     "endpoint": "https://llm-proxy.nrp-nautilus.io/v1",
     "api_key": "EMPTY"
+  }
+}
+```
+
+**User-provided mode** — add inside the `llm` block in `layers-input.json`. The user's API key and endpoint are injected at runtime, so you usually only need to specify `value`:
+
+```json
+{
+  "llm": {
+    "user_provided": true,
+    "default_endpoint": "https://open-llm-proxy.nrp-nautilus.io/v1",
+    "models": [ /* ... */ ],
+    "transcription_model": { "value": "gemma" }
   }
 }
 ```
