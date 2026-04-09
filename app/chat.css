@@ -179,6 +179,34 @@
     cursor: not-allowed;
 }
 
+/* ── Voice input (exploratory) ──────────────────────────── */
+
+#chat-mic {
+    padding: 9px 12px;
+    background: rgba(255, 255, 255, 0.08);
+    color: #fff;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 15px;
+    line-height: 1;
+}
+
+#chat-mic:hover {
+    background: rgba(255, 255, 255, 0.15);
+}
+
+#chat-mic.recording {
+    background: rgba(220, 53, 69, 0.85);
+    border-color: rgba(220, 53, 69, 1);
+    animation: mic-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes mic-pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.6); }
+    50%      { box-shadow: 0 0 0 6px rgba(220, 53, 69, 0); }
+}
+
 /* ── Footer / model selector ────────────────────────────── */
 
 #chat-footer {

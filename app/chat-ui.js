@@ -5,6 +5,8 @@
  * Renders collapsible tool-call blocks (VSCode Copilot-inspired).
  */
 
+import { VoiceInput } from './voice-input.js';
+
 export class ChatUI {
     /**
      * @param {import('./agent.js').Agent} agent
@@ -22,6 +24,12 @@ export class ChatUI {
         this.sendBtn = document.getElementById('chat-send');
         this.modelSelector = document.getElementById('model-selector');
         this.toggleBtn = document.getElementById('chat-toggle');
+        this.micBtn = document.getElementById('chat-mic');
+
+        // Voice input state (exploratory — see app/voice-input.js)
+        this.voice = null;
+        this.recording = false;
+        this.pendingAudio = null;
 
         this.init();
     }
@@ -49,7 +57,11 @@ export class ChatUI {
         this.populateModelSelector();
         this.modelSelector?.addEventListener('change', () => {
             this.agent.setModel(this.modelSelector.value);
+            this.updateMicVisibility();
         });
+
+        // Voice input (shown only when the active model supports audio)
+        this.initVoiceInput();
 
         // Restructure footer into left + right zones before adding buttons
         this.restructureFooter();
@@ -98,6 +110,69 @@ export class ChatUI {
         if (models.length > 0) {
             this.modelSelector.value = this.agent.selectedModel;
         }
+    }
+
+    /* ------------------------------------------------------------------ */
+    /*  Voice input (exploratory)                                          */
+    /* ------------------------------------------------------------------ */
+
+    /**
+     * Return true if the given model config advertises audio input.
+     * Downstream apps opt in by adding `input_modalities: ["text","audio"]`
+     * to the model entry in their config.json.
+     */
+    modelSupportsAudio(modelCfg) {
+        const mods = modelCfg?.input_modalities;
+        return Array.isArray(mods) && mods.includes('audio');
+    }
+
+    updateMicVisibility() {
+        if (!this.micBtn) return;
+        const cfg = this.agent.getModelConfig();
+        const show = VoiceInput.isSupported() && this.modelSupportsAudio(cfg);
+        this.micBtn.hidden = !show;
+    }
+
+    initVoiceInput() {
+        if (!this.micBtn) return;
+        this.updateMicVisibility();
+        if (!VoiceInput.isSupported()) return;
+
+        this.voice = new VoiceInput();
+
+        this.micBtn.addEventListener('click', async () => {
+            if (this.busy) return;
+            if (!this.recording) {
+                try {
+                    await this.voice.start();
+                    this.recording = true;
+                    this.micBtn.classList.add('recording');
+                    this.micBtn.textContent = '⏹';
+                    this.micBtn.title = 'Stop recording and send';
+                } catch (err) {
+                    console.error('[ChatUI] Mic start failed:', err);
+                    this.addMessage('error', `Microphone error: ${err.message || err}`);
+                }
+                return;
+            }
+            // Stop -> capture -> send
+            try {
+                const audio = await this.voice.stop();
+                this.recording = false;
+                this.micBtn.classList.remove('recording');
+                this.micBtn.textContent = '🎤';
+                this.micBtn.title = 'Hold to record voice input';
+                this.pendingAudio = audio;
+                // Fire send immediately; handleSend will pick up pendingAudio
+                this.handleSend();
+            } catch (err) {
+                console.error('[ChatUI] Mic stop failed:', err);
+                this.addMessage('error', `Microphone error: ${err.message || err}`);
+                this.recording = false;
+                this.micBtn.classList.remove('recording');
+                this.micBtn.textContent = '🎤';
+            }
+        });
     }
 
     /* ------------------------------------------------------------------ */
@@ -397,7 +472,10 @@ export class ChatUI {
 
     async handleSend() {
         const text = this.inputEl.value.trim();
-        if (!text || this.busy) return;
+        const audio = this.pendingAudio;
+        this.pendingAudio = null;
+        if (!text && !audio) return;
+        if (this.busy) return;
 
         // In user-provided mode, check for API key before sending
         if (this.config._userProvidedMode && !localStorage.getItem('geo-agent-api-key')) {
@@ -409,11 +487,15 @@ export class ChatUI {
         this.sendBtn.disabled = true;
         this.inputEl.value = '';
 
-        // Show user bubble
-        this.addMessage('user', text);
+        // Show user bubble — add a 🎤 marker when this turn carried audio
+        const bubbleText = audio
+            ? (text ? `🎤 ${text}` : `🎤 [voice message — ${Math.round(audio.size / 1024)} KB ${audio.format}]`)
+            : text;
+        this.addMessage('user', bubbleText);
 
         try {
-            const { response, cancelled } = await this.agent.processMessage(text);
+            const opts = audio ? { audio: { data: audio.data, format: audio.format } } : undefined;
+            const { response, cancelled } = await this.agent.processMessage(text, opts);
 
             if (cancelled) {
                 this.addMessage('system', 'Query cancelled.');
