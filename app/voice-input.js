@@ -74,9 +74,56 @@ export class VoiceInput {
         this.stream = null;
         this.chunks = [];
 
-        const data = await this._blobToBase64(blob);
-        const format = this._guessFormat(mimeType);
-        return { data, format, mimeType: mimeType || 'audio/webm', size: blob.size };
+        const wav = await this._toWav(blob);
+        const data = await this._blobToBase64(wav);
+        return { data, format: 'wav', mimeType: 'audio/wav', size: wav.size };
+    }
+
+    async _toWav(blob) {
+        const arrayBuffer = await blob.arrayBuffer();
+        const audioCtx = new AudioContext();
+        const decoded = await audioCtx.decodeAudioData(arrayBuffer);
+        await audioCtx.close();
+
+        const numChannels = decoded.numberOfChannels;
+        const sampleRate = decoded.sampleRate;
+        const numFrames = decoded.length;
+        const pcm = new Int16Array(numFrames * numChannels);
+
+        for (let ch = 0; ch < numChannels; ch++) {
+            const samples = decoded.getChannelData(ch);
+            for (let i = 0; i < numFrames; i++) {
+                pcm[i * numChannels + ch] = Math.max(-32768, Math.min(32767, samples[i] * 32768));
+            }
+        }
+
+        return this._buildWavBlob(pcm, numChannels, sampleRate);
+    }
+
+    _buildWavBlob(pcm, numChannels, sampleRate) {
+        const byteRate = sampleRate * numChannels * 2;
+        const blockAlign = numChannels * 2;
+        const dataSize = pcm.byteLength;
+        const buf = new ArrayBuffer(44 + dataSize);
+        const view = new DataView(buf);
+        const write = (off, str) => [...str].forEach((c, i) => view.setUint8(off + i, c.charCodeAt(0)));
+
+        write(0, 'RIFF');
+        view.setUint32(4, 36 + dataSize, true);
+        write(8, 'WAVE');
+        write(12, 'fmt ');
+        view.setUint32(16, 16, true);
+        view.setUint16(20, 1, true);          // PCM
+        view.setUint16(22, numChannels, true);
+        view.setUint32(24, sampleRate, true);
+        view.setUint32(28, byteRate, true);
+        view.setUint16(32, blockAlign, true);
+        view.setUint16(34, 16, true);         // bits per sample
+        write(36, 'data');
+        view.setUint32(40, dataSize, true);
+        new Int16Array(buf, 44).set(pcm);
+
+        return new Blob([buf], { type: 'audio/wav' });
     }
 
     /**
