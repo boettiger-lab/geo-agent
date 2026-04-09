@@ -219,6 +219,27 @@ The `llm` section controls how the chat agent connects to a language model. Two 
 | `default_endpoint` | Pre-filled endpoint URL shown in the settings panel. [OpenRouter](https://openrouter.ai) gives access to many models via one key. |
 | `models` | Array of `{ "value": "<model-id>", "label": "<display name>" }` entries in the model selector. |
 
+## Voice input (optional)
+
+Voice input is opt-in via a `transcription_model` entry in `config.json`. When present, a 🎤 button appears in the chat footer; when absent, the button stays hidden and the voice/transcription JS modules are never loaded (zero footprint).
+
+The voice pipeline runs in two phases:
+
+1. **Transcription** — the recorded audio is sent to `transcription_model` with a "transcribe exactly" prompt. The returned text lands in the chat input field so you can review and edit it before sending.
+2. **Agent** — pressing send dispatches the (possibly edited) text through the normal agent loop, using whichever model is selected in the model dropdown. Voice input therefore works with *any* agent model, not just audio-capable ones.
+
+```json
+{
+  "transcription_model": {
+    "value": "google/gemma-3n-e4b-it",
+    "endpoint": "https://llm-proxy.nrp-nautilus.io/v1",
+    "api_key": "EMPTY"
+  }
+}
+```
+
+The `endpoint` must be an OpenAI-compatible chat-completions URL whose model accepts the `input_audio` content part. Any backend that meets that contract works — gemma4 on the NRP llm-proxy is the current reference implementation; a dedicated Whisper deployment can be substituted by swapping this config block.
+
 ## Finding STAC asset IDs
 
 Browse the catalog in STAC Browser:
