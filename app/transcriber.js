@@ -68,7 +68,7 @@ export class Transcriber {
                 'Authorization': `Bearer ${this.modelCfg.api_key || 'EMPTY'}`,
             },
             body: JSON.stringify(payload),
-            signal: opts.signal,
+            signal: opts.signal ?? AbortSignal.timeout(15_000),
         });
 
         if (!response.ok) {
