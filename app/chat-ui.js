@@ -5,8 +5,6 @@
  * Renders collapsible tool-call blocks (VSCode Copilot-inspired).
  */
 
-import { VoiceInput } from './voice-input.js';
-
 export class ChatUI {
     /**
      * @param {import('./agent.js').Agent} agent
@@ -26,10 +24,12 @@ export class ChatUI {
         this.toggleBtn = document.getElementById('chat-toggle');
         this.micBtn = document.getElementById('chat-mic');
 
-        // Voice input state (exploratory — see app/voice-input.js)
+        // Voice input state. The voice + transcriber modules are loaded
+        // lazily via dynamic import() — only when `config.transcription_model`
+        // is set. Apps without voice pay zero bytes for audio code.
         this.voice = null;
+        this.transcriber = null;
         this.recording = false;
-        this.pendingAudio = null;
 
         this.init();
     }
@@ -57,10 +57,11 @@ export class ChatUI {
         this.populateModelSelector();
         this.modelSelector?.addEventListener('change', () => {
             this.agent.setModel(this.modelSelector.value);
-            this.updateMicVisibility();
         });
 
-        // Voice input (shown only when the active model supports audio)
+        // Voice input (only initialised when a transcription model is
+        // configured — otherwise the mic stays hidden and the audio JS
+        // modules are never loaded).
         this.initVoiceInput();
 
         // Restructure footer into left + right zones before adding buttons
@@ -113,32 +114,44 @@ export class ChatUI {
     }
 
     /* ------------------------------------------------------------------ */
-    /*  Voice input (exploratory)                                          */
+    /*  Voice input                                                        */
     /* ------------------------------------------------------------------ */
 
     /**
-     * Return true if the given model config advertises audio input.
-     * Downstream apps opt in by adding `input_modalities: ["text","audio"]`
-     * to the model entry in their config.json.
+     * Initialise voice input if the app config declares a transcription
+     * model. Voice + transcriber modules are loaded via dynamic import() so
+     * apps without voice pay zero bytes for audio code.
+     *
+     * Flow: record → stop → transcribe → drop text into the input field →
+     * user reviews/edits and presses send. This decouples voice capability
+     * from the active agent model: any model can be paired with any
+     * transcription backend.
      */
-    modelSupportsAudio(modelCfg) {
-        const mods = modelCfg?.input_modalities;
-        return Array.isArray(mods) && mods.includes('audio');
-    }
-
-    updateMicVisibility() {
+    async initVoiceInput() {
         if (!this.micBtn) return;
-        const cfg = this.agent.getModelConfig();
-        const show = VoiceInput.isSupported() && this.modelSupportsAudio(cfg);
-        this.micBtn.hidden = !show;
-    }
+        const transcriptionCfg = this.config.transcription_model;
+        if (!transcriptionCfg?.value) {
+            // No transcription model configured — mic stays hidden, no JS loaded.
+            return;
+        }
 
-    initVoiceInput() {
-        if (!this.micBtn) return;
-        this.updateMicVisibility();
-        if (!VoiceInput.isSupported()) return;
+        let VoiceInput, Transcriber;
+        try {
+            ({ VoiceInput } = await import('./voice-input.js'));
+            ({ Transcriber } = await import('./transcriber.js'));
+        } catch (err) {
+            console.error('[ChatUI] Failed to load voice modules:', err);
+            return;
+        }
+
+        if (!VoiceInput.isSupported()) {
+            // Browser lacks MediaRecorder / getUserMedia — leave mic hidden.
+            return;
+        }
 
         this.voice = new VoiceInput();
+        this.transcriber = new Transcriber(transcriptionCfg);
+        this.micBtn.hidden = false;
 
         this.micBtn.addEventListener('click', async () => {
             if (this.busy) return;
@@ -148,26 +161,39 @@ export class ChatUI {
                     this.recording = true;
                     this.micBtn.classList.add('recording');
                     this.micBtn.textContent = '⏹';
-                    this.micBtn.title = 'Stop recording and send';
+                    this.micBtn.title = 'Stop recording';
                 } catch (err) {
                     console.error('[ChatUI] Mic start failed:', err);
                     this.addMessage('error', `Microphone error: ${err.message || err}`);
                 }
                 return;
             }
-            // Stop -> capture -> send
+            // Stop → transcribe → place transcript in the input field.
             try {
                 const audio = await this.voice.stop();
                 this.recording = false;
                 this.micBtn.classList.remove('recording');
                 this.micBtn.textContent = '🎤';
-                this.micBtn.title = 'Hold to record voice input';
-                this.pendingAudio = audio;
-                // Fire send immediately; handleSend will pick up pendingAudio
-                this.handleSend();
+                this.micBtn.title = 'Record voice input';
+
+                const prevPlaceholder = this.inputEl.placeholder;
+                this.inputEl.placeholder = 'Transcribing…';
+                this.inputEl.disabled = true;
+                try {
+                    const transcript = await this.transcriber.transcribe(audio);
+                    // Append to any existing text so users can prefix/suffix.
+                    const existing = this.inputEl.value;
+                    this.inputEl.value = existing
+                        ? `${existing} ${transcript}`.trim()
+                        : transcript;
+                } finally {
+                    this.inputEl.placeholder = prevPlaceholder;
+                    this.inputEl.disabled = false;
+                    this.inputEl.focus();
+                }
             } catch (err) {
-                console.error('[ChatUI] Mic stop failed:', err);
-                this.addMessage('error', `Microphone error: ${err.message || err}`);
+                console.error('[ChatUI] Mic stop / transcription failed:', err);
+                this.addMessage('error', `Voice input error: ${err.message || err}`);
                 this.recording = false;
                 this.micBtn.classList.remove('recording');
                 this.micBtn.textContent = '🎤';
@@ -472,9 +498,7 @@ export class ChatUI {
 
     async handleSend() {
         const text = this.inputEl.value.trim();
-        const audio = this.pendingAudio;
-        this.pendingAudio = null;
-        if (!text && !audio) return;
+        if (!text) return;
         if (this.busy) return;
 
         // In user-provided mode, check for API key before sending
@@ -487,15 +511,10 @@ export class ChatUI {
         this.sendBtn.disabled = true;
         this.inputEl.value = '';
 
-        // Show user bubble — add a 🎤 marker when this turn carried audio
-        const bubbleText = audio
-            ? (text ? `🎤 ${text}` : `🎤 [voice message — ${Math.round(audio.size / 1024)} KB ${audio.format}]`)
-            : text;
-        this.addMessage('user', bubbleText);
+        this.addMessage('user', text);
 
         try {
-            const opts = audio ? { audio: { data: audio.data, format: audio.format } } : undefined;
-            const { response, cancelled } = await this.agent.processMessage(text, opts);
+            const { response, cancelled } = await this.agent.processMessage(text);
 
             if (cancelled) {
                 this.addMessage('system', 'Query cancelled.');
