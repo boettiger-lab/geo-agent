@@ -28,6 +28,7 @@ async function main() {
     if (runtimeConfig) {
         if (runtimeConfig.llm_models) appConfig.llm_models = runtimeConfig.llm_models;
         if (runtimeConfig.llm_model) appConfig.llm_model = runtimeConfig.llm_model;
+        if (runtimeConfig.transcription_model) appConfig.transcription_model = runtimeConfig.transcription_model;
         if (runtimeConfig.mcp_server_url) appConfig.mcp_url = runtimeConfig.mcp_server_url;
         if (runtimeConfig.mcp_auth_token) appConfig.mcp_auth_token = runtimeConfig.mcp_auth_token;
     }
@@ -38,6 +39,7 @@ async function main() {
         if (saved) {
             appConfig.llm_models = saved.llm_models;
             appConfig.llm_model = saved.llm_models[0]?.value;
+            if (saved.transcription_model) appConfig.transcription_model = saved.transcription_model;
         }
         // Flag for ChatUI to show settings button
         appConfig._userProvidedMode = true;
@@ -192,8 +194,8 @@ const STORAGE_KEY_API = 'geo-agent-api-key';
 const STORAGE_KEY_ENDPOINT = 'geo-agent-endpoint';
 
 /**
- * Build llm_models array from localStorage + app llm config.
- * Returns null if no saved API key.
+ * Build llm_models array (and optionally transcription_model) from
+ * localStorage + app llm config. Returns null if no saved API key.
  */
 function loadUserLLMConfig(llmConfig) {
     const apiKey = localStorage.getItem(STORAGE_KEY_API);
@@ -219,7 +221,19 @@ function loadUserLLMConfig(llmConfig) {
         });
     }
 
-    return { llm_models: models };
+    const result = { llm_models: models };
+
+    // Transcription model for voice input — inherits the user's key and
+    // (by default) the same endpoint. Either can be overridden per entry.
+    if (llmConfig.transcription_model?.value) {
+        result.transcription_model = {
+            ...llmConfig.transcription_model,
+            endpoint: llmConfig.transcription_model.endpoint || endpoint,
+            api_key: llmConfig.transcription_model.api_key || apiKey,
+        };
+    }
+
+    return result;
 }
 
 async function fetchJson(url) {

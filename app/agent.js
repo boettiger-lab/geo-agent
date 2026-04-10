@@ -66,50 +66,22 @@ export class Agent {
     /**
      * Process a user message through the full agentic loop.
      *
+     * Voice input is handled upstream in chat-ui.js via the Transcriber
+     * module, so this method always receives plain text regardless of how
+     * the user entered their message.
+     *
      * @param {string} userMessage
-     * @param {{audio?: {data: string, format: string}, transcript?: string}} [opts]
-     *   audio: base64-encoded audio + format ('wav'|'mp3') to send as an
-     *          OpenAI `input_audio` content part (audio-capable models only).
-     *   transcript: optional human-readable placeholder stored in history so
-     *          later turns have a text record of what was said.
      * @returns {Promise<{response: string, sqlQueries: string[], cancelled: boolean}>}
      */
-    async processMessage(userMessage, opts = {}) {
+    async processMessage(userMessage) {
         // Track SQL queries for this turn
         const sqlQueries = [];
 
-        // Build user message content. If audio is provided, use the
-        // multimodal content-parts form; otherwise use a plain string.
-        let userContent;
-        if (opts.audio) {
-            const parts = [];
-            if (userMessage) parts.push({ type: 'text', text: userMessage });
-            parts.push({
-                type: 'input_audio',
-                input_audio: { data: opts.audio.data, format: opts.audio.format },
-            });
-            userContent = parts;
-        } else {
-            userContent = userMessage;
-        }
+        this.messages.push({ role: 'user', content: userMessage });
 
-        // Store a text-only shadow in history so subsequent turns stay small
-        // (raw audio blobs don't belong in the rolling context window).
-        const historyContent = opts.audio
-            ? (userMessage || opts.transcript || '[voice message]')
-            : userMessage;
-        this.messages.push({ role: 'user', content: historyContent });
-
-        // Build conversation for this turn. The last user message in history
-        // is the text shadow; if we have audio for this turn, swap in the
-        // multimodal content parts so the LLM actually hears it.
-        const history = this.messages.slice(-12);
-        if (opts.audio && history.length > 0) {
-            history[history.length - 1] = { role: 'user', content: userContent };
-        }
         const turnMessages = [
             { role: 'system', content: this.systemPrompt },
-            ...history,
+            ...this.messages.slice(-12),
         ];
 
         const tools = this.toolRegistry.getToolsForLLM();
