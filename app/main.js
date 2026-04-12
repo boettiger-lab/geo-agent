@@ -235,22 +235,35 @@ async function main() {
     /* ── 8. Create UI ─────────────────────────────────────────────────── */
     const ui = new ChatUI(agent, appConfig);
 
-    // Draw event → chat notifications
+    // Draw event → chat notifications.
+    // Replace (not append) synthetic draw messages so repeated draw/clear
+    // cycles don't bloat the agent's conversation history.
     if (mapDraw) {
+        const DRAW_PREFIX = '[The user has drawn a region';
+        const CLEAR_PREFIX = '[The user has cleared the drawn region';
+        function replaceDrawMessage(content) {
+            for (let i = agent.messages.length - 1; i >= 0; i--) {
+                const c = agent.messages[i].content;
+                if (agent.messages[i].role === 'user' &&
+                    (c.startsWith(DRAW_PREFIX) || c.startsWith(CLEAR_PREFIX))) {
+                    agent.messages.splice(i, 1);
+                }
+            }
+            agent.messages.push({ role: 'user', content });
+        }
+
         window.addEventListener('region-drawn', () => {
             ui.addMessage('system', 'Region drawn on map. Ask me anything about this area.');
-            agent.messages.push({
-                role: 'user',
-                content: '[The user has drawn a region of interest on the map. ' +
-                    'Use the get_drawn_region tool to retrieve the polygon when answering spatial queries about this area.]',
-            });
+            replaceDrawMessage(
+                '[The user has drawn a region of interest on the map. ' +
+                'Use the get_drawn_region tool to retrieve the polygon when answering spatial queries about this area.]',
+            );
         });
         window.addEventListener('region-cleared', () => {
             ui.addMessage('system', 'Region cleared.');
-            agent.messages.push({
-                role: 'user',
-                content: '[The user has cleared the drawn region from the map.]',
-            });
+            replaceDrawMessage(
+                '[The user has cleared the drawn region from the map.]',
+            );
         });
     }
 

@@ -129,8 +129,11 @@ export class MapDraw {
     /** Enter polygon draw mode. */
     startDrawing() {
         if (!this.draw) return;
-        // Clear any existing polygon first
+        // Clear any existing polygon without firing the clear event —
+        // the user is redrawing, not clearing.
+        this._suppressClearEvent = true;
         this.draw.deleteAll();
+        this._suppressClearEvent = false;
         this._currentFeatureId = null;
         this.draw.changeMode('draw_polygon');
         this._drawActive = true;
@@ -164,7 +167,9 @@ export class MapDraw {
         this._zoomAtDraw = null;
         this._drawActive = false;
         this._updateButton();
-        window.dispatchEvent(new CustomEvent('region-cleared'));
+        if (!this._suppressClearEvent) {
+            window.dispatchEvent(new CustomEvent('region-cleared'));
+        }
     }
 
     _updateButton() {
@@ -266,11 +271,8 @@ class DrawButtonControl {
                 this._mapDraw.draw.changeMode('simple_select');
                 this._mapDraw._drawActive = false;
                 this._mapDraw._updateButton();
-            } else if (this._mapDraw.hasRegion()) {
-                // Redraw — clear and start new
-                this._mapDraw.startDrawing();
             } else {
-                // Start drawing
+                // Start (or redraw — startDrawing clears any existing polygon)
                 this._mapDraw.startDrawing();
             }
         });
