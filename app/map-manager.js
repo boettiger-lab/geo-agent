@@ -181,15 +181,15 @@ export class MapManager {
                 let vOutlineLayerId = null;
                 if (v.type === 'vector' && renderType === 'line') {
                     layerDef.type = 'line';
-                    layerDef['source-layer'] = v.sourceLayer;
+                    if (v.sourceLayer) layerDef['source-layer'] = v.sourceLayer;
                     layerDef.paint = paint || { 'line-color': '#2E7D32', 'line-width': 1.5 };
                 } else if (v.type === 'vector' && renderType === 'circle') {
                     layerDef.type = 'circle';
-                    layerDef['source-layer'] = v.sourceLayer;
+                    if (v.sourceLayer) layerDef['source-layer'] = v.sourceLayer;
                     layerDef.paint = paint || { 'circle-color': '#2E7D32', 'circle-radius': 6, 'circle-opacity': 0.8 };
                 } else if (v.type === 'vector') {
                     layerDef.type = 'fill';
-                    layerDef['source-layer'] = v.sourceLayer;
+                    if (v.sourceLayer) layerDef['source-layer'] = v.sourceLayer;
                     layerDef.paint = paint || { 'fill-color': '#2E7D32', 'fill-opacity': 0.5 };
                 } else if (v.type === 'raster') {
                     layerDef.type = 'raster';
@@ -201,14 +201,15 @@ export class MapManager {
                 // Outline for vector fills
                 if (v.type === 'vector' && renderType !== 'line' && renderType !== 'circle') {
                     vOutlineLayerId = `${vMapLayerId}-outline`;
-                    this.map.addLayer({
+                    const outlineDef = {
                         id: vOutlineLayerId,
                         type: 'line',
                         source: v.sourceId,
-                        'source-layer': v.sourceLayer,
                         layout: { visibility: vis },
                         paint: outlinePaint || { 'line-color': 'rgba(0,0,0,0.4)', 'line-width': 0.5 },
-                    });
+                    };
+                    if (v.sourceLayer) outlineDef['source-layer'] = v.sourceLayer;
+                    this.map.addLayer(outlineDef);
                 }
 
                 // Default filter
@@ -285,15 +286,15 @@ export class MapManager {
         let outlineLayerId = null;
         if (type === 'vector' && renderType === 'line') {
             layerDef.type = 'line';
-            layerDef['source-layer'] = sourceLayer;
+            if (sourceLayer) layerDef['source-layer'] = sourceLayer;
             layerDef.paint = paint || { 'line-color': '#2E7D32', 'line-width': 1.5 };
         } else if (type === 'vector' && renderType === 'circle') {
             layerDef.type = 'circle';
-            layerDef['source-layer'] = sourceLayer;
+            if (sourceLayer) layerDef['source-layer'] = sourceLayer;
             layerDef.paint = paint || { 'circle-color': '#2E7D32', 'circle-radius': 6, 'circle-opacity': 0.8 };
         } else if (type === 'vector') {
             layerDef.type = 'fill';
-            layerDef['source-layer'] = sourceLayer;
+            if (sourceLayer) layerDef['source-layer'] = sourceLayer;
             layerDef.paint = paint || { 'fill-color': '#2E7D32', 'fill-opacity': 0.5 };
         } else if (type === 'raster') {
             layerDef.type = 'raster';
@@ -305,17 +306,18 @@ export class MapManager {
         // Add outline layer for vector fills (not for line or circle layers)
         if (type === 'vector' && renderType !== 'line' && renderType !== 'circle') {
             outlineLayerId = `${mapLayerId}-outline`;
-            this.map.addLayer({
+            const outlineDef = {
                 id: outlineLayerId,
                 type: 'line',
                 source: sourceId,
-                'source-layer': sourceLayer,
                 layout: { visibility: defaultVisible ? 'visible' : 'none' },
                 paint: outlinePaint || {
                     'line-color': 'rgba(0,0,0,0.4)',
                     'line-width': 0.5,
                 },
-            });
+            };
+            if (sourceLayer) outlineDef['source-layer'] = sourceLayer;
+            this.map.addLayer(outlineDef);
         }
 
         // Apply default filter if declared
