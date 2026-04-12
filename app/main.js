@@ -177,7 +177,7 @@ async function main() {
                     wkt,
                     suggested_h3_resolution: mapDraw.getSuggestedH3Resolution(),
                     hint: 'Use h3_polygon_wkt_to_cells(wkt, resolution) in SQL. ' +
-                          'Pick the H3 column in the dataset closest to but not exceeding suggested_h3_resolution.',
+                          'suggested_h3_resolution is a ceiling — pick the dataset H3 column closest to but not exceeding it.',
                 });
             },
         });

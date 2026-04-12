@@ -41,11 +41,12 @@ function toWKT(geojson) {
 
 /**
  * Map zoom level → suggested H3 resolution.
- * Conservative: prefers slightly lower resolution to avoid expensive hex ops.
- *   zoom 2→1, 4→2, 6→3, 8→4, 10→5, 12→6, 14→7, 16+→8
+ * Offset by +4 so that a full-screen polygon at any zoom level produces
+ * roughly the same number of cells (~1K–200K), keeping tiling and joins fast.
+ *   zoom 2→h5, 4→h6, 6→h7, 8→h8, 10→h9, 12→h10, 14→h11
  */
 function zoomToH3Resolution(zoom) {
-    return Math.min(8, Math.max(1, Math.floor(zoom / 2)));
+    return Math.min(15, Math.max(4, Math.floor(zoom / 2) + 4));
 }
 
 export class MapDraw {
