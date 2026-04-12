@@ -31,6 +31,7 @@ async function main() {
         if (runtimeConfig.transcription_model) appConfig.transcription_model = runtimeConfig.transcription_model;
         if (runtimeConfig.mcp_server_url) appConfig.mcp_url = runtimeConfig.mcp_server_url;
         if (runtimeConfig.mcp_auth_token) appConfig.mcp_auth_token = runtimeConfig.mcp_auth_token;
+        if (runtimeConfig.draw_enabled != null) appConfig.draw_enabled = runtimeConfig.draw_enabled;
     }
 
     // If no server-provided LLM config, check for user-provided key mode
@@ -115,6 +116,19 @@ async function main() {
         console.log('[main] H3 grid toggle ready');
     }
 
+    /* ── 3c. Polygon draw tool (optional — requires draw_enabled) ───── */
+    let mapDraw = null;
+    if (appConfig.draw_enabled) {
+        try {
+            const { MapDraw } = await import('./map-draw.js');
+            mapDraw = new MapDraw(mapManager.map);
+            await mapDraw.init();
+            console.log('[main] Draw tool ready');
+        } catch (err) {
+            console.warn('[main] Failed to load draw module:', err.message);
+        }
+    }
+
     /* ── 4. Set up MCP client ─────────────────────────────────────────── */
     const mcpUrl = appConfig.mcp_url || 'https://duckdb-mcp.nrp-nautilus.io/mcp';
     const mcpHeaders = {};
@@ -132,6 +146,41 @@ async function main() {
     // Register local map tools
     for (const tool of createMapTools(mapManager, catalog, mcp)) {
         toolRegistry.registerLocal(tool);
+    }
+
+    // Register draw tool (if draw is enabled and loaded)
+    if (mapDraw) {
+        toolRegistry.registerLocal({
+            name: 'get_drawn_region',
+            description:
+                'Get the polygon region the user drew on the map, as WKT. ' +
+                'Returns the WKT geometry and a suggested H3 resolution based on the region size. ' +
+                'When using this in a spatial SQL query, convert to H3 cells with: ' +
+                'h3_polygon_wkt_to_cells(wkt, resolution). Use the dataset\'s H3 index column ' +
+                'closest to (but not exceeding) the suggested resolution. ' +
+                'Returns null if no region is drawn. Call this when the user says ' +
+                '"this area", "here", "my selection", "the drawn region", or similar.',
+            inputSchema: {
+                type: 'object',
+                properties: {},
+            },
+            execute: () => {
+                const wkt = mapDraw.getRegionWKT();
+                if (!wkt) {
+                    return JSON.stringify({
+                        success: false,
+                        error: 'No region drawn. Ask the user to draw a polygon on the map first.',
+                    });
+                }
+                return JSON.stringify({
+                    success: true,
+                    wkt,
+                    suggested_h3_resolution: mapDraw.getSuggestedH3Resolution(),
+                    hint: 'Use h3_polygon_wkt_to_cells(wkt, resolution) in SQL. ' +
+                          'Pick the H3 column in the dataset closest to but not exceeding suggested_h3_resolution.',
+                });
+            },
+        });
     }
 
     // Register remote MCP tools (lazy – tries to list, falls back silently)
@@ -185,6 +234,26 @@ async function main() {
 
     /* ── 8. Create UI ─────────────────────────────────────────────────── */
     const ui = new ChatUI(agent, appConfig);
+
+    // Draw event → chat notifications
+    if (mapDraw) {
+        window.addEventListener('region-drawn', () => {
+            ui.addMessage('system', 'Region drawn on map. Ask me anything about this area.');
+            agent.messages.push({
+                role: 'user',
+                content: '[The user has drawn a region of interest on the map. ' +
+                    'Use the get_drawn_region tool to retrieve the polygon when answering spatial queries about this area.]',
+            });
+        });
+        window.addEventListener('region-cleared', () => {
+            ui.addMessage('system', 'Region cleared.');
+            agent.messages.push({
+                role: 'user',
+                content: '[The user has cleared the drawn region from the map.]',
+            });
+        });
+    }
+
     console.log('[main] UI ready – app fully loaded');
 }
 

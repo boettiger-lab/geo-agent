@@ -492,3 +492,27 @@ details.layer-group:not([open]) .layer-group-title::before {
     border: 1px solid rgba(0, 0, 0, 0.1);
     pointer-events: none;
 }
+
+/* Draw region toggle button */
+#draw-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 29px;
+    height: 29px;
+    padding: 0;
+    border: none;
+    background: none;
+    cursor: pointer;
+    color: #333;
+    border-radius: 4px;
+}
+
+#draw-toggle:hover {
+    background: rgba(0, 0, 0, 0.05);
+}
+
+#draw-toggle.active {
+    color: #3b82f6;
+    background: rgba(59, 130, 246, 0.1);
+}
