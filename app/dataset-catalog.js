@@ -5,7 +5,7 @@
  * builds a unified record containing:
  *   - Metadata (title, description, provider, license)
  *   - Parquet/H3 assets (for SQL queries via MCP)
- *   - Visual assets (PMTiles for vector, COG for raster — for map display)
+ *   - Visual assets (PMTiles/GeoJSON for vector, COG for raster — for map display)
  *   - Schema (table:columns — for filter/style guidance)
  * 
  * The catalog is the single source of truth for "what data exists"
@@ -202,7 +202,7 @@ export class DatasetCatalog {
     }
 
     /**
-     * Extract map-displayable assets (PMTiles and COGs).
+     * Extract map-displayable assets (PMTiles, GeoJSON, and COGs).
      * Each becomes a potential map layer.
      *
      * When assetConfigList is provided (filtered mode), iterates the config entries
@@ -252,6 +252,15 @@ export class DatasetCatalog {
                                 layerType: 'raster',
                                 cogUrl: vAsset.href,
                                 legendClasses: band0?.['classification:classes'] || null,
+                                description: vAsset.description || '',
+                            });
+                        } else if (vType.includes('geo+json') || vAsset.href?.endsWith('.geojson')) {
+                            versions.push({
+                                label: v.label,
+                                assetId: v.asset_id,
+                                layerType: 'vector',
+                                sourceType: 'geojson',
+                                url: vAsset.href,
                                 description: vAsset.description || '',
                             });
                         }
@@ -333,6 +342,23 @@ export class DatasetCatalog {
                         defaultVisible: config.visible === true,
                         defaultFilter: config.default_filter || null,
                     });
+                } else if (type.includes('geo+json') || asset.href?.endsWith('.geojson')) {
+                    layers.push({
+                        assetId: key,
+                        sourceAssetId: assetId,
+                        layerType: 'vector',
+                        sourceType: 'geojson',
+                        group: assetGroup,
+                        title: config.display_name || asset.title || assetId,
+                        url: asset.href,
+                        description: asset.description || '',
+                        defaultStyle: config.default_style || null,
+                        outlineStyle: config.outline_style || null,
+                        renderType: config.layer_type || null,
+                        tooltipFields: config.tooltip_fields || null,
+                        defaultVisible: config.visible === true,
+                        defaultFilter: config.default_filter || null,
+                    });
                 }
             }
         } else {
@@ -362,6 +388,19 @@ export class DatasetCatalog {
                         colormap: options.colormap || 'reds',
                         rescale: options.rescale || null,
                         description: asset.description || '',
+                        defaultVisible: false,
+                        defaultFilter: null,
+                    });
+                } else if (type.includes('geo+json') || asset.href?.endsWith('.geojson')) {
+                    layers.push({
+                        assetId,
+                        layerType: 'vector',
+                        sourceType: 'geojson',
+                        title: asset.title || assetId,
+                        url: asset.href,
+                        description: asset.description || '',
+                        defaultStyle: null,
+                        tooltipFields: null,
                         defaultVisible: false,
                         defaultFilter: null,
                     });
@@ -579,7 +618,15 @@ export class DatasetCatalog {
                 // ── Versioned layer: build per-version configs for MapManager ──
                 if (ml.versions && ml.versions.length > 0) {
                     const versionConfigs = ml.versions.map(v => {
-                        if (v.layerType === 'vector') {
+                        if (v.layerType === 'vector' && v.sourceType === 'geojson') {
+                            const srcKey = v.assetId.replace(/[^a-zA-Z0-9]/g, '-');
+                            return {
+                                label: v.label,
+                                type: 'vector',
+                                sourceId: `src-${ds.id.replace(/[^a-zA-Z0-9]/g, '-')}-${srcKey}`,
+                                source: { type: 'geojson', data: v.url },
+                            };
+                        } else if (v.layerType === 'vector') {
                             const srcKey = v.assetId.replace(/[^a-zA-Z0-9]/g, '-');
                             return {
                                 label: v.label,
@@ -643,7 +690,8 @@ export class DatasetCatalog {
                     const sourceAssetKey = (ml.sourceAssetId || ml.assetId).replace(/[^a-zA-Z0-9]/g, '-');
                     const sharedSourceId = `src-${ds.id.replace(/[^a-zA-Z0-9]/g, '-')}-${sourceAssetKey}`;
 
-                    configs.push({
+                    const isGeoJson = ml.sourceType === 'geojson';
+                    const layerConfig = {
                         layerId,
                         datasetId: ds.id,
                         group: ml.group || ds.group,
@@ -651,11 +699,9 @@ export class DatasetCatalog {
                         displayName: ml.title,
                         type: 'vector',
                         sourceId: sharedSourceId,
-                        source: {
-                            type: 'vector',
-                            url: `pmtiles://${ml.url}`,
-                        },
-                        sourceLayer: ml.sourceLayer,
+                        source: isGeoJson
+                            ? { type: 'geojson', data: ml.url }
+                            : { type: 'vector', url: `pmtiles://${ml.url}` },
                         paint: ml.defaultStyle || { 'fill-color': '#2E7D32', 'fill-opacity': 0.5 },
                         outlinePaint: ml.outlineStyle || null,
                         renderType: ml.renderType || null,
@@ -663,7 +709,10 @@ export class DatasetCatalog {
                         tooltipFields: ml.tooltipFields || null,
                         defaultVisible: ml.defaultVisible || false,
                         defaultFilter: ml.defaultFilter || null,
-                    });
+                    };
+                    if (!isGeoJson) layerConfig.sourceLayer = ml.sourceLayer;
+
+                    configs.push(layerConfig);
                 } else if (ml.layerType === 'raster') {
                     let tilesUrl = `${this.titilerUrl}/cog/tiles/WebMercatorQuad/{z}/{x}/{y}.png?url=${encodeURIComponent(ml.cogUrl)}`;
                     if (ml.legendType === 'categorical' && ml.legendClasses?.length) {
