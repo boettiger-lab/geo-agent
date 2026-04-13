@@ -255,6 +255,22 @@ The voice pipeline runs in two phases:
 
 The `endpoint` must be an OpenAI-compatible chat-completions URL whose model accepts the `input_audio` content part. Any backend that meets that contract works — gemma4 on the NRP llm-proxy is the current reference implementation; a dedicated Whisper deployment can be substituted by swapping this config block.
 
+## Draw tool (optional)
+
+The polygon draw tool lets users draw a region of interest on the map and query it through the chat agent. It is opt-in: when absent, no draw UI appears and the draw module is never loaded (zero footprint).
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `draw_enabled` | boolean | `false` | Show the draw button and register the `get_drawn_region` tool. |
+
+```json
+{ "draw_enabled": true }
+```
+
+When enabled, a pentagon icon button appears in the top-left map controls (below the zoom buttons). Click it to enter polygon draw mode, click on the map to place vertices, and double-click to finish. Only one polygon can exist at a time — drawing a new one replaces the previous.
+
+The agent receives a `get_drawn_region` tool that returns the polygon as WKT along with a suggested H3 resolution scaled to the region size. This prevents expensive high-resolution hexing of large areas.
+
 ## Finding STAC asset IDs
 
 Browse the catalog in STAC Browser:
