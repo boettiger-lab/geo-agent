@@ -343,6 +343,17 @@ export class DatasetCatalog {
                         defaultFilter: config.default_filter || null,
                     });
                 } else if (type.includes('geo+json') || asset.href?.endsWith('.geojson')) {
+                    // Resolve static_positions_asset reference (another STAC asset
+                    // in this same collection) to a URL, so MapManager doesn't
+                    // need to know about STAC.
+                    let animation = null;
+                    if (config.animation && typeof config.animation === 'object') {
+                        animation = { ...config.animation };
+                        const staticKey = config.animation.static_positions_asset;
+                        if (staticKey && stacAssets[staticKey]?.href) {
+                            animation.static_positions_url = stacAssets[staticKey].href;
+                        }
+                    }
                     layers.push({
                         assetId: key,
                         sourceAssetId: assetId,
@@ -358,6 +369,7 @@ export class DatasetCatalog {
                         tooltipFields: config.tooltip_fields || null,
                         defaultVisible: config.visible === true,
                         defaultFilter: config.default_filter || null,
+                        animation,
                     });
                 }
             }
@@ -709,6 +721,8 @@ export class DatasetCatalog {
                         tooltipFields: ml.tooltipFields || null,
                         defaultVisible: ml.defaultVisible || false,
                         defaultFilter: ml.defaultFilter || null,
+                        animation: ml.animation || null,
+                        tracksUrl: isGeoJson ? ml.url : null,
                     };
                     if (!isGeoJson) layerConfig.sourceLayer = ml.sourceLayer;
 

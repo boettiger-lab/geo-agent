@@ -159,6 +159,12 @@ export class MapManager {
     registerLayer(config) {
         const { layerId, datasetId, group, groupCollapsed, displayName, type, paint, outlinePaint, renderType, columns, tooltipFields, defaultVisible, defaultFilter, colormap, rescale, legendLabel, legendType, legendClasses } = config;
 
+        // ── Animated layer: delegate to TrajectoryAnimation ──
+        if (config.animation && config.animation.type === 'trajectory') {
+            this._registerTrajectoryLayer(config);
+            return;
+        }
+
         // ── Versioned layer: register N underlying MapLibre layers, one logical entry ──
         if (config.versions && config.versions.length > 0) {
             const versionStates = config.versions.map((v, i) => {
@@ -361,6 +367,58 @@ export class MapManager {
         }
     }
 
+    /**
+     * Register an animated trajectory layer. Creates a TrajectoryAnimation
+     * instance that owns its own sources, layers, and RAF loop; stores a
+     * layer-state record so it shows up in the layer panel and works with
+     * showLayer / hideLayer / setFilter.
+     */
+    async _registerTrajectoryLayer(config) {
+        const { layerId, datasetId, group, groupCollapsed, displayName, animation, defaultVisible, defaultFilter, tracksUrl, paint } = config;
+
+        // Store the state synchronously so generateControls can find it even
+        // while the module + GeoJSON are still loading.
+        const state = {
+            layerId,
+            mapLayerId: null,
+            outlineLayerId: null,
+            sourceId: null,
+            datasetId,
+            group: group || null,
+            groupCollapsed: groupCollapsed || false,
+            displayName,
+            type: 'animation',
+            sourceLayer: null,
+            visible: defaultVisible || false,
+            filter: defaultFilter || null,
+            defaultFilter: defaultFilter || null,
+            columns: [],
+            defaultPaint: { ...(paint || {}) },
+            tooltipFields: null,
+            animation: null,   // filled in below
+        };
+        this.layers.set(layerId, state);
+
+        try {
+            const { TrajectoryAnimation } = await import('./animation-manager.js');
+            const anim = new TrajectoryAnimation(this.map, {
+                layerId,
+                displayName,
+                tracksUrl,
+                staticUrl: animation.static_positions_url || null,
+                config: animation,
+                paint,
+            });
+            await anim.ready;
+            state.animation = anim;
+            // Apply deferred visibility/filter requested before init finished
+            anim.setVisible(state.visible);
+            if (state.filter) anim.setFilter(state.filter);
+        } catch (err) {
+            console.error(`[Map] Failed to init trajectory animation for ${layerId}:`, err);
+        }
+    }
+
     // ---- Layer Visibility ----
 
     /**
@@ -372,9 +430,13 @@ export class MapManager {
         const state = this.layers.get(layerId);
         if (!state) return { success: false, error: `Unknown layer: ${layerId}. Available: ${this.getLayerIds().join(', ')}` };
 
+        state.visible = true;
+        if (state.type === 'animation') {
+            if (state.animation) state.animation.setVisible(true);
+            return { success: true, layer: layerId, displayName: state.displayName, visible: true };
+        }
         this.map.setLayoutProperty(state.mapLayerId, 'visibility', 'visible');
         if (state.outlineLayerId) this.map.setLayoutProperty(state.outlineLayerId, 'visibility', 'visible');
-        state.visible = true;
         if (state.type === 'raster') this._showRasterLegend(layerId);
         return { success: true, layer: layerId, displayName: state.displayName, visible: true };
     }
@@ -388,9 +450,13 @@ export class MapManager {
         const state = this.layers.get(layerId);
         if (!state) return { success: false, error: `Unknown layer: ${layerId}. Available: ${this.getLayerIds().join(', ')}` };
 
+        state.visible = false;
+        if (state.type === 'animation') {
+            if (state.animation) state.animation.setVisible(false);
+            return { success: true, layer: layerId, displayName: state.displayName, visible: false };
+        }
         this.map.setLayoutProperty(state.mapLayerId, 'visibility', 'none');
         if (state.outlineLayerId) this.map.setLayoutProperty(state.outlineLayerId, 'visibility', 'none');
-        state.visible = false;
         if (state.type === 'raster') this._hideRasterLegend(layerId);
         return { success: true, layer: layerId, displayName: state.displayName, visible: false };
     }
@@ -406,6 +472,17 @@ export class MapManager {
     setFilter(layerId, filter) {
         const state = this.layers.get(layerId);
         if (!state) return { success: false, error: `Unknown layer: ${layerId}` };
+        if (state.type === 'animation') {
+            state.filter = filter;
+            if (state.animation) state.animation.setFilter(filter);
+            return {
+                success: true,
+                layer: layerId,
+                displayName: state.displayName,
+                filter,
+                filterDescription: filter ? this.describeFilter(filter) : 'No filter (showing all)',
+            };
+        }
         if (state.type !== 'vector') return { success: false, error: `Layer '${layerId}' is raster — filtering only works on vector layers` };
 
         this.map.setFilter(state.mapLayerId, filter);

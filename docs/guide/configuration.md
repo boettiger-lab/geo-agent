@@ -87,6 +87,52 @@ Each entry in `assets` may be a **bare string** (the STAC asset key, loaded with
 | `legend_label` | string | Label shown next to the color legend. |
 | `legend_type` | string | `"categorical"` to use STAC `classification:classes` color codes for a discrete legend. |
 
+## Animated trajectory layers
+
+For GeoJSON assets containing `LineString` features with a parallel timestamp array, set `animation` on the asset config to turn it into an animated point-along-line layer. The framework adds a play/pause controller, renders a faint static track line, and emits colored dots that interpolate linearly between waypoints. The layer appears in the layer menu like any other layer; the LLM agent's `show_layer` / `hide_layer` / `set_filter` tools work on it directly.
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `type` | string | — | **Required.** Currently only `"trajectory"` is supported. |
+| `timestamp_field` | string | `"timestamps"` | Feature property holding an array of ISO timestamps — one per coordinate in the LineString. |
+| `id_field` | string | `"id"` | Feature property used to group features (one animated dot per unique value). Also used by `set_filter`. |
+| `loop` | boolean | `true` | Restart at `globalStart` when reaching `globalEnd`. |
+| `duration_seconds` | number | `30` | Real-time seconds for one pass through the time range. |
+| `dot_radius` | number | `7` | Animated dot radius (px). |
+| `show_track_line` | boolean | `true` | Draw a faint static line of the full trajectory underneath. |
+| `track_line_opacity` | number | `0.35` | Opacity of the static track line. |
+| `show_labels` | boolean | `true` | Render each dot's `id_field` value as a text label. |
+| `static_positions_asset` | string | — | STAC asset key (in the same collection) for a GeoJSON of static positions. Entities present only in this dataset render as non-moving dots. |
+
+`default_style` on the asset supplies paint overrides — `line-color` and `circle-color` are the common cases, and MapLibre `match` expressions against `id_field` let you color-code per entity.
+
+```json
+{
+  "collection_id": "ca-wolves",
+  "group": { "name": "Wolf Activity" },
+  "assets": [
+    {
+      "id": "tracks",
+      "display_name": "Wolf Movement",
+      "visible": true,
+      "animation": {
+        "type": "trajectory",
+        "timestamp_field": "timestamps",
+        "id_field": "pack",
+        "duration_seconds": 30,
+        "static_positions_asset": "bins-latest"
+      },
+      "default_style": {
+        "line-color":   ["match", ["get", "pack"], "Whaleback 1", "#E65100", "Harvey 1", "#1565C0", "#888"],
+        "circle-color": ["match", ["get", "pack"], "Whaleback 1", "#E65100", "Harvey 1", "#1565C0", "#888"]
+      }
+    }
+  ]
+}
+```
+
+Only point-trajectory animation is supported today. Raster time-series playback and temporal filtering of static features are tracked as future work in [#144](https://github.com/boettiger-lab/geo-agent/issues/144).
+
 ## Collapsed groups
 
 By default, layer groups in the panel start expanded. To start a group folded (useful when a collection has many layers), use the object form for `group`:
