@@ -155,8 +155,8 @@ async function main() {
             description:
                 'Get the polygon region the user drew on the map, as WKT. ' +
                 'Returns the WKT geometry and a suggested H3 resolution based on the region size. ' +
-                'When using this in a spatial SQL query, convert to H3 cells with: ' +
-                'h3_polygon_wkt_to_cells(wkt, resolution). Use the dataset\'s H3 index column ' +
+                'To use in SQL: UNNEST(h3_polygon_wkt_to_cells(wkt, resolution)) produces H3 cells ' +
+                'that can be JOINed against a dataset\'s H3 index column. Use the resolution ' +
                 'closest to (but not exceeding) the suggested resolution. ' +
                 'Returns null if no region is drawn. Call this when the user says ' +
                 '"this area", "here", "my selection", "the drawn region", or similar.',
@@ -176,7 +176,8 @@ async function main() {
                     success: true,
                     wkt,
                     suggested_h3_resolution: mapDraw.getSuggestedH3Resolution(),
-                    hint: 'Use h3_polygon_wkt_to_cells(wkt, resolution) in SQL. ' +
+                    hint: 'To filter by this region, UNNEST h3_polygon_wkt_to_cells(wkt, resolution) and JOIN on the dataset H3 column. ' +
+                          'Example: FROM UNNEST(h3_polygon_wkt_to_cells(\'<wkt>\', <res>)) AS t(cell) JOIN data ON data.h3_col = t.cell. ' +
                           'suggested_h3_resolution is a ceiling — pick the dataset H3 column closest to but not exceeding it.',
                 });
             },
