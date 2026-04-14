@@ -87,6 +87,31 @@ Each entry in `assets` may be a **bare string** (the STAC asset key, loaded with
 | `legend_label` | string | Label shown next to the color legend. |
 | `legend_type` | string | `"categorical"` to use STAC `classification:classes` color codes for a discrete legend. |
 
+## Asset config — GeoJSON
+
+STAC assets with MIME type `application/geo+json` (or an `.geojson` href) are loaded as MapLibre GeoJSON sources. This is the simplest path for small vector datasets — no PMTiles build step required, just host a `.geojson` file alongside the STAC collection.
+
+GeoJSON assets accept the same config fields as PMTiles vectors (`display_name`, `visible`, `default_style`, `outline_style`, `layer_type`, `default_filter`, `tooltip_fields`, `group`). They also work with [versioned assets](#versioned-assets) and [animated trajectories](#animated-trajectory-layers).
+
+```json
+{
+  "collection_id": "ca-wolves",
+  "assets": [
+    {
+      "id": "pack-territories",
+      "display_name": "Pack Territories",
+      "visible": true,
+      "default_style": { "fill-color": "#1565C0", "fill-opacity": 0.3 },
+      "outline_style": { "line-color": "#1565C0", "line-width": 2 }
+    }
+  ]
+}
+```
+
+::: tip When to use GeoJSON vs PMTiles
+GeoJSON loads the entire file into the browser at once, so it works best for small datasets (a few thousand features or a few MB). For larger datasets, PMTiles streams only the tiles visible at the current zoom level and will perform significantly better.
+:::
+
 ## Animated trajectory layers
 
 For GeoJSON assets containing `LineString` features with a parallel timestamp array, set `animation` on the asset config to turn it into an animated point-along-line layer. The framework adds a play/pause controller, renders a faint static track line, and emits colored dots that interpolate linearly between waypoints. The layer appears in the layer menu like any other layer; the LLM agent's `show_layer` / `hide_layer` / `set_filter` tools work on it directly.
