@@ -75,8 +75,15 @@ export class DatasetCatalog {
             .map(c => c.collection_id));
         const catalogIds = new Set([...requestedIds].filter(id => !directIds.has(id)));
 
-        // Fetch all child collections in parallel
-        const fetchPromises = childLinks.map(async (link) => {
+        // When child links carry an `id` field (see boettiger-lab/data-workflows#105),
+        // filter before fetching so we only request the collections we need.
+        // Falls back to fetching all children for catalogs without IDs.
+        const linksToFetch = childLinks.filter(link =>
+            !link.id || catalogIds.has(link.id)
+        );
+
+        // Fetch matching child collections in parallel
+        const fetchPromises = linksToFetch.map(async (link) => {
             try {
                 const url = new URL(link.href, this.catalogUrl).href;
                 const collection = await this.fetchJson(url);
