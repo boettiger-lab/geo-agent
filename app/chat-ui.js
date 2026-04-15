@@ -9,20 +9,27 @@ export class ChatUI {
     /**
      * @param {import('./agent.js').Agent} agent
      * @param {Object} config  - app config (for model list)
+     * @param {Object} mount   - DOM refs from layout-manager.buildLayout()
+     *   {
+     *     container, messages, input, send, mic, header, footer, footerRight,
+     *   }
      */
-    constructor(agent, config) {
+    constructor(agent, config, mount) {
         this.agent = agent;
         this.config = config;
         this.busy = false;
 
-        // Cache DOM refs
-        this.container = document.getElementById('chat-container');
-        this.messagesEl = document.getElementById('chat-messages');
-        this.inputEl = document.getElementById('chat-input');
-        this.sendBtn = document.getElementById('chat-send');
-        this.modelSelector = document.getElementById('model-selector');
-        this.toggleBtn = document.getElementById('chat-toggle');
-        this.micBtn = document.getElementById('chat-mic');
+        // Cache DOM refs from layout-manager (no getElementById here).
+        this.container = mount.container;
+        this.messagesEl = mount.messages;
+        this.inputEl = mount.input;
+        this.sendBtn = mount.send;
+        this.micBtn = mount.mic;
+        this.toggleBtn = mount.container.querySelector('#chat-toggle');  // floating-mode only
+        this.headerEl = mount.header;
+        this.footerEl = mount.footer;
+        this.footerRightEl = mount.footerRight;
+        this.modelSelector = mount.footerRight.querySelector('#model-selector');
 
         // Voice input state. The voice + transcriber modules are loaded
         // lazily via dynamic import() — only when `config.transcription_model`
@@ -63,9 +70,6 @@ export class ChatUI {
         // configured — otherwise the mic stays hidden and the audio JS
         // modules are never loaded).
         this.initVoiceInput();
-
-        // Restructure footer into left + right zones before adding buttons
-        this.restructureFooter();
 
         // If in user-provided API key mode, add settings button
         if (this.config._userProvidedMode) {
@@ -238,27 +242,6 @@ export class ChatUI {
     }
 
     /* ------------------------------------------------------------------ */
-    /*  Footer restructuring (left / right zones)                          */
-    /* ------------------------------------------------------------------ */
-
-    restructureFooter() {
-        const footer = document.getElementById('chat-footer');
-        if (!footer) return;
-
-        // If layout-manager already built the footer-right wrapper, skip.
-        if (document.getElementById('chat-footer-right')) return;
-
-        const right = document.createElement('div');
-        right.id = 'chat-footer-right';
-
-        // Move model-selector into right zone
-        const modelSelector = footer.querySelector('#model-selector');
-        if (modelSelector) right.appendChild(modelSelector);
-
-        footer.appendChild(right);
-    }
-
-    /* ------------------------------------------------------------------ */
     /*  Optional links: github, docs (header), carbon (footer left)        */
     /* ------------------------------------------------------------------ */
 
@@ -294,8 +277,8 @@ export class ChatUI {
                 headerLinks.appendChild(a);
             }
 
-            const header = document.getElementById('chat-header');
-            const toggleBtn = document.getElementById('chat-toggle');
+            const header = this.headerEl;
+            const toggleBtn = this.toggleBtn;
             if (header && toggleBtn) {
                 header.insertBefore(headerLinks, toggleBtn);
             }
@@ -303,7 +286,7 @@ export class ChatUI {
 
         // Footer left: carbon dashboard (NRP deployments only)
         if (links.carbon) {
-            const footer = document.getElementById('chat-footer');
+            const footer = this.footerEl;
             if (!footer) return;
 
             const a = document.createElement('a');
@@ -323,7 +306,7 @@ export class ChatUI {
     /* ------------------------------------------------------------------ */
 
     initSettingsUI() {
-        const footer = document.getElementById('chat-footer-right');
+        const footer = this.footerRightEl;
         if (!footer) return;
 
         const btn = document.createElement('button');
@@ -436,7 +419,7 @@ export class ChatUI {
     /* ------------------------------------------------------------------ */
 
     initAutoApproveToggle() {
-        const footer = document.getElementById('chat-footer-right');
+        const footer = this.footerRightEl;
         if (!footer) return;
 
         // Resolve initial state: localStorage > config
