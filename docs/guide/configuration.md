@@ -15,6 +15,7 @@ Client apps configure geo-agent via `layers-input.json`. All fields except `cata
 | `welcome` | No | Welcome message: `{ "message": "...", "examples": ["...", "..."] }` |
 | `default_basemap` | No | Which basemap is active on load: `"natgeo"` (default), `"satellite"`, or `"plain"`. |
 | `custom_basemap` | No | Replace the NatGeo slot with a custom tile URL — see below. |
+| `auto_approve` | No | Start with remote tool calls auto-approved (no confirmation prompt). Default: `false`. |
 | `links` | No | Optional links shown in the chat UI — see below. |
 
 ## View
@@ -341,6 +342,22 @@ The polygon draw tool lets users draw a region of interest on the map and query 
 When enabled, a pentagon icon button appears in the top-left map controls (below the zoom buttons). Click it to enter polygon draw mode, click on the map to place vertices, and double-click to finish. Only one polygon can exist at a time — drawing a new one replaces the previous.
 
 The agent receives a `get_drawn_region` tool that returns the polygon as WKT along with a suggested H3 resolution scaled to the region size. This prevents expensive high-resolution hexing of large areas.
+
+## Tool call auto-approve
+
+By default, the agent pauses before executing remote tool calls (SQL queries via the MCP server) and shows a confirmation prompt with **Run** / **Cancel** buttons. Local tools — map controls like `show_layer`, `fly_to`, `set_filter` — always run immediately without confirmation.
+
+Set `auto_approve` to skip the confirmation step for remote calls:
+
+```json
+{ "auto_approve": true }
+```
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `auto_approve` | boolean | `false` | When `true`, remote tool calls execute immediately without user confirmation. |
+
+A ⚡ toggle button in the chat footer lets users switch auto-approve on or off at runtime. The runtime state is saved in `localStorage` (`geo-agent-auto-approve`) and takes precedence over the config value on subsequent visits. Setting `auto_approve: true` in config controls only the *initial* default for first-time visitors.
 
 ## Finding STAC asset IDs
 
