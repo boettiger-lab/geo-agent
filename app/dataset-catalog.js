@@ -259,6 +259,7 @@ export class DatasetCatalog {
                                 layerType: 'raster',
                                 cogUrl: vAsset.href,
                                 legendClasses: band0?.['classification:classes'] || null,
+                                nodata: config.nodata ?? band0?.nodata ?? null,
                                 description: vAsset.description || '',
                             });
                         } else if (vType.includes('geo+json') || vAsset.href?.endsWith('.geojson')) {
@@ -345,6 +346,7 @@ export class DatasetCatalog {
                         legendLabel: config.legend_label || null,
                         legendType: config.legend_type || null,
                         legendClasses: band0?.['classification:classes'] || null,
+                        nodata: config.nodata ?? band0?.nodata ?? null,
                         description: asset.description || '',
                         defaultVisible: config.visible === true,
                         defaultFilter: config.default_filter || null,
@@ -667,6 +669,7 @@ export class DatasetCatalog {
                                 tilesUrl += `&colormap_name=${ml.colormap || 'reds'}`;
                                 if (ml.rescale) tilesUrl += `&rescale=${ml.rescale}`;
                             }
+                            if (v.nodata != null) tilesUrl += `&nodata=${encodeURIComponent(v.nodata)}`;
                             return {
                                 label: v.label,
                                 type: 'raster',
@@ -750,6 +753,7 @@ export class DatasetCatalog {
                         tilesUrl += `&colormap_name=${ml.colormap}`;
                         if (ml.rescale) tilesUrl += `&rescale=${ml.rescale}`;
                     }
+                    if (ml.nodata != null) tilesUrl += `&nodata=${encodeURIComponent(ml.nodata)}`;
 
                     configs.push({
                         layerId,
