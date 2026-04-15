@@ -238,7 +238,7 @@ async function main() {
     console.log('[main] Agent ready');
 
     /* ── 8. Create UI ─────────────────────────────────────────────────── */
-    const ui = new ChatUI(agent, appConfig);
+    const ui = new ChatUI(agent, appConfig, layoutRefs.chatMount);
 
     // Draw event → chat notifications.
     // Replace (not append) synthetic draw messages so repeated draw/clear
