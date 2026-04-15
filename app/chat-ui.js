@@ -245,6 +245,9 @@ export class ChatUI {
         const footer = document.getElementById('chat-footer');
         if (!footer) return;
 
+        // If layout-manager already built the footer-right wrapper, skip.
+        if (document.getElementById('chat-footer-right')) return;
+
         const right = document.createElement('div');
         right.id = 'chat-footer-right';
 
