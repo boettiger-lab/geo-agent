@@ -83,9 +83,6 @@ export class ChatUI {
         // Auto-approve toggle (always shown)
         this.initAutoApproveToggle();
 
-        // Drag-to-resize handle
-        this.initResize();
-
         // Optional header/footer links (github, docs, carbon)
         this.initLinks();
 
@@ -440,42 +437,6 @@ export class ChatUI {
         });
 
         footer.prepend(btn);
-    }
-
-    /* ------------------------------------------------------------------ */
-
-    initResize() {
-        const handle = document.createElement('div');
-        handle.className = 'resize-handle';
-        this.container.prepend(handle);
-
-        let startX, startY, startW, startH;
-
-        const onMove = (e) => {
-            const dx = startX - e.clientX;   // positive = dragging left → wider
-            const dy = startY - e.clientY;   // positive = dragging up   → taller
-            const maxW = window.innerWidth - 40;
-            const maxH = window.innerHeight - 100;
-            this.container.style.width  = Math.min(maxW, Math.max(280, startW + dx)) + 'px';
-            this.container.style.maxHeight = Math.min(maxH, Math.max(200, startH + dy)) + 'px';
-        };
-
-        const onUp = () => {
-            document.removeEventListener('mousemove', onMove);
-            document.removeEventListener('mouseup', onUp);
-            document.body.style.userSelect = '';
-        };
-
-        handle.addEventListener('mousedown', (e) => {
-            e.preventDefault();
-            startX = e.clientX;
-            startY = e.clientY;
-            startW = this.container.offsetWidth;
-            startH = this.container.offsetHeight;
-            document.body.style.userSelect = 'none';
-            document.addEventListener('mousemove', onMove);
-            document.addEventListener('mouseup', onUp);
-        });
     }
 
     /* ------------------------------------------------------------------ */

@@ -71,6 +71,8 @@ function buildFloatingLayout(_appConfig, title) {
     container.append(header, messages, inputContainer, footer);
     document.body.appendChild(container);
 
+    initFloatingResize(container);
+
     return {
         chatMount: { container, messages, input, send, mic, header, footer, footerRight },
         menuMountId: 'menu',
@@ -84,6 +86,42 @@ function buildSidebarLayout(appConfig, title) {
     // Falls back to floating for now.
     console.warn('[layout-manager] sidebar mode not yet implemented \u2014 falling back to floating');
     return buildFloatingLayout(appConfig, title);
+}
+
+/* ----- Floating mode resize (drag top-left corner) ----------------------- */
+
+function initFloatingResize(container) {
+    const handle = document.createElement('div');
+    handle.className = 'resize-handle';
+    container.prepend(handle);
+
+    let startX, startY, startW, startH;
+
+    const onMove = (e) => {
+        const dx = startX - e.clientX;   // positive = dragging left → wider
+        const dy = startY - e.clientY;   // positive = dragging up   → taller
+        const maxW = window.innerWidth - 40;
+        const maxH = window.innerHeight - 100;
+        container.style.width = Math.min(maxW, Math.max(280, startW + dx)) + 'px';
+        container.style.maxHeight = Math.min(maxH, Math.max(200, startH + dy)) + 'px';
+    };
+
+    const onUp = () => {
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+        document.body.style.userSelect = '';
+    };
+
+    handle.addEventListener('mousedown', (e) => {
+        e.preventDefault();
+        startX = e.clientX;
+        startY = e.clientY;
+        startW = container.offsetWidth;
+        startH = container.offsetHeight;
+        document.body.style.userSelect = 'none';
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('mouseup', onUp);
+    });
 }
 
 /* ----- Small DOM helper -------------------------------------------------- */
