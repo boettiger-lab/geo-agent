@@ -85,6 +85,7 @@ Each entry in `assets` may be a **bare string** (the STAC asset key, loaded with
 | `visible` | boolean | Default visibility. Default: `false`. |
 | `colormap` | string | TiTiler colormap name (e.g., `"reds"`, `"blues"`, `"viridis"`). Default: `"reds"`. |
 | `rescale` | string | TiTiler min,max range for color scaling (e.g., `"0,150"`). |
+| `nodata` | number\|string | Pixel value to render transparent (e.g., `0` to mask ocean/no-data). If unset, falls back to the STAC `raster:bands[0].nodata` value; omit both to leave all pixels opaque. |
 | `legend_label` | string | Label shown next to the color legend. |
 | `legend_type` | string | `"categorical"` to use STAC `classification:classes` color codes for a discrete legend. |
 
