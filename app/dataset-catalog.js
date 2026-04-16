@@ -689,78 +689,74 @@ export class DatasetCatalog {
 
     /** @private */
     _formatSchemaFromMcp(ds, mcpData) {
-        const sections = [];
         const sqlAssets = this._getSqlAssets(mcpData);
-
-        for (const { title, s3Path, asset } of sqlAssets) {
-            const cols = (asset['table:columns'] || []).filter(c =>
-                !['geometry', 'geom', 'bbox'].includes(c.name?.toLowerCase())
-            );
-            if (cols.length === 0) continue;
-
-            let out = `${title}:\n`;
-            out += `  read_parquet('${s3Path}')\n\n`;
-
-            // Column headers + sample values row (like SELECT * LIMIT 1 output)
-            const names = cols.map(c => c.name);
-            const samples = cols.map(c => {
-                if (c.values?.length > 0) return String(c.values[0]);
-                return `(${c.type || '?'})`;
-            });
-            out += '  ' + names.join(' | ') + '\n';
-            out += '  ' + samples.join(' | ') + '\n';
-
-            // Coded values
-            const coded = cols.filter(c => c.values?.length > 0);
-            if (coded.length > 0) {
-                out += '\n';
-                for (const c of coded) {
-                    out += `  ${c.name}: ${c.values.join(', ')}\n`;
-                }
-            }
-
-            // Columns with descriptions but no coded values — show a compact hint
-            const described = cols.filter(c => !c.values?.length && c.description);
-            if (described.length > 0) {
-                out += '\n';
-                for (const c of described) {
-                    out += `  ${c.name}: ${c.description}\n`;
-                }
-            }
-
-            // If no coded values at all, suggest SELECT * LIMIT 1 to see real data
-            if (coded.length === 0) {
-                out += `\n  Tip: run SELECT * FROM read_parquet('${s3Path}') LIMIT 1 to see sample values.\n`;
-            }
-
-            sections.push(out);
-        }
-
-        // Collection-level columns (when assets didn't have their own)
         const collCols = (mcpData['table:columns'] || []).filter(c =>
             !['geometry', 'geom', 'bbox'].includes(c.name?.toLowerCase())
         );
-        if (collCols.length > 0 && sections.length === 0) {
-            let out = `${ds.title} columns:\n\n`;
-            const names = collCols.map(c => c.name);
-            const samples = collCols.map(c => {
-                if (c.values?.length > 0) return String(c.values[0]);
-                return `(${c.type || '?'})`;
-            });
-            out += '  ' + names.join(' | ') + '\n';
-            out += '  ' + samples.join(' | ') + '\n';
-            const coded = collCols.filter(c => c.values?.length > 0);
-            if (coded.length > 0) {
-                out += '\n';
-                for (const c of coded) {
-                    out += `  ${c.name}: ${c.values.join(', ')}\n`;
-                }
-            }
-            sections.push(out);
+
+        // Determine which columns to use: per-asset if available, else collection-level
+        const sections = [];
+        for (const { title, s3Path, asset } of sqlAssets) {
+            const assetCols = (asset['table:columns'] || []).filter(c =>
+                !['geometry', 'geom', 'bbox'].includes(c.name?.toLowerCase())
+            );
+            // Use per-asset columns if available, fall back to collection-level
+            const cols = assetCols.length > 0 ? assetCols : collCols;
+            sections.push(this._renderOneAssetSchema(title, s3Path, cols));
         }
 
-        if (sections.length === 0) return `No schema available for ${id}. Try get_stac_details("${id}").`;
+        // If no SQL assets found at all, render collection-level columns standalone
+        if (sections.length === 0 && collCols.length > 0) {
+            sections.push(this._renderOneAssetSchema(ds.title, null, collCols));
+        }
+
+        if (sections.length === 0) return `No schema available for ${ds.id}. Try get_stac_details("${ds.id}").`;
         return sections.join('\n');
+    }
+
+    /**
+     * Render one asset's schema in tabular format.
+     * @private
+     */
+    _renderOneAssetSchema(title, s3Path, cols) {
+        let out = `${title}:\n`;
+        if (s3Path) out += `  read_parquet('${s3Path}')\n\n`;
+
+        if (cols.length === 0) return out;
+
+        // Column headers + sample values row (like SELECT * LIMIT 1 output)
+        const names = cols.map(c => c.name);
+        const samples = cols.map(c => {
+            if (c.values?.length > 0) return String(c.values[0]);
+            return `(${c.type || '?'})`;
+        });
+        out += '  ' + names.join(' | ') + '\n';
+        out += '  ' + samples.join(' | ') + '\n';
+
+        // Coded values
+        const coded = cols.filter(c => c.values?.length > 0);
+        if (coded.length > 0) {
+            out += '\n';
+            for (const c of coded) {
+                out += `  ${c.name}: ${c.values.join(', ')}\n`;
+            }
+        }
+
+        // Columns with descriptions but no coded values — show a compact hint
+        const described = cols.filter(c => !c.values?.length && c.description);
+        if (described.length > 0) {
+            out += '\n';
+            for (const c of described) {
+                out += `  ${c.name}: ${c.description}\n`;
+            }
+        }
+
+        // If no coded values at all, suggest SELECT * LIMIT 1 to see real data
+        if (coded.length === 0 && s3Path) {
+            out += `\n  Tip: run SELECT * FROM read_parquet('${s3Path}') LIMIT 1 to see sample values.\n`;
+        }
+
+        return out;
     }
 
     /** @private */
