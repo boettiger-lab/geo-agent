@@ -12,7 +12,7 @@
  * No knowledge of LLMs, tools, or chat — pure map operations.
  */
 
-import { extractHashFromUrl, buildFillColorExpression, PALETTES } from './hex-layer-helpers.js';
+import { extractHashFromUrl, buildFillColorExpression } from './hex-layer-helpers.js';
 
 const BASEMAPS = {
     natgeo: {
