@@ -161,6 +161,7 @@ function buildSidebarLayout(appConfig, title) {
     document.body.appendChild(showBtn);
 
     initSidebarResize(resizeHandle, defaultWidth);
+    initSidebarCollapse(sidebar, hideBtn, showBtn);
 
     return {
         chatMount: {
@@ -301,6 +302,25 @@ function initSidebarResize(handle, defaultWidth) {
         document.body.style.userSelect = 'none';
         document.addEventListener('mousemove', onMove);
         document.addEventListener('mouseup', onUp);
+    });
+}
+
+/* ----- Sidebar collapse / show ------------------------------------------ */
+
+function initSidebarCollapse(sidebar, hideBtn, showBtn) {
+    const setCollapsed = (collapsed) => {
+        document.body.classList.toggle('sidebar-collapsed', collapsed);
+    };
+
+    hideBtn.addEventListener('click', () => setCollapsed(true));
+    showBtn.addEventListener('click', () => setCollapsed(false));
+
+    // Reflow the map canvas after the slide transition completes in EITHER
+    // direction. Using transitionend on the sidebar (not the body) because
+    // that's what actually transitions.
+    sidebar.addEventListener('transitionend', (e) => {
+        if (e.propertyName !== 'transform') return;
+        sidebarHooks.onResizeEnd?.();
     });
 }
 
