@@ -216,6 +216,37 @@ async function main() {
         }], mcp);
     }
 
+    /* ── 5b. Preload MCP collection data for system prompt ──────────── */
+    // Call get_collection for each configured dataset to get correct per-asset
+    // schemas and parquet paths. This data enriches the system prompt.
+    // Falls back gracefully if MCP is unavailable.
+    try {
+        const collectionIds = appConfig.collections.map(c =>
+            typeof c === 'string' ? c : c.collection_id
+        );
+        const preloadResults = await Promise.allSettled(
+            collectionIds.map(id =>
+                mcp.callTool('get_collection', { collection_id: id })
+            )
+        );
+        let preloaded = 0;
+        for (let i = 0; i < collectionIds.length; i++) {
+            const r = preloadResults[i];
+            if (r.status === 'fulfilled' && r.value) {
+                try {
+                    const data = JSON.parse(r.value);
+                    if (!data.error) {
+                        catalog.setMcpCollection(collectionIds[i], data);
+                        preloaded++;
+                    }
+                } catch { /* not JSON — skip */ }
+            }
+        }
+        console.log(`[main] Preloaded ${preloaded}/${collectionIds.length} collections from MCP`);
+    } catch (err) {
+        console.warn('[main] MCP preload failed, using local catalog data:', err.message);
+    }
+
     /* ── 6. Build system prompt ────────────────────────────────────────── */
     const basePrompt = await fetchText('system-prompt.md');
     const catalogText = catalog.generatePromptCatalog();

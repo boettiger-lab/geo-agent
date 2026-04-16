@@ -58,7 +58,7 @@ For LLM functionality, create `config.json`:
 
 **Local tools** (auto-approved, instant):
 - `show_layer`, `hide_layer`, `set_filter`, `clear_filter`, `set_style`, `reset_style`, `get_map_state`
-- `list_datasets`, `get_dataset_details`
+- `list_datasets`
 - `fly_to` — animates the map to a named place or coordinates (resolved via H3 parquet SQL)
 
 **Remote tools** (require user approval):

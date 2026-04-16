@@ -16,6 +16,8 @@ export class DatasetCatalog {
     constructor() {
         /** @type {Map<string, DatasetEntry>} keyed by collection ID */
         this.datasets = new Map();
+        /** @type {Map<string, Object>} MCP get_collection results, keyed by collection ID */
+        this.mcpCollections = new Map();
         this.catalogUrl = null;
         this.titilerUrl = null;
     }
@@ -505,11 +507,25 @@ export class DatasetCatalog {
         return doc?.href || null;
     }
 
+    // ---- MCP preload ----
+
+    /**
+     * Store a structured collection dict from MCP get_collection.
+     * Called at startup to cache per-asset schemas and parquet paths
+     * for system prompt generation.
+     *
+     * @param {string} id - Collection ID
+     * @param {Object} data - Structured STAC collection from MCP
+     */
+    setMcpCollection(id, data) {
+        this.mcpCollections.set(id, data);
+    }
+
     // ---- Public API ----
 
     /**
      * Get a dataset entry by collection ID.
-     * @param {string} id 
+     * @param {string} id
      * @returns {DatasetEntry|null}
      */
     get(id) {
@@ -534,13 +550,19 @@ export class DatasetCatalog {
 
     /**
      * Generate a text summary of all datasets for injection into the LLM system prompt.
-     * Includes both SQL (parquet) and map (visual) information.
+     *
+     * When MCP collection data is available (preloaded at startup via get_collection),
+     * parquet paths and per-asset column schemas come from MCP — which correctly reads
+     * both collection-level and asset-level table:columns. Falls back to local
+     * extractParquetAssets/extractColumns when MCP data is unavailable.
      */
     generatePromptCatalog() {
-        const preamble = 'The following datasets are pre-loaded for this app. Call `get_dataset_details` with a dataset ID to get its parquet paths and full schema before writing any SQL.\n';
+        const preamble = 'The following datasets are pre-loaded for this app. Paths and schemas are shown below — use them directly in SQL. For full column descriptions or coded values, call `get_stac_details` with the collection ID.\n';
         const sections = [preamble];
 
         for (const ds of this.datasets.values()) {
+            const mcpData = this.mcpCollections.get(ds.id);
+
             // Parent container: has children but no own columns — render as directory node
             const isParentContainer = ds.columns.length === 0 && ds.childIds.length > 0;
             if (isParentContainer) {
@@ -548,10 +570,10 @@ export class DatasetCatalog {
                 section += `**Collection ID:** ${ds.id}\n`;
                 section += `**Description:** ${ds.description}\n`;
                 const listed = ds.childIds.slice(0, 20);
-                section += `Sub-datasets — call \`get_dataset_details\` with one of these IDs:\n`;
+                section += `Sub-datasets — call \`get_stac_details\` with one of these IDs:\n`;
                 section += `  ${listed.join(', ')}\n`;
                 if (ds.childIds.length > 20) {
-                    section += `  (${ds.childIds.length - 20} more — call \`get_dataset_details("${ds.id}")\` for the full list)\n`;
+                    section += `  (${ds.childIds.length - 20} more — call \`get_stac_details("${ds.id}")\` for the full list)\n`;
                 }
                 sections.push(section);
                 continue;
@@ -562,11 +584,8 @@ export class DatasetCatalog {
             section += `**Description:** ${ds.description}\n`;
             section += `**Provider:** ${ds.provider}\n`;
 
-            // Parquet assets: indicate SQL-queryable but omit paths — model must call get_dataset_details
-            if (ds.parquetAssets.length > 0) {
-                const titles = ds.parquetAssets.map(pa => pa.title).join(', ');
-                section += `\n**SQL assets** (paths via \`get_dataset_details\`): ${titles}\n`;
-            }
+            // SQL assets with actual paths — from MCP data if available, else local extraction
+            section += this._renderSqlAssets(ds, mcpData);
 
             // Map layers for visualization
             if (ds.mapLayers.length > 0) {
@@ -585,24 +604,17 @@ export class DatasetCatalog {
                 }
             }
 
-            if (ds.preload && ds.columns.length > 0) {
-                // Full tier: all columns including H3, no cap
-                section += `\n**Columns:**\n`;
-                for (const col of ds.columns) {
-                    let line = `- \`${col.name}\` (${col.type}): ${col.description}`;
-                    if (col.values?.length > 0) {
-                        line += ` [${col.values.length} coded values — call \`get_dataset_details\` to see all]`;
+            // Column schema — only for datasets WITHOUT per-asset columns already rendered above
+            if (!mcpData) {
+                // No MCP data: fall back to local columns
+                if (ds.preload && ds.columns.length > 0) {
+                    section += `\n**Columns:**\n`;
+                    for (const col of ds.columns) {
+                        section += `- \`${col.name}\` (${col.type}): ${col.description}\n`;
                     }
-                    section += line + '\n';
+                } else if (ds.columns.length > 0) {
+                    section += `→ Call \`get_stac_details("${ds.id}")\` for the full schema before writing SQL.\n`;
                 }
-            } else if (ds.columns.length > 0) {
-                // Compact tier: hint to call get_dataset_details for schema
-                const codedCols = ds.columns.filter(c => c.values?.length > 0);
-                if (codedCols.length > 0) {
-                    const summary = codedCols.map(c => `${c.name} (${c.values.length})`).join(', ');
-                    section += `\n**Columns with known coded values:** ${summary}\n`;
-                }
-                section += `→ Call \`get_dataset_details("${ds.id}")\` for the full schema before writing SQL.\n`;
             }
 
             if (ds.aboutUrl) {
@@ -613,6 +625,95 @@ export class DatasetCatalog {
         }
 
         return sections.join('\n---\n\n');
+    }
+
+    /**
+     * Render SQL asset paths and per-asset column schemas for the prompt.
+     * Uses MCP structured data when available (correct per-asset schemas),
+     * falls back to local extractParquetAssets output.
+     * @private
+     */
+    _renderSqlAssets(ds, mcpData) {
+        if (mcpData) {
+            return this._renderSqlAssetsFromMcp(ds, mcpData);
+        }
+        // Fallback: local parquet assets (paths are correct, but no per-asset columns)
+        if (ds.parquetAssets.length === 0) return '';
+        let out = '\n**SQL assets:**\n';
+        for (const pa of ds.parquetAssets) {
+            out += `- ${pa.title}: \`read_parquet('${pa.s3Path}')\`\n`;
+        }
+        return out;
+    }
+
+    /**
+     * Render SQL assets from MCP get_collection structured data.
+     * Includes per-asset column schemas inline — this is the fix for #163.
+     * @private
+     */
+    _renderSqlAssetsFromMcp(ds, mcpData) {
+        const assets = mcpData.assets || {};
+        const parquetAssets = [];
+
+        for (const [assetId, asset] of Object.entries(assets)) {
+            const type = asset.type || '';
+            const href = asset.href || '';
+            if (!type.includes('parquet') && !href.endsWith('.parquet') &&
+                !href.includes('/hex/') && !href.endsWith('/')) continue;
+            // Skip PMTiles/COGs that might match loosely
+            if (type.includes('pmtiles') || type.includes('tiff')) continue;
+
+            let s3Path = href;
+            if (s3Path.endsWith('/')) s3Path = s3Path.replace(/\/+$/, '') + '/**';
+
+            parquetAssets.push({
+                title: asset.title || assetId,
+                s3Path,
+                columns: asset['table:columns'] || [],
+            });
+        }
+
+        if (parquetAssets.length === 0) return '';
+
+        let out = '\n**SQL assets:**\n';
+        for (const pa of parquetAssets) {
+            out += `- ${pa.title}: \`read_parquet('${pa.s3Path}')\`\n`;
+            // Inline per-asset columns when available
+            const cols = this._filterColumns(pa.columns);
+            if (cols.length > 0 && ds.preload) {
+                // Full tier: column name, type, description
+                for (const c of cols) {
+                    const desc = c.description ? ` — ${c.description}` : '';
+                    out += `    - \`${c.name}\` (${c.type || '?'})${desc}\n`;
+                }
+            } else if (cols.length > 0) {
+                // Compact tier: column names only
+                const names = cols.map(c => c.name).join(', ');
+                out += `    Columns: ${names}\n`;
+            }
+        }
+
+        // Collection-level columns (if any and not already covered per-asset)
+        const collectionCols = this._filterColumns(mcpData['table:columns'] || []);
+        if (collectionCols.length > 0 && ds.preload) {
+            out += `\n**Collection-level columns:**\n`;
+            for (const c of collectionCols) {
+                const desc = c.description ? ` — ${c.description}` : '';
+                out += `- \`${c.name}\` (${c.type || '?'})${desc}\n`;
+            }
+        }
+
+        return out;
+    }
+
+    /**
+     * Filter out geometry/geom columns from a table:columns array.
+     * @private
+     */
+    _filterColumns(columns) {
+        return (columns || []).filter(c =>
+            !['geometry', 'geom', 'bbox'].includes(c.name?.toLowerCase())
+        );
     }
 
     /**
