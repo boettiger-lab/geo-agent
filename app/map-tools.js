@@ -212,6 +212,63 @@ Available layers: ${allLayerIds().join(', ')}`,
             execute: (args) => JSON.stringify(mapManager.flyTo(args)),
         },
 
+        // ---- Dynamic Hex Tile Layers ----
+        {
+            name: 'add_hex_tile_layer',
+            description: `Add a dynamic H3 hex tile layer to the map. Use after calling the MCP \`register_hex_tiles\` tool, which returns a tile URL template + bounds + value columns.
+
+Typical flow for "show me a hex map of X":
+  1. Call \`register_hex_tiles\` (MCP) with SQL that returns (h3_index, value1, ...)
+  2. Call \`query\` (MCP) for SELECT MIN(col), MAX(col) FROM (<same sql>) to get the value range
+  3. Call this tool with the returned tile_url, chosen value_column, and range
+
+IMPORTANT: value_range is required — without it the color ramp is ill-defined. Pass [min, max] as computed above.
+
+IMPORTANT: The tile_url must be the exact tile_url_template returned by register_hex_tiles — the tool rejects other URLs.
+
+The returned layer_id can be used with show_layer / hide_layer / set_style / set_filter / get_map_state like any other vector layer, and with remove_hex_tile_layer to free the source.`,
+            inputSchema: {
+                type: 'object',
+                properties: {
+                    tile_url: { type: 'string', description: 'tile_url_template from register_hex_tiles' },
+                    value_column: { type: 'string', description: 'Which column from register_hex_tiles.value_columns to style by' },
+                    value_range: {
+                        type: 'array',
+                        items: { type: 'number' },
+                        description: '[min, max] of value_column, computed via MCP query'
+                    },
+                    bounds: {
+                        type: 'array',
+                        items: { type: 'number' },
+                        description: '[w, s, e, n] from register_hex_tiles.bounds'
+                    },
+                    display_name: { type: 'string', description: 'Optional human-readable layer name (default: "Hex: <value_column>")' },
+                    palette: {
+                        type: 'string',
+                        enum: ['viridis', 'ylorrd', 'bluered'],
+                        description: 'Color ramp: viridis (sequential default), ylorrd (warm sequential), bluered (diverging)'
+                    },
+                    opacity: { type: 'number', description: 'Fill opacity 0..1 (default 0.7)' },
+                    fit_bounds: { type: 'boolean', description: 'Fly the camera to fit bounds (default true)' },
+                },
+                required: ['tile_url', 'value_column', 'value_range', 'bounds'],
+            },
+            execute: (args) => {
+                const displayName = args.display_name || `Hex: ${args.value_column}`;
+                const result = mapManager.addHexTileLayer({
+                    tileUrl: args.tile_url,
+                    valueColumn: args.value_column,
+                    valueRange: args.value_range,
+                    bounds: args.bounds,
+                    palette: args.palette || 'viridis',
+                    opacity: args.opacity ?? 0.7,
+                    displayName,
+                    fitBounds: args.fit_bounds !== false,
+                });
+                return JSON.stringify(result);
+            },
+        },
+
         // ---- Query-driven Filter Tool ----
         ...(mcpClient ? [{
             name: 'filter_by_query',
