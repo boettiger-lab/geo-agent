@@ -12,6 +12,7 @@
  *     - get_map_state
  *     - fly_to
  *   Dataset knowledge:
+ *     - get_schema
  *     - list_datasets
  */
 
@@ -280,8 +281,30 @@ Vector layers: ${vectorLayerIds().join(', ')}`,
 
         // ---- Dataset Knowledge Tools ----
         {
+            name: 'get_schema',
+            description: 'Get column names, types, sample values, and coded value lists for a dataset — formatted like SELECT * LIMIT 1 output. Also includes the read_parquet() path. **Call this before your first SQL query against a dataset.** Instant, no approval needed. For datasets outside your app, use `get_stac_details` instead.',
+            inputSchema: {
+                type: 'object',
+                properties: {
+                    dataset_id: { type: 'string', description: 'Collection ID of the dataset' }
+                },
+                required: ['dataset_id']
+            },
+            execute: (args) => {
+                const result = catalog.formatSchema(args.dataset_id);
+                if (result === null) {
+                    return JSON.stringify({
+                        success: false,
+                        error: `Dataset not found: ${args.dataset_id}. Available: ${catalog.getIds().join(', ')}. For datasets outside this app, use get_stac_details.`
+                    });
+                }
+                return result;
+            },
+        },
+
+        {
             name: 'list_datasets',
-            description: 'List all datasets pre-loaded for this app. Paths and schemas are in your system prompt. To discover datasets outside your app, use `browse_stac_catalog` instead.',
+            description: 'List all dataset IDs and titles pre-loaded for this app. Paths are in your system prompt; call `get_schema` for column details. To discover datasets outside your app, use `browse_stac_catalog` instead.',
             inputSchema: {
                 type: 'object',
                 properties: {},
@@ -291,13 +314,6 @@ Vector layers: ${vectorLayerIds().join(', ')}`,
                 const datasets = catalog.getAll().map(ds => ({
                     id: ds.id,
                     title: ds.title,
-                    description: ds.description.substring(0, 200),
-                    provider: ds.provider,
-                    mapLayers: ds.mapLayers.map(a => ({
-                        layerId: `${ds.id}/${a.assetId}`,
-                        title: a.title,
-                        type: a.layerType
-                    })),
                 }));
                 return JSON.stringify({ success: true, datasets });
             },
