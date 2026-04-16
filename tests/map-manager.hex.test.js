@@ -138,3 +138,41 @@ describe('MapManager.addHexTileLayer', () => {
         expect(mm.layers.get(r1.layer_id).displayName).toBe('First');
     });
 });
+
+describe('MapManager.removeHexTileLayer', () => {
+    let mm;
+    beforeEach(() => { mm = createManager(); });
+
+    function addOne(hash = 'abc') {
+        return mm.addHexTileLayer({
+            tileUrl: `https://example.com/tiles/hex/${hash}/{z}/{x}/{y}.pbf`,
+            valueColumn: 'v', valueRange: [0, 1],
+            bounds: [0, 0, 1, 1], palette: 'viridis',
+            opacity: 0.7, displayName: 'X', fitBounds: false,
+        });
+    }
+
+    it('removes an existing hex layer (source, layer, registry entry)', () => {
+        const { layer_id } = addOne('abc');
+        const r = mm.removeHexTileLayer(layer_id);
+        expect(r.success).toBe(true);
+        expect(r.layer_id).toBe(layer_id);
+        expect(mm.map._sources.has(layer_id)).toBe(false);
+        expect(mm.map._layers.has(layer_id)).toBe(false);
+        expect(mm.layers.has(layer_id)).toBe(false);
+    });
+
+    it('refuses removal of a non-hex layer_id', () => {
+        const r = mm.removeHexTileLayer('protected-areas');
+        expect(r.success).toBe(false);
+        expect(r.error).toMatch(/not a hex layer/);
+    });
+
+    it('returns error for unknown hex layer', () => {
+        addOne('known');
+        const r = mm.removeHexTileLayer('hex-unknown');
+        expect(r.success).toBe(false);
+        expect(r.error).toMatch(/Unknown hex layer/);
+        expect(r.error).toContain('hex-known');
+    });
+});

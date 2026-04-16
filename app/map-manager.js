@@ -570,6 +570,29 @@ export class MapManager {
         };
     }
 
+    /**
+     * Remove a dynamic hex tile layer previously added via addHexTileLayer.
+     *
+     * Refuses any layer_id not starting with `hex-` so curated layers can't
+     * be accidentally destroyed.
+     *
+     * @param {string} layerId - e.g. "hex-abc123"
+     * @returns {{success: boolean, layer_id?: string, error?: string}}
+     */
+    removeHexTileLayer(layerId) {
+        if (typeof layerId !== 'string' || !layerId.startsWith('hex-')) {
+            return { success: false, error: `layer_id '${layerId}' is not a hex layer (must start with 'hex-')` };
+        }
+        if (!this.layers.has(layerId)) {
+            const hexLayers = [...this.layers.keys()].filter(id => id.startsWith('hex-'));
+            return { success: false, error: `Unknown hex layer '${layerId}'. Registered: [${hexLayers.join(', ')}]` };
+        }
+        this.map.removeLayer(layerId);
+        this.map.removeSource(layerId);
+        this.layers.delete(layerId);
+        return { success: true, layer_id: layerId };
+    }
+
     // ---- Filtering (vector layers only) ----
 
     /**
