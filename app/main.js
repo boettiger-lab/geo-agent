@@ -12,7 +12,7 @@ import { ToolRegistry } from './tool-registry.js';
 import { createMapTools } from './map-tools.js';
 import { Agent } from './agent.js';
 import { ChatUI } from './chat-ui.js';
-import { buildLayout } from './layout-manager.js';
+import { buildLayout, sidebarHooks } from './layout-manager.js';
 
 async function main() {
     console.log('[main] Starting app…');
@@ -69,6 +69,10 @@ async function main() {
         customBasemap: appConfig.custom_basemap || null,
     });
     await mapManager.ready;                        // wait for style to load
+    // Sidebar resize: reflow the MapLibre canvas during drag (rAF-gated by
+    // layout-manager) and one final time on drag-end / window-resize.
+    sidebarHooks.onResizeTick = () => mapManager.map.resize();
+    sidebarHooks.onResizeEnd = () => mapManager.map.resize();
     mapManager.generateMenu(layoutRefs.menuMountId);
     mapManager.addLayersFromCatalog(catalog.getMapLayerConfigs());
     mapManager.generateControls('layer-controls-container');
