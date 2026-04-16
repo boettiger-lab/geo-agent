@@ -9,20 +9,27 @@ export class ChatUI {
     /**
      * @param {import('./agent.js').Agent} agent
      * @param {Object} config  - app config (for model list)
+     * @param {Object} mount   - DOM refs from layout-manager.buildLayout()
+     *   {
+     *     container, messages, input, send, mic, header, footer, footerRight,
+     *   }
      */
-    constructor(agent, config) {
+    constructor(agent, config, mount) {
         this.agent = agent;
         this.config = config;
         this.busy = false;
 
-        // Cache DOM refs
-        this.container = document.getElementById('chat-container');
-        this.messagesEl = document.getElementById('chat-messages');
-        this.inputEl = document.getElementById('chat-input');
-        this.sendBtn = document.getElementById('chat-send');
-        this.modelSelector = document.getElementById('model-selector');
-        this.toggleBtn = document.getElementById('chat-toggle');
-        this.micBtn = document.getElementById('chat-mic');
+        // Cache DOM refs from layout-manager (no getElementById here).
+        this.container = mount.container;
+        this.messagesEl = mount.messages;
+        this.inputEl = mount.input;
+        this.sendBtn = mount.send;
+        this.micBtn = mount.mic;
+        this.toggleBtn = mount.container.querySelector('#chat-toggle');  // floating-mode only
+        this.headerEl = mount.header;
+        this.footerEl = mount.footer;
+        this.footerRightEl = mount.footerRight;
+        this.modelSelector = mount.footerRight.querySelector('#model-selector');
 
         // Voice input state. The voice + transcriber modules are loaded
         // lazily via dynamic import() — only when `config.transcription_model`
@@ -64,9 +71,6 @@ export class ChatUI {
         // modules are never loaded).
         this.initVoiceInput();
 
-        // Restructure footer into left + right zones before adding buttons
-        this.restructureFooter();
-
         // If in user-provided API key mode, add settings button
         if (this.config._userProvidedMode) {
             this.initSettingsUI();
@@ -78,9 +82,6 @@ export class ChatUI {
 
         // Auto-approve toggle (always shown)
         this.initAutoApproveToggle();
-
-        // Drag-to-resize handle
-        this.initResize();
 
         // Optional header/footer links (github, docs, carbon)
         this.initLinks();
@@ -238,24 +239,6 @@ export class ChatUI {
     }
 
     /* ------------------------------------------------------------------ */
-    /*  Footer restructuring (left / right zones)                          */
-    /* ------------------------------------------------------------------ */
-
-    restructureFooter() {
-        const footer = document.getElementById('chat-footer');
-        if (!footer) return;
-
-        const right = document.createElement('div');
-        right.id = 'chat-footer-right';
-
-        // Move model-selector into right zone
-        const modelSelector = footer.querySelector('#model-selector');
-        if (modelSelector) right.appendChild(modelSelector);
-
-        footer.appendChild(right);
-    }
-
-    /* ------------------------------------------------------------------ */
     /*  Optional links: github, docs (header), carbon (footer left)        */
     /* ------------------------------------------------------------------ */
 
@@ -263,54 +246,46 @@ export class ChatUI {
         const links = this.config.links;
         if (!links) return;
 
-        // Header links: About (docs) + GitHub octocat
-        if (links.docs || links.github) {
-            const headerLinks = document.createElement('div');
-            headerLinks.className = 'header-links';
+        // All links live in the footer-left zone in both floating and sidebar
+        // modes. The header is kept link-free.
+        const footer = this.footerEl;
+        if (!footer) return;
 
-            if (links.docs) {
-                const a = document.createElement('a');
-                a.href = links.docs;
-                a.target = '_blank';
-                a.rel = 'noopener noreferrer';
-                a.className = 'header-link docs-link';
-                a.textContent = 'About';
-                a.title = 'Documentation';
-                headerLinks.appendChild(a);
-            }
+        // Reverse append order: we prepend each link to the footer so that the
+        // final left-to-right ordering is docs | github | carbon.
+        // (prepend reverses insertion order — insert carbon first, then github,
+        //  then docs.)
 
-            if (links.github) {
-                const a = document.createElement('a');
-                a.href = links.github;
-                a.target = '_blank';
-                a.rel = 'noopener noreferrer';
-                a.className = 'header-link github-link';
-                a.title = 'Source code';
-                // GitHub mark SVG (official)
-                a.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path fill-rule="evenodd" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>`;
-                headerLinks.appendChild(a);
-            }
-
-            const header = document.getElementById('chat-header');
-            const toggleBtn = document.getElementById('chat-toggle');
-            if (header && toggleBtn) {
-                header.insertBefore(headerLinks, toggleBtn);
-            }
-        }
-
-        // Footer left: carbon dashboard (NRP deployments only)
         if (links.carbon) {
-            const footer = document.getElementById('chat-footer');
-            if (!footer) return;
-
             const a = document.createElement('a');
             a.href = 'https://carbon-api.nrp-nautilus.io/';
             a.target = '_blank';
             a.rel = 'noopener noreferrer';
             a.className = 'footer-link carbon-link';
             a.title = 'Carbon dashboard — energy use for this deployment';
-            // Leaf SVG
             a.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="13" height="13" fill="currentColor" aria-hidden="true"><path d="M17 8C8 10 5.9 16.17 3.82 21.34L5.71 22l1-2.3A4.49 4.49 0 008 20C19 20 22 3 22 3c-1 2-8 5.5-8.5 11.5-2.05-1.05-3.72-3.07-3.72-5.5 0-.67.19-1.3.52-1.83A4.89 4.89 0 0017 8z"/></svg>`;
+            footer.prepend(a);
+        }
+
+        if (links.github) {
+            const a = document.createElement('a');
+            a.href = links.github;
+            a.target = '_blank';
+            a.rel = 'noopener noreferrer';
+            a.className = 'footer-link github-link';
+            a.title = 'Source code';
+            a.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path fill-rule="evenodd" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>`;
+            footer.prepend(a);
+        }
+
+        if (links.docs) {
+            const a = document.createElement('a');
+            a.href = links.docs;
+            a.target = '_blank';
+            a.rel = 'noopener noreferrer';
+            a.className = 'footer-link docs-link';
+            a.textContent = 'About';
+            a.title = 'Documentation';
             footer.prepend(a);
         }
     }
@@ -320,7 +295,7 @@ export class ChatUI {
     /* ------------------------------------------------------------------ */
 
     initSettingsUI() {
-        const footer = document.getElementById('chat-footer-right');
+        const footer = this.footerRightEl;
         if (!footer) return;
 
         const btn = document.createElement('button');
@@ -433,7 +408,7 @@ export class ChatUI {
     /* ------------------------------------------------------------------ */
 
     initAutoApproveToggle() {
-        const footer = document.getElementById('chat-footer-right');
+        const footer = this.footerRightEl;
         if (!footer) return;
 
         // Resolve initial state: localStorage > config
@@ -456,43 +431,6 @@ export class ChatUI {
         footer.prepend(btn);
     }
 
-    /* ------------------------------------------------------------------ */
-
-    initResize() {
-        const handle = document.createElement('div');
-        handle.className = 'resize-handle';
-        this.container.prepend(handle);
-
-        let startX, startY, startW, startH;
-
-        const onMove = (e) => {
-            const dx = startX - e.clientX;   // positive = dragging left → wider
-            const dy = startY - e.clientY;   // positive = dragging up   → taller
-            const maxW = window.innerWidth - 40;
-            const maxH = window.innerHeight - 100;
-            this.container.style.width  = Math.min(maxW, Math.max(280, startW + dx)) + 'px';
-            this.container.style.height = Math.min(maxH, Math.max(200, startH + dy)) + 'px';
-        };
-
-        const onUp = () => {
-            document.removeEventListener('mousemove', onMove);
-            document.removeEventListener('mouseup', onUp);
-            document.body.style.userSelect = '';
-        };
-
-        handle.addEventListener('mousedown', (e) => {
-            e.preventDefault();
-            startX = e.clientX;
-            startY = e.clientY;
-            startW = this.container.offsetWidth;
-            startH = this.container.offsetHeight;
-            document.body.style.userSelect = 'none';
-            document.addEventListener('mousemove', onMove);
-            document.addEventListener('mouseup', onUp);
-        });
-    }
-
-    /* ------------------------------------------------------------------ */
     /*  Send handler                                                       */
     /* ------------------------------------------------------------------ */
 

@@ -258,6 +258,44 @@ Both fields are optional independently — you can swap the URL without changing
 }
 ```
 
+## Sidebar layout
+
+By default, geo-agent renders a small translucent chat panel floating in the
+bottom-right corner of the map. Apps that benefit from more chat real-estate
+(e.g., heavy analytical use, long tool-call transcripts, prominent layer menus)
+can opt in to a full-height, resizable sidebar via a top-level `sidebar` block
+in `layers-input.json`.
+
+```json
+"sidebar": {
+    "enabled": true,
+    "default_width": 420,
+    "title": "Data Assistant"
+}
+```
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `enabled` | boolean | `false` | Opts in to sidebar mode. Omitting the whole `sidebar` block is equivalent to `false`. |
+| `default_width` | number | `420` | Starting width in pixels. The user's last-dragged width (stored in `localStorage`) overrides this on reload, as long as it's within bounds. |
+| `title` | string | `"Data Assistant"` | Text shown in the sidebar header (and in the floating panel header too — this key applies to both modes). |
+
+In sidebar mode, the layer-controls menu and the chat share one full-height
+right-side panel. The map reflows to fill the remaining width. The sidebar's
+left edge is draggable (width clamps to `[280px, 60vw]`), and a header button
+collapses it off-screen for an unobstructed map. A floating "show" button on
+the map restores the sidebar when collapsed.
+
+Below a viewport width of 700px (tablets, phones), the sidebar automatically
+switches to overlay mode: it floats above the map rather than pushing it, and
+drag-resize is disabled. It also starts collapsed by default, so mobile users
+see the full map first.
+
+The legend and H3/draw buttons remain free-floating overlays on the map in
+both modes.
+
+> Design details: see `docs/superpowers/specs/2026-04-15-sidebar-layout-design.md`.
+
 ## Links
 
 Optional links surfaced in the chat UI. All fields are optional — omit any you don't need.
@@ -274,8 +312,8 @@ Optional links surfaced in the chat UI. All fields are optional — omit any you
 
 | Field | Description |
 |---|---|
-| `github` | URL to the app's source repository. Renders as a GitHub octocat icon in the chat header. |
-| `docs` | URL to a documentation or about page for the app. Renders as an "About" text link in the chat header. |
+| `github` | URL to the app's source repository. Renders as a GitHub octocat icon in the chat footer. |
+| `docs` | URL to a documentation or about page for the app. Renders as an "About" text link in the chat footer. |
 | `carbon` | Set to `true` to show a carbon dashboard link (leaf icon) in the chat footer. Only meaningful for apps using NRP-hosted LLMs — links to the NRP carbon API dashboard. |
 
 ## LLM configuration

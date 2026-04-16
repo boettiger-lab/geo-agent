@@ -12,6 +12,7 @@ import { ToolRegistry } from './tool-registry.js';
 import { createMapTools } from './map-tools.js';
 import { Agent } from './agent.js';
 import { ChatUI } from './chat-ui.js';
+import { buildLayout, sidebarHooks } from './layout-manager.js';
 
 async function main() {
     console.log('[main] Starting app…');
@@ -47,6 +48,9 @@ async function main() {
     }
     console.log('[main] Config loaded');
 
+    /* ── 1b. Build UI chrome (layout-manager owns floating vs sidebar) ─── */
+    const layoutRefs = buildLayout(appConfig);
+
     /* ── 2. Build dataset catalog from STAC ────────────────────────────── */
     const catalog = new DatasetCatalog();
     await catalog.load(appConfig);
@@ -65,7 +69,11 @@ async function main() {
         customBasemap: appConfig.custom_basemap || null,
     });
     await mapManager.ready;                        // wait for style to load
-    mapManager.generateMenu('menu');
+    // Sidebar resize: reflow the MapLibre canvas during drag (rAF-gated by
+    // layout-manager) and one final time on drag-end / window-resize.
+    sidebarHooks.onResizeTick = () => mapManager.map.resize();
+    sidebarHooks.onResizeEnd = () => mapManager.map.resize();
+    mapManager.generateMenu(layoutRefs.menuMountId);
     mapManager.addLayersFromCatalog(catalog.getMapLayerConfigs());
     mapManager.generateControls('layer-controls-container');
     console.log('[main] Map ready');
@@ -234,7 +242,7 @@ async function main() {
     console.log('[main] Agent ready');
 
     /* ── 8. Create UI ─────────────────────────────────────────────────── */
-    const ui = new ChatUI(agent, appConfig);
+    const ui = new ChatUI(agent, appConfig, layoutRefs.chatMount);
 
     // Draw event → chat notifications.
     // Replace (not append) synthetic draw messages so repeated draw/clear

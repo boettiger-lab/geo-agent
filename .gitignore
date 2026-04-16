@@ -58,3 +58,6 @@ docs/.vitepress/cache/
 *.tmp
 duck.db
 .streamlit
+
+# Superpowers brainstorming / mockups
+.superpowers/
