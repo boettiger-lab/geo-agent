@@ -28,8 +28,13 @@ export const sidebarHooks = {
 export function buildLayout(appConfig) {
     const title = appConfig.sidebar?.title || 'Data Assistant';
 
+    // Remove any hardcoded chat scaffold left over from legacy index.html
+    // files.  Without this, downstream apps that still ship the old
+    // <div id="chat-container"> markup will end up with duplicate chat UI.
+    const legacy = document.getElementById('chat-container');
+    if (legacy) legacy.remove();
+
     if (appConfig.sidebar?.enabled) {
-        // Sidebar mode stub — implemented in Task 5.
         return buildSidebarLayout(appConfig, title);
     }
     return buildFloatingLayout(appConfig, title);
