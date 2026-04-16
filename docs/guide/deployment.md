@@ -48,7 +48,7 @@ All deployment options load the core library from jsDelivr. Pin to a tagged rele
 ```html
 <!-- Pinned — immutable, recommended for production -->
 <script type="module"
-  src="https://cdn.jsdelivr.net/gh/boettiger-lab/geo-agent@v2.5.0/app/main.js">
+  src="https://cdn.jsdelivr.net/gh/boettiger-lab/geo-agent@v3.2.0/app/main.js">
 </script>
 
 <!-- Latest main — use for staging/development -->
@@ -65,5 +65,8 @@ jsDelivr caches `@main` aggressively. After merging to `main`, force a refresh b
 https://purge.jsdelivr.net/gh/boettiger-lab/geo-agent@main/app/main.js
 https://purge.jsdelivr.net/gh/boettiger-lab/geo-agent@main/app/chat-ui.js
 https://purge.jsdelivr.net/gh/boettiger-lab/geo-agent@main/app/style.css
+https://purge.jsdelivr.net/gh/boettiger-lab/geo-agent@main/app/chat.css
+https://purge.jsdelivr.net/gh/boettiger-lab/geo-agent@main/app/sidebar.css
+https://purge.jsdelivr.net/gh/boettiger-lab/geo-agent@main/app/layout-manager.js
 ```
 :::
