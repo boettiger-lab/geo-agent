@@ -112,4 +112,29 @@ describe('MapManager.addHexTileLayer', () => {
         expect(result.success).toBe(false);
         expect(result.error).toMatch(/Invalid tile_url/);
     });
+
+    it('is idempotent by hash — second call with same URL returns already_exists', () => {
+        const opts = {
+            tileUrl: 'https://example.com/tiles/hex/samehash/{z}/{x}/{y}.pbf',
+            valueColumn: 'v', valueRange: [0, 1],
+            bounds: [0, 0, 1, 1], palette: 'viridis',
+            opacity: 0.7, displayName: 'First', fitBounds: false,
+        };
+        const r1 = mm.addHexTileLayer(opts);
+        expect(r1.already_exists).toBe(false);
+
+        const r2 = mm.addHexTileLayer({ ...opts, displayName: 'Second' });
+        expect(r2.success).toBe(true);
+        expect(r2.already_exists).toBe(true);
+        expect(r2.layer_id).toBe(r1.layer_id);
+        // The idempotent return uses the originally-registered displayName, not the new one.
+        // (This locks down the current contract — registry is not mutated on re-add.)
+        expect(r2.display_name).toBe('First');
+
+        // No duplicate source or layer — mock would throw on duplicate add
+        expect(mm.map._sources.size).toBe(1);
+        expect(mm.map._layers.size).toBe(1);
+        // Display name unchanged from first call
+        expect(mm.layers.get(r1.layer_id).displayName).toBe('First');
+    });
 });
