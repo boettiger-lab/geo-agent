@@ -551,18 +551,14 @@ export class DatasetCatalog {
     /**
      * Generate a text summary of all datasets for injection into the LLM system prompt.
      *
-     * When MCP collection data is available (preloaded at startup via get_collection),
-     * parquet paths and per-asset column schemas come from MCP — which correctly reads
-     * both collection-level and asset-level table:columns. Falls back to local
-     * extractParquetAssets/extractColumns when MCP data is unavailable.
+     * Includes paths and map layer IDs — the "table of contents" for the app.
+     * Column schemas are NOT included here; the model calls get_schema for those.
      */
     generatePromptCatalog() {
-        const preamble = 'The following datasets are pre-loaded for this app. Paths and schemas are shown below — use them directly in SQL. For full column descriptions or coded values, call `get_stac_details` with the collection ID.\n';
+        const preamble = 'The following datasets are pre-loaded for this app. Paths are shown below — use them directly in SQL. Call `get_schema(dataset_id)` before your first SQL query against a dataset to get column names and coded values.\n';
         const sections = [preamble];
 
         for (const ds of this.datasets.values()) {
-            const mcpData = this.mcpCollections.get(ds.id);
-
             // Parent container: has children but no own columns — render as directory node
             const isParentContainer = ds.columns.length === 0 && ds.childIds.length > 0;
             if (isParentContainer) {
@@ -584,8 +580,8 @@ export class DatasetCatalog {
             section += `**Description:** ${ds.description}\n`;
             section += `**Provider:** ${ds.provider}\n`;
 
-            // SQL assets with actual paths — from MCP data if available, else local extraction
-            section += this._renderSqlAssets(ds, mcpData);
+            // SQL assets with actual paths
+            section += this._renderSqlPaths(ds);
 
             // Map layers for visualization
             if (ds.mapLayers.length > 0) {
@@ -604,19 +600,6 @@ export class DatasetCatalog {
                 }
             }
 
-            // Column schema — only for datasets WITHOUT per-asset columns already rendered above
-            if (!mcpData) {
-                // No MCP data: fall back to local columns
-                if (ds.preload && ds.columns.length > 0) {
-                    section += `\n**Columns:**\n`;
-                    for (const col of ds.columns) {
-                        section += `- \`${col.name}\` (${col.type}): ${col.description}\n`;
-                    }
-                } else if (ds.columns.length > 0) {
-                    section += `→ Call \`get_stac_details("${ds.id}")\` for the full schema before writing SQL.\n`;
-                }
-            }
-
             if (ds.aboutUrl) {
                 section += `\n**More info:** ${ds.aboutUrl}\n`;
             }
@@ -628,16 +611,29 @@ export class DatasetCatalog {
     }
 
     /**
-     * Render SQL asset paths and per-asset column schemas for the prompt.
-     * Uses MCP structured data when available (correct per-asset schemas),
-     * falls back to local extractParquetAssets output.
+     * Render SQL asset paths only (no columns) for the system prompt.
+     * Uses MCP data when available, falls back to local extraction.
      * @private
      */
-    _renderSqlAssets(ds, mcpData) {
+    _renderSqlPaths(ds) {
+        const mcpData = this.mcpCollections.get(ds.id);
         if (mcpData) {
-            return this._renderSqlAssetsFromMcp(ds, mcpData);
+            const assets = mcpData.assets || {};
+            const lines = [];
+            for (const [assetId, asset] of Object.entries(assets)) {
+                const type = asset.type || '';
+                const href = asset.href || '';
+                if (!type.includes('parquet') && !href.endsWith('.parquet') &&
+                    !href.includes('/hex/') && !href.endsWith('/')) continue;
+                if (type.includes('pmtiles') || type.includes('tiff')) continue;
+                let s3Path = href;
+                if (s3Path.endsWith('/')) s3Path = s3Path.replace(/\/+$/, '') + '/**';
+                lines.push(`- ${asset.title || assetId}: \`read_parquet('${s3Path}')\``);
+            }
+            if (lines.length === 0) return '';
+            return '\n**SQL assets:**\n' + lines.join('\n') + '\n';
         }
-        // Fallback: local parquet assets (paths are correct, but no per-asset columns)
+        // Fallback: local parquet assets
         if (ds.parquetAssets.length === 0) return '';
         let out = '\n**SQL assets:**\n';
         for (const pa of ds.parquetAssets) {
@@ -647,73 +643,128 @@ export class DatasetCatalog {
     }
 
     /**
-     * Render SQL assets from MCP get_collection structured data.
-     * Includes per-asset column schemas inline — this is the fix for #163.
-     * @private
+     * Format schema info for the get_schema tool.
+     * Returns a compact, tabular representation optimized for LLM consumption:
+     * paths, column headers with representative values, and coded value lists.
+     *
+     * Uses MCP get_collection data (correct per-asset schemas).
+     * Falls back to local catalog data when MCP data is unavailable.
+     *
+     * @param {string} id - Collection ID
+     * @returns {string|null} Formatted schema text, or null if dataset not found
      */
-    _renderSqlAssetsFromMcp(ds, mcpData) {
+    formatSchema(id) {
+        const ds = this.datasets.get(id);
+        if (!ds) return null;
+
+        const mcpData = this.mcpCollections.get(id);
+        if (mcpData) {
+            return this._formatSchemaFromMcp(ds, mcpData);
+        }
+        return this._formatSchemaFallback(ds);
+    }
+
+    /** @private */
+    _formatSchemaFromMcp(ds, mcpData) {
+        const sections = [];
         const assets = mcpData.assets || {};
-        const parquetAssets = [];
 
         for (const [assetId, asset] of Object.entries(assets)) {
             const type = asset.type || '';
             const href = asset.href || '';
             if (!type.includes('parquet') && !href.endsWith('.parquet') &&
                 !href.includes('/hex/') && !href.endsWith('/')) continue;
-            // Skip PMTiles/COGs that might match loosely
             if (type.includes('pmtiles') || type.includes('tiff')) continue;
 
             let s3Path = href;
             if (s3Path.endsWith('/')) s3Path = s3Path.replace(/\/+$/, '') + '/**';
 
-            parquetAssets.push({
-                title: asset.title || assetId,
-                s3Path,
-                columns: asset['table:columns'] || [],
+            const cols = (asset['table:columns'] || []).filter(c =>
+                !['geometry', 'geom', 'bbox'].includes(c.name?.toLowerCase())
+            );
+            if (cols.length === 0) continue;
+
+            let out = `${asset.title || assetId}:\n`;
+            out += `  read_parquet('${s3Path}')\n\n`;
+
+            // Column headers
+            const names = cols.map(c => c.name);
+            const samples = cols.map(c => {
+                if (c.values?.length > 0) return String(c.values[0]);
+                return `(${c.type || '?'})`;
             });
-        }
+            out += '  ' + names.join(' | ') + '\n';
+            out += '  ' + samples.join(' | ') + '\n';
 
-        if (parquetAssets.length === 0) return '';
-
-        let out = '\n**SQL assets:**\n';
-        for (const pa of parquetAssets) {
-            out += `- ${pa.title}: \`read_parquet('${pa.s3Path}')\`\n`;
-            // Inline per-asset columns when available
-            const cols = this._filterColumns(pa.columns);
-            if (cols.length > 0 && ds.preload) {
-                // Full tier: column name, type, description
-                for (const c of cols) {
-                    const desc = c.description ? ` — ${c.description}` : '';
-                    out += `    - \`${c.name}\` (${c.type || '?'})${desc}\n`;
+            // Coded values
+            const coded = cols.filter(c => c.values?.length > 0);
+            if (coded.length > 0) {
+                out += '\n';
+                for (const c of coded) {
+                    out += `  ${c.name}: ${c.values.join(', ')}\n`;
                 }
-            } else if (cols.length > 0) {
-                // Compact tier: column names only
-                const names = cols.map(c => c.name).join(', ');
-                out += `    Columns: ${names}\n`;
             }
+
+            // Columns with descriptions but no coded values — show a compact hint
+            const described = cols.filter(c => !c.values?.length && c.description);
+            if (described.length > 0) {
+                out += '\n';
+                for (const c of described) {
+                    out += `  ${c.name}: ${c.description}\n`;
+                }
+            }
+
+            sections.push(out);
         }
 
-        // Collection-level columns (if any and not already covered per-asset)
-        const collectionCols = this._filterColumns(mcpData['table:columns'] || []);
-        if (collectionCols.length > 0 && ds.preload) {
-            out += `\n**Collection-level columns:**\n`;
-            for (const c of collectionCols) {
-                const desc = c.description ? ` — ${c.description}` : '';
-                out += `- \`${c.name}\` (${c.type || '?'})${desc}\n`;
-            }
-        }
-
-        return out;
-    }
-
-    /**
-     * Filter out geometry/geom columns from a table:columns array.
-     * @private
-     */
-    _filterColumns(columns) {
-        return (columns || []).filter(c =>
+        // Collection-level columns (when assets didn't have their own)
+        const collCols = (mcpData['table:columns'] || []).filter(c =>
             !['geometry', 'geom', 'bbox'].includes(c.name?.toLowerCase())
         );
+        if (collCols.length > 0 && sections.length === 0) {
+            let out = `${ds.title} columns:\n\n`;
+            const names = collCols.map(c => c.name);
+            const samples = collCols.map(c => {
+                if (c.values?.length > 0) return String(c.values[0]);
+                return `(${c.type || '?'})`;
+            });
+            out += '  ' + names.join(' | ') + '\n';
+            out += '  ' + samples.join(' | ') + '\n';
+            const coded = collCols.filter(c => c.values?.length > 0);
+            if (coded.length > 0) {
+                out += '\n';
+                for (const c of coded) {
+                    out += `  ${c.name}: ${c.values.join(', ')}\n`;
+                }
+            }
+            sections.push(out);
+        }
+
+        if (sections.length === 0) return `No schema available for ${id}. Try get_stac_details("${id}").`;
+        return sections.join('\n');
+    }
+
+    /** @private */
+    _formatSchemaFallback(ds) {
+        if (ds.parquetAssets.length === 0 && ds.columns.length === 0) {
+            return `No schema available for ${ds.id}. Try get_stac_details("${ds.id}").`;
+        }
+        let out = '';
+        for (const pa of ds.parquetAssets) {
+            out += `${pa.title}:\n  read_parquet('${pa.s3Path}')\n\n`;
+        }
+        if (ds.columns.length > 0) {
+            const names = ds.columns.map(c => c.name);
+            out += '  ' + names.join(' | ') + '\n';
+            const coded = ds.columns.filter(c => c.values?.length > 0);
+            if (coded.length > 0) {
+                out += '\n';
+                for (const c of coded) {
+                    out += `  ${c.name}: ${c.values.join(', ')}\n`;
+                }
+            }
+        }
+        return out;
     }
 
     /**

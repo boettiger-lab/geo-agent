@@ -40,20 +40,19 @@ When calling `filter_by_query`:
 
 **Never** invent or assume categorical field values — not for `set_style` match expressions, not for `set_filter`, not anywhere. Always look them up first:
 
-1. Check the dataset catalog below — columns with descriptions list their coded values and meanings.
-2. If the catalog doesn't cover it, call `get_stac_details(collection_id)` for the full schema.
+1. Call `get_schema(dataset_id)` — it lists coded values for categorical columns.
+2. If `get_schema` doesn't cover it, call `get_stac_details(collection_id)` for the full STAC metadata.
 3. Only as a last resort, fall back to `SELECT DISTINCT field FROM read_parquet(…) LIMIT 100`.
 
 This applies equally when styling (e.g., building a `match` expression to color by `protected_type`) and when filtering.
 
 ## Using dataset paths and schemas
 
-The dataset catalog below lists `read_parquet()` paths and column schemas for every pre-loaded dataset. **These paths are authoritative — never guess, construct, or modify S3 paths.** Use them directly in SQL.
+The dataset catalog below lists `read_parquet()` paths for every pre-loaded dataset. **These paths are authoritative — never guess, construct, or modify S3 paths.** Use them directly in SQL.
 
-If you need to verify column names or types during a long conversation, you can:
-1. Re-read the dataset catalog section above
-2. Call `get_stac_details(collection_id)` for the full schema with descriptions
-3. Run `DESCRIBE SELECT * FROM read_parquet(...)` for a quick schema check
+**Before your first SQL query against a dataset, call `get_schema(dataset_id)`.** It returns column names, types, representative values, and coded value lists — instant, no approval needed. You don't need to call it again for follow-up queries on the same dataset unless you're unsure about column names.
+
+For datasets outside your app config, use `get_stac_details(collection_id)` instead.
 
 ## Recovering from SQL errors
 
@@ -77,5 +76,5 @@ Examples:
 
 ## Available datasets
 
-The section below is automatically injected at runtime with full dataset details including layer IDs, parquet paths, column schemas, and filterable properties. Use `list_datasets` for a quick listing, or `get_stac_details` for datasets outside your app config.
+The section below is automatically injected at runtime with dataset paths and map layer IDs. Call `get_schema(dataset_id)` for column details before writing SQL.
 
