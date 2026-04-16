@@ -471,7 +471,7 @@ export class ChatUI {
             const maxW = window.innerWidth - 40;
             const maxH = window.innerHeight - 100;
             this.container.style.width  = Math.min(maxW, Math.max(280, startW + dx)) + 'px';
-            this.container.style.maxHeight = Math.min(maxH, Math.max(200, startH + dy)) + 'px';
+            this.container.style.height = Math.min(maxH, Math.max(200, startH + dy)) + 'px';
         };
 
         const onUp = () => {
