@@ -252,9 +252,9 @@ describe('buildFillColorExpression', () => {
   it('computes the midpoint correctly for negative-to-positive ranges', () => {
     const expr = buildFillColorExpression('v', [-1, 1], 'bluered');
     const interp = expr[3];
-    expect(interp[4]).toBe(-1);
-    expect(interp[6]).toBe(0);
-    expect(interp[8]).toBe(1);
+    expect(interp[3]).toBe(-1);
+    expect(interp[5]).toBe(0);
+    expect(interp[7]).toBe(1);
   });
 
   it('throws on unknown palette', () => {
