@@ -611,6 +611,39 @@ export class DatasetCatalog {
     }
 
     /**
+     * Extract SQL-relevant parquet assets from MCP data.
+     * Prefers H3 hex assets over full GeoParquet — when both exist,
+     * the hex is what DuckDB queries should use (partitioned, H3-indexed).
+     * @private
+     */
+    _getSqlAssets(mcpData) {
+        const assets = mcpData.assets || {};
+        const all = [];
+        let hasHex = false;
+
+        for (const [assetId, asset] of Object.entries(assets)) {
+            const type = asset.type || '';
+            const href = asset.href || '';
+            if (!type.includes('parquet') && !href.endsWith('.parquet') &&
+                !href.includes('/hex/') && !href.endsWith('/')) continue;
+            if (type.includes('pmtiles') || type.includes('tiff')) continue;
+
+            let s3Path = href;
+            if (s3Path.endsWith('/')) s3Path = s3Path.replace(/\/+$/, '') + '/**';
+
+            const isHex = href.includes('/hex/') || href.includes('/hex') ||
+                          (asset.title || '').toLowerCase().includes('hex') ||
+                          (asset.title || '').toLowerCase().includes('h3');
+            if (isHex) hasHex = true;
+
+            all.push({ assetId, title: asset.title || assetId, s3Path, isHex, asset });
+        }
+
+        // If hex assets exist, omit full GeoParquet (model doesn't need it for SQL)
+        return hasHex ? all.filter(a => a.isHex) : all;
+    }
+
+    /**
      * Render SQL asset paths only (no columns) for the system prompt.
      * Uses MCP data when available, falls back to local extraction.
      * @private
@@ -618,19 +651,9 @@ export class DatasetCatalog {
     _renderSqlPaths(ds) {
         const mcpData = this.mcpCollections.get(ds.id);
         if (mcpData) {
-            const assets = mcpData.assets || {};
-            const lines = [];
-            for (const [assetId, asset] of Object.entries(assets)) {
-                const type = asset.type || '';
-                const href = asset.href || '';
-                if (!type.includes('parquet') && !href.endsWith('.parquet') &&
-                    !href.includes('/hex/') && !href.endsWith('/')) continue;
-                if (type.includes('pmtiles') || type.includes('tiff')) continue;
-                let s3Path = href;
-                if (s3Path.endsWith('/')) s3Path = s3Path.replace(/\/+$/, '') + '/**';
-                lines.push(`- ${asset.title || assetId}: \`read_parquet('${s3Path}')\``);
-            }
-            if (lines.length === 0) return '';
+            const sqlAssets = this._getSqlAssets(mcpData);
+            if (sqlAssets.length === 0) return '';
+            const lines = sqlAssets.map(a => `- ${a.title}: \`read_parquet('${a.s3Path}')\``);
             return '\n**SQL assets:**\n' + lines.join('\n') + '\n';
         }
         // Fallback: local parquet assets
@@ -667,27 +690,18 @@ export class DatasetCatalog {
     /** @private */
     _formatSchemaFromMcp(ds, mcpData) {
         const sections = [];
-        const assets = mcpData.assets || {};
+        const sqlAssets = this._getSqlAssets(mcpData);
 
-        for (const [assetId, asset] of Object.entries(assets)) {
-            const type = asset.type || '';
-            const href = asset.href || '';
-            if (!type.includes('parquet') && !href.endsWith('.parquet') &&
-                !href.includes('/hex/') && !href.endsWith('/')) continue;
-            if (type.includes('pmtiles') || type.includes('tiff')) continue;
-
-            let s3Path = href;
-            if (s3Path.endsWith('/')) s3Path = s3Path.replace(/\/+$/, '') + '/**';
-
+        for (const { title, s3Path, asset } of sqlAssets) {
             const cols = (asset['table:columns'] || []).filter(c =>
                 !['geometry', 'geom', 'bbox'].includes(c.name?.toLowerCase())
             );
             if (cols.length === 0) continue;
 
-            let out = `${asset.title || assetId}:\n`;
+            let out = `${title}:\n`;
             out += `  read_parquet('${s3Path}')\n\n`;
 
-            // Column headers
+            // Column headers + sample values row (like SELECT * LIMIT 1 output)
             const names = cols.map(c => c.name);
             const samples = cols.map(c => {
                 if (c.values?.length > 0) return String(c.values[0]);
@@ -712,6 +726,11 @@ export class DatasetCatalog {
                 for (const c of described) {
                     out += `  ${c.name}: ${c.description}\n`;
                 }
+            }
+
+            // If no coded values at all, suggest SELECT * LIMIT 1 to see real data
+            if (coded.length === 0) {
+                out += `\n  Tip: run SELECT * FROM read_parquet('${s3Path}') LIMIT 1 to see sample values.\n`;
             }
 
             sections.push(out);
