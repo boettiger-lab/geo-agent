@@ -269,6 +269,21 @@ The returned layer_id can be used with show_layer / hide_layer / set_style / set
             },
         },
 
+        {
+            name: 'remove_hex_tile_layer',
+            description: `Remove a dynamic hex tile layer previously added via add_hex_tile_layer. Takes a layer_id like "hex-<hash>". Refuses to touch non-hex layers (any id not starting with "hex-"), so curated layers are safe.
+
+Use when the agent is iterating — e.g. user asks to replace one hex analysis with another.`,
+            inputSchema: {
+                type: 'object',
+                properties: {
+                    layer_id: { type: 'string', description: 'Hex layer ID, starting with "hex-"' },
+                },
+                required: ['layer_id'],
+            },
+            execute: (args) => JSON.stringify(mapManager.removeHexTileLayer(args.layer_id)),
+        },
+
         // ---- Query-driven Filter Tool ----
         ...(mcpClient ? [{
             name: 'filter_by_query',
