@@ -179,7 +179,7 @@ The string form (`"group": "Fishing Effort"`) still works and defaults to expand
 
 ## Preloaded schemas
 
-By default, the system prompt includes only a compact hint for each collection — enough for the LLM to know the dataset exists, but it must call `get_dataset_details` before writing SQL. This keeps token usage low when many collections are configured.
+By default, the system prompt includes only a compact hint for each collection — enough for the LLM to know the dataset exists, but it must call `get_schema` before writing SQL. This keeps token usage low when many collections are configured.
 
 Set `"preload": true` on a collection to inject its full column schema (names, types, descriptions, and H3 index columns) directly into the system prompt. This lets the LLM write correct SQL on the first turn without an extra tool call, at the cost of more prompt tokens.
 
@@ -194,7 +194,7 @@ Use `preload` for the datasets users query most often:
 }
 ```
 
-Collections without `preload` (or with `preload: false`) show a compact summary with coded-value hints and a prompt to call `get_dataset_details`. The `get_dataset_details` tool always returns the full schema regardless of the `preload` setting.
+Collections without `preload` (or with `preload: false`) show a compact summary with coded-value hints and a prompt to call `get_schema`. The `get_schema` tool always returns the full schema regardless of the `preload` setting.
 
 ## Versioned assets
 
@@ -266,6 +266,32 @@ bottom-right corner of the map. Apps that benefit from more chat real-estate
 can opt in to a full-height, resizable sidebar via a top-level `sidebar` block
 in `layers-input.json`.
 
+### Enabling sidebar mode
+
+**Step 1 — Update `index.html`** to use the minimal scaffold and include `sidebar.css`:
+
+```html
+<head>
+  <!-- ... other tags ... -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/boettiger-lab/geo-agent@v3.2.0/app/style.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/boettiger-lab/geo-agent@v3.2.0/app/chat.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/boettiger-lab/geo-agent@v3.2.0/app/sidebar.css">
+</head>
+<body>
+  <div id="map"></div>
+  <div id="menu"></div>
+  <script type="module"
+    src="https://cdn.jsdelivr.net/gh/boettiger-lab/geo-agent@v3.2.0/app/main.js">
+  </script>
+</body>
+```
+
+::: warning Remove hardcoded chat HTML
+If your `index.html` contains a `<div id="chat-container">` block with nested chat elements, **remove it**. Since v3.2.0 the layout manager builds the entire chat DOM dynamically. The old hardcoded scaffold is cleaned up automatically on boot, but removing it keeps your HTML clean.
+:::
+
+**Step 2 — Add the `sidebar` block** to `layers-input.json`:
+
 ```json
 "sidebar": {
     "enabled": true,
@@ -280,6 +306,8 @@ in `layers-input.json`.
 | `default_width` | number | `420` | Starting width in pixels. The user's last-dragged width (stored in `localStorage`) overrides this on reload, as long as it's within bounds. |
 | `title` | string | `"Data Assistant"` | Text shown in the sidebar header (and in the floating panel header too — this key applies to both modes). |
 
+### Behavior
+
 In sidebar mode, the layer-controls menu and the chat share one full-height
 right-side panel. The map reflows to fill the remaining width. The sidebar's
 left edge is draggable (width clamps to `[280px, 60vw]`), and a header button
@@ -293,8 +321,6 @@ see the full map first.
 
 The legend and H3/draw buttons remain free-floating overlays on the map in
 both modes.
-
-> Design details: see `docs/superpowers/specs/2026-04-15-sidebar-layout-design.md`.
 
 ## Links
 

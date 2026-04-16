@@ -27,7 +27,7 @@ No JavaScript to write. The core library (map, chat, agent, tools) loads from CD
 
 ## index.html
 
-Pick a CDN version and paste it in:
+The HTML shell loads core JS/CSS from the CDN. The `<body>` only needs two placeholder `<div>`s — the layout manager builds the rest (chat panel, controls, etc.) dynamically.
 
 ```html
 <!DOCTYPE html>
@@ -35,20 +35,27 @@ Pick a CDN version and paste it in:
 <head>
   <meta charset="utf-8">
   <title>My Map App</title>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/boettiger-lab/geo-agent@v2.5.0/app/style.css">
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/boettiger-lab/geo-agent@v2.5.0/app/chat.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/boettiger-lab/geo-agent@v3.2.0/app/style.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/boettiger-lab/geo-agent@v3.2.0/app/chat.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/boettiger-lab/geo-agent@v3.2.0/app/sidebar.css">
 </head>
 <body>
+  <div id="map"></div>
+  <div id="menu"></div>
   <script type="module"
-    src="https://cdn.jsdelivr.net/gh/boettiger-lab/geo-agent@v2.5.0/app/main.js">
+    src="https://cdn.jsdelivr.net/gh/boettiger-lab/geo-agent@v3.2.0/app/main.js">
   </script>
 </body>
 </html>
 ```
 
+::: tip Sidebar CSS is safe to always include
+`sidebar.css` is scoped to `body.sidebar-mode` and sidebar-only IDs, so it has zero effect on floating-mode apps. Include it unconditionally to keep all apps on the same scaffold.
+:::
+
 | CDN reference | When to use |
 |---|---|
-| `@v2.5.0` | Production — pinned, immutable |
+| `@v3.2.0` | Production — pinned, immutable |
 | `@main` | Staging/dev — always latest |
 
 ## layers-input.json
