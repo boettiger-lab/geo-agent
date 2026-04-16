@@ -79,13 +79,92 @@ function buildFloatingLayout(_appConfig, title) {
     };
 }
 
-/* ----- Sidebar mode (stub — Task 5 fills this in) ------------------------ */
+/* ----- Sidebar mode ------------------------------------------------------ */
 
 function buildSidebarLayout(appConfig, title) {
-    // Placeholder so calls with sidebar.enabled don't throw before Task 5.
-    // Falls back to floating for now.
-    console.warn('[layout-manager] sidebar mode not yet implemented \u2014 falling back to floating');
-    return buildFloatingLayout(appConfig, title);
+    document.body.classList.add('sidebar-mode');
+
+    // Apply initial --sidebar-width from config (localStorage override
+    // is applied in Task 7 when resize persistence is added).
+    const defaultWidth = Number(appConfig.sidebar?.default_width) || 420;
+    document.documentElement.style.setProperty('--sidebar-width', defaultWidth + 'px');
+
+    const sidebar = el('aside', { id: 'sidebar' });
+
+    // Resize handle (wired in Task 7).
+    const resizeHandle = el('div', { class: 'sidebar-resize-handle' });
+
+    // Header
+    const header = el('div', { id: 'sidebar-header' });
+    const h3 = el('h3');
+    h3.textContent = title;
+    const hideBtn = el('button', {
+        id: 'sidebar-hide',
+        title: 'Hide sidebar',
+    });
+    hideBtn.textContent = '→';
+    header.append(h3, hideBtn);
+
+    // Layers pane — MapManager.generateMenu() will mount inside this element.
+    const layersPane = el('div', { id: 'sidebar-layers-pane' });
+
+    // Chat message list
+    const messages = el('div', { id: 'chat-messages' });
+
+    // Input row
+    const inputContainer = el('div', { id: 'chat-input-container' });
+    const input = el('input', {
+        id: 'chat-input',
+        type: 'text',
+        placeholder: 'Ask about the data…',
+        autocomplete: 'off',
+    });
+    const mic = el('button', {
+        id: 'chat-mic',
+        title: 'Hold to record voice input',
+    });
+    mic.hidden = true;
+    mic.textContent = '🎤';
+    const send = el('button', { id: 'chat-send' });
+    send.textContent = 'Send';
+    inputContainer.append(input, mic, send);
+
+    // Footer with left + right zones — same structure as floating mode so
+    // ChatUI code is layout-agnostic.
+    const footer = el('div', { id: 'sidebar-footer' });
+    const footerRight = el('div', { id: 'chat-footer-right' });
+    const modelSelector = el('select', {
+        id: 'model-selector',
+        title: 'Select model',
+    });
+    footerRight.append(modelSelector);
+    footer.append(footerRight);
+
+    sidebar.append(resizeHandle, header, layersPane, messages, inputContainer, footer);
+    document.body.appendChild(sidebar);
+
+    // Floating "show" button pinned to the top-right of the map,
+    // visible only when body.sidebar-mode.sidebar-collapsed. Click restores.
+    const showBtn = el('button', {
+        id: 'sidebar-show-btn',
+        title: 'Show sidebar',
+    });
+    showBtn.textContent = '←';
+    document.body.appendChild(showBtn);
+
+    return {
+        chatMount: {
+            container: sidebar,
+            messages,
+            input,
+            send,
+            mic,
+            header,
+            footer,
+            footerRight,
+        },
+        menuMountId: 'sidebar-layers-pane',
+    };
 }
 
 /* ----- Floating mode resize (drag top-left corner) ----------------------- */
