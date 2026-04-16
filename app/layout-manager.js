@@ -193,7 +193,7 @@ function initFloatingResize(container) {
         const maxW = window.innerWidth - 40;
         const maxH = window.innerHeight - 100;
         container.style.width = Math.min(maxW, Math.max(280, startW + dx)) + 'px';
-        container.style.maxHeight = Math.min(maxH, Math.max(200, startH + dy)) + 'px';
+        container.style.height = Math.min(maxH, Math.max(200, startH + dy)) + 'px';
     };
 
     const onUp = () => {
