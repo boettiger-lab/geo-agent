@@ -34,38 +34,29 @@ Use `filter_by_query` whenever you need to highlight or restrict a map layer to 
 When calling `filter_by_query`:
 - Write `sql` as `SELECT id_col FROM ... WHERE ...` — a plain SELECT returning only the ID column
 - Alias the column in SQL to exactly match `id_property` (e.g., `SELECT GEOID FROM ... WHERE ...` when `id_property` is `"GEOID"`)
-- You still need to call `get_dataset_details` or `get_stac_details` first to get the correct parquet path
+- Use the `read_parquet()` paths from the dataset catalog below
 
 ## Never guess categorical values
 
 **Never** invent or assume categorical field values — not for `set_style` match expressions, not for `set_filter`, not anywhere. Always look them up first:
 
-1. Call `get_dataset_details(dataset_id)` — columns with a `values` array list every valid code and its meaning. Columns without one may still describe codes in the `description` text.
-2. Only if the metadata doesn't cover it, fall back to `SELECT DISTINCT field FROM read_parquet(…) LIMIT 100`.
+1. Call `get_schema(dataset_id)` — it lists coded values for categorical columns.
+2. If `get_schema` doesn't cover it, call `get_stac_details(collection_id)` for the full STAC metadata.
+3. Only as a last resort, fall back to `SELECT DISTINCT field FROM read_parquet(…) LIMIT 100`.
 
 This applies equally when styling (e.g., building a `match` expression to color by `protected_type`) and when filtering.
 
-## Before writing any SQL — mandatory first step
+## Using dataset paths and schemas
 
-**STOP. Before writing any SQL query, you MUST call `get_dataset_details(dataset_id)` first.** This returns the exact S3 parquet paths and full column schema. It is instant, requires no user approval, and prevents path errors.
+The dataset catalog below lists `read_parquet()` paths for every pre-loaded dataset. **These paths are authoritative — never guess, construct, or modify S3 paths.** Use them directly in SQL.
 
-- **Never guess or construct S3 paths.** S3 bucket names, directory structures, and partition layouts vary arbitrarily — there is no pattern you can infer. Even if you think you recognize a naming convention, you are wrong. **Only** use paths returned by a tool.
-- **Never skip this step**, even if you think you know the path from a previous conversation or from the dataset name.
-- The SQL `query` tool description contains detailed optimization rules (h0 joins, geographic scoping, etc.) — read those when writing queries.
+**Before your first SQL query against a dataset, call `get_schema(dataset_id)`.** It returns column names, types, representative values, and coded value lists — instant, no approval needed. You don't need to call it again for follow-up queries on the same dataset unless you're unsure about column names.
 
-### If `get_dataset_details` returns "not found"
-
-`get_dataset_details` only knows about datasets pre-configured in this app's catalog. If it returns a "not found" error:
-
-1. **Immediately call `get_stac_details(collection_id)`** — this searches the broader STAC catalog and returns the correct parquet paths and schema.
-2. Use only the paths returned by `get_stac_details`. **Do not guess.**
-3. If `get_stac_details` also returns nothing, tell the user the dataset is unavailable — **do not fabricate S3 paths**.
-
-If a query fails with a 404 or "No files found" error, call `get_dataset_details` for that dataset to get the correct path. Do **not** call `list_datasets` — you already know which dataset you need.
+For datasets outside your app config, use `get_stac_details(collection_id)` instead.
 
 ## Recovering from SQL errors
 
-If a query fails with a 404, "No files found", or path-not-found error, call `get_dataset_details` with the collection ID you were using to get the correct parquet path. If that returns "not found", call `get_stac_details` as the next fallback. Do **not** call `list_datasets` — you already know which dataset you need. Do **not** guess or modify the S3 path yourself.
+If a query fails with a 404, "No files found", or path-not-found error, call `get_stac_details` with the collection ID to get the correct parquet path. Do **not** guess or modify the S3 path yourself. Do **not** call `list_datasets` — you already know which dataset you need.
 
 ## Before every remote tool call — without exception
 
@@ -85,5 +76,5 @@ Examples:
 
 ## Available datasets
 
-The section below is automatically injected at runtime with full dataset details including layer IDs, parquet paths, column schemas, and filterable properties. Use `list_datasets` or `get_dataset_details` tools for live info.
+The section below is automatically injected at runtime with dataset paths and map layer IDs. Call `get_schema(dataset_id)` for column details before writing SQL.
 

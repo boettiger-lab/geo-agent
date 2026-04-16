@@ -12,8 +12,8 @@
  *     - get_map_state
  *     - fly_to
  *   Dataset knowledge:
+ *     - get_schema
  *     - list_datasets
- *     - get_dataset_details
  */
 
 /**
@@ -88,7 +88,7 @@ export function createMapTools(mapManager, catalog, mcpClient) {
             name: 'set_filter',
             description: `Apply a MapLibre filter expression to a vector layer. Use when the user asks to filter features by property values.
 
-IMPORTANT: Never guess categorical values used in filters. Call get_dataset_details first to find documented coded values; only use SELECT DISTINCT via SQL if the metadata doesn't cover it.
+IMPORTANT: Never guess categorical values used in filters. Check the dataset catalog in your system prompt for documented coded values, or call get_stac_details for full column details. Only use SELECT DISTINCT via SQL if the metadata doesn't cover it.
 
 IMPORTANT: After filtering, check 'featuresInView' in the result. If 0, the filter may be wrong.
 
@@ -147,7 +147,7 @@ Vector layers: ${vectorLayerIds().join(', ')}`,
             name: 'set_style',
             description: `Update a layer's paint/style properties. Provide MapLibre paint properties.
 
-IMPORTANT: For categorical coloring (e.g., a "match" expression), never guess or assume valid values. Always call get_dataset_details first — most categorical columns list every valid code there. Only fall back to SELECT DISTINCT via SQL if the metadata doesn't cover it.
+IMPORTANT: For categorical coloring (e.g., a "match" expression), never guess or assume valid values. Check the dataset catalog in your system prompt for documented coded values, or call get_stac_details for full column details. Only fall back to SELECT DISTINCT via SQL if the metadata doesn't cover it.
 
 Examples:
   Simple: { "fill-color": "red", "fill-opacity": 0.5 }
@@ -229,7 +229,7 @@ How it works:
 Parameters:
 - layer_id: the vector layer to filter (must already be loaded)
 - sql: a SELECT query returning ONE column — the feature ID values to keep. Alias that column to match id_property exactly. Example: SELECT GEOID FROM read_parquet('s3://...') WHERE ...
-- id_property: the property name in the vector tile features to match against. Check get_dataset_details or get_stac_details for the correct column — CNG-processed datasets use "_cng_fid"; source datasets vary (e.g. "OBJECTID", "HOLDING_ID").
+- id_property: the property name in the vector tile features to match against. Check get_stac_details for the correct column — CNG-processed datasets use "_cng_fid"; source datasets vary (e.g. "OBJECTID", "HOLDING_ID").
 
 IMPORTANT: The sql must return only the id column — no extra columns. Write it as a plain SELECT, not wrapped in array_agg.
 
@@ -239,7 +239,7 @@ Vector layers: ${vectorLayerIds().join(', ')}`,
                 properties: {
                     layer_id: { type: 'string', description: 'Vector layer ID to filter' },
                     sql: { type: 'string', description: 'SELECT query returning a single column of ID values to keep' },
-                    id_property: { type: 'string', description: 'Feature property name in the vector tile to match against — check get_dataset_details or get_stac_details (CNG-processed datasets use "_cng_fid"; source datasets vary)' },
+                    id_property: { type: 'string', description: 'Feature property name in the vector tile to match against — check get_stac_details (CNG-processed datasets use "_cng_fid"; source datasets vary)' },
                 },
                 required: ['layer_id', 'sql', 'id_property'],
             },
@@ -266,7 +266,7 @@ Vector layers: ${vectorLayerIds().join(', ')}`,
                 if (!ids) {
                     return JSON.stringify({
                         success: false,
-                        error: `Could not parse ID list from query result. Check that id_property ("${col}") exactly matches the column name in the SQL output — verify via get_dataset_details or get_stac_details (CNG-processed datasets use "_cng_fid"). Raw: ${rawResult.substring(0, 300)}`
+                        error: `Could not parse ID list from query result. Check that id_property ("${col}") exactly matches the column name in the SQL output — verify via get_stac_details (CNG-processed datasets use "_cng_fid"). Raw: ${rawResult.substring(0, 300)}`
                     });
                 }
                 if (ids.length === 0) {
@@ -281,8 +281,30 @@ Vector layers: ${vectorLayerIds().join(', ')}`,
 
         // ---- Dataset Knowledge Tools ----
         {
+            name: 'get_schema',
+            description: 'Get column names, types, sample values, and coded value lists for a dataset — formatted like SELECT * LIMIT 1 output. Also includes the read_parquet() path. **Call this before your first SQL query against a dataset.** Instant, no approval needed. For datasets outside your app, use `get_stac_details` instead.',
+            inputSchema: {
+                type: 'object',
+                properties: {
+                    dataset_id: { type: 'string', description: 'Collection ID of the dataset' }
+                },
+                required: ['dataset_id']
+            },
+            execute: (args) => {
+                const result = catalog.formatSchema(args.dataset_id);
+                if (result === null) {
+                    return JSON.stringify({
+                        success: false,
+                        error: `Dataset not found: ${args.dataset_id}. Available: ${catalog.getIds().join(', ')}. For datasets outside this app, use get_stac_details.`
+                    });
+                }
+                return result;
+            },
+        },
+
+        {
             name: 'list_datasets',
-            description: 'List all datasets pre-loaded for this app. Their schemas are already in your context — use `get_dataset_details` to look up columns and paths. To discover datasets outside your app, use `browse_stac_catalog` instead.',
+            description: 'List all dataset IDs and titles pre-loaded for this app. Paths are in your system prompt; call `get_schema` for column details. To discover datasets outside your app, use `browse_stac_catalog` instead.',
             inputSchema: {
                 type: 'object',
                 properties: {},
@@ -292,14 +314,6 @@ Vector layers: ${vectorLayerIds().join(', ')}`,
                 const datasets = catalog.getAll().map(ds => ({
                     id: ds.id,
                     title: ds.title,
-                    description: ds.description.substring(0, 200),
-                    provider: ds.provider,
-                    parquetAssets: ds.parquetAssets.map(a => ({ title: a.title, s3Path: a.s3Path })),
-                    mapLayers: ds.mapLayers.map(a => ({
-                        layerId: `${ds.id}/${a.assetId}`,
-                        title: a.title,
-                        type: a.layerType
-                    })),
                 }));
                 return JSON.stringify({ success: true, datasets });
             },
@@ -325,48 +339,5 @@ Vector layers: ${vectorLayerIds().join(', ')}`,
             },
         },
 
-        {
-            name: 'get_dataset_details',
-            description: 'Get full schema (columns, parquet paths, coded values) for a pre-loaded dataset. **Always call this before writing SQL against any dataset in your app** — it is instant and requires no approval. For datasets outside your app config, use `get_stac_details` instead.',
-            inputSchema: {
-                type: 'object',
-                properties: {
-                    dataset_id: { type: 'string', description: 'Collection ID of the dataset' }
-                },
-                required: ['dataset_id']
-            },
-            execute: (args) => {
-                const ds = catalog.get(args.dataset_id);
-                if (!ds) {
-                    return JSON.stringify({
-                        success: false,
-                        error: `Dataset not found: ${args.dataset_id}. Available: ${catalog.getIds().join(', ')}`
-                    });
-                }
-                const columnsWithValues = ds.columns
-                    .filter(c => c.values?.length > 0)
-                    .map(c => ({ name: c.name, valueCount: c.values.length }));
-                return JSON.stringify({
-                    success: true,
-                    id: ds.id,
-                    title: ds.title,
-                    description: ds.description,
-                    provider: ds.provider,
-                    license: ds.license,
-                    columnsWithValues,
-                    columns: ds.columns,
-                    parquetAssets: ds.parquetAssets.map(a => ({ title: a.title, s3Path: a.s3Path, description: a.description })),
-                    mapLayers: ds.mapLayers.map(a => ({
-                        layerId: `${ds.id}/${a.assetId}`,
-                        title: a.title,
-                        type: a.layerType,
-                        description: a.description
-                    })),
-                    aboutUrl: ds.aboutUrl,
-                    documentationUrl: ds.documentationUrl,
-                    summaries: ds.summaries,
-                });
-            },
-        },
     ];
 }
