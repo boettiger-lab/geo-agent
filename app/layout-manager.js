@@ -17,6 +17,14 @@
  * Only floating mode is implemented in Task 1. Sidebar mode comes in Task 5.
  */
 
+// State exposed to main.js so it can wire map.resize() into the drag loop.
+export const sidebarHooks = {
+    /** @type {(() => void) | null} — called on every rAF tick during drag */
+    onResizeTick: null,
+    /** @type {(() => void) | null} — called once on drag-end / collapse transitionend */
+    onResizeEnd: null,
+};
+
 export function buildLayout(appConfig) {
     const title = appConfig.sidebar?.title || 'Data Assistant';
 
@@ -152,6 +160,8 @@ function buildSidebarLayout(appConfig, title) {
     showBtn.textContent = '←';
     document.body.appendChild(showBtn);
 
+    initSidebarResize(resizeHandle, defaultWidth);
+
     return {
         chatMount: {
             container: sidebar,
@@ -197,6 +207,97 @@ function initFloatingResize(container) {
         startY = e.clientY;
         startW = container.offsetWidth;
         startH = container.offsetHeight;
+        document.body.style.userSelect = 'none';
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('mouseup', onUp);
+    });
+}
+
+/* ----- Sidebar resize: edge drag + localStorage + rAF map reflow -------- */
+
+const SIDEBAR_WIDTH_KEY = 'geo-agent-sidebar-width';
+
+function sidebarWidthBounds() {
+    const min = 280;
+    const max = Math.max(min, Math.floor(0.6 * window.innerWidth));
+    return { min, max };
+}
+
+function clampSidebarWidth(w) {
+    const { min, max } = sidebarWidthBounds();
+    return Math.min(max, Math.max(min, w));
+}
+
+function applySidebarWidth(w) {
+    document.documentElement.style.setProperty('--sidebar-width', w + 'px');
+}
+
+function initSidebarResize(handle, defaultWidth) {
+    // Boot: localStorage overrides config.default_width if within bounds.
+    const stored = Number(localStorage.getItem(SIDEBAR_WIDTH_KEY));
+    const initial = clampSidebarWidth(Number.isFinite(stored) && stored > 0 ? stored : defaultWidth);
+    applySidebarWidth(initial);
+
+    // Re-clamp on window resize so sidebar never exceeds 60vw.
+    window.addEventListener('resize', () => {
+        const cur = parseFloat(
+            getComputedStyle(document.documentElement).getPropertyValue('--sidebar-width'),
+        );
+        if (Number.isFinite(cur)) {
+            applySidebarWidth(clampSidebarWidth(cur));
+            sidebarHooks.onResizeEnd?.();
+        }
+    });
+
+    // Drag behavior.
+    let dragging = false;
+    let startX = 0;
+    let startW = 0;
+    let rafPending = false;
+    let pendingW = 0;
+
+    const onMove = (e) => {
+        if (!dragging) return;
+        // Left-edge drag: pulling LEFT (clientX decreases) makes the sidebar wider.
+        const dx = startX - e.clientX;
+        pendingW = clampSidebarWidth(startW + dx);
+        if (!rafPending) {
+            rafPending = true;
+            requestAnimationFrame(() => {
+                rafPending = false;
+                applySidebarWidth(pendingW);
+                sidebarHooks.onResizeTick?.();
+            });
+        }
+    };
+
+    const onUp = () => {
+        if (!dragging) return;
+        dragging = false;
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+        document.body.style.userSelect = '';
+
+        // Persist final width and do one more reflow after layout settles.
+        const { min, max } = sidebarWidthBounds();
+        const finalW = clampSidebarWidth(pendingW);
+        applySidebarWidth(finalW);
+        if (finalW >= min && finalW <= max) {
+            localStorage.setItem(SIDEBAR_WIDTH_KEY, String(finalW));
+        }
+        sidebarHooks.onResizeEnd?.();
+    };
+
+    handle.addEventListener('mousedown', (e) => {
+        // Respect the narrow-viewport CSS that sets pointer-events: none.
+        if (getComputedStyle(handle).pointerEvents === 'none') return;
+        e.preventDefault();
+        dragging = true;
+        startX = e.clientX;
+        startW = parseFloat(
+            getComputedStyle(document.documentElement).getPropertyValue('--sidebar-width'),
+        ) || 420;
+        pendingW = startW;
         document.body.style.userSelect = 'none';
         document.addEventListener('mousemove', onMove);
         document.addEventListener('mouseup', onUp);
