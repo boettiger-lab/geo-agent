@@ -273,6 +273,28 @@
     opacity: 1;
 }
 
+/* Footer links (github, docs, carbon) live in #chat-footer's left zone. */
+#chat-footer .footer-link {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 6px;
+    margin-right: 4px;
+    color: rgba(255, 255, 255, 0.75);
+    text-decoration: none;
+    font-size: 11px;
+    border-radius: 3px;
+    transition: color 120ms ease, background 120ms ease;
+}
+
+#chat-footer .footer-link:hover {
+    color: rgba(255, 255, 255, 1);
+    background: rgba(255, 255, 255, 0.08);
+}
+
+#chat-footer .footer-link svg {
+    display: block;
+}
+
 #model-selector {
     font-size: 9px;
     padding: 2px 8px;
