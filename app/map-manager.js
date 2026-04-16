@@ -12,6 +12,8 @@
  * No knowledge of LLMs, tools, or chat — pure map operations.
  */
 
+import { extractHashFromUrl, buildFillColorExpression, PALETTES } from './hex-layer-helpers.js';
+
 const BASEMAPS = {
     natgeo: {
         source: {
@@ -459,6 +461,113 @@ export class MapManager {
         if (state.outlineLayerId) this.map.setLayoutProperty(state.outlineLayerId, 'visibility', 'none');
         if (state.type === 'raster') this._hideRasterLegend(layerId);
         return { success: true, layer: layerId, displayName: state.displayName, visible: false };
+    }
+
+    // ---- Hex Tile Layers (dynamic MVT from MCP register_hex_tiles) ----
+
+    /**
+     * Add a dynamic H3 hex MVT source + fill layer from an MCP tile URL template.
+     *
+     * See docs/superpowers/specs/2026-04-16-add-hex-tile-layer-design.md for the
+     * full contract. Idempotent by hash: re-adding a URL whose hash is already
+     * registered returns {already_exists: true} without mutating the map.
+     *
+     * @param {Object} opts
+     * @param {string} opts.tileUrl - from register_hex_tiles.tile_url_template
+     * @param {string} opts.valueColumn - which column to color by
+     * @param {[number, number]} opts.valueRange - [min, max] of the value
+     * @param {[number, number, number, number]} opts.bounds - [w,s,e,n]
+     * @param {string} opts.palette - one of PALETTES keys
+     * @param {number} opts.opacity - 0..1
+     * @param {string} opts.displayName
+     * @param {boolean} opts.fitBounds - call map.fitBounds after adding
+     * @returns {{success: boolean, layer_id?: string, error?: string}}
+     */
+    addHexTileLayer(opts) {
+        const { tileUrl, valueColumn, valueRange, bounds, palette, opacity, displayName, fitBounds } = opts;
+
+        const hash = extractHashFromUrl(tileUrl);
+        if (!hash) {
+            return { success: false, error: `Invalid tile_url — expected template from register_hex_tiles ending in /tiles/hex/<hash>/{z}/{x}/{y}.pbf` };
+        }
+        const layerId = `hex-${hash}`;
+
+        // Idempotency: same URL → same layer → no re-add
+        if (this.layers.has(layerId)) {
+            const state = this.layers.get(layerId);
+            return {
+                success: true,
+                layer_id: layerId,
+                display_name: state.displayName,
+                value_column: valueColumn,
+                valueRange,
+                bounds,
+                already_exists: true,
+                message: 'Layer already registered. Use remove_hex_tile_layer first to re-add with different styling.',
+            };
+        }
+
+        let fillColor;
+        try {
+            fillColor = buildFillColorExpression(valueColumn, valueRange, palette);
+        } catch (err) {
+            return { success: false, error: err.message };
+        }
+
+        const paint = {
+            'fill-color': fillColor,
+            'fill-opacity': opacity,
+            'fill-outline-color': 'rgba(0,0,0,0.15)',
+        };
+
+        this.map.addSource(layerId, { type: 'vector', tiles: [tileUrl], minzoom: 0, maxzoom: 14 });
+        this.map.addLayer({
+            id: layerId,
+            type: 'fill',
+            source: layerId,
+            'source-layer': 'hex',
+            layout: { visibility: 'visible' },
+            paint,
+        });
+
+        this.layers.set(layerId, {
+            layerId,
+            mapLayerId: layerId,
+            outlineLayerId: null,
+            sourceId: layerId,
+            datasetId: null,
+            group: null,
+            groupCollapsed: false,
+            displayName,
+            type: 'vector',
+            sourceLayer: 'hex',
+            columns: [],
+            visible: true,
+            filter: null,
+            defaultFilter: null,
+            defaultPaint: { ...paint },
+            tooltipFields: null,
+            colormap: null,
+            rescale: null,
+            legendLabel: null,
+            legendType: null,
+            legendClasses: null,
+        });
+
+        if (fitBounds && Array.isArray(bounds) && bounds.length === 4) {
+            const [w, s, e, n] = bounds;
+            this.map.fitBounds([[w, s], [e, n]], { padding: 40, duration: 800 });
+        }
+
+        return {
+            success: true,
+            layer_id: layerId,
+            display_name: displayName,
+            value_column: valueColumn,
+            valueRange,
+            bounds,
+            already_exists: false,
+        };
     }
 
     // ---- Filtering (vector layers only) ----
