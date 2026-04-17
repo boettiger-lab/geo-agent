@@ -36,6 +36,38 @@ function extractJsonArray(text) {
 }
 
 /**
+ * When a get_stac_details response lists both a hex-indexed parquet asset
+ * and a full GeoParquet asset for the same collection, drop the GeoParquet
+ * lines so the agent uses the hex (what SQL should target).
+ *
+ * Heuristic matches the historical _getSqlAssets in dataset-catalog.js:
+ *   - a line is "hex" if it contains /hex/ or the words 'hex'/'h3'
+ *   - a line is "geoparquet" if it contains read_parquet( and is not hex
+ *
+ * Operates on the rendered text block. If no hex/geoparquet pair is found,
+ * returns the input unchanged.
+ *
+ * @param {string} text
+ * @returns {string}
+ */
+function filterHexPreferred(text) {
+    if (typeof text !== 'string' || !text.includes('read_parquet(')) return text;
+    const hasHex = /\/hex\/|\bhex\b|\bh3\b/i.test(text);
+    if (!hasHex) return text;
+    // Drop GeoParquet asset sections while keeping hex ones.
+    // Asset sections are blocks separated by blank lines; a section is a
+    // "GeoParquet section" if it contains read_parquet(...) but none of
+    // the hex markers on that same line or its title line.
+    const sections = text.split(/\n\s*\n/);
+    const kept = sections.filter(section => {
+        if (!section.includes('read_parquet(')) return true;
+        const isHexSection = /\/hex\/|\bhex\b|\bh3\b/i.test(section);
+        return isHexSection;
+    });
+    return kept.join('\n\n');
+}
+
+/**
  * Generate all local tools given the app's MapManager and DatasetCatalog.
  *
  * @param {import('./map-manager.js').MapManager} mapManager
@@ -282,7 +314,7 @@ Vector layers: ${vectorLayerIds().join(', ')}`,
         // ---- Dataset Knowledge Tools ----
         {
             name: 'get_schema',
-            description: 'Get column names, types, sample values, and coded value lists for a dataset — formatted like SELECT * LIMIT 1 output. Also includes the read_parquet() path. **Call this before your first SQL query against a dataset.** Instant, no approval needed. For datasets outside your app, use `get_stac_details` instead.',
+            description: 'Get column names, types, sample values, and coded value lists for a dataset — formatted like SELECT * LIMIT 1 output. Also includes the read_parquet() path. **Call this before your first SQL query against a dataset.** For datasets outside your app, use `get_stac_details` instead.',
             inputSchema: {
                 type: 'object',
                 properties: {
@@ -290,15 +322,28 @@ Vector layers: ${vectorLayerIds().join(', ')}`,
                 },
                 required: ['dataset_id']
             },
-            execute: (args) => {
-                const result = catalog.formatSchema(args.dataset_id);
-                if (result === null) {
+            execute: async (args) => {
+                if (!catalog.get(args.dataset_id)) {
                     return JSON.stringify({
                         success: false,
                         error: `Dataset not found: ${args.dataset_id}. Available: ${catalog.getIds().join(', ')}. For datasets outside this app, use get_stac_details.`
                     });
                 }
-                return result;
+                if (!mcpClient) {
+                    return JSON.stringify({
+                        success: false,
+                        error: 'Schema service unavailable: MCP client not configured.'
+                    });
+                }
+                try {
+                    const raw = await mcpClient.callTool('get_stac_details', { dataset_id: args.dataset_id });
+                    return filterHexPreferred(typeof raw === 'string' ? raw : JSON.stringify(raw));
+                } catch (err) {
+                    return JSON.stringify({
+                        success: false,
+                        error: `Schema service unavailable: ${err.message || err}. Try again, or call get_stac_details directly.`
+                    });
+                }
             },
         },
 
