@@ -32,32 +32,52 @@ export const PALETTES = {
 /**
  * Build a MapLibre `fill-color` paint expression for a hex layer.
  *
- * Features with a null value render as transparent; others interpolate
- * linearly from min → mid → max across the chosen palette.
+ * The MCP pyramid stores hexes at multiple H3 resolutions; aggregate magnitudes
+ * scale ~7× per resolution step, so one [min,max] can't paint all levels well.
+ * Each MVT feature carries a `res` property — this expression branches on it
+ * via `match` to pick the right interpolate domain per resolution.
+ *
+ * Features with a null value column render transparent. Resolutions with a
+ * collapsed range (min == max, e.g. COUNT at finest = 1) render as a flat
+ * palette-midpoint color. Unknown resolutions fall back to transparent.
  *
  * @param {string} valueColumn - MVT feature property to color by.
- * @param {[number, number]} valueRange - [min, max]; min must be < max.
+ * @param {{by_res: Object<string, {min: number, max: number}>}} valueStats
+ *   Per-resolution stats as returned by `register_hex_tiles.value_stats[column]`.
  * @param {string} palette - One of the keys in PALETTES.
  * @returns {Array} MapLibre expression.
  */
-export function buildFillColorExpression(valueColumn, valueRange, palette) {
+export function buildFillColorExpression(valueColumn, valueStats, palette) {
     if (!(palette in PALETTES)) {
         throw new Error(`Unknown palette '${palette}'. Valid: ${Object.keys(PALETTES).join(', ')}`);
     }
-    const [min, max] = valueRange;
-    if (!(min < max)) {
-        throw new Error(`value_range collapsed: min (${min}) must be < max (${max})`);
+    const byRes = valueStats && valueStats.by_res;
+    if (!byRes || Object.keys(byRes).length === 0) {
+        throw new Error('value_stats.by_res must contain at least one resolution');
     }
-    const mid = (min + max) / 2;
+
     const [c0, c1, c2] = PALETTES[palette];
+    const resKeys = Object.keys(byRes).sort((a, b) => Number(a) - Number(b));
+
+    const branches = [];
+    for (const resStr of resKeys) {
+        const { min, max } = byRes[resStr];
+        const res = Number(resStr);
+        let branch;
+        if (!(min < max)) {
+            branch = c1;
+        } else {
+            const mid = (min + max) / 2;
+            branch = ['interpolate', ['linear'], ['get', valueColumn],
+                min, c0, mid, c1, max, c2];
+        }
+        branches.push(res, branch);
+    }
+
     return [
         'case',
         ['==', ['get', valueColumn], null],
         'rgba(0,0,0,0)',
-        ['interpolate', ['linear'], ['get', valueColumn],
-            min, c0,
-            mid, c1,
-            max, c2,
-        ],
+        ['match', ['get', 'res'], ...branches, 'rgba(0,0,0,0)'],
     ];
 }

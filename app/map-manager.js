@@ -475,16 +475,20 @@ export class MapManager {
      * @param {Object} opts
      * @param {string} opts.tileUrl - from register_hex_tiles.tile_url_template
      * @param {string} opts.valueColumn - which column to color by
-     * @param {[number, number]} opts.valueRange - [min, max] of the value
+     * @param {{by_res: Object<string,{min:number,max:number}>}} opts.valueStats -
+     *   from register_hex_tiles.value_stats[valueColumn]
      * @param {[number, number, number, number]} opts.bounds - [w,s,e,n]
      * @param {string} opts.palette - one of PALETTES keys
      * @param {number} opts.opacity - 0..1
      * @param {string} opts.displayName
      * @param {boolean} opts.fitBounds - call map.fitBounds after adding
+     * @param {string} [opts.layerName] - MVT source-layer name from register_hex_tiles.
+     *   Defaults to 'layer' (current mcp-data-server default).
      * @returns {{success: boolean, layer_id?: string, error?: string}}
      */
     addHexTileLayer(opts) {
-        const { tileUrl, valueColumn, valueRange, bounds, palette, opacity, displayName, fitBounds } = opts;
+        const { tileUrl, valueColumn, valueStats, bounds, palette, opacity, displayName, fitBounds, layerName } = opts;
+        const sourceLayer = layerName || 'layer';
 
         const hash = extractHashFromUrl(tileUrl);
         if (!hash) {
@@ -500,7 +504,6 @@ export class MapManager {
                 layer_id: layerId,
                 display_name: state.displayName,
                 value_column: valueColumn,
-                valueRange,
                 bounds,
                 already_exists: true,
                 message: 'Layer already registered. Use remove_hex_tile_layer first to re-add with different styling.',
@@ -509,7 +512,7 @@ export class MapManager {
 
         let fillColor;
         try {
-            fillColor = buildFillColorExpression(valueColumn, valueRange, palette);
+            fillColor = buildFillColorExpression(valueColumn, valueStats, palette);
         } catch (err) {
             return { success: false, error: err.message };
         }
@@ -525,7 +528,7 @@ export class MapManager {
             id: layerId,
             type: 'fill',
             source: layerId,
-            'source-layer': 'hex',
+            'source-layer': sourceLayer,
             layout: { visibility: 'visible' },
             paint,
         });
@@ -540,7 +543,7 @@ export class MapManager {
             groupCollapsed: false,
             displayName,
             type: 'vector',
-            sourceLayer: 'hex',
+            sourceLayer,
             columns: [],
             visible: true,
             filter: null,
@@ -564,7 +567,6 @@ export class MapManager {
             layer_id: layerId,
             display_name: displayName,
             value_column: valueColumn,
-            valueRange,
             bounds,
             already_exists: false,
         };

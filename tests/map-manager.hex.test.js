@@ -63,12 +63,13 @@ describe('MapManager.addHexTileLayer', () => {
         const result = mm.addHexTileLayer({
             tileUrl,
             valueColumn: 'density',
-            valueRange: [0, 1],
+            valueStats: { by_res: { '6': { min: 0, max: 1 } } },
             bounds: [-125, 31, -102, 49],
             palette: 'viridis',
             opacity: 0.7,
             displayName: 'Density',
             fitBounds: false,
+            layerName: 'layer',
         });
 
         expect(result.success).toBe(true);
@@ -81,19 +82,51 @@ describe('MapManager.addHexTileLayer', () => {
         const layer = mm.map._layers.get('hex-abc123');
         expect(layer.type).toBe('fill');
         expect(layer.source).toBe('hex-abc123');
-        expect(layer['source-layer']).toBe('hex');
+        expect(layer['source-layer']).toBe('layer');
         expect(layer.paint['fill-opacity']).toBe(0.7);
 
         expect(mm.layers.get('hex-abc123')).toBeDefined();
         expect(mm.layers.get('hex-abc123').displayName).toBe('Density');
         expect(mm.layers.get('hex-abc123').type).toBe('vector');
-        expect(mm.layers.get('hex-abc123').sourceLayer).toBe('hex');
+        expect(mm.layers.get('hex-abc123').sourceLayer).toBe('layer');
+    });
+
+    it('defaults source-layer to "layer" when layerName is omitted', () => {
+        const result = mm.addHexTileLayer({
+            tileUrl: 'https://example.com/tiles/hex/nolayer/{z}/{x}/{y}.pbf',
+            valueColumn: 'v',
+            valueStats: { by_res: { '5': { min: 0, max: 1 } } },
+            bounds: [0, 0, 1, 1],
+            palette: 'viridis',
+            opacity: 0.7,
+            displayName: 'X',
+            fitBounds: false,
+        });
+        expect(result.success).toBe(true);
+        expect(mm.map._layers.get('hex-nolayer')['source-layer']).toBe('layer');
+    });
+
+    it('uses the provided layerName as source-layer', () => {
+        const result = mm.addHexTileLayer({
+            tileUrl: 'https://example.com/tiles/hex/named/{z}/{x}/{y}.pbf',
+            valueColumn: 'v',
+            valueStats: { by_res: { '5': { min: 0, max: 1 } } },
+            bounds: [0, 0, 1, 1],
+            palette: 'viridis',
+            opacity: 0.7,
+            displayName: 'X',
+            fitBounds: false,
+            layerName: 'hex',
+        });
+        expect(result.success).toBe(true);
+        expect(mm.map._layers.get('hex-named')['source-layer']).toBe('hex');
+        expect(mm.layers.get('hex-named').sourceLayer).toBe('hex');
     });
 
     it('calls fitBounds when fitBounds: true', () => {
         mm.addHexTileLayer({
             tileUrl: 'https://example.com/tiles/hex/xyz/{z}/{x}/{y}.pbf',
-            valueColumn: 'v', valueRange: [0, 1],
+            valueColumn: 'v', valueStats: { by_res: { '5': { min: 0, max: 1 } } },
             bounds: [-10, -20, 30, 40],
             palette: 'viridis', opacity: 0.7, displayName: 'X',
             fitBounds: true,
@@ -105,7 +138,7 @@ describe('MapManager.addHexTileLayer', () => {
     it('returns error for invalid tileUrl', () => {
         const result = mm.addHexTileLayer({
             tileUrl: 'https://example.com/not-a-hex-url',
-            valueColumn: 'v', valueRange: [0, 1],
+            valueColumn: 'v', valueStats: { by_res: { '5': { min: 0, max: 1 } } },
             bounds: [0, 0, 1, 1], palette: 'viridis',
             opacity: 0.7, displayName: 'X', fitBounds: false,
         });
@@ -116,7 +149,7 @@ describe('MapManager.addHexTileLayer', () => {
     it('is idempotent by hash — second call with same URL returns already_exists', () => {
         const opts = {
             tileUrl: 'https://example.com/tiles/hex/samehash/{z}/{x}/{y}.pbf',
-            valueColumn: 'v', valueRange: [0, 1],
+            valueColumn: 'v', valueStats: { by_res: { '5': { min: 0, max: 1 } } },
             bounds: [0, 0, 1, 1], palette: 'viridis',
             opacity: 0.7, displayName: 'First', fitBounds: false,
         };
@@ -146,7 +179,7 @@ describe('MapManager.removeHexTileLayer', () => {
     function addOne(hash = 'abc') {
         return mm.addHexTileLayer({
             tileUrl: `https://example.com/tiles/hex/${hash}/{z}/{x}/{y}.pbf`,
-            valueColumn: 'v', valueRange: [0, 1],
+            valueColumn: 'v', valueStats: { by_res: { '5': { min: 0, max: 1 } } },
             bounds: [0, 0, 1, 1], palette: 'viridis',
             opacity: 0.7, displayName: 'X', fitBounds: false,
         });
