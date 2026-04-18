@@ -215,14 +215,20 @@ Available layers: ${allLayerIds().join(', ')}`,
         // ---- Dynamic Hex Tile Layers ----
         {
             name: 'add_hex_tile_layer',
-            description: `Add a dynamic H3 hex tile layer to the map. Use after calling the MCP \`register_hex_tiles\` tool, which returns a tile URL template + bounds + value columns.
+            description: `Add a dynamic H3 hex tile layer to the map. Use after calling the MCP \`register_hex_tiles\` tool, which returns a tile URL template + bounds + value columns + per-resolution value stats.
 
 Typical flow for "show me a hex map of X":
-  1. Call \`register_hex_tiles\` (MCP) with SQL that returns (h3_index, value1, ...)
-  2. Call \`query\` (MCP) for SELECT MIN(col), MAX(col) FROM (<same sql>) to get the value range
-  3. Call this tool with the returned tile_url, chosen value_column, and range
+  1. Call \`register_hex_tiles\` (MCP) with SQL that returns (h3_index [, value1, ...])
+  2. Pass its return fields directly into this tool — no extra min/max query needed; the server already computed \`value_stats\` per H3 resolution.
 
-IMPORTANT: value_range is required — without it the color ramp is ill-defined. Pass [min, max] as computed above.
+Pass the following fields straight through from the register_hex_tiles return value:
+  - tile_url              ← tile_url_template
+  - value_column          ← one of value_columns (for agg="COUNT" this is "count")
+  - value_stats           ← value_stats[value_column]  (has { by_res: { "<res>": { min, max } } })
+  - bounds                ← bounds
+  - layer_name            ← layer_name (when present; defaults to "layer" otherwise)
+
+The color ramp is painted per-resolution: hexes at different H3 resolutions have different aggregate magnitudes (COUNT at res=2 can be 1000× the max at res=8), so a single [min,max] won't work. The tool builds a \`match\` on the MVT \`res\` property from \`value_stats.by_res\`.
 
 IMPORTANT: The tile_url must be the exact tile_url_template returned by register_hex_tiles — the tool rejects other URLs.
 
@@ -231,17 +237,17 @@ The returned layer_id can be used with show_layer / hide_layer / set_style / set
                 type: 'object',
                 properties: {
                     tile_url: { type: 'string', description: 'tile_url_template from register_hex_tiles' },
-                    value_column: { type: 'string', description: 'Which column from register_hex_tiles.value_columns to style by' },
-                    value_range: {
-                        type: 'array',
-                        items: { type: 'number' },
-                        description: '[min, max] of value_column, computed via MCP query'
+                    value_column: { type: 'string', description: 'Which column from register_hex_tiles.value_columns to style by (e.g. "count" for agg=COUNT)' },
+                    value_stats: {
+                        type: 'object',
+                        description: 'Per-resolution stats for value_column — pass register_hex_tiles.value_stats[value_column] directly. Shape: { by_res: { "<res>": { min, max } } }.'
                     },
                     bounds: {
                         type: 'array',
                         items: { type: 'number' },
                         description: '[w, s, e, n] from register_hex_tiles.bounds'
                     },
+                    layer_name: { type: 'string', description: 'MVT source-layer name from register_hex_tiles.layer_name (defaults to "layer" when omitted)' },
                     display_name: { type: 'string', description: 'Optional human-readable layer name (default: "Hex: <value_column>")' },
                     palette: {
                         type: 'string',
@@ -251,19 +257,20 @@ The returned layer_id can be used with show_layer / hide_layer / set_style / set
                     opacity: { type: 'number', description: 'Fill opacity 0..1 (default 0.7)' },
                     fit_bounds: { type: 'boolean', description: 'Fly the camera to fit bounds (default true)' },
                 },
-                required: ['tile_url', 'value_column', 'value_range', 'bounds'],
+                required: ['tile_url', 'value_column', 'value_stats', 'bounds'],
             },
             execute: (args) => {
                 const displayName = args.display_name || `Hex: ${args.value_column}`;
                 const result = mapManager.addHexTileLayer({
                     tileUrl: args.tile_url,
                     valueColumn: args.value_column,
-                    valueRange: args.value_range,
+                    valueStats: args.value_stats,
                     bounds: args.bounds,
                     palette: args.palette || 'viridis',
                     opacity: args.opacity ?? 0.7,
                     displayName,
                     fitBounds: args.fit_bounds !== false,
+                    layerName: args.layer_name,
                 });
                 return JSON.stringify(result);
             },

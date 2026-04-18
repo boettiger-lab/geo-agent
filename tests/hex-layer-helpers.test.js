@@ -38,37 +38,83 @@ describe('PALETTES', () => {
 });
 
 describe('buildFillColorExpression', () => {
-  it('builds a case-wrapped linear interpolate for a simple range', () => {
-    const expr = buildFillColorExpression('val', [0, 10], 'viridis');
-    expect(expr).toEqual([
-      'case',
-      ['==', ['get', 'val'], null],
-      'rgba(0,0,0,0)',
-      ['interpolate', ['linear'], ['get', 'val'],
-        0, '#440154',
-        5, '#21918c',
-        10, '#fde725',
-      ],
-    ]);
+  it('builds a case-wrapped match over res with per-resolution interpolate branches', () => {
+    const stats = { by_res: { '3': { min: 1, max: 100 }, '4': { min: 1, max: 20 } } };
+    const expr = buildFillColorExpression('count', stats, 'viridis');
+
+    expect(expr[0]).toBe('case');
+    expect(expr[1]).toEqual(['==', ['get', 'count'], null]);
+    expect(expr[2]).toBe('rgba(0,0,0,0)');
+
+    const match = expr[3];
+    expect(match[0]).toBe('match');
+    expect(match[1]).toEqual(['get', 'res']);
+
+    // Sorted ascending: res 3, then res 4
+    expect(match[2]).toBe(3);
+    expect(match[3]).toEqual(['interpolate', ['linear'], ['get', 'count'],
+      1, '#440154', 50.5, '#21918c', 100, '#fde725']);
+    expect(match[4]).toBe(4);
+    expect(match[5]).toEqual(['interpolate', ['linear'], ['get', 'count'],
+      1, '#440154', 10.5, '#21918c', 20, '#fde725']);
+
+    // Final element of match is the fallback (match length = 2 + 2*n_branches + 1)
+    expect(match).toHaveLength(7);
+    expect(match[6]).toBe('rgba(0,0,0,0)');
   });
 
-  it('computes the midpoint correctly for negative-to-positive ranges', () => {
-    const expr = buildFillColorExpression('v', [-1, 1], 'bluered');
-    const interp = expr[3];
-    expect(interp[3]).toBe(-1);
-    expect(interp[5]).toBe(0);
-    expect(interp[7]).toBe(1);
+  it('collapses a resolution whose min == max to the palette midpoint color', () => {
+    const stats = { by_res: { '5': { min: 1, max: 1 }, '3': { min: 1, max: 10 } } };
+    const expr = buildFillColorExpression('count', stats, 'viridis');
+    const match = expr[3];
+
+    const idx5 = match.indexOf(5);
+    expect(idx5).toBeGreaterThan(0);
+    // Collapsed range → literal midpoint color from viridis
+    expect(match[idx5 + 1]).toBe('#21918c');
+
+    // Res 3 is still a full interpolate
+    const idx3 = match.indexOf(3);
+    expect(Array.isArray(match[idx3 + 1])).toBe(true);
+    expect(match[idx3 + 1][0]).toBe('interpolate');
+  });
+
+  it('handles a single-resolution stats object', () => {
+    const stats = { by_res: { '8': { min: 1, max: 50 } } };
+    const expr = buildFillColorExpression('count', stats, 'bluered');
+    const match = expr[3];
+    // 2 (header) + 2 (one branch) + 1 (fallback) = 5
+    expect(match).toHaveLength(5);
+    expect(match[2]).toBe(8);
+    expect(match[3][0]).toBe('interpolate');
+  });
+
+  it('sorts resolution branches ascending numerically', () => {
+    const stats = { by_res: {
+      '10': { min: 1, max: 2 }, '2': { min: 1, max: 100 }, '5': { min: 1, max: 50 },
+    } };
+    const expr = buildFillColorExpression('count', stats, 'viridis');
+    const match = expr[3];
+    expect(match[2]).toBe(2);
+    expect(match[4]).toBe(5);
+    expect(match[6]).toBe(10);
   });
 
   it('throws on unknown palette', () => {
-    expect(() => buildFillColorExpression('v', [0, 1], 'notapalette'))
+    const stats = { by_res: { '3': { min: 1, max: 10 } } };
+    expect(() => buildFillColorExpression('v', stats, 'notapalette'))
         .toThrow(/Unknown palette/);
   });
 
-  it('throws when value_range has min >= max', () => {
-    expect(() => buildFillColorExpression('v', [5, 5], 'viridis'))
-        .toThrow(/value_range/);
-    expect(() => buildFillColorExpression('v', [5, 1], 'viridis'))
-        .toThrow(/value_range/);
+  it('throws when by_res is empty', () => {
+    expect(() => buildFillColorExpression('v', { by_res: {} }, 'viridis'))
+        .toThrow(/by_res/);
+  });
+
+  it('throws when value_stats is missing by_res', () => {
+    expect(() => buildFillColorExpression('v', {}, 'viridis'))
+        .toThrow(/by_res/);
+    expect(() => buildFillColorExpression('v', null, 'viridis'))
+        .toThrow(/by_res/);
   });
 });
