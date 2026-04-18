@@ -354,7 +354,7 @@ Vector layers: ${vectorLayerIds().join(', ')}`,
         // ---- Dataset Knowledge Tools ----
         {
             name: 'get_schema',
-            description: 'Get column names, types, sample values, and coded value lists for a dataset — formatted like SELECT * LIMIT 1 output. Also includes the read_parquet() path. **Call this before your first SQL query against a dataset.** Instant, no approval needed. For datasets outside your app, use `get_stac_details` instead.',
+            description: 'Get column names, types, sample values, and coded value lists for a dataset — formatted like SELECT * LIMIT 1 output. Also includes the read_parquet() path. **Call this before your first SQL query against a dataset.** For datasets outside your app, use `get_stac_details` instead.',
             inputSchema: {
                 type: 'object',
                 properties: {
@@ -362,15 +362,28 @@ Vector layers: ${vectorLayerIds().join(', ')}`,
                 },
                 required: ['dataset_id']
             },
-            execute: (args) => {
-                const result = catalog.formatSchema(args.dataset_id);
-                if (result === null) {
+            execute: async (args) => {
+                if (!catalog.get(args.dataset_id)) {
                     return JSON.stringify({
                         success: false,
                         error: `Dataset not found: ${args.dataset_id}. Available: ${catalog.getIds().join(', ')}. For datasets outside this app, use get_stac_details.`
                     });
                 }
-                return result;
+                if (!mcpClient) {
+                    return JSON.stringify({
+                        success: false,
+                        error: 'Schema service unavailable: MCP client not configured.'
+                    });
+                }
+                try {
+                    const raw = await mcpClient.callTool('get_stac_details', { dataset_id: args.dataset_id });
+                    return typeof raw === 'string' ? raw : JSON.stringify(raw);
+                } catch (err) {
+                    return JSON.stringify({
+                        success: false,
+                        error: `Schema service unavailable: ${err.message || err}. Try again, or call get_stac_details directly.`
+                    });
+                }
             },
         },
 
