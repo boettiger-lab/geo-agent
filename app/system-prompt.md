@@ -50,6 +50,8 @@ This applies equally when styling (e.g., building a `match` expression to color 
 
 The dataset catalog below lists `read_parquet()` paths for every pre-loaded dataset. **These paths are authoritative — never guess, construct, or modify S3 paths.** Use them directly in SQL.
 
+**When a dataset has both a hex-indexed parquet path and a full GeoParquet path, prefer the hex path for SQL queries.** The hex path is partitioned by H3 cell and dramatically faster for spatial aggregations and joins. Asset titles make the distinction clear (e.g. `"SVI 2022 hex"` vs `"SVI 2022"`).
+
 **Before your first SQL query against a dataset, call `get_schema(dataset_id)`.** It returns column names, types, representative values, and coded value lists — instant, no approval needed. You don't need to call it again for follow-up queries on the same dataset unless you're unsure about column names.
 
 For datasets outside your app config, use `get_stac_details(collection_id)` instead.
