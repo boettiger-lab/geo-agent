@@ -602,6 +602,19 @@ export class MapManager {
     }
 
     /**
+     * Get [{id, displayName, type}, ...] for all registered layers — used to
+     * build informative layer lists in LLM tool descriptions so the agent can
+     * disambiguate siblings by displayName instead of guessing by ID suffix.
+     */
+    getLayerSummaries() {
+        return [...this.layers.entries()].map(([id, state]) => ({
+            id,
+            displayName: state.displayName,
+            type: state.type,
+        }));
+    }
+
+    /**
      * Get a layer's filterable columns.
      */
     getLayerColumns(layerId) {
