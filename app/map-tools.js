@@ -215,10 +215,15 @@ Available layers: ${allLayerIds().join(', ')}`,
         // ---- Dynamic Hex Tile Layers ----
         {
             name: 'add_hex_tile_layer',
-            description: `Add a dynamic H3 hex tile layer to the map. Use after calling the MCP \`register_hex_tiles\` tool, which returns a tile URL template + bounds + value columns + per-resolution value stats.
+            description: `Add a dynamic H3 hex tile layer to the map as an ADDITIVE overlay. Hex layers do not replace existing layers — they sit on top, and existing polygon/raster layers stay visible beneath. Use after calling the MCP \`register_hex_tiles\` tool, which returns a tile URL template + bounds + value columns + per-resolution value stats.
 
-Typical flow for "show me a hex map of X":
-  1. Call \`register_hex_tiles\` (MCP) with SQL that returns (h3_index [, value1, ...])
+Common use cases:
+  - Dense point data aggregated per hex (e.g. GBIF occurrence counts per h8 cell).
+  - Polygon datasets summarized per hex (e.g. feature count or average attribute).
+  - Pre-computed per-cell values (density rasters, model outputs).
+
+Flow:
+  1. Call \`register_hex_tiles\` (MCP) with SQL that returns (h3_index [, value1, ...]).
   2. Pass its return fields directly into this tool — no extra min/max query needed; the server already computed \`value_stats\` per H3 resolution.
 
 Pass the following fields straight through from the register_hex_tiles return value:
@@ -228,7 +233,7 @@ Pass the following fields straight through from the register_hex_tiles return va
   - bounds                ← bounds
   - layer_name            ← layer_name (when present; defaults to "layer" otherwise)
 
-The color ramp is painted per-resolution: hexes at different H3 resolutions have different aggregate magnitudes (COUNT at res=2 can be 1000× the max at res=8), so a single [min,max] won't work. The tool builds a \`match\` on the MVT \`res\` property from \`value_stats.by_res\`.
+**Resolution (important):** the tile pyramid holds hexes at multiple H3 resolutions, but the map renders ONE at a time — hexes do not change size as the user zooms. If the user names a target H3 resolution (e.g. "show at h6", "resolution 7"), pass it as \`resolution\`. Otherwise it defaults to the finest (highest) resolution present in \`value_stats.by_res\`. To show a coarser view, either specify \`resolution\` or call \`register_hex_tiles\` with \`min_res == finest_res\`.
 
 IMPORTANT: The tile_url must be the exact tile_url_template returned by register_hex_tiles — the tool rejects other URLs.
 
@@ -246,6 +251,10 @@ The returned layer_id can be used with show_layer / hide_layer / set_style / set
                         type: 'array',
                         items: { type: 'number' },
                         description: '[w, s, e, n] from register_hex_tiles.bounds'
+                    },
+                    resolution: {
+                        type: 'integer',
+                        description: 'H3 resolution to render (must be a key in value_stats.by_res). Defaults to the finest available. The layer is filtered to this single resolution so hexes do not change size as the user zooms.'
                     },
                     layer_name: { type: 'string', description: 'MVT source-layer name from register_hex_tiles.layer_name (defaults to "layer" when omitted)' },
                     display_name: { type: 'string', description: 'Optional human-readable layer name (default: "Hex: <value_column>")' },
@@ -271,6 +280,7 @@ The returned layer_id can be used with show_layer / hide_layer / set_style / set
                     displayName,
                     fitBounds: args.fit_bounds !== false,
                     layerName: args.layer_name,
+                    resolution: args.resolution,
                 });
                 return JSON.stringify(result);
             },

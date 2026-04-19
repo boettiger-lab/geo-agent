@@ -484,10 +484,14 @@ export class MapManager {
      * @param {boolean} opts.fitBounds - call map.fitBounds after adding
      * @param {string} [opts.layerName] - MVT source-layer name from register_hex_tiles.
      *   Defaults to 'layer' (current mcp-data-server default).
+     * @param {number} [opts.resolution] - H3 resolution to render. Must be a key in
+     *   valueStats.by_res. Defaults to the finest (highest) resolution present.
+     *   The layer is filtered to this single resolution so hexes don't change size
+     *   as the user zooms.
      * @returns {{success: boolean, layer_id?: string, error?: string}}
      */
     addHexTileLayer(opts) {
-        const { tileUrl, valueColumn, valueStats, bounds, palette, opacity, displayName, fitBounds, layerName } = opts;
+        const { tileUrl, valueColumn, valueStats, bounds, palette, opacity, displayName, fitBounds, layerName, resolution } = opts;
         const sourceLayer = layerName || 'layer';
 
         const hash = extractHashFromUrl(tileUrl);
@@ -510,6 +514,15 @@ export class MapManager {
             };
         }
 
+        const availableRes = Object.keys(valueStats?.by_res || {}).map(Number).sort((a, b) => a - b);
+        if (availableRes.length === 0) {
+            return { success: false, error: 'value_stats.by_res must contain at least one resolution' };
+        }
+        const effectiveRes = resolution != null ? Number(resolution) : availableRes[availableRes.length - 1];
+        if (resolution != null && !availableRes.includes(Number(resolution))) {
+            return { success: false, error: `resolution ${resolution} not in value_stats.by_res — available: ${availableRes.join(', ')}` };
+        }
+
         let fillColor;
         try {
             fillColor = buildFillColorExpression(valueColumn, valueStats, palette);
@@ -522,6 +535,7 @@ export class MapManager {
             'fill-opacity': opacity,
             'fill-outline-color': 'rgba(0,0,0,0.15)',
         };
+        const filter = ['==', ['get', 'res'], effectiveRes];
 
         this.map.addSource(layerId, { type: 'vector', tiles: [tileUrl], minzoom: 0, maxzoom: 14 });
         this.map.addLayer({
@@ -529,6 +543,7 @@ export class MapManager {
             type: 'fill',
             source: layerId,
             'source-layer': sourceLayer,
+            filter,
             layout: { visibility: 'visible' },
             paint,
         });
@@ -546,8 +561,8 @@ export class MapManager {
             sourceLayer,
             columns: [],
             visible: true,
-            filter: null,
-            defaultFilter: null,
+            filter,
+            defaultFilter: filter,
             defaultPaint: { ...paint },
             tooltipFields: null,
             colormap: null,
@@ -567,6 +582,7 @@ export class MapManager {
             layer_id: layerId,
             display_name: displayName,
             value_column: valueColumn,
+            resolution: effectiveRes,
             bounds,
             already_exists: false,
         };
