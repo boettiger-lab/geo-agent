@@ -44,15 +44,23 @@ function extractJsonArray(text) {
  * @returns {Array<Object>} Tool definitions
  */
 export function createMapTools(mapManager, catalog, mcpClient) {
-    const allLayerIds = () => mapManager.getLayerIds();
-    const vectorLayerIds = () => mapManager.getVectorLayerIds();
+    const allLayers = () => mapManager.getLayerSummaries();
+    const vectorLayers = () => mapManager.getLayerSummaries().filter(l => l.type === 'vector');
 
-    // Build property docs for vector layers
+    const formatLayerList = (layers) => layers.map(l => `- \`${l.id}\` — ${l.displayName}`).join('\n');
+
+    const pickLayerNudge = 'Pick the layer by displayName semantic match, not by ID suffix. When several layers could plausibly match the user\'s intent (e.g. "districts" could mean congressional, state senate, or state house), choose on displayName — the ID suffix is not a reliable disambiguator.';
+
     return [
         // ---- Map Control Tools ----
         {
             name: 'show_layer',
-            description: `Show/display a layer on the map. Use when the user asks to "show", "display", or "visualize" a layer.\n\nAvailable layers: ${allLayerIds().join(', ')}`,
+            description: `Show/display a layer on the map. Use when the user asks to "show", "display", or "visualize" a layer.
+
+${pickLayerNudge}
+
+Available layers:
+${formatLayerList(allLayers())}`,
             inputSchema: {
                 type: 'object',
                 properties: {
@@ -69,7 +77,10 @@ export function createMapTools(mapManager, catalog, mcpClient) {
 
         {
             name: 'hide_layer',
-            description: `Hide/remove a layer from the map. Use when the user asks to "hide", "remove", or "turn off" a layer.\n\nAvailable layers: ${allLayerIds().join(', ')}`,
+            description: `Hide/remove a layer from the map. Use when the user asks to "hide", "remove", or "turn off" a layer.
+
+Available layers:
+${formatLayerList(allLayers())}`,
             inputSchema: {
                 type: 'object',
                 properties: {
@@ -102,7 +113,10 @@ Filter syntax (use MapLibre expressions — NOT legacy filter arrays):
 
 IMPORTANT: Do NOT use the legacy ["in", "property", val1, val2] form — it is silently ignored in current MapLibre. Always use ["match", ["get", "property"], [...values], true, false] for list membership.
 
-Vector layers: ${vectorLayerIds().join(', ')}`,
+${pickLayerNudge}
+
+Vector layers:
+${formatLayerList(vectorLayers())}`,
             inputSchema: {
                 type: 'object',
                 properties: {
@@ -119,7 +133,12 @@ Vector layers: ${vectorLayerIds().join(', ')}`,
 
         {
             name: 'clear_filter',
-            description: `Remove ALL filters from a layer, showing every feature regardless of properties. Use when the user wants to see everything (e.g. "show all GAP codes", "remove filter", "show everything").\n\nNote: some layers have a config default filter applied at startup. This tool removes that too. Use reset_filter instead if you want to restore the default.\n\nVector layers: ${vectorLayerIds().join(', ')}`,
+            description: `Remove ALL filters from a layer, showing every feature regardless of properties. Use when the user wants to see everything (e.g. "show all GAP codes", "remove filter", "show everything").
+
+Note: some layers have a config default filter applied at startup. This tool removes that too. Use reset_filter instead if you want to restore the default.
+
+Vector layers:
+${formatLayerList(vectorLayers())}`,
             inputSchema: {
                 type: 'object',
                 properties: {
@@ -132,7 +151,10 @@ Vector layers: ${vectorLayerIds().join(', ')}`,
 
         {
             name: 'reset_filter',
-            description: `Reset a layer's filter to its config default (the filter it had when the app loaded). If the layer had no default filter, this clears all filters. Use when the user asks to "reset to default", "restore original view", or "go back to how it was".\n\nVector layers: ${vectorLayerIds().join(', ')}`,
+            description: `Reset a layer's filter to its config default (the filter it had when the app loaded). If the layer had no default filter, this clears all filters. Use when the user asks to "reset to default", "restore original view", or "go back to how it was".
+
+Vector layers:
+${formatLayerList(vectorLayers())}`,
             inputSchema: {
                 type: 'object',
                 properties: {
@@ -155,7 +177,10 @@ Examples:
   Data-driven gradient: { "fill-color": ["interpolate", ["linear"], ["get", "PROP"], 0, "#low", 100, "#high"] }
   Stepped: { "fill-color": ["step", ["get", "PROP"], "#c1", 10, "#c2", 50, "#c3"] }
 
-Available layers: ${allLayerIds().join(', ')}`,
+${pickLayerNudge}
+
+Available layers:
+${formatLayerList(allLayers())}`,
             inputSchema: {
                 type: 'object',
                 properties: {
@@ -169,7 +194,10 @@ Available layers: ${allLayerIds().join(', ')}`,
 
         {
             name: 'reset_style',
-            description: `Reset a layer's style to its default appearance.\n\nAvailable layers: ${allLayerIds().join(', ')}`,
+            description: `Reset a layer's style to its default appearance.
+
+Available layers:
+${formatLayerList(allLayers())}`,
             inputSchema: {
                 type: 'object',
                 properties: {
@@ -233,7 +261,10 @@ Parameters:
 
 IMPORTANT: The sql must return only the id column — no extra columns. Write it as a plain SELECT, not wrapped in array_agg.
 
-Vector layers: ${vectorLayerIds().join(', ')}`,
+${pickLayerNudge}
+
+Vector layers:
+${formatLayerList(vectorLayers())}`,
             inputSchema: {
                 type: 'object',
                 properties: {

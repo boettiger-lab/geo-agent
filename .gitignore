@@ -61,3 +61,6 @@ duck.db
 
 # Superpowers brainstorming / mockups
 .superpowers/
+
+# Git worktrees
+.worktrees/
