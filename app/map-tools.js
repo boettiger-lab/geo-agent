@@ -277,9 +277,12 @@ ${formatLayerList(vectorLayers())}`,
             execute: async (args) => {
                 if (!mcpClient) return JSON.stringify({ success: false, error: 'MCP client not available' });
 
-                // Wrap user SQL to aggregate non-null IDs into a JSON array via DuckDB
+                // Wrap user SQL to aggregate non-null IDs into a JSON array via DuckDB.
+                // to_json() is required because DuckDB's native array display format
+                // (space-separated, no commas — e.g. "[ 1  2  3]") is not valid JSON,
+                // so without it the extractJsonArray() call below fails to parse.
                 const col = args.id_property;
-                const wrappedSql = `SELECT array_agg("${col}") FILTER (WHERE "${col}" IS NOT NULL) FROM (${args.sql}) _filter_subquery`;
+                const wrappedSql = `SELECT to_json(array_agg("${col}") FILTER (WHERE "${col}" IS NOT NULL)) AS ids FROM (${args.sql}) _filter_subquery`;
 
                 let rawResult;
                 try {
