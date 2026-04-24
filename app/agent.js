@@ -26,6 +26,7 @@ export class Agent {
         this.maxToolCalls = 20;
         this.autoApprove = config.auto_approve ?? false;
         this.sessionId = crypto.randomUUID();
+        this.abortController = null;
 
         // Event callbacks (set by chat-ui.js)
         this.onThinkingStart = () => { };
@@ -64,6 +65,14 @@ export class Agent {
     }
 
     /**
+     * Abort the in-flight turn, if any. Cancels the current LLM fetch
+     * and causes the agent loop to bail out at its next await point.
+     */
+    abort() {
+        this.abortController?.abort();
+    }
+
+    /**
      * Process a user message through the full agentic loop.
      *
      * Voice input is handled upstream in chat-ui.js via the Transcriber
@@ -76,6 +85,21 @@ export class Agent {
     async processMessage(userMessage) {
         // Track SQL queries for this turn
         const sqlQueries = [];
+
+        // Per-turn AbortController — triggered by abort() (user-pressed Stop)
+        // or by the 5-min timeout inside callLLM(). Either path rejects any
+        // outstanding await via the abortPromise race below.
+        this.abortController = new AbortController();
+        const signal = this.abortController.signal;
+        const abortPromise = new Promise((_, reject) => {
+            signal.addEventListener('abort', () => {
+                reject(new DOMException('Aborted', 'AbortError'));
+            });
+        });
+        // Silence "unhandled rejection" if abort fires while no withAbort() race is active
+        // (e.g. user stops during the LLM fetch, which owns the signal directly).
+        abortPromise.catch(() => {});
+        const withAbort = (p) => Promise.race([p, abortPromise]);
 
         this.messages.push({ role: 'user', content: userMessage });
 
@@ -93,10 +117,13 @@ export class Agent {
 
         let iterations = 0;
 
+        try {
         while (iterations < this.maxToolCalls) {
             this.onThinkingStart();
 
-            // Call LLM
+            // Call LLM — no withAbort wrapper: the shared AbortController's
+            // signal already reaches fetch, and wrapping would orphan the
+            // fetch's own AbortError rejection.
             let message;
             try {
                 message = await this.callLLM(endpoint, modelConfig, turnMessages, tools);
@@ -124,7 +151,7 @@ export class Agent {
                 let approved = true;
                 if (!allLocal && !this.autoApprove) {
                     // Show proposal and wait for approval
-                    const result = await this.onToolProposal(calls, displayContent, iterations);
+                    const result = await withAbort(this.onToolProposal(calls, displayContent, iterations));
                     approved = result.approved;
                 } else {
                     // Auto-approve: local tools always, remote tools when autoApprove is on
@@ -153,7 +180,7 @@ export class Agent {
                         continue;
                     }
 
-                    const execResult = await this.toolRegistry.execute(tc.function.name, args);
+                    const execResult = await withAbort(this.toolRegistry.execute(tc.function.name, args));
                     results.push(execResult);
 
                     // Track SQL queries
@@ -200,6 +227,12 @@ export class Agent {
             sqlQueries,
             cancelled: false
         };
+        } catch (err) {
+            if (err.name === 'AbortError') {
+                return { response: null, sqlQueries, cancelled: true };
+            }
+            throw err;
+        }
     }
 
     /**
@@ -214,8 +247,15 @@ export class Agent {
             user: this.sessionId,
         };
 
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 300000); // 5 min
+        // Share the turn-scoped controller so user-pressed Stop and the
+        // 5-min timeout both route through one abort path. timedOut lets
+        // us distinguish the two when the fetch rejects with AbortError.
+        const controller = this.abortController ?? new AbortController();
+        let timedOut = false;
+        const timeout = setTimeout(() => {
+            timedOut = true;
+            controller.abort();
+        }, 300000); // 5 min
 
         try {
             const response = await fetch(endpoint, {
@@ -236,7 +276,10 @@ export class Agent {
             const data = await response.json();
             return data.choices[0].message;
         } catch (error) {
-            if (error.name === 'AbortError') throw new Error('Request timed out after 5 minutes');
+            if (error.name === 'AbortError') {
+                if (timedOut) throw new Error('Request timed out after 5 minutes');
+                throw error; // user-pressed Stop — let AbortError propagate
+            }
             throw error;
         } finally {
             clearTimeout(timeout);
