@@ -46,8 +46,12 @@ export class ChatUI {
     /* ------------------------------------------------------------------ */
 
     init() {
-        // Wire send button & enter key
-        this.sendBtn.addEventListener('click', () => this.handleSend());
+        // Wire send button & enter key. Button doubles as Stop while busy;
+        // Enter simply no-ops while busy (handleSend guards).
+        this.sendBtn.addEventListener('click', () => {
+            if (this.busy) this.agent.abort();
+            else this.handleSend();
+        });
         this.inputEl.addEventListener('keydown', e => {
             if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
@@ -446,8 +450,16 @@ export class ChatUI {
         }
 
         this.busy = true;
-        this.sendBtn.disabled = true;
+        this.sendBtn.classList.add('stop');
+        this.sendBtn.textContent = '■';
+        this.sendBtn.title = 'Stop';
         this.inputEl.value = '';
+
+        // Esc anywhere on the page while busy → stop.
+        const escHandler = (e) => {
+            if (e.key === 'Escape') this.agent.abort();
+        };
+        document.addEventListener('keydown', escHandler);
 
         this.addMessage('user', text);
 
@@ -471,7 +483,10 @@ export class ChatUI {
                 : msg);
         } finally {
             this.busy = false;
-            this.sendBtn.disabled = false;
+            this.sendBtn.classList.remove('stop');
+            this.sendBtn.textContent = 'Send';
+            this.sendBtn.title = '';
+            document.removeEventListener('keydown', escHandler);
             this.inputEl.focus();
         }
     }
