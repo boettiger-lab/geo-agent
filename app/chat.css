@@ -178,6 +178,15 @@
     cursor: not-allowed;
 }
 
+#chat-send.stop {
+    background: #dc3545;
+    padding: 9px 18px;
+}
+
+#chat-send.stop:hover {
+    background: #c82333;
+}
+
 /* ── Voice input (exploratory) ──────────────────────────── */
 
 #chat-mic {
