@@ -32,6 +32,7 @@ async function main() {
         if (runtimeConfig.transcription_model) appConfig.transcription_model = runtimeConfig.transcription_model;
         if (runtimeConfig.mcp_server_url) appConfig.mcp_url = runtimeConfig.mcp_server_url;
         if (runtimeConfig.mcp_auth_token) appConfig.mcp_auth_token = runtimeConfig.mcp_auth_token;
+        if (runtimeConfig.catalog_token) appConfig.catalog_token = runtimeConfig.catalog_token;
         if (runtimeConfig.draw_enabled != null) appConfig.draw_enabled = runtimeConfig.draw_enabled;
     }
 
