@@ -17,6 +17,7 @@ export class DatasetCatalog {
         /** @type {Map<string, DatasetEntry>} keyed by collection ID */
         this.datasets = new Map();
         this.catalogUrl = null;
+        this.catalogToken = null;
         this.titilerUrl = null;
     }
 
@@ -31,6 +32,7 @@ export class DatasetCatalog {
     async load(appConfig) {
         this.appConfig = appConfig;
         this.catalogUrl = appConfig.catalog;
+        this.catalogToken = appConfig.catalog_token || null;
         this.titilerUrl = appConfig.titiler_url || 'https://titiler.nrp-nautilus.io';
 
         console.log('[Catalog] Loading STAC catalog:', this.catalogUrl);
