@@ -28,6 +28,12 @@
     display: none;
 }
 
+/* !important overrides any inline style.height set by the floating-resize
+   drag handle, so the container always shrinks to just the header. */
+#chat-container.collapsed {
+    height: auto !important;
+}
+
 /* ── Resize handle ──────────────────────────────────────── */
 
 .resize-handle {
