@@ -541,6 +541,27 @@ export class DatasetCatalog {
     }
 
     /**
+     * Build a STAC collection dict for inline forwarding to MCP.
+     *
+     * Returns the raw STAC JSON received during load(), with one level of
+     * resolved sub-collections embedded as `children: [...]` per the contract
+     * in mcp-data-server PR #107. Returns null if the dataset isn't in the
+     * catalog.
+     *
+     * @param {string} id - Collection ID
+     * @returns {Object|null}
+     */
+    toStacDict(id) {
+        const ds = this.datasets.get(id);
+        if (!ds || !ds._rawStac) return null;
+        const out = { ...ds._rawStac };
+        if (ds._rawChildren && ds._rawChildren.length > 0) {
+            out.children = ds._rawChildren;
+        }
+        return out;
+    }
+
+    /**
      * Generate a text summary of all datasets for injection into the LLM system prompt.
      *
      * Includes paths and map layer IDs — the "table of contents" for the app.
