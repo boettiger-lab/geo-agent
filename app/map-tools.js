@@ -338,11 +338,11 @@ ${formatLayerList(vectorLayers())}`,
                     });
                 }
                 try {
-                    // Forward catalog identity so MCP queries the app's STAC
-                    // rather than falling back to its built-in default.
-                    const mcpArgs = { dataset_id: args.dataset_id };
-                    if (catalog.catalogUrl) mcpArgs.catalog_url = catalog.catalogUrl;
-                    if (catalog.catalogToken) mcpArgs.catalog_token = catalog.catalogToken;
+                    // Forward the cached STAC content inline so MCP doesn't re-fetch
+                    // the catalog (matters for OAuth-walled deployments and saves a
+                    // round-trip in the common case). Requires mcp-data-server >= PR #107.
+                    const collection = catalog.toStacDict(args.dataset_id);
+                    const mcpArgs = { dataset_id: args.dataset_id, collection };
                     const raw = await mcpClient.callTool('get_stac_details', mcpArgs);
                     return typeof raw === 'string' ? raw : JSON.stringify(raw);
                 } catch (err) {
