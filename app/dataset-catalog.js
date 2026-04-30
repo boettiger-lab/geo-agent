@@ -142,6 +142,7 @@ export class DatasetCatalog {
         // sub-collections each with h3-parquet assets). Does NOT recurse further.
         const childLinks = (collection.links || []).filter(l => l.rel === 'child');
         let childIds = [];
+        const rawChildren = [];
         if (childLinks.length > 0) {
             const childResults = await Promise.allSettled(
                 childLinks.map(async (link) => {
@@ -157,6 +158,7 @@ export class DatasetCatalog {
             for (const r of childResults) {
                 if (r.status !== 'fulfilled' || !r.value) continue;
                 const child = r.value;
+                rawChildren.push(child);
                 if (child.id) childIds.push(child.id);
                 const childParquet = this.extractParquetAssets(child);
                 if (childParquet.length > 0) {
@@ -203,6 +205,10 @@ export class DatasetCatalog {
             // Raw STAC extent
             extent: collection.extent,
             summaries: collection.summaries || {},
+
+            // Raw STAC kept for inline forwarding to MCP (avoids a re-fetch).
+            _rawStac: collection,
+            _rawChildren: rawChildren.length > 0 ? rawChildren : null,
         };
 
         this.datasets.set(collection.id, entry);
