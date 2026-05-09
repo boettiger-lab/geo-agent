@@ -36,6 +36,7 @@ export class Agent {
         this.onToolResults = () => { };
         this.onResponse = () => { };
         this.onError = () => { };
+        this.onRetry = () => { };
     }
 
     /**
@@ -236,7 +237,9 @@ export class Agent {
     }
 
     /**
-     * Call the LLM API.
+     * Call the LLM API, with one auto-retry on transient errors (gateway 5xx,
+     * network blips, client-side timeout). The retry uses a tight 90s timeout
+     * so a still-dead model fails fast instead of burning another 5 minutes.
      */
     async callLLM(endpoint, modelConfig, messages, tools) {
         const payload = {
@@ -247,15 +250,40 @@ export class Agent {
             user: this.sessionId,
         };
 
-        // Share the turn-scoped controller so user-pressed Stop and the
-        // 5-min timeout both route through one abort path. timedOut lets
-        // us distinguish the two when the fetch rejects with AbortError.
-        const controller = this.abortController ?? new AbortController();
+        try {
+            return await this._attemptLLMCall(endpoint, modelConfig, payload, 300000);
+        } catch (error) {
+            if (!this._isTransientLLMError(error)) throw error;
+            if (this.abortController?.signal.aborted) throw error; // user-Stop, don't retry
+
+            console.warn('[Agent] Transient LLM error, retrying with 90s timeout:', error.message);
+            this.onRetry?.(error);
+
+            return await this._attemptLLMCall(endpoint, modelConfig, payload, 90000);
+        }
+    }
+
+    /**
+     * Single attempt of the LLM fetch. Uses a per-attempt internal AbortController
+     * so the timeout doesn't disturb the turn-level abortController (which the
+     * outer loop's withAbort race depends on). User-pressed Stop is forwarded
+     * from this.abortController to the internal controller.
+     */
+    async _attemptLLMCall(endpoint, modelConfig, payload, timeoutMs) {
+        const internal = new AbortController();
         let timedOut = false;
+
+        const userSignal = this.abortController?.signal;
+        const forwardAbort = () => internal.abort();
+        if (userSignal) {
+            if (userSignal.aborted) internal.abort();
+            else userSignal.addEventListener('abort', forwardAbort, { once: true });
+        }
+
         const timeout = setTimeout(() => {
             timedOut = true;
-            controller.abort();
-        }, 300000); // 5 min
+            internal.abort();
+        }, timeoutMs);
 
         try {
             const response = await fetch(endpoint, {
@@ -265,25 +293,45 @@ export class Agent {
                     'Authorization': `Bearer ${modelConfig.api_key}`,
                 },
                 body: JSON.stringify(payload),
-                signal: controller.signal,
+                signal: internal.signal,
             });
 
             if (!response.ok) {
                 const errorText = await response.text();
-                throw new Error(`LLM API error (${response.status}): ${errorText.substring(0, 200)}`);
+                const err = new Error(`LLM API error (${response.status}): ${errorText.substring(0, 200)}`);
+                err.status = response.status;
+                throw err;
             }
 
             const data = await response.json();
             return data.choices[0].message;
         } catch (error) {
             if (error.name === 'AbortError') {
-                if (timedOut) throw new Error('Request timed out after 5 minutes');
+                if (timedOut) {
+                    const err = new Error(`Request timed out after ${Math.round(timeoutMs / 1000)} seconds`);
+                    err.timedOut = true;
+                    throw err;
+                }
                 throw error; // user-pressed Stop — let AbortError propagate
             }
             throw error;
         } finally {
             clearTimeout(timeout);
+            userSignal?.removeEventListener('abort', forwardAbort);
         }
+    }
+
+    /**
+     * Classify an LLM error as transient (worth retrying) or permanent.
+     * Retry on: client timeout, network errors, HTTP 5xx.
+     * Skip on: user-pressed Stop (real AbortError), HTTP 4xx, anything else.
+     */
+    _isTransientLLMError(error) {
+        if (error.name === 'AbortError') return false;
+        if (error.timedOut) return true;
+        if (error.name === 'TypeError') return true;
+        if (typeof error.status === 'number' && error.status >= 500 && error.status < 600) return true;
+        return false;
     }
 
     /**
