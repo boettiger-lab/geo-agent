@@ -98,6 +98,10 @@ export class ChatUI {
         this.agent.onToolExecuting = (calls) => this.showToolExecuting(calls);
         this.agent.onToolResults = (results, iter) => this.showToolResults(results, iter);
         this.agent.onError = (err) => this.addMessage('error', err);
+        this.agent.onRetry = (err) => {
+            const reason = err?.timedOut ? 'timeout' : (err?.status ? `HTTP ${err.status}` : 'network error');
+            this.addMessage('system', `Transient ${reason} — retrying with shorter timeout...`);
+        };
 
         // Render welcome message if configured
         this.renderWelcome();
