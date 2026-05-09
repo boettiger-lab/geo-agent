@@ -24,7 +24,7 @@
  * @param {string} text
  * @returns {Array|null}
  */
-function extractJsonArray(text) {
+export function extractJsonArray(text) {
     const start = text.indexOf('[');
     const end = text.lastIndexOf(']');
     if (start === -1 || end === -1 || end <= start) return null;
