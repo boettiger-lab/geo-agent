@@ -28,6 +28,12 @@
     display: none;
 }
 
+/* !important overrides any inline style.height set by the floating-resize
+   drag handle, so the container always shrinks to just the header. */
+#chat-container.collapsed {
+    height: auto !important;
+}
+
 /* ── Resize handle ──────────────────────────────────────── */
 
 .resize-handle {
@@ -178,6 +184,15 @@
     cursor: not-allowed;
 }
 
+#chat-send.stop {
+    background: #dc3545;
+    padding: 9px 18px;
+}
+
+#chat-send.stop:hover {
+    background: #c82333;
+}
+
 /* ── Voice input (exploratory) ──────────────────────────── */
 
 #chat-mic {
@@ -256,22 +271,6 @@
     display: block;
 }
 
-/* ── Footer left: carbon link ───────────────────────────── */
-
-.carbon-link {
-    display: inline-flex;
-    align-items: center;
-    text-decoration: none;
-    color: rgba(34, 120, 60, 0.65);
-    opacity: 0.7;
-    transition: opacity 0.15s;
-    line-height: 1;
-}
-
-.carbon-link:hover {
-    opacity: 1;
-}
-
 /* Footer links (github, docs, carbon) live in #chat-footer's left zone. */
 #chat-footer .footer-link {
     display: inline-flex;
@@ -288,6 +287,20 @@
 #chat-footer .footer-link:hover {
     color: rgba(255, 255, 255, 1);
     background: rgba(255, 255, 255, 0.08);
+}
+
+/* ── Footer left: carbon (leaf) link ──────────────────────
+   Selector matches #chat-footer .footer-link's specificity so
+   the leaf stays green instead of inheriting the white default. */
+#chat-footer .footer-link.carbon-link {
+    color: #2e7d32;
+    opacity: 0.85;
+}
+
+#chat-footer .footer-link.carbon-link:hover {
+    color: #2e7d32;
+    opacity: 1;
+    background: rgba(46, 125, 50, 0.1);
 }
 
 #chat-footer .footer-link svg {

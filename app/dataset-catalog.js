@@ -17,6 +17,7 @@ export class DatasetCatalog {
         /** @type {Map<string, DatasetEntry>} keyed by collection ID */
         this.datasets = new Map();
         this.catalogUrl = null;
+        this.catalogToken = null;
         this.titilerUrl = null;
     }
 
@@ -31,6 +32,7 @@ export class DatasetCatalog {
     async load(appConfig) {
         this.appConfig = appConfig;
         this.catalogUrl = appConfig.catalog;
+        this.catalogToken = appConfig.catalog_token || null;
         this.titilerUrl = appConfig.titiler_url || 'https://titiler.nrp-nautilus.io';
 
         console.log('[Catalog] Loading STAC catalog:', this.catalogUrl);
@@ -140,6 +142,7 @@ export class DatasetCatalog {
         // sub-collections each with h3-parquet assets). Does NOT recurse further.
         const childLinks = (collection.links || []).filter(l => l.rel === 'child');
         let childIds = [];
+        const rawChildren = [];
         if (childLinks.length > 0) {
             const childResults = await Promise.allSettled(
                 childLinks.map(async (link) => {
@@ -155,6 +158,7 @@ export class DatasetCatalog {
             for (const r of childResults) {
                 if (r.status !== 'fulfilled' || !r.value) continue;
                 const child = r.value;
+                rawChildren.push(child);
                 if (child.id) childIds.push(child.id);
                 const childParquet = this.extractParquetAssets(child);
                 if (childParquet.length > 0) {
@@ -201,6 +205,10 @@ export class DatasetCatalog {
             // Raw STAC extent
             extent: collection.extent,
             summaries: collection.summaries || {},
+
+            // Raw STAC kept for inline forwarding to MCP (avoids a re-fetch).
+            _rawStac: collection,
+            _rawChildren: rawChildren.length > 0 ? rawChildren : null,
         };
 
         this.datasets.set(collection.id, entry);
@@ -530,6 +538,27 @@ export class DatasetCatalog {
      */
     getAll() {
         return [...this.datasets.values()];
+    }
+
+    /**
+     * Build a STAC collection dict for inline forwarding to MCP.
+     *
+     * Returns the raw STAC JSON received during load(), with one level of
+     * resolved sub-collections embedded as `children: [...]` per the contract
+     * in mcp-data-server PR #107. Returns null if the dataset isn't in the
+     * catalog.
+     *
+     * @param {string} id - Collection ID
+     * @returns {Object|null}
+     */
+    toStacDict(id) {
+        const ds = this.datasets.get(id);
+        if (!ds || !ds._rawStac) return null;
+        const out = { ...ds._rawStac };
+        if (ds._rawChildren && ds._rawChildren.length > 0) {
+            out.children = ds._rawChildren;
+        }
+        return out;
     }
 
     /**

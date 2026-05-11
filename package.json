@@ -3,14 +3,16 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage --coverage.reporter=text --coverage.include='app/**'",
     "docs:dev": "vitepress dev docs",
     "docs:build": "vitepress build docs",
-    "docs:preview": "vitepress preview docs",
-    "test": "vitest run",
-    "test:watch": "vitest"
+    "docs:preview": "vitepress preview docs"
   },
   "devDependencies": {
+    "@vitest/coverage-v8": "^2.1.9",
     "vitepress": "^1.6.3",
-    "vitest": "^4.1.4"
+    "vitest": "^2.1.9"
   }
 }
