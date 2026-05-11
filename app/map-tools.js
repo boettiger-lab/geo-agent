@@ -240,6 +240,90 @@ ${formatLayerList(allLayers())}`,
             execute: (args) => JSON.stringify(mapManager.flyTo(args)),
         },
 
+        // ---- Dynamic Hex Tile Layers ----
+        {
+            name: 'add_hex_tile_layer',
+            description: `Add a dynamic H3 hex tile layer to the map as an ADDITIVE overlay. Hex layers do not replace existing layers — they sit on top, and existing polygon/raster layers stay visible beneath. Use after calling the MCP \`register_hex_tiles\` tool, which returns a tile URL template + bounds + value columns + per-resolution value stats.
+
+Common use cases:
+  - Dense point data aggregated per hex (e.g. GBIF occurrence counts per h8 cell).
+  - Polygon datasets summarized per hex (e.g. feature count or average attribute).
+  - Pre-computed per-cell values (density rasters, model outputs).
+
+Flow:
+  1. Call \`register_hex_tiles\` (MCP) with SQL that returns (h3_index [, value1, ...]).
+  2. Pass its return fields directly into this tool — no extra min/max query needed; the server already computed \`value_stats\` per H3 resolution.
+
+Pass the following fields straight through from the register_hex_tiles return value:
+  - tile_url              ← tile_url_template
+  - value_column          ← one of value_columns (for agg="COUNT" this is "count")
+  - value_stats           ← value_stats[value_column]  (has { by_res: { "<res>": { min, max } } })
+  - bounds                ← bounds
+  - layer_name            ← layer_name (when present; defaults to "layer" otherwise)
+
+Hexes get finer as the user zooms in: the tile server's pyramid serves the appropriate H3 resolution for each zoom level automatically. If the user wants a coarser overall view, re-run \`register_hex_tiles\` with a smaller \`finest_res\`.
+
+IMPORTANT: The tile_url must be the exact tile_url_template returned by register_hex_tiles — the tool rejects other URLs.
+
+The returned layer_id can be used with show_layer / hide_layer / set_style / set_filter / get_map_state like any other vector layer, and with remove_hex_tile_layer to free the source.`,
+            inputSchema: {
+                type: 'object',
+                properties: {
+                    tile_url: { type: 'string', description: 'tile_url_template from register_hex_tiles' },
+                    value_column: { type: 'string', description: 'Which column from register_hex_tiles.value_columns to style by (e.g. "count" for agg=COUNT)' },
+                    value_stats: {
+                        type: 'object',
+                        description: 'Per-resolution stats for value_column — pass register_hex_tiles.value_stats[value_column] directly. Shape: { by_res: { "<res>": { min, max } } }.'
+                    },
+                    bounds: {
+                        type: 'array',
+                        items: { type: 'number' },
+                        description: '[w, s, e, n] from register_hex_tiles.bounds'
+                    },
+                    layer_name: { type: 'string', description: 'MVT source-layer name from register_hex_tiles.layer_name (defaults to "layer" when omitted)' },
+                    display_name: { type: 'string', description: 'Optional human-readable layer name (default: "Hex: <value_column>")' },
+                    palette: {
+                        type: 'string',
+                        enum: ['viridis', 'ylorrd', 'bluered'],
+                        description: 'Color ramp: viridis (sequential default), ylorrd (warm sequential), bluered (diverging)'
+                    },
+                    opacity: { type: 'number', description: 'Fill opacity 0..1 (default 0.7)' },
+                    fit_bounds: { type: 'boolean', description: 'Fly the camera to fit bounds (default true)' },
+                },
+                required: ['tile_url', 'value_column', 'value_stats', 'bounds'],
+            },
+            execute: (args) => {
+                const displayName = args.display_name || `Hex: ${args.value_column}`;
+                const result = mapManager.addHexTileLayer({
+                    tileUrl: args.tile_url,
+                    valueColumn: args.value_column,
+                    valueStats: args.value_stats,
+                    bounds: args.bounds,
+                    palette: args.palette || 'viridis',
+                    opacity: args.opacity ?? 0.7,
+                    displayName,
+                    fitBounds: args.fit_bounds !== false,
+                    layerName: args.layer_name,
+                });
+                return JSON.stringify(result);
+            },
+        },
+
+        {
+            name: 'remove_hex_tile_layer',
+            description: `Remove a dynamic hex tile layer previously added via add_hex_tile_layer. Takes a layer_id like "hex-<hash>". Refuses to touch non-hex layers (any id not starting with "hex-"), so curated layers are safe.
+
+Use when the agent is iterating — e.g. user asks to replace one hex analysis with another.`,
+            inputSchema: {
+                type: 'object',
+                properties: {
+                    layer_id: { type: 'string', description: 'Hex layer ID, starting with "hex-"' },
+                },
+                required: ['layer_id'],
+            },
+            execute: (args) => JSON.stringify(mapManager.removeHexTileLayer(args.layer_id)),
+        },
+
         // ---- Query-driven Filter Tool ----
         ...(mcpClient ? [{
             name: 'filter_by_query',
