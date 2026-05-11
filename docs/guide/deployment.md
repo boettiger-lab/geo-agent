@@ -43,30 +43,15 @@ kubectl rollout restart deployment/my-app
 
 ## CDN versioning
 
-All deployment options load the core library from jsDelivr. Pin to a tagged release for production stability:
+All deployment options load the core library from jsDelivr. **Always pin to a release tag** — `@main` is not supported for deployed apps because changes can land between page loads and break tooling/MCP-server contracts that the app depends on.
 
 ```html
-<!-- Pinned — immutable, recommended for production -->
+<!-- Pinned to a release tag — required for any deployed app -->
 <script type="module"
-  src="https://cdn.jsdelivr.net/gh/boettiger-lab/geo-agent@v3.2.0/app/main.js">
-</script>
-
-<!-- Latest main — use for staging/development -->
-<script type="module"
-  src="https://cdn.jsdelivr.net/gh/boettiger-lab/geo-agent@main/app/main.js">
+  src="https://cdn.jsdelivr.net/gh/boettiger-lab/geo-agent@v3.6.0/app/main.js">
 </script>
 ```
 
-To release a new version: create a GitHub release via `gh release create vX.Y.Z --target main`. Production apps upgrade by changing their tag in `index.html`.
+For short-lived demos previewing an in-flight feature branch, pin to a commit SHA (`@<40-char-sha>`); never use a branch name, since jsDelivr's branch-ref resolution is non-deterministic.
 
-::: tip jsDelivr cache
-jsDelivr caches `@main` aggressively. After merging to `main`, force a refresh by hitting the purge URLs:
-```
-https://purge.jsdelivr.net/gh/boettiger-lab/geo-agent@main/app/main.js
-https://purge.jsdelivr.net/gh/boettiger-lab/geo-agent@main/app/chat-ui.js
-https://purge.jsdelivr.net/gh/boettiger-lab/geo-agent@main/app/style.css
-https://purge.jsdelivr.net/gh/boettiger-lab/geo-agent@main/app/chat.css
-https://purge.jsdelivr.net/gh/boettiger-lab/geo-agent@main/app/sidebar.css
-https://purge.jsdelivr.net/gh/boettiger-lab/geo-agent@main/app/layout-manager.js
-```
-:::
+To release a new version: create a GitHub release via `gh release create vX.Y.Z --target main --generate-notes`. Apps upgrade by changing their tag in `index.html` (coordinated through the geo-agent-ops repo for in-house apps).

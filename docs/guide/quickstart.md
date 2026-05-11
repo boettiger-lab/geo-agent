@@ -35,15 +35,15 @@ The HTML shell loads core JS/CSS from the CDN. The `<body>` only needs two place
 <head>
   <meta charset="utf-8">
   <title>My Map App</title>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/boettiger-lab/geo-agent@v3.2.0/app/style.css">
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/boettiger-lab/geo-agent@v3.2.0/app/chat.css">
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/boettiger-lab/geo-agent@v3.2.0/app/sidebar.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/boettiger-lab/geo-agent@v3.6.0/app/style.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/boettiger-lab/geo-agent@v3.6.0/app/chat.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/boettiger-lab/geo-agent@v3.6.0/app/sidebar.css">
 </head>
 <body>
   <div id="map"></div>
   <div id="menu"></div>
   <script type="module"
-    src="https://cdn.jsdelivr.net/gh/boettiger-lab/geo-agent@v3.2.0/app/main.js">
+    src="https://cdn.jsdelivr.net/gh/boettiger-lab/geo-agent@v3.6.0/app/main.js">
   </script>
 </body>
 </html>
@@ -55,8 +55,10 @@ The HTML shell loads core JS/CSS from the CDN. The `<body>` only needs two place
 
 | CDN reference | When to use |
 |---|---|
-| `@v3.2.0` | Production — pinned, immutable |
-| `@main` | Staging/dev — always latest |
+| `@vX.Y.Z` (e.g. `@v3.6.0`) | Every deployed app — pinned, immutable |
+| `@<40-char-commit-sha>` | Short-lived demo of an in-flight feature branch |
+
+`@main` is **not** used by deployed apps: a merge to `main` can change behavior under a running page, and tooling/MCP contracts evolve between releases. Bump the pin deliberately, never implicitly.
 
 ## layers-input.json
 
