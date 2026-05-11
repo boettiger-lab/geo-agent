@@ -106,9 +106,31 @@ describe('MapManager.addHexTileLayer', () => {
         expect(mm.map._layers.get('hex-nolayer')['source-layer']).toBe('layer');
     });
 
-    it('filters to the requested H3 resolution', () => {
+    it('does not apply a client-side res filter — server pyramid decides per zoom', () => {
+        // Regression: previously we filtered to a single H3 resolution, which
+        // hid every tile whose server-chosen target_res differed from finest_res.
         const result = mm.addHexTileLayer({
-            tileUrl: 'https://example.com/tiles/hex/resfilter/{z}/{x}/{y}.pbf',
+            tileUrl: 'https://example.com/tiles/hex/nofilter/{z}/{x}/{y}.pbf',
+            valueColumn: 'count',
+            valueStats: { by_res: { '3': { min: 1, max: 1000 }, '6': { min: 1, max: 50 }, '8': { min: 1, max: 1 } } },
+            bounds: [0, 0, 1, 1],
+            palette: 'viridis',
+            opacity: 0.7,
+            displayName: 'X',
+            fitBounds: false,
+        });
+        expect(result.success).toBe(true);
+        const layer = mm.map._layers.get('hex-nofilter');
+        expect(layer.filter).toBeUndefined();
+        expect(mm.layers.get('hex-nofilter').filter).toBeNull();
+        expect(mm.layers.get('hex-nofilter').defaultFilter).toBeNull();
+    });
+
+    it('still validates a caller-supplied resolution against value_stats.by_res', () => {
+        // The resolution arg is preserved for forward compatibility (a future
+        // tile-URL ?res=N override); the validation guards against typos.
+        const result = mm.addHexTileLayer({
+            tileUrl: 'https://example.com/tiles/hex/resvalid/{z}/{x}/{y}.pbf',
             valueColumn: 'count',
             valueStats: { by_res: { '5': { min: 1, max: 100 }, '8': { min: 1, max: 1 } } },
             bounds: [0, 0, 1, 1],
@@ -119,28 +141,8 @@ describe('MapManager.addHexTileLayer', () => {
             resolution: 5,
         });
         expect(result.success).toBe(true);
-        expect(result.resolution).toBe(5);
-        const layer = mm.map._layers.get('hex-resfilter');
-        expect(layer.filter).toEqual(['==', ['get', 'res'], 5]);
-        expect(mm.layers.get('hex-resfilter').filter).toEqual(['==', ['get', 'res'], 5]);
-    });
-
-    it('defaults resolution to the finest available when omitted', () => {
-        const result = mm.addHexTileLayer({
-            tileUrl: 'https://example.com/tiles/hex/finest/{z}/{x}/{y}.pbf',
-            valueColumn: 'count',
-            valueStats: { by_res: { '3': { min: 1, max: 1000 }, '6': { min: 1, max: 50 }, '8': { min: 1, max: 1 } } },
-            bounds: [0, 0, 1, 1],
-            palette: 'viridis',
-            opacity: 0.7,
-            displayName: 'X',
-            fitBounds: false,
-        });
-        expect(result.success).toBe(true);
-        // Finest = highest resolution number = 8
-        expect(result.resolution).toBe(8);
-        const layer = mm.map._layers.get('hex-finest');
-        expect(layer.filter).toEqual(['==', ['get', 'res'], 8]);
+        const layer = mm.map._layers.get('hex-resvalid');
+        expect(layer.filter).toBeUndefined();
     });
 
     it('rejects a resolution not present in value_stats.by_res', () => {

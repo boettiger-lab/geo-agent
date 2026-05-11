@@ -261,7 +261,7 @@ Pass the following fields straight through from the register_hex_tiles return va
   - bounds                ← bounds
   - layer_name            ← layer_name (when present; defaults to "layer" otherwise)
 
-**Resolution (important):** the tile pyramid holds hexes at multiple H3 resolutions, but the map renders ONE at a time — hexes do not change size as the user zooms. If the user names a target H3 resolution (e.g. "show at h6", "resolution 7"), pass it as \`resolution\`. Otherwise it defaults to the finest (highest) resolution present in \`value_stats.by_res\`. To show a coarser view, either specify \`resolution\` or call \`register_hex_tiles\` with \`min_res == finest_res\`.
+Hexes get finer as the user zooms in: the tile server's pyramid serves the appropriate H3 resolution for each zoom level automatically. If the user wants a coarser overall view, re-run \`register_hex_tiles\` with a smaller \`finest_res\`.
 
 IMPORTANT: The tile_url must be the exact tile_url_template returned by register_hex_tiles — the tool rejects other URLs.
 
@@ -279,10 +279,6 @@ The returned layer_id can be used with show_layer / hide_layer / set_style / set
                         type: 'array',
                         items: { type: 'number' },
                         description: '[w, s, e, n] from register_hex_tiles.bounds'
-                    },
-                    resolution: {
-                        type: 'integer',
-                        description: 'H3 resolution to render (must be a key in value_stats.by_res). Defaults to the finest available. The layer is filtered to this single resolution so hexes do not change size as the user zooms.'
                     },
                     layer_name: { type: 'string', description: 'MVT source-layer name from register_hex_tiles.layer_name (defaults to "layer" when omitted)' },
                     display_name: { type: 'string', description: 'Optional human-readable layer name (default: "Hex: <value_column>")' },
@@ -308,7 +304,6 @@ The returned layer_id can be used with show_layer / hide_layer / set_style / set
                     displayName,
                     fitBounds: args.fit_bounds !== false,
                     layerName: args.layer_name,
-                    resolution: args.resolution,
                 });
                 return JSON.stringify(result);
             },
