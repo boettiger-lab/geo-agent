@@ -115,3 +115,26 @@ All downstream apps serve a static HTML file that loads app code from jsDelivr, 
 - Create a local `app/config.json` with LLM model configs for development
 - `config.json` is in `.gitignore` — never committed (contains API keys)
 
+## Testing
+
+- `npm test` runs the suite; `npm run test:coverage` prints a per-module coverage table.
+- Tests live in `test/`; CI runs them on every PR (`.github/workflows/test.yml`).
+- The test runner is [vitest](https://vitest.dev/). Browser-bound modules are not in jsdom — they're left to manual verification in deployed apps.
+
+### Module coverage status
+
+When a PR touches a covered module, expect tests to change too. When it touches an uncovered one, verify by hand on a representative downstream app.
+
+| Module | Coverage | What changes here should be tested |
+|---|---:|---|
+| `app/transcriber.js` | 100% | `test/transcriber.test.js` — endpoint resolution, error paths, abort signal |
+| `app/mcp-client.js` | 99% | `test/mcp-client.test.js` — connect / reconnect / callTool retry / resources / prompts |
+| `app/tool-registry.js` | 98% | `test/tool-registry.test.js` — registration, dispatch, argsRewriter, schema cleaning |
+| `app/map-tools.js` | 98% | `test/map-tools.test.js` — local-tool execute paths, get_schema MCP delegate |
+| `app/dataset-catalog.js` | 89% | `test/dataset-catalog.test.js` — STAC parsing, layer config shape, prompt rendering |
+| `app/agent.js` | 48% | `test/agent-retry.test.js` — retry / abort / timeout. The conversation loop is uncovered (tested manually). |
+| `app/main.js` | 0% | Bootstrap — verify by loading the app locally. |
+| `app/chat-ui.js`, `app/map-manager.js`, `app/layout-manager.js`, `app/map-draw.js`, `app/h3geo.js`, `app/animation-manager.js`, `app/voice-input.js` | 0% | Browser-bound (DOM, MapLibre, MediaRecorder). Verify visually in a deployed app — no harness yet. |
+
+Overall line coverage is reported on each PR via the coverage workflow.
+

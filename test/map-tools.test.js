@@ -129,6 +129,90 @@ describe('filter_by_query', () => {
     });
 });
 
+describe('list_datasets', () => {
+    it('returns the catalog ids and titles', () => {
+        const stubMapManager = { getLayerSummaries: () => [], setFilter: () => ({}) };
+        const stubCatalog = {
+            records: new Map(),
+            getAll: () => [
+                { id: 'a', title: 'Alpha' },
+                { id: 'b', title: 'Bravo' },
+            ],
+        };
+        const tools = createMapTools(stubMapManager, stubCatalog);
+        const tool = tools.find(t => t.name === 'list_datasets');
+        const result = JSON.parse(tool.execute());
+        expect(result.success).toBe(true);
+        expect(result.datasets).toEqual([
+            { id: 'a', title: 'Alpha' },
+            { id: 'b', title: 'Bravo' },
+        ]);
+    });
+});
+
+describe('set_projection', () => {
+    it('forwards the requested type to mapManager.setProjection', () => {
+        const calls = [];
+        const stubMapManager = {
+            getLayerSummaries: () => [], setFilter: () => ({}),
+            setProjection: (t) => { calls.push(t); },
+        };
+        const tools = createMapTools(stubMapManager, { records: new Map() });
+        const tool = tools.find(t => t.name === 'set_projection');
+        const result = JSON.parse(tool.execute({ type: 'globe' }));
+        expect(calls).toEqual(['globe']);
+        expect(result.projection).toBe('globe');
+    });
+});
+
+describe('get_schema MCP delegate', () => {
+    const stubMap = { getLayerSummaries: () => [], setFilter: () => ({}) };
+
+    const stubCatalog = (rawStac) => ({
+        records: new Map(),
+        get: (id) => (id === 'demo' ? { id: 'demo' } : null),
+        getIds: () => ['demo'],
+        toStacDict: (id) => (id === 'demo' ? rawStac : null),
+    });
+
+    it('forwards { dataset_id, collection } inline to MCP and returns the result', async () => {
+        const inline = { id: 'demo', stac_version: '1.0.0' };
+        const callTool = vi.fn(async () => 'schema-text');
+        const tools = createMapTools(stubMap, stubCatalog(inline), { callTool });
+        const tool = tools.find(t => t.name === 'get_schema');
+
+        const out = await tool.execute({ dataset_id: 'demo' });
+
+        expect(out).toBe('schema-text');
+        expect(callTool).toHaveBeenCalledWith('get_stac_details', { dataset_id: 'demo', collection: inline });
+    });
+
+    it('returns a structured error when the dataset is not in the catalog', async () => {
+        const tools = createMapTools(stubMap, stubCatalog({}), { callTool: vi.fn() });
+        const tool = tools.find(t => t.name === 'get_schema');
+        const result = JSON.parse(await tool.execute({ dataset_id: 'absent' }));
+        expect(result.success).toBe(false);
+        expect(result.error).toMatch(/not found/i);
+    });
+
+    it('returns a structured error when MCP throws', async () => {
+        const callTool = vi.fn(async () => { throw new Error('mcp down'); });
+        const tools = createMapTools(stubMap, stubCatalog({ id: 'demo' }), { callTool });
+        const tool = tools.find(t => t.name === 'get_schema');
+        const result = JSON.parse(await tool.execute({ dataset_id: 'demo' }));
+        expect(result.success).toBe(false);
+        expect(result.error).toMatch(/mcp down/);
+    });
+
+    it('returns a structured error when no MCP client is configured', async () => {
+        const tools = createMapTools(stubMap, stubCatalog({ id: 'demo' }));
+        const tool = tools.find(t => t.name === 'get_schema');
+        const result = JSON.parse(await tool.execute({ dataset_id: 'demo' }));
+        expect(result.success).toBe(false);
+        expect(result.error).toMatch(/unavailable/i);
+    });
+});
+
 describe('createMapTools smoke test', () => {
     const stubMapManager = {
         getLayerSummaries: () => [],

@@ -391,6 +391,62 @@ describe('DatasetCatalog.extractMapLayers', () => {
         ]);
         expect(layers).toEqual([]);
     });
+
+    it('extracts a GeoJSON asset (by content type) as a vector layer with sourceType=geojson', () => {
+        const layers = cat.extractMapLayers(collectionWithAssets({
+            tracks: { type: 'application/geo+json', href: 'https://x/tracks.geojson' },
+        }), {}, [{ key: 'tracks', assetId: 'tracks', config: {} }]);
+        expect(layers[0].layerType).toBe('vector');
+        expect(layers[0].sourceType).toBe('geojson');
+        expect(layers[0].url).toBe('https://x/tracks.geojson');
+    });
+
+    it('extracts a GeoJSON asset (by .geojson href fallback) when type is missing', () => {
+        const layers = cat.extractMapLayers(collectionWithAssets({
+            tracks: { href: 'https://x/tracks.geojson' },
+        }), {}, [{ key: 'tracks', assetId: 'tracks', config: {} }]);
+        expect(layers[0].sourceType).toBe('geojson');
+    });
+
+    it('versioned config supports raster versions with classification:classes', () => {
+        const layers = cat.extractMapLayers(collectionWithAssets({
+            v2020: {
+                type: 'image/tiff; application=geotiff',
+                href: 'https://x/2020.tif',
+                'raster:bands': [{ 'classification:classes': [{ value: 1 }] }],
+            },
+            v2021: {
+                type: 'image/tiff; application=geotiff',
+                href: 'https://x/2021.tif',
+                'raster:bands': [{ nodata: 0 }],
+            },
+        }), {}, [{
+            key: 'lc',
+            assetId: 'lc',
+            config: {
+                versions: [
+                    { label: '2020', asset_id: 'v2020' },
+                    { label: '2021', asset_id: 'v2021' },
+                ],
+            },
+        }]);
+        expect(layers).toHaveLength(1);
+        expect(layers[0].versions[0].layerType).toBe('raster');
+        expect(layers[0].versions[0].legendClasses).toEqual([{ value: 1 }]);
+        expect(layers[0].versions[1].nodata).toBe(0);
+    });
+
+    it('versioned config supports geojson versions', () => {
+        const layers = cat.extractMapLayers(collectionWithAssets({
+            v1: { type: 'application/geo+json', href: 'https://x/v1.geojson' },
+        }), {}, [{
+            key: 'tracks',
+            assetId: 'tracks',
+            config: { versions: [{ label: 'v1', asset_id: 'v1' }] },
+        }]);
+        expect(layers[0].versions[0].sourceType).toBe('geojson');
+        expect(layers[0].versions[0].layerType).toBe('vector');
+    });
 });
 
 describe('DatasetCatalog.getMapLayerConfigs', () => {
@@ -445,6 +501,56 @@ describe('DatasetCatalog.getMapLayerConfigs', () => {
         expect(tile).toContain('https://titiler.example/cog/tiles');
         expect(tile).toContain('colormap_name=viridis');
         expect(tile).toContain('rescale=0,100');
+    });
+
+    it('flattens a vector geojson layer into a geojson source (no pmtiles:// prefix)', () => {
+        cat.datasets.set('demo', {
+            id: 'demo', title: 'Demo', columns: [],
+            mapLayers: [{
+                assetId: 'tracks', layerType: 'vector', sourceType: 'geojson',
+                title: 'Tracks', url: 'https://x/t.geojson',
+            }],
+        });
+        const [c] = cat.getMapLayerConfigs();
+        expect(c.source).toEqual({ type: 'geojson', data: 'https://x/t.geojson' });
+        expect(c.tracksUrl).toBe('https://x/t.geojson');
+    });
+
+    it('emits per-version configs for a versioned vector layer (one entry, versions[] populated)', () => {
+        cat.datasets.set('vd', {
+            id: 'vd', title: 'V', columns: [],
+            mapLayers: [{
+                assetId: 'basins', layerType: 'vector', title: 'Watersheds',
+                versions: [
+                    { label: 'L3', assetId: 'l3', layerType: 'vector', url: 'https://x/l3.pmtiles', sourceLayer: 'l3' },
+                    { label: 'L4', assetId: 'l4', layerType: 'vector', url: 'https://x/l4.pmtiles', sourceLayer: 'l4' },
+                ],
+                defaultVersionIndex: 1,
+            }],
+        });
+        const [c] = cat.getMapLayerConfigs();
+        expect(c.versions).toHaveLength(2);
+        expect(c.versions[0]).toMatchObject({ label: 'L3', type: 'vector' });
+        expect(c.versions[0].source.url).toBe('pmtiles://https://x/l3.pmtiles');
+        expect(c.defaultVersionIndex).toBe(1);
+    });
+
+    it('emits per-version configs for a versioned raster layer with TiTiler URLs', () => {
+        cat.titilerUrl = 'https://titiler.example';
+        cat.datasets.set('vr', {
+            id: 'vr', title: 'V', columns: [],
+            mapLayers: [{
+                assetId: 'lc', layerType: 'raster', title: 'Landcover',
+                colormap: 'viridis',
+                versions: [
+                    { label: '2020', assetId: 'v2020', layerType: 'raster', cogUrl: 'https://x/2020.tif' },
+                ],
+                defaultVersionIndex: 0,
+            }],
+        });
+        const [c] = cat.getMapLayerConfigs();
+        expect(c.versions[0].type).toBe('raster');
+        expect(c.versions[0].source.tiles[0]).toContain('colormap_name=viridis');
     });
 
     it('emits an inline colormap JSON for categorical raster layers from classification:classes', () => {
