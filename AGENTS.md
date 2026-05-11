@@ -8,7 +8,7 @@ Core library for map-based applications with LLM-powered data analysis. Interact
 - **Data**: STAC catalog → unified dataset records with visual + parquet assets
 - **Analytics**: SQL queries via MCP (Model Context Protocol) to DuckDB on H3-indexed parquet
 - **LLM**: OpenAI-compatible Chat Completions API (multiple models via proxy)
-- **Deployment**: App JS/CSS is loaded from jsDelivr CDN (`@main` or a pinned tag). Downstream apps only need a static HTML file — see the [geo-agent-template](https://github.com/boettiger-lab/geo-agent-template) repo.
+- **Deployment**: App JS/CSS is loaded from jsDelivr CDN. **Every downstream app pins a version tag or commit SHA** — `@main` is no longer used in production or demos. Downstream apps only need a static HTML file — see the [geo-agent-template](https://github.com/boettiger-lab/geo-agent-template) repo.
 
 ## Architecture (app/ modules)
 - `main.js` — Bootstrap: loads config, initializes catalog → map → tools → agent → UI
@@ -97,18 +97,19 @@ The `main` branch is protected: **direct pushes are rejected**. All changes must
 
 ## Deployment
 
-Changes merged to `main` are picked up automatically by downstream apps via jsDelivr CDN — no restarts needed. jsDelivr caches `@main` aggressively; to force immediate refresh, purge the affected files:
+Downstream apps pin a specific jsDelivr ref — either a release tag (`@vX.Y.Z`, preferred) or a commit SHA. `@main` is **not** used by any deployed app; merging a PR here does *not* propagate to downstream apps until those apps bump their pin. Coordinating that bump across the fleet is the job of the private [geo-agent-ops](https://github.com/boettiger-lab/geo-agent-ops) repo.
 
-```
-https://purge.jsdelivr.net/gh/boettiger-lab/geo-agent@main/app/main.js
-https://purge.jsdelivr.net/gh/boettiger-lab/geo-agent@main/app/chat-ui.js
-https://purge.jsdelivr.net/gh/boettiger-lab/geo-agent@main/app/chat.css
-```
+**Release flow:**
+1. Merge feature PRs to `main` here.
+2. Cut a release with `gh release create vX.Y.Z --target main --generate-notes` (or edit notes for migration-relevant changes).
+3. geo-agent-ops opens PRs against each downstream app to bump its pin.
+
+Because every consumer is pinned, `jsdelivr.net` cache purges are normally unnecessary; the only situation that needs them is a SHA-pinned demo where a force-push rewrote the SHA's content (don't do this).
 
 **Live deployments:**
-- [boettiger-lab/geo-agent-template](https://github.com/boettiger-lab/geo-agent-template) → canonical starting point for new apps; deployed to GitHub Pages as live demo
+- [boettiger-lab/geo-agent-template](https://github.com/boettiger-lab/geo-agent-template) → canonical starting point for new apps; deployed to GitHub Pages as live demo (pinned to a tag).
 
-All downstream apps serve a static HTML file that loads app code from jsDelivr, so a `kubectl rollout restart` is not required after merging changes here.
+All downstream apps serve a static HTML file that loads app code from jsDelivr, so a `kubectl rollout restart` is not required when a downstream app bumps its pin.
 
 ## Development
 - Local: `cd app && python -m http.server 8000`
