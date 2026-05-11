@@ -261,7 +261,7 @@ Pass the following fields straight through from the register_hex_tiles return va
   - bounds                ← bounds
   - layer_name            ← layer_name (when present; defaults to "layer" otherwise)
 
-Hexes get finer as the user zooms in: the tile server's pyramid serves the appropriate H3 resolution for each zoom level automatically. If the user wants a coarser overall view, re-run \`register_hex_tiles\` with a smaller \`finest_res\`.
+Hexes get finer as the user zooms in: the tile server's pyramid serves the appropriate H3 resolution for each zoom level automatically. If the user wants a coarser overall view, re-run \`register_hex_tiles\` with the SQL projected to a coarser resolution by wrapping the first column in \`h3_cell_to_parent(<h3_col>, <target_res>)\` — the server auto-detects the H3 resolution from that column.
 
 IMPORTANT: The tile_url must be the exact tile_url_template returned by register_hex_tiles — the tool rejects other URLs.
 
