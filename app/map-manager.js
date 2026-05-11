@@ -12,6 +12,8 @@
  * No knowledge of LLMs, tools, or chat — pure map operations.
  */
 
+import { extractHashFromUrl, buildFillColorExpression } from './hex-layer-helpers.js';
+
 const BASEMAPS = {
     natgeo: {
         source: {
@@ -459,6 +461,159 @@ export class MapManager {
         if (state.outlineLayerId) this.map.setLayoutProperty(state.outlineLayerId, 'visibility', 'none');
         if (state.type === 'raster') this._hideRasterLegend(layerId);
         return { success: true, layer: layerId, displayName: state.displayName, visible: false };
+    }
+
+    // ---- Hex Tile Layers (dynamic MVT from MCP register_hex_tiles) ----
+
+    /**
+     * Add a dynamic H3 hex MVT source + fill layer from an MCP tile URL template.
+     *
+     * See docs/superpowers/specs/2026-04-16-add-hex-tile-layer-design.md for the
+     * full contract. Idempotent by hash: re-adding a URL whose hash is already
+     * registered returns {already_exists: true} without mutating the map.
+     *
+     * @param {Object} opts
+     * @param {string} opts.tileUrl - from register_hex_tiles.tile_url_template
+     * @param {string} opts.valueColumn - which column to color by
+     * @param {{by_res: Object<string,{min:number,max:number}>}} opts.valueStats -
+     *   from register_hex_tiles.value_stats[valueColumn]
+     * @param {[number, number, number, number]} opts.bounds - [w,s,e,n]
+     * @param {string} opts.palette - one of PALETTES keys
+     * @param {number} opts.opacity - 0..1
+     * @param {string} opts.displayName
+     * @param {boolean} opts.fitBounds - call map.fitBounds after adding
+     * @param {string} [opts.layerName] - MVT source-layer name from register_hex_tiles.
+     *   Defaults to 'layer' (current mcp-data-server default).
+     * @param {number} [opts.resolution] - H3 resolution to render. Must be a key in
+     *   valueStats.by_res. Defaults to the finest (highest) resolution present.
+     *   Currently informational only — the server pyramid chooses one resolution
+     *   per tile from zoom, so we don't apply a client-side `res` filter. Kept on
+     *   the surface for forward compatibility with a future tile-URL `?res=N`
+     *   override.
+     * @returns {{success: boolean, layer_id?: string, error?: string}}
+     */
+    addHexTileLayer(opts) {
+        const { tileUrl, valueColumn, valueStats, bounds, palette, opacity, displayName, fitBounds, layerName, resolution } = opts;
+        const sourceLayer = layerName || 'layer';
+
+        const hash = extractHashFromUrl(tileUrl);
+        if (!hash) {
+            return { success: false, error: `Invalid tile_url — expected template from register_hex_tiles ending in /tiles/hex/<hash>/{z}/{x}/{y}.pbf` };
+        }
+        const layerId = `hex-${hash}`;
+
+        // Idempotency: same URL → same layer → no re-add
+        if (this.layers.has(layerId)) {
+            const state = this.layers.get(layerId);
+            return {
+                success: true,
+                layer_id: layerId,
+                display_name: state.displayName,
+                value_column: valueColumn,
+                bounds,
+                already_exists: true,
+                message: 'Layer already registered. Use remove_hex_tile_layer first to re-add with different styling.',
+            };
+        }
+
+        const availableRes = Object.keys(valueStats?.by_res || {}).map(Number).sort((a, b) => a - b);
+        if (availableRes.length === 0) {
+            return { success: false, error: 'value_stats.by_res must contain at least one resolution' };
+        }
+        if (resolution != null && !availableRes.includes(Number(resolution))) {
+            return { success: false, error: `resolution ${resolution} not in value_stats.by_res — available: ${availableRes.join(', ')}` };
+        }
+
+        let fillColor;
+        try {
+            fillColor = buildFillColorExpression(valueColumn, valueStats, palette);
+        } catch (err) {
+            return { success: false, error: err.message };
+        }
+
+        const paint = {
+            'fill-color': fillColor,
+            'fill-opacity': opacity,
+            'fill-outline-color': 'rgba(0,0,0,0.15)',
+        };
+
+        // No filter on `res`: the server pyramid serves one resolution per
+        // tile keyed off zoom (target_res = clamp(z + zoom_offset, min_res,
+        // finest_res)). A client-side `res == N` filter would discard every
+        // tile that doesn't already happen to carry resolution N — empty
+        // render at most zoom levels. Let MapLibre render whatever the tile
+        // contains; buildFillColorExpression's per-res `match` picks the
+        // right branch for each tile's resolution.
+        this.map.addSource(layerId, { type: 'vector', tiles: [tileUrl], minzoom: 0, maxzoom: 14 });
+        this.map.addLayer({
+            id: layerId,
+            type: 'fill',
+            source: layerId,
+            'source-layer': sourceLayer,
+            layout: { visibility: 'visible' },
+            paint,
+        });
+
+        this.layers.set(layerId, {
+            layerId,
+            mapLayerId: layerId,
+            outlineLayerId: null,
+            sourceId: layerId,
+            datasetId: null,
+            group: null,
+            groupCollapsed: false,
+            displayName,
+            type: 'vector',
+            sourceLayer,
+            columns: [],
+            visible: true,
+            filter: null,
+            defaultFilter: null,
+            defaultPaint: { ...paint },
+            tooltipFields: null,
+            colormap: null,
+            rescale: null,
+            legendLabel: null,
+            legendType: null,
+            legendClasses: null,
+        });
+
+        if (fitBounds && Array.isArray(bounds) && bounds.length === 4) {
+            const [w, s, e, n] = bounds;
+            this.map.fitBounds([[w, s], [e, n]], { padding: 40, duration: 800 });
+        }
+
+        return {
+            success: true,
+            layer_id: layerId,
+            display_name: displayName,
+            value_column: valueColumn,
+            bounds,
+            already_exists: false,
+        };
+    }
+
+    /**
+     * Remove a dynamic hex tile layer previously added via addHexTileLayer.
+     *
+     * Refuses any layer_id not starting with `hex-` so curated layers can't
+     * be accidentally destroyed.
+     *
+     * @param {string} layerId - e.g. "hex-abc123"
+     * @returns {{success: boolean, layer_id?: string, error?: string}}
+     */
+    removeHexTileLayer(layerId) {
+        if (typeof layerId !== 'string' || !layerId.startsWith('hex-')) {
+            return { success: false, error: `layer_id '${layerId}' is not a hex layer (must start with 'hex-')` };
+        }
+        if (!this.layers.has(layerId)) {
+            const hexLayers = [...this.layers.keys()].filter(id => id.startsWith('hex-'));
+            return { success: false, error: `Unknown hex layer '${layerId}'. Registered: [${hexLayers.join(', ')}]` };
+        }
+        this.map.removeLayer(layerId);
+        this.map.removeSource(layerId);
+        this.layers.delete(layerId);
+        return { success: true, layer_id: layerId };
     }
 
     // ---- Filtering (vector layers only) ----

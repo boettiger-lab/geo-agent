@@ -224,12 +224,14 @@ describe('createMapTools smoke test', () => {
         const tools = createMapTools(stubMapManager, stubCatalog);
         const names = tools.map(t => t.name).sort();
         expect(names).toEqual([
+            'add_hex_tile_layer',
             'clear_filter',
             'fly_to',
             'get_map_state',
             'get_schema',
             'hide_layer',
             'list_datasets',
+            'remove_hex_tile_layer',
             'reset_filter',
             'reset_style',
             'set_filter',
