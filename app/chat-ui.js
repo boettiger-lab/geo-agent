@@ -46,8 +46,12 @@ export class ChatUI {
     /* ------------------------------------------------------------------ */
 
     init() {
-        // Wire send button & enter key
-        this.sendBtn.addEventListener('click', () => this.handleSend());
+        // Wire send button & enter key. Button doubles as Stop while busy;
+        // Enter simply no-ops while busy (handleSend guards).
+        this.sendBtn.addEventListener('click', () => {
+            if (this.busy) this.agent.abort();
+            else this.handleSend();
+        });
         this.inputEl.addEventListener('keydown', e => {
             if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
@@ -94,6 +98,10 @@ export class ChatUI {
         this.agent.onToolExecuting = (calls) => this.showToolExecuting(calls);
         this.agent.onToolResults = (results, iter) => this.showToolResults(results, iter);
         this.agent.onError = (err) => this.addMessage('error', err);
+        this.agent.onRetry = (err) => {
+            const reason = err?.timedOut ? 'timeout' : (err?.status ? `HTTP ${err.status}` : 'network error');
+            this.addMessage('system', `Transient ${reason} — retrying with shorter timeout...`);
+        };
 
         // Render welcome message if configured
         this.renderWelcome();
@@ -263,7 +271,7 @@ export class ChatUI {
             a.rel = 'noopener noreferrer';
             a.className = 'footer-link carbon-link';
             a.title = 'Carbon dashboard — energy use for this deployment';
-            a.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="13" height="13" fill="currentColor" aria-hidden="true"><path d="M17 8C8 10 5.9 16.17 3.82 21.34L5.71 22l1-2.3A4.49 4.49 0 008 20C19 20 22 3 22 3c-1 2-8 5.5-8.5 11.5-2.05-1.05-3.72-3.07-3.72-5.5 0-.67.19-1.3.52-1.83A4.89 4.89 0 0017 8z"/></svg>`;
+            a.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19.2 2.96a1 1 0 0 1 1.8.66c.4 5.85-1.18 12.96-9 16.4"/><path d="M2 21c0-3 1.85-5.36 5.08-6"/></svg>`;
             footer.prepend(a);
         }
 
@@ -446,8 +454,16 @@ export class ChatUI {
         }
 
         this.busy = true;
-        this.sendBtn.disabled = true;
+        this.sendBtn.classList.add('stop');
+        this.sendBtn.textContent = '■';
+        this.sendBtn.title = 'Stop';
         this.inputEl.value = '';
+
+        // Esc anywhere on the page while busy → stop.
+        const escHandler = (e) => {
+            if (e.key === 'Escape') this.agent.abort();
+        };
+        document.addEventListener('keydown', escHandler);
 
         this.addMessage('user', text);
 
@@ -471,7 +487,10 @@ export class ChatUI {
                 : msg);
         } finally {
             this.busy = false;
-            this.sendBtn.disabled = false;
+            this.sendBtn.classList.remove('stop');
+            this.sendBtn.textContent = 'Send';
+            this.sendBtn.title = '';
+            document.removeEventListener('keydown', escHandler);
             this.inputEl.focus();
         }
     }

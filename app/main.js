@@ -32,6 +32,7 @@ async function main() {
         if (runtimeConfig.transcription_model) appConfig.transcription_model = runtimeConfig.transcription_model;
         if (runtimeConfig.mcp_server_url) appConfig.mcp_url = runtimeConfig.mcp_server_url;
         if (runtimeConfig.mcp_auth_token) appConfig.mcp_auth_token = runtimeConfig.mcp_auth_token;
+        if (runtimeConfig.catalog_token) appConfig.catalog_token = runtimeConfig.catalog_token;
         if (runtimeConfig.draw_enabled != null) appConfig.draw_enabled = runtimeConfig.draw_enabled;
     }
 
@@ -192,10 +193,25 @@ async function main() {
         });
     }
 
+    // Inline cached STAC content on LLM-issued direct calls to in-app data,
+    // mirroring what the local get_schema delegate does (see #192). Skips an
+    // upstream fetch on the MCP side. Foreign-catalog calls pass through.
+    const injectInlineStac = (toolName, args) => {
+        if (!args) return args;
+        if (args.catalog_url && args.catalog_url !== catalog.catalogUrl) return args;
+        let id = null;
+        if (toolName === 'get_stac_details') id = args.dataset_id;
+        else if (toolName === 'get_collection') id = args.collection_id;
+        if (!id) return args;
+        const collection = catalog.toStacDict(id);
+        if (!collection) return args;
+        return { ...args, collection };
+    };
+
     // Register remote MCP tools (lazy – tries to list, falls back silently)
     try {
         const mcpTools = await mcp.listTools();
-        toolRegistry.registerRemote(mcpTools, mcp);
+        toolRegistry.registerRemote(mcpTools, mcp, injectInlineStac);
         console.log(`[main] ${mcpTools.length} MCP tools registered`);
     } catch (err) {
         console.warn('[main] Could not list MCP tools (will retry on first use):', err.message);
@@ -213,7 +229,7 @@ async function main() {
                 },
                 required: ['sql_query']
             }
-        }], mcp);
+        }], mcp, injectInlineStac);
     }
 
     /* ── 6. Build system prompt ────────────────────────────────────────── */

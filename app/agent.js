@@ -26,6 +26,7 @@ export class Agent {
         this.maxToolCalls = 20;
         this.autoApprove = config.auto_approve ?? false;
         this.sessionId = crypto.randomUUID();
+        this.abortController = null;
 
         // Event callbacks (set by chat-ui.js)
         this.onThinkingStart = () => { };
@@ -35,6 +36,7 @@ export class Agent {
         this.onToolResults = () => { };
         this.onResponse = () => { };
         this.onError = () => { };
+        this.onRetry = () => { };
     }
 
     /**
@@ -64,6 +66,14 @@ export class Agent {
     }
 
     /**
+     * Abort the in-flight turn, if any. Cancels the current LLM fetch
+     * and causes the agent loop to bail out at its next await point.
+     */
+    abort() {
+        this.abortController?.abort();
+    }
+
+    /**
      * Process a user message through the full agentic loop.
      *
      * Voice input is handled upstream in chat-ui.js via the Transcriber
@@ -76,6 +86,21 @@ export class Agent {
     async processMessage(userMessage) {
         // Track SQL queries for this turn
         const sqlQueries = [];
+
+        // Per-turn AbortController — triggered by abort() (user-pressed Stop)
+        // or by the 5-min timeout inside callLLM(). Either path rejects any
+        // outstanding await via the abortPromise race below.
+        this.abortController = new AbortController();
+        const signal = this.abortController.signal;
+        const abortPromise = new Promise((_, reject) => {
+            signal.addEventListener('abort', () => {
+                reject(new DOMException('Aborted', 'AbortError'));
+            });
+        });
+        // Silence "unhandled rejection" if abort fires while no withAbort() race is active
+        // (e.g. user stops during the LLM fetch, which owns the signal directly).
+        abortPromise.catch(() => {});
+        const withAbort = (p) => Promise.race([p, abortPromise]);
 
         this.messages.push({ role: 'user', content: userMessage });
 
@@ -93,10 +118,13 @@ export class Agent {
 
         let iterations = 0;
 
+        try {
         while (iterations < this.maxToolCalls) {
             this.onThinkingStart();
 
-            // Call LLM
+            // Call LLM — no withAbort wrapper: the shared AbortController's
+            // signal already reaches fetch, and wrapping would orphan the
+            // fetch's own AbortError rejection.
             let message;
             try {
                 message = await this.callLLM(endpoint, modelConfig, turnMessages, tools);
@@ -124,7 +152,7 @@ export class Agent {
                 let approved = true;
                 if (!allLocal && !this.autoApprove) {
                     // Show proposal and wait for approval
-                    const result = await this.onToolProposal(calls, displayContent, iterations);
+                    const result = await withAbort(this.onToolProposal(calls, displayContent, iterations));
                     approved = result.approved;
                 } else {
                     // Auto-approve: local tools always, remote tools when autoApprove is on
@@ -153,7 +181,7 @@ export class Agent {
                         continue;
                     }
 
-                    const execResult = await this.toolRegistry.execute(tc.function.name, args);
+                    const execResult = await withAbort(this.toolRegistry.execute(tc.function.name, args));
                     results.push(execResult);
 
                     // Track SQL queries
@@ -200,10 +228,18 @@ export class Agent {
             sqlQueries,
             cancelled: false
         };
+        } catch (err) {
+            if (err.name === 'AbortError') {
+                return { response: null, sqlQueries, cancelled: true };
+            }
+            throw err;
+        }
     }
 
     /**
-     * Call the LLM API.
+     * Call the LLM API, with one auto-retry on transient errors (gateway 5xx,
+     * network blips, client-side timeout). The retry uses a tight 90s timeout
+     * so a still-dead model fails fast instead of burning another 5 minutes.
      */
     async callLLM(endpoint, modelConfig, messages, tools) {
         const payload = {
@@ -214,8 +250,40 @@ export class Agent {
             user: this.sessionId,
         };
 
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 300000); // 5 min
+        try {
+            return await this._attemptLLMCall(endpoint, modelConfig, payload, 300000);
+        } catch (error) {
+            if (!this._isTransientLLMError(error)) throw error;
+            if (this.abortController?.signal.aborted) throw error; // user-Stop, don't retry
+
+            console.warn('[Agent] Transient LLM error, retrying with 90s timeout:', error.message);
+            this.onRetry?.(error);
+
+            return await this._attemptLLMCall(endpoint, modelConfig, payload, 90000);
+        }
+    }
+
+    /**
+     * Single attempt of the LLM fetch. Uses a per-attempt internal AbortController
+     * so the timeout doesn't disturb the turn-level abortController (which the
+     * outer loop's withAbort race depends on). User-pressed Stop is forwarded
+     * from this.abortController to the internal controller.
+     */
+    async _attemptLLMCall(endpoint, modelConfig, payload, timeoutMs) {
+        const internal = new AbortController();
+        let timedOut = false;
+
+        const userSignal = this.abortController?.signal;
+        const forwardAbort = () => internal.abort();
+        if (userSignal) {
+            if (userSignal.aborted) internal.abort();
+            else userSignal.addEventListener('abort', forwardAbort, { once: true });
+        }
+
+        const timeout = setTimeout(() => {
+            timedOut = true;
+            internal.abort();
+        }, timeoutMs);
 
         try {
             const response = await fetch(endpoint, {
@@ -225,22 +293,45 @@ export class Agent {
                     'Authorization': `Bearer ${modelConfig.api_key}`,
                 },
                 body: JSON.stringify(payload),
-                signal: controller.signal,
+                signal: internal.signal,
             });
 
             if (!response.ok) {
                 const errorText = await response.text();
-                throw new Error(`LLM API error (${response.status}): ${errorText.substring(0, 200)}`);
+                const err = new Error(`LLM API error (${response.status}): ${errorText.substring(0, 200)}`);
+                err.status = response.status;
+                throw err;
             }
 
             const data = await response.json();
             return data.choices[0].message;
         } catch (error) {
-            if (error.name === 'AbortError') throw new Error('Request timed out after 5 minutes');
+            if (error.name === 'AbortError') {
+                if (timedOut) {
+                    const err = new Error(`Request timed out after ${Math.round(timeoutMs / 1000)} seconds`);
+                    err.timedOut = true;
+                    throw err;
+                }
+                throw error; // user-pressed Stop — let AbortError propagate
+            }
             throw error;
         } finally {
             clearTimeout(timeout);
+            userSignal?.removeEventListener('abort', forwardAbort);
         }
+    }
+
+    /**
+     * Classify an LLM error as transient (worth retrying) or permanent.
+     * Retry on: client timeout, network errors, HTTP 5xx.
+     * Skip on: user-pressed Stop (real AbortError), HTTP 4xx, anything else.
+     */
+    _isTransientLLMError(error) {
+        if (error.name === 'AbortError') return false;
+        if (error.timedOut) return true;
+        if (error.name === 'TypeError') return true;
+        if (typeof error.status === 'number' && error.status >= 500 && error.status < 600) return true;
+        return false;
     }
 
     /**

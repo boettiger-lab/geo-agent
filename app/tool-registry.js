@@ -39,11 +39,14 @@ export class ToolRegistry {
 
     /**
      * Register remote MCP tools.
-     * 
+     *
      * @param {Array} mcpTools - Tool definitions from MCPClient.getTools()
      * @param {MCPClient} mcpClient - Client instance for execution
+     * @param {Function} [argsRewriter] - Optional (toolName, args) => args hook
+     *   applied before forwarding to MCP. Used to inject cached STAC content
+     *   inline for in-app calls (skips an upstream fetch).
      */
-    registerRemote(mcpTools, mcpClient) {
+    registerRemote(mcpTools, mcpClient, argsRewriter = null) {
         for (const tool of mcpTools) {
             this.tools.set(tool.name, {
                 name: tool.name,
@@ -55,6 +58,7 @@ export class ToolRegistry {
                 },
                 source: 'remote',
                 mcpClient,
+                argsRewriter,
             });
         }
         console.log(`[Tools] Registered ${mcpTools.length} remote tools`);
@@ -141,7 +145,8 @@ export class ToolRegistry {
                 };
             } else {
                 // Remote MCP tool
-                const result = await tool.mcpClient.callTool(tool.name, args);
+                const finalArgs = tool.argsRewriter ? tool.argsRewriter(tool.name, args) : args;
+                const result = await tool.mcpClient.callTool(tool.name, finalArgs);
                 return {
                     success: true,
                     name,
