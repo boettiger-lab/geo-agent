@@ -24,7 +24,7 @@ export class Agent {
         this.messages = [];
         this.selectedModel = config.llm_model || config.llm_models?.[0]?.value || 'default';
         this.maxToolCalls = 20;
-        this.autoApprove = config.auto_approve ?? false;
+        this.autoApprove = config.auto_approve ?? true;
         this.sessionId = crypto.randomUUID();
         this.abortController = null;
 
