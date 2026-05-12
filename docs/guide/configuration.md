@@ -15,7 +15,7 @@ Client apps configure geo-agent via `layers-input.json`. All fields except `cata
 | `welcome` | No | Welcome message: `{ "message": "...", "examples": ["...", "..."] }` |
 | `default_basemap` | No | Which basemap is active on load: `"natgeo"` (default), `"satellite"`, or `"plain"`. |
 | `custom_basemap` | No | Replace the NatGeo slot with a custom tile URL — see below. |
-| `auto_approve` | No | Start with remote tool calls auto-approved (no confirmation prompt). Default: `false`. |
+| `auto_approve` | No | Start with remote tool calls auto-approved (no confirmation prompt). Default: `true`. |
 | `links` | No | Optional links shown in the chat UI — see below. |
 
 ## View
@@ -410,19 +410,19 @@ The agent receives a `get_drawn_region` tool that returns the polygon as WKT alo
 
 ## Tool call auto-approve
 
-By default, the agent pauses before executing remote tool calls (SQL queries via the MCP server) and shows a confirmation prompt with **Run** / **Cancel** buttons. Local tools — map controls like `show_layer`, `fly_to`, `set_filter` — always run immediately without confirmation.
+By default, the agent executes remote tool calls (SQL queries via the MCP server) immediately. Local tools — map controls like `show_layer`, `fly_to`, `set_filter` — also run without confirmation.
 
-Set `auto_approve` to skip the confirmation step for remote calls:
+Set `auto_approve: false` to require a **Run** / **Cancel** confirmation before each remote call:
 
 ```json
-{ "auto_approve": true }
+{ "auto_approve": false }
 ```
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `auto_approve` | boolean | `false` | When `true`, remote tool calls execute immediately without user confirmation. |
+| `auto_approve` | boolean | `true` | When `true`, remote tool calls execute immediately without user confirmation. Set to `false` to require manual approval. |
 
-A ⚡ toggle button in the chat footer lets users switch auto-approve on or off at runtime. The runtime state is saved in `localStorage` (`geo-agent-auto-approve`) and takes precedence over the config value on subsequent visits. Setting `auto_approve: true` in config controls only the *initial* default for first-time visitors.
+A ⚡ toggle button in the chat footer lets users switch auto-approve on or off at runtime. The toggle affects only the current session — every page load resets to the `auto_approve` value from config.
 
 ## Finding STAC asset IDs
 
