@@ -230,9 +230,11 @@ export class MapManager {
                     }
                 }
 
-                // Tooltip
-                if (tooltipFields && tooltipFields.length > 0) {
-                    this._wireTooltip(vMapLayerId, tooltipFields);
+                // Wire tooltip on every vector version. The handler reads
+                // `tooltipFields` from the logical layer's state record each
+                // event, so set_tooltip can update fields at runtime.
+                if (v.type === 'vector') {
+                    this._wireTooltip(vMapLayerId, layerId);
                 }
 
                 return {
@@ -260,7 +262,8 @@ export class MapManager {
                 defaultFilter: defaultFilter || null,
                 columns: columns || [],
                 defaultPaint: { ...(paint || {}) },
-                tooltipFields: tooltipFields || null,
+                tooltipFields: tooltipFields ? [...tooltipFields] : null,
+                defaultTooltipFields: tooltipFields ? [...tooltipFields] : null,
                 colormap: colormap || null,
                 rescale: rescale || null,
                 legendLabel: legendLabel || null,
@@ -355,7 +358,8 @@ export class MapManager {
             defaultFilter: defaultFilter || null,
             columns: columns || [],
             defaultPaint: { ...(paint || {}) },
-            tooltipFields: tooltipFields || null,
+            tooltipFields: tooltipFields ? [...tooltipFields] : null,
+            defaultTooltipFields: tooltipFields ? [...tooltipFields] : null,
             colormap: colormap || null,
             rescale: rescale || null,
             legendLabel: legendLabel || null,
@@ -363,9 +367,11 @@ export class MapManager {
             legendClasses: legendClasses || null,
         });
 
-        // Wire hover tooltip if fields are declared
-        if (tooltipFields && tooltipFields.length > 0) {
-            this._wireTooltip(mapLayerId, tooltipFields);
+        // Wire tooltip handler on every vector layer (even those without
+        // declared fields) so set_tooltip can attach fields at runtime. The
+        // handler bails when the state record's tooltipFields is null/empty.
+        if (type === 'vector') {
+            this._wireTooltip(mapLayerId, layerId);
         }
     }
 
@@ -397,6 +403,7 @@ export class MapManager {
             columns: [],
             defaultPaint: { ...(paint || {}) },
             tooltipFields: null,
+            defaultTooltipFields: null,
             animation: null,   // filled in below
         };
         this.layers.set(layerId, state);
@@ -571,12 +578,15 @@ export class MapManager {
             defaultFilter: null,
             defaultPaint: { ...paint },
             tooltipFields: null,
+            defaultTooltipFields: null,
             colormap: null,
             rescale: null,
             legendLabel: null,
             legendType: null,
             legendClasses: null,
         });
+
+        this._wireTooltip(layerId, layerId);
 
         if (fitBounds && Array.isArray(bounds) && bounds.length === 4) {
             const [w, s, e, n] = bounds;
@@ -676,6 +686,38 @@ export class MapManager {
         const state = this.layers.get(layerId);
         if (!state) return { success: false, error: `Unknown layer: ${layerId}` };
         return this.setFilter(layerId, state.defaultFilter);
+    }
+
+    // ---- Tooltip ----
+
+    /**
+     * Set which feature properties appear in the hover tooltip for a vector
+     * layer. Pass an empty array to disable the tooltip.
+     */
+    setTooltip(layerId, fields) {
+        const state = this.layers.get(layerId);
+        if (!state) return { success: false, error: `Unknown layer: ${layerId}` };
+        if (state.type !== 'vector') {
+            return { success: false, error: `Tooltips only apply to vector layers; '${layerId}' is ${state.type}` };
+        }
+        if (!Array.isArray(fields) || !fields.every(f => typeof f === 'string')) {
+            return { success: false, error: `fields must be an array of strings` };
+        }
+        state.tooltipFields = fields.length > 0 ? [...fields] : null;
+        return { success: true, layer: layerId, displayName: state.displayName, tooltipFields: state.tooltipFields };
+    }
+
+    /**
+     * Reset tooltip fields to the layer's config default (or disable if no default).
+     */
+    resetTooltip(layerId) {
+        const state = this.layers.get(layerId);
+        if (!state) return { success: false, error: `Unknown layer: ${layerId}` };
+        if (state.type !== 'vector') {
+            return { success: false, error: `Tooltips only apply to vector layers; '${layerId}' is ${state.type}` };
+        }
+        state.tooltipFields = state.defaultTooltipFields ? [...state.defaultTooltipFields] : null;
+        return { success: true, layer: layerId, displayName: state.displayName, tooltipFields: state.tooltipFields };
     }
 
     // ---- Styling ----
@@ -1149,11 +1191,13 @@ export class MapManager {
 
     // ---- Utilities ----
 
-    _wireTooltip(mapLayerId, tooltipFields) {
+    _wireTooltip(mapLayerId, layerId) {
         this.map.on('mousemove', mapLayerId, (e) => {
+            const fields = this.layers.get(layerId)?.tooltipFields;
+            if (!fields || fields.length === 0) return;
             if (!e.features || e.features.length === 0) return;
             const props = e.features[0].properties;
-            const rows = tooltipFields
+            const rows = fields
                 .filter(f => props[f] !== undefined && props[f] !== null && props[f] !== '')
                 .map(f => `<tr><th>${f}</th><td>${this._formatTooltipValue(f, props[f])}</td></tr>`)
                 .join('');

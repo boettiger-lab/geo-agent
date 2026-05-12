@@ -32,6 +32,8 @@ function createMockMap() {
         setFilter() {},
         setPaintProperty() {},
         queryRenderedFeatures() { return []; },
+        on() {},
+        off() {},
         fitBounds(bounds, options) { fitBoundsCalls.push({ bounds, options }); },
         // Introspection helpers (not real MapLibre API)
         _sources: sources,
