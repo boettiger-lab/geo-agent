@@ -166,6 +166,49 @@ ${formatLayerList(vectorLayers())}`,
         },
 
         {
+            name: 'set_tooltip',
+            description: `Set which feature properties appear in the hover tooltip for a vector layer. Pass an array of property names; the tooltip displays them in order. Pass an empty array to disable the tooltip for that layer.
+
+Use when the user asks to "show X on hover", "include Y in the tooltip", or "stop showing the tooltip".
+
+Property names must exactly match the feature properties in the vector tiles. Call get_schema first if you need to see available property names — the agent's catalog may list them, but get_schema returns the live set. Unknown names render nothing (no error).
+
+${pickLayerNudge}
+
+Vector layers:
+${formatLayerList(vectorLayers())}`,
+            inputSchema: {
+                type: 'object',
+                properties: {
+                    layer_id: { type: 'string', description: 'Vector layer ID' },
+                    fields: {
+                        type: 'array',
+                        items: { type: 'string' },
+                        description: 'Property names to display, in order. Pass [] to disable the tooltip.'
+                    },
+                },
+                required: ['layer_id', 'fields'],
+            },
+            execute: (args) => JSON.stringify(mapManager.setTooltip(args.layer_id, args.fields)),
+        },
+
+        {
+            name: 'reset_tooltip',
+            description: `Reset a layer's tooltip fields to its config default (the fields it had when the app loaded). If the layer had no default tooltip, this disables the tooltip. Use when the user asks to "reset the tooltip", "restore the default hover", or "go back to how it was".
+
+Vector layers:
+${formatLayerList(vectorLayers())}`,
+            inputSchema: {
+                type: 'object',
+                properties: {
+                    layer_id: { type: 'string', description: 'Vector layer ID' },
+                },
+                required: ['layer_id'],
+            },
+            execute: (args) => JSON.stringify(mapManager.resetTooltip(args.layer_id)),
+        },
+
+        {
             name: 'set_style',
             description: `Update a layer's paint/style properties. Provide MapLibre paint properties.
 
