@@ -742,7 +742,12 @@ export class MapManager {
             }
         }
 
-        return { success: true, layer: layerId, displayName: state.displayName, updates: results };
+        const anySucceeded = results.length === 0 || results.some(r => r.success);
+        const result = { success: anySucceeded, layer: layerId, displayName: state.displayName, updates: results };
+        if (!anySucceeded) {
+            result.error = 'All property updates failed — see individual update results for details';
+        }
+        return result;
     }
 
     /**
