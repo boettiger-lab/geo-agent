@@ -208,14 +208,40 @@ async function main() {
         return { ...args, collection };
     };
 
-    // Register remote MCP tools (lazy – tries to list, falls back silently)
+    // Register remote MCP tools. The initial listTools() can time out when
+    // the MCP pod is cold-starting; retry a few times before falling back to
+    // a minimal hardcoded `query` tool. If the fallback fires, the
+    // onReconnect hook below will refresh the registry once the transport
+    // finally connects.
+    const listMcpToolsWithRetry = async (attempts = 3) => {
+        let lastErr;
+        for (let i = 0; i < attempts; i++) {
+            try {
+                return await mcp.listTools();
+            } catch (err) {
+                lastErr = err;
+                const delay = Math.min(2000 * Math.pow(2, i), 8000);
+                console.warn(`[main] listTools attempt ${i + 1}/${attempts} failed: ${err.message}`);
+                if (i < attempts - 1) await new Promise(r => setTimeout(r, delay));
+            }
+        }
+        throw lastErr;
+    };
+
+    mcp.setOnReconnect((tools) => {
+        toolRegistry.clearRemote();
+        toolRegistry.registerRemote(tools, mcp, injectInlineStac);
+        console.log(`[main] Refreshed MCP tools after reconnect: ${tools.length} tools`);
+    });
+
     try {
-        const mcpTools = await mcp.listTools();
+        const mcpTools = await listMcpToolsWithRetry();
         toolRegistry.registerRemote(mcpTools, mcp, injectInlineStac);
         console.log(`[main] ${mcpTools.length} MCP tools registered`);
     } catch (err) {
-        console.warn('[main] Could not list MCP tools (will retry on first use):', err.message);
-        // Manually register query tool with known schema so LLM always has it
+        console.warn('[main] Could not list MCP tools after retries (will refresh on reconnect):', err.message);
+        // Hardcoded fallback so the LLM always has at least the query tool.
+        // The onReconnect hook replaces this entry once the transport connects.
         toolRegistry.registerRemote([{
             name: 'query',
             description: 'Execute a read-only SQL query against a DuckDB database that is pre-loaded with H3 geospatial extensions, spatial functions, and httpfs for accessing remote parquet data. The database supports partitioned hive-style parquet files on S3.',

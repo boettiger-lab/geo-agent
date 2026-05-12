@@ -65,6 +65,17 @@ export class ToolRegistry {
     }
 
     /**
+     * Drop every remote tool from the registry. Use before re-registering
+     * after a reconnect to avoid leaving stale entries when the server's
+     * tool list has changed.
+     */
+    clearRemote() {
+        for (const [name, tool] of this.tools) {
+            if (tool.source === 'remote') this.tools.delete(name);
+        }
+    }
+
+    /**
      * Get all tools formatted for the OpenAI Chat Completions API.
      * @returns {Array} tools[] array
      */
