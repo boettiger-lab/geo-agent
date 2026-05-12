@@ -558,7 +558,8 @@ export class ChatUI {
                 ? reasoningText.trim()
                 : this.describeToolCalls(calls);
             if (desc) {
-                const descHtml = typeof marked !== 'undefined' ? marked.parse(desc) : this.escapeHtml(desc);
+                const rawDesc = typeof marked !== 'undefined' ? marked.parse(desc) : this.escapeHtml(desc);
+                const descHtml = typeof DOMPurify !== 'undefined' ? DOMPurify.sanitize(rawDesc) : rawDesc;
                 html += `<div class="tool-reasoning">${descHtml}</div>`;
             }
         }
@@ -690,7 +691,8 @@ export class ChatUI {
     addMarkdown(role, md) {
         const el = document.createElement('div');
         el.className = `chat-message ${role}`;
-        el.innerHTML = typeof marked !== 'undefined' ? marked.parse(md) : md;
+        const rawHtml = typeof marked !== 'undefined' ? marked.parse(md) : md;
+        el.innerHTML = typeof DOMPurify !== 'undefined' ? DOMPurify.sanitize(rawHtml) : rawHtml;
         this.messagesEl.appendChild(el);
 
         // Highlight code blocks
