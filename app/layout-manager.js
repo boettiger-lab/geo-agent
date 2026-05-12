@@ -55,10 +55,10 @@ function buildFloatingLayout(_appConfig, title) {
     const messages = el('div', { id: 'chat-messages' });
 
     const inputContainer = el('div', { id: 'chat-input-container' });
-    const input = el('input', {
+    const input = el('textarea', {
         id: 'chat-input',
-        type: 'text',
         placeholder: 'Ask about the data\u2026',
+        rows: '1',
         autocomplete: 'off',
     });
     const mic = el('button', {
@@ -126,10 +126,10 @@ function buildSidebarLayout(appConfig, title) {
 
     // Input row
     const inputContainer = el('div', { id: 'chat-input-container' });
-    const input = el('input', {
+    const input = el('textarea', {
         id: 'chat-input',
-        type: 'text',
         placeholder: 'Ask about the data…',
+        rows: '1',
         autocomplete: 'off',
     });
     const mic = el('button', {
