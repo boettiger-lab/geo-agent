@@ -210,9 +210,15 @@ ${formatLayerList(vectorLayers())}`,
 
         {
             name: 'set_style',
-            description: `Update a layer's paint/style properties. Provide MapLibre paint properties.
+            description: `Update a layer's paint/style properties. Provide MapLibre paint properties — every property name carries a layer-type prefix (\`fill-\`, \`line-\`, \`circle-\`, \`raster-\`).
 
 IMPORTANT: For categorical coloring (e.g., a "match" expression), never guess or assume valid values. Check the dataset catalog in your system prompt for documented coded values, or call get_stac_details for full column details. Only fall back to SELECT DISTINCT via SQL if the metadata doesn't cover it.
+
+Supported paint properties by MapLibre layer type:
+  fill (polygons):   fill-color, fill-opacity, fill-outline-color, fill-pattern
+  line (lines, polygon outlines): line-color, line-width, line-opacity, line-blur, line-dasharray
+  circle (points):   circle-color, circle-radius, circle-opacity, circle-stroke-color, circle-stroke-width
+  raster:            raster-opacity, raster-brightness-min, raster-brightness-max, raster-contrast, raster-saturation, raster-hue-rotate
 
 Examples:
   Simple: { "fill-color": "red", "fill-opacity": 0.5 }
