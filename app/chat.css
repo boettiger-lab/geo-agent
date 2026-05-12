@@ -146,6 +146,7 @@
     border-top: 1px solid rgba(255, 255, 255, 0.15);
     display: flex;
     gap: 8px;
+    align-items: flex-end;
 }
 
 #chat-input {
@@ -156,6 +157,11 @@
     background: rgba(255, 255, 255, 0.45);
     color: #333;
     font-size: 14px;
+    font-family: inherit;
+    line-height: 1.4;
+    resize: none;
+    max-height: 8em;
+    overflow-y: auto;
 }
 
 #chat-input:focus {

@@ -58,6 +58,7 @@ export class ChatUI {
                 this.handleSend();
             }
         });
+        this.inputEl.addEventListener('input', () => this._autoResizeInput());
 
         // Wire collapse toggle
         this.toggleBtn?.addEventListener('click', () => {
@@ -195,6 +196,7 @@ export class ChatUI {
                     this.inputEl.value = existing
                         ? `${existing} ${transcript}`.trim()
                         : transcript;
+                    this._autoResizeInput();
                 } finally {
                     this.inputEl.placeholder = prevPlaceholder;
                     this.inputEl.disabled = false;
@@ -239,6 +241,7 @@ export class ChatUI {
         el.querySelectorAll('.welcome-example-btn').forEach(btn => {
             btn.addEventListener('click', () => {
                 this.inputEl.value = btn.textContent;
+                this._autoResizeInput();
                 this.inputEl.focus();
             });
         });
@@ -439,6 +442,11 @@ export class ChatUI {
     /*  Send handler                                                       */
     /* ------------------------------------------------------------------ */
 
+    _autoResizeInput() {
+        this.inputEl.style.height = 'auto';
+        this.inputEl.style.height = this.inputEl.scrollHeight + 'px';
+    }
+
     async handleSend() {
         const text = this.inputEl.value.trim();
         if (!text) return;
@@ -455,6 +463,7 @@ export class ChatUI {
         this.sendBtn.textContent = '■';
         this.sendBtn.title = 'Stop';
         this.inputEl.value = '';
+        this._autoResizeInput();
 
         // Esc anywhere on the page while busy → stop.
         const escHandler = (e) => {
