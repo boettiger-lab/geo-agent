@@ -248,7 +248,10 @@ export class DatasetCatalog {
                     const versions = [];
                     for (const v of config.versions) {
                         const vAsset = stacAssets[v.asset_id];
-                        if (!vAsset) continue;
+                        if (!vAsset) {
+                            console.warn(`[Catalog] ${collection.id}: versioned asset "${v.asset_id}" not found in STAC. Available keys: ${Object.keys(stacAssets).join(', ') || '(none)'}`);
+                            continue;
+                        }
                         const vType = vAsset.type || '';
                         if (vType.includes('pmtiles')) {
                             versions.push({
@@ -319,7 +322,10 @@ export class DatasetCatalog {
 
                 // ── Standard (non-versioned) asset ──
                 const asset = stacAssets[assetId];
-                if (!asset) continue;
+                if (!asset) {
+                    console.warn(`[Catalog] ${collection.id}: configured asset "${assetId}" not found in STAC. Available keys: ${Object.keys(stacAssets).join(', ') || '(none)'}`);
+                    continue;
+                }
 
                 const type = asset.type || '';
 

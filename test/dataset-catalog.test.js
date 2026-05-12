@@ -362,13 +362,17 @@ describe('DatasetCatalog.extractMapLayers', () => {
         expect(layers[0].defaultVersionIndex).toBe(1);
     });
 
-    it('skips a versioned config whose asset_ids are all missing', () => {
+    it('skips a versioned config whose asset_ids are all missing (with warning)', () => {
+        const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
         const layers = cat.extractMapLayers(collectionWithAssets({}), {}, [{
             key: 'basins',
             assetId: 'basins',
             config: { versions: [{ label: 'X', asset_id: 'absent' }] },
         }]);
         expect(layers).toHaveLength(0);
+        expect(warnSpy).toHaveBeenCalledOnce();
+        expect(warnSpy.mock.calls[0][0]).toContain('absent');
+        warnSpy.mockRestore();
     });
 
     it('respects alias — same STAC asset can produce multiple logical layers', () => {
@@ -385,11 +389,58 @@ describe('DatasetCatalog.extractMapLayers', () => {
         expect(layers[1].defaultFilter).toEqual(['==', 'kind', 'easement']);
     });
 
-    it('skips assets whose STAC entry is missing in filtered mode', () => {
+    it('skips assets whose STAC entry is missing in filtered mode (with warning)', () => {
+        const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
         const layers = cat.extractMapLayers(collectionWithAssets({}), {}, [
             { key: 'ghost', assetId: 'ghost', config: {} },
         ]);
         expect(layers).toEqual([]);
+        expect(warnSpy).toHaveBeenCalledOnce();
+        expect(warnSpy.mock.calls[0][0]).toContain('ghost');
+        warnSpy.mockRestore();
+    });
+
+    it('warns when a configured asset ID is not found in STAC (#177)', () => {
+        const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        cat.extractMapLayers(
+            collectionWithAssets({ real: { type: 'application/vnd.pmtiles', href: 'https://x/r.pmtiles' } }),
+            {},
+            [{ key: 'ghost', assetId: 'ghost', config: {} }],
+        );
+        expect(warnSpy).toHaveBeenCalledOnce();
+        expect(warnSpy.mock.calls[0][0]).toContain('ghost');
+        expect(warnSpy.mock.calls[0][0]).toContain('real');
+        warnSpy.mockRestore();
+    });
+
+    it('warns for each missing versioned asset ID (#177)', () => {
+        const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        cat.extractMapLayers(
+            collectionWithAssets({ l3: { type: 'application/vnd.pmtiles', href: 'https://x/l3.pmtiles' } }),
+            {},
+            [{
+                key: 'basins', assetId: 'basins', config: {
+                    versions: [
+                        { label: 'L3', asset_id: 'l3' },
+                        { label: 'L4', asset_id: 'missing-l4' },
+                    ],
+                },
+            }],
+        );
+        expect(warnSpy).toHaveBeenCalledOnce();
+        expect(warnSpy.mock.calls[0][0]).toContain('missing-l4');
+        warnSpy.mockRestore();
+    });
+
+    it('does not warn when all configured asset IDs match STAC keys', () => {
+        const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        cat.extractMapLayers(
+            collectionWithAssets({ tiles: { type: 'application/vnd.pmtiles', href: 'https://x/t.pmtiles' } }),
+            {},
+            [{ key: 'tiles', assetId: 'tiles', config: {} }],
+        );
+        expect(warnSpy).not.toHaveBeenCalled();
+        warnSpy.mockRestore();
     });
 
     it('extracts a GeoJSON asset (by content type) as a vector layer with sourceType=geojson', () => {
