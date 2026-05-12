@@ -20,6 +20,18 @@ export class MCPClient {
         this.reconnectAttempts = 0;
         this.maxReconnectAttempts = 3;
         this._connectPromise = null;
+        this._onReconnect = null;
+    }
+
+    /**
+     * Register a callback that fires after a successful reconnect (not on
+     * initial connect). Receives the freshly-listed tools array so the
+     * consumer can refresh its registry.
+     *
+     * @param {(tools: Array) => void | Promise<void>} cb
+     */
+    setOnReconnect(cb) {
+        this._onReconnect = cb;
     }
 
     /**
@@ -102,6 +114,14 @@ export class MCPClient {
 
         await new Promise(r => setTimeout(r, delay));
         await this.connect();
+
+        if (this._onReconnect) {
+            try {
+                await this._onReconnect(this.tools);
+            } catch (err) {
+                console.warn('[MCP] onReconnect callback threw:', err.message);
+            }
+        }
     }
 
     /**

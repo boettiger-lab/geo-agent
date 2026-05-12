@@ -243,6 +243,47 @@ describe('ToolRegistry executeAll', () => {
     });
 });
 
+describe('ToolRegistry clearRemote', () => {
+    it('drops only remote tools and leaves local tools intact', () => {
+        const reg = new ToolRegistry();
+        reg.registerLocal({
+            name: 'local_a',
+            description: '', inputSchema: { type: 'object', properties: {} },
+            execute: () => 'ok',
+        });
+        reg.registerRemote([
+            { name: 'remote_a', description: '', inputSchema: { type: 'object', properties: {} } },
+            { name: 'remote_b', description: '', inputSchema: { type: 'object', properties: {} } },
+        ], { callTool: vi.fn() });
+
+        expect(reg.getNames().sort()).toEqual(['local_a', 'remote_a', 'remote_b']);
+        reg.clearRemote();
+        expect(reg.getNames()).toEqual(['local_a']);
+    });
+
+    it('is a no-op when no remote tools are registered', () => {
+        const reg = new ToolRegistry();
+        reg.registerLocal({
+            name: 'l',
+            description: '', inputSchema: { type: 'object', properties: {} },
+            execute: () => 'ok',
+        });
+        reg.clearRemote();
+        expect(reg.getNames()).toEqual(['l']);
+    });
+
+    it('lets a subsequent registerRemote install a fresh tool set', () => {
+        const reg = new ToolRegistry();
+        reg.registerRemote([{ name: 'old_only', description: '', inputSchema: { type: 'object', properties: {} } }], { callTool: vi.fn() });
+        reg.clearRemote();
+        reg.registerRemote([
+            { name: 'new_a', description: '', inputSchema: { type: 'object', properties: {} } },
+            { name: 'new_b', description: '', inputSchema: { type: 'object', properties: {} } },
+        ], { callTool: vi.fn() });
+        expect(reg.getNames().sort()).toEqual(['new_a', 'new_b']);
+    });
+});
+
 describe('ToolRegistry registerLocal duplicate handling', () => {
     it('warns on overwrite but accepts the new tool', () => {
         const reg = new ToolRegistry();
