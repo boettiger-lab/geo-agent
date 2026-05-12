@@ -419,9 +419,7 @@ export class ChatUI {
         const footer = this.footerRightEl;
         if (!footer) return;
 
-        // Resolve initial state: localStorage > config
-        const stored = localStorage.getItem('geo-agent-auto-approve');
-        const initial = stored !== null ? stored === 'true' : (this.config.auto_approve ?? false);
+        const initial = this.config.auto_approve ?? true;
         this.agent.autoApprove = initial;
 
         const btn = document.createElement('button');
@@ -433,7 +431,6 @@ export class ChatUI {
         btn.addEventListener('click', () => {
             this.agent.autoApprove = !this.agent.autoApprove;
             btn.classList.toggle('active', this.agent.autoApprove);
-            localStorage.setItem('geo-agent-auto-approve', this.agent.autoApprove);
         });
 
         footer.prepend(btn);
