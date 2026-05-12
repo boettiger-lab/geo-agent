@@ -213,6 +213,50 @@ describe('get_schema MCP delegate', () => {
     });
 });
 
+describe('set_tooltip / reset_tooltip', () => {
+    const stubMapManager = () => ({
+        setTooltip: vi.fn((layerId, fields) => ({ success: true, layer: layerId, tooltipFields: fields })),
+        resetTooltip: vi.fn((layerId) => ({ success: true, layer: layerId, tooltipFields: ['name'] })),
+        getLayerSummaries: () => [
+            { id: 'parcels', displayName: 'Parcels', type: 'vector' },
+            { id: 'irrecoverable', displayName: 'Irrecoverable Carbon', type: 'raster' },
+        ],
+    });
+    const stubCatalog = { records: new Map() };
+
+    const getTool = (name) => {
+        const mapManager = stubMapManager();
+        const tools = createMapTools(mapManager, stubCatalog);
+        return { tool: tools.find(t => t.name === name), mapManager };
+    };
+
+    it('set_tooltip forwards (layer_id, fields) to mapManager.setTooltip', () => {
+        const { tool, mapManager } = getTool('set_tooltip');
+        const result = JSON.parse(tool.execute({ layer_id: 'parcels', fields: ['name', 'gap_code'] }));
+        expect(result.success).toBe(true);
+        expect(mapManager.setTooltip).toHaveBeenCalledWith('parcels', ['name', 'gap_code']);
+    });
+
+    it('set_tooltip with empty array disables the tooltip', () => {
+        const { tool, mapManager } = getTool('set_tooltip');
+        tool.execute({ layer_id: 'parcels', fields: [] });
+        expect(mapManager.setTooltip).toHaveBeenCalledWith('parcels', []);
+    });
+
+    it('reset_tooltip forwards layer_id to mapManager.resetTooltip', () => {
+        const { tool, mapManager } = getTool('reset_tooltip');
+        const result = JSON.parse(tool.execute({ layer_id: 'parcels' }));
+        expect(result.success).toBe(true);
+        expect(mapManager.resetTooltip).toHaveBeenCalledWith('parcels');
+    });
+
+    it('set_tooltip description lists vector layers only', () => {
+        const { tool } = getTool('set_tooltip');
+        expect(tool.description).toMatch(/Parcels/);
+        expect(tool.description).not.toMatch(/Irrecoverable Carbon/);
+    });
+});
+
 describe('createMapTools smoke test', () => {
     const stubMapManager = {
         getLayerSummaries: () => [],
@@ -234,9 +278,11 @@ describe('createMapTools smoke test', () => {
             'remove_hex_tile_layer',
             'reset_filter',
             'reset_style',
+            'reset_tooltip',
             'set_filter',
             'set_projection',
             'set_style',
+            'set_tooltip',
             'show_layer',
         ]);
     });
