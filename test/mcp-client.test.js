@@ -198,6 +198,64 @@ describe('MCPClient resources and prompts', () => {
     });
 });
 
+describe('MCPClient onReconnect', () => {
+    it('fires after a successful reconnect with the freshly-listed tools', async () => {
+        vi.useFakeTimers();
+        try {
+            const c = new MCPClient('https://mcp/');
+            await c.connect();
+
+            const cb = vi.fn();
+            c.setOnReconnect(cb);
+
+            // Health check throws → forces reconnect → fresh client returns 2 tools
+            lastClient().listTools.mockRejectedValueOnce(new Error('stale'));
+            Client.mockImplementationOnce(() => {
+                const instance = buildClientInstance();
+                instance.listTools = vi.fn(async () => ({
+                    tools: [{ name: 'browse_stac_catalog' }, { name: 'query' }],
+                }));
+                clientInstances.push(instance);
+                return instance;
+            });
+
+            const promise = c.ensureConnected();
+            await vi.advanceTimersByTimeAsync(1000);
+            await promise;
+
+            expect(cb).toHaveBeenCalledTimes(1);
+            expect(cb.mock.calls[0][0].map(t => t.name)).toEqual(['browse_stac_catalog', 'query']);
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
+    it('does NOT fire on the initial connect', async () => {
+        const c = new MCPClient('https://mcp/');
+        const cb = vi.fn();
+        c.setOnReconnect(cb);
+        await c.connect();
+        expect(cb).not.toHaveBeenCalled();
+    });
+
+    it('swallows callback errors so reconnect still succeeds', async () => {
+        vi.useFakeTimers();
+        try {
+            const c = new MCPClient('https://mcp/');
+            await c.connect();
+            c.setOnReconnect(() => { throw new Error('registry boom'); });
+            lastClient().listTools.mockRejectedValueOnce(new Error('stale'));
+
+            const promise = c.ensureConnected();
+            await vi.advanceTimersByTimeAsync(1000);
+            await expect(promise).resolves.toBeUndefined();
+            expect(c.isConnected).toBe(true);
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+});
+
 describe('MCPClient disconnect and listTools refresh', () => {
     it('disconnect closes the SDK client and clears state', async () => {
         const c = new MCPClient('https://mcp/');
