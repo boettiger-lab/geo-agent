@@ -742,7 +742,17 @@ export class MapManager {
             }
         }
 
-        return { success: true, layer: layerId, displayName: state.displayName, updates: results };
+        const failed = results.filter(r => !r.success).map(r => r.property);
+        const layerType = this.map.getLayer?.(state.mapLayerId)?.type;
+        return {
+            success: failed.length === 0,
+            layer: layerId,
+            displayName: state.displayName,
+            updates: results,
+            ...(failed.length > 0 && {
+                error: `${failed.length}/${results.length} property update(s) failed: ${failed.join(', ')}. Layer type is "${layerType}" — use ${layerType}-prefixed paint properties (see set_style tool description for the supported set).`,
+            }),
+        };
     }
 
     /**
