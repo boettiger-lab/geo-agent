@@ -93,6 +93,7 @@ export class ChatUI {
         // Wire agent callbacks
         this.agent.onThinkingStart = () => this.showThinking();
         this.agent.onThinkingEnd = () => this.hideThinking();
+        this.agent.onReasoning = (text, iter) => this.showReasoning(text, iter);
         this.agent.onToolProposal = (calls, text, iter, autoApproved) =>
             this.showToolProposal(calls, text, iter, autoApproved);
         this.agent.onToolExecuting = (calls) => this.showToolExecuting(calls);
@@ -463,17 +464,23 @@ export class ChatUI {
         document.addEventListener('keydown', escHandler);
 
         this.addMessage('user', text);
+        this.startTurn();
 
         try {
             const { response, cancelled } = await this.agent.processMessage(text);
 
             if (cancelled) {
+                this.endTurn('cancelled');
                 this.addMessage('system', 'Query cancelled.');
             } else if (response) {
+                this.endTurn('done');
                 this.addMarkdown('assistant', response);
+            } else {
+                this.endTurn('done');
             }
         } catch (err) {
             console.error('[ChatUI] Error:', err);
+            this.endTurn('error');
             const msg = err.message || String(err);
             const isNetworkOrTimeout =
                 msg.toLowerCase().includes('fetch') ||
@@ -493,10 +500,92 @@ export class ChatUI {
     }
 
     /* ------------------------------------------------------------------ */
-    /*  Thinking indicator                                                 */
+    /*  Per-turn timeline                                                  */
+    /* ------------------------------------------------------------------ */
+
+    /**
+     * Open a new agent-turn container. All subsequent agent events
+     * (reasoning, tool proposals, tool results) route into it as compact
+     * rows, and the whole container collapses to a one-liner when the
+     * assistant's final answer arrives.
+     */
+    startTurn() {
+        const container = document.createElement('details');
+        container.className = 'agent-turn running';
+        container.open = true;
+
+        const summary = document.createElement('summary');
+        summary.className = 'agent-turn-summary';
+        summary.innerHTML = '<span class="agent-turn-label">Working</span><span class="loading-dots"></span>';
+
+        const body = document.createElement('div');
+        body.className = 'agent-turn-body';
+
+        container.appendChild(summary);
+        container.appendChild(body);
+        this.messagesEl.appendChild(container);
+
+        this.currentTurn = {
+            container,
+            summary,
+            body,
+            startedAt: Date.now(),
+            rowsByIter: new Map(),
+            stepCount: 0,
+        };
+        this.scrollToBottom();
+    }
+
+    /**
+     * Close the current agent-turn container and rewrite its summary to a
+     * one-liner: "▸ N steps · 12.3s ✓". Status may be 'done', 'error',
+     * 'cancelled'.
+     */
+    endTurn(status = 'done') {
+        if (!this.currentTurn) return;
+        this.removeThinkingRow();
+
+        const { container, summary, body, startedAt, stepCount } = this.currentTurn;
+        const elapsed = ((Date.now() - startedAt) / 1000).toFixed(1);
+
+        const icon = status === 'done' ? '✓' : '✕';
+        const stepsLabel = stepCount === 0 ? '0 steps' :
+                           stepCount === 1 ? '1 step' :
+                           `${stepCount} steps`;
+
+        summary.innerHTML =
+            `<span class="agent-turn-icon ${status}">${icon}</span>` +
+            `<span class="agent-turn-label">${stepsLabel} · ${elapsed}s</span>`;
+
+        container.classList.remove('running');
+        container.classList.add(status);
+
+        // Empty turns (direct answer, no tools/reasoning) are noise — drop them.
+        if (stepCount === 0 && status === 'done') {
+            container.remove();
+        } else {
+            container.open = false;
+        }
+
+        this.currentTurn = null;
+    }
+
+    /* ------------------------------------------------------------------ */
+    /*  Thinking row (transient, inside the current turn)                  */
     /* ------------------------------------------------------------------ */
 
     showThinking() {
+        if (this.currentTurn) {
+            this.removeThinkingRow();
+            const row = document.createElement('div');
+            row.className = 'agent-turn-row thinking';
+            row.id = 'turn-thinking-row';
+            row.innerHTML = '<span class="row-icon">·</span><span class="row-label">Thinking</span><span class="loading-dots"></span>';
+            this.currentTurn.body.appendChild(row);
+            this.scrollToBottom();
+            return;
+        }
+        // Fallback for cases where no turn is active (shouldn't happen in normal flow).
         this.removeThinking();
         const el = document.createElement('div');
         el.className = 'chat-message assistant-thinking';
@@ -507,6 +596,7 @@ export class ChatUI {
     }
 
     hideThinking() {
+        this.removeThinkingRow();
         this.removeThinking();
     }
 
@@ -514,165 +604,215 @@ export class ChatUI {
         document.getElementById('thinking-indicator')?.remove();
     }
 
-    showToolExecuting(calls) {
-        this.removeToolExecuting();
-        const hasSql = calls.some(tc => {
-            try {
-                const args = JSON.parse(tc.function.arguments);
-                return !!(args.sql_query || args.query || args.sql);
-            } catch { return false; }
-        });
-        const label = hasSql ? 'Running query' : 'Running';
-        const el = document.createElement('div');
-        el.className = 'chat-message assistant-thinking';
-        el.id = 'tool-executing-indicator';
-        el.innerHTML = `${label}<span class="loading-dots"></span>`;
-        this.messagesEl.appendChild(el);
+    removeThinkingRow() {
+        document.getElementById('turn-thinking-row')?.remove();
+    }
+
+    /* ------------------------------------------------------------------ */
+    /*  Tool execution indicator (no-op now: state lives on the row)       */
+    /* ------------------------------------------------------------------ */
+
+    showToolExecuting(_calls) {
+        // The tool row already shows a running spinner from showToolProposal
+        // onward; no separate indicator needed in the timeline layout.
+    }
+
+    /* ------------------------------------------------------------------ */
+    /*  Reasoning row                                                      */
+    /* ------------------------------------------------------------------ */
+
+    showReasoning(text, _iter) {
+        if (!this.currentTurn) return;
+        this.removeThinkingRow();
+
+        const row = document.createElement('details');
+        row.className = 'agent-turn-row reasoning';
+
+        const summary = document.createElement('summary');
+        summary.className = 'agent-turn-row-summary';
+        summary.innerHTML = '<span class="row-icon">💭</span><span class="row-label">Reasoning</span>';
+
+        const body = document.createElement('div');
+        body.className = 'agent-turn-row-body';
+        body.innerHTML = typeof marked !== 'undefined'
+            ? marked.parse(text)
+            : `<pre>${this.escapeHtml(text)}</pre>`;
+
+        row.appendChild(summary);
+        row.appendChild(body);
+        this.currentTurn.body.appendChild(row);
+        this.currentTurn.stepCount++;
         this.scrollToBottom();
     }
 
-    removeToolExecuting() {
-        document.getElementById('tool-executing-indicator')?.remove();
-    }
-
     /* ------------------------------------------------------------------ */
-    /*  Tool proposal & results (collapsible blocks)                       */
+    /*  Tool proposal & results (merged into one mutable row per iter)     */
     /* ------------------------------------------------------------------ */
 
     /**
-     * Show a tool proposal — collapsible block listing tool calls.
-     * If autoApproved is true, it's just informational.
-     * Otherwise returns a promise that resolves with { approved }.
+     * Create a tool row in 'running' state. If autoApproved is true the
+     * call proceeds immediately; otherwise approval buttons are shown
+     * inside the row body and the returned promise resolves when the user
+     * decides.
      */
     showToolProposal(calls, reasoningText, iteration, autoApproved = false) {
-        this.removeThinking();
+        if (!this.currentTurn) return Promise.resolve({ approved: true });
+        this.removeThinkingRow();
 
-        const block = document.createElement('div');
-        block.className = 'chat-message tool-block';
+        // Group repeated tool names for a compact label: "query ×3"
+        const counts = new Map();
+        for (const c of calls) {
+            counts.set(c.function.name, (counts.get(c.function.name) || 0) + 1);
+        }
+        const namesLabel = [...counts.entries()]
+            .map(([n, c]) => c > 1 ? `${n} ×${c}` : n)
+            .join(', ');
 
-        // Show plain-english description above the fold for proposals requiring approval.
-        // Use model-provided reasoning if available, otherwise derive from tool args.
-        let html = '';
+        const row = document.createElement('details');
+        row.className = 'agent-turn-row tool running';
+        row.dataset.iter = String(iteration);
+
+        const summary = document.createElement('summary');
+        summary.className = 'agent-turn-row-summary';
+        summary.innerHTML =
+            '<span class="row-icon">⚙</span>' +
+            `<span class="row-label">${this.escapeHtml(namesLabel)}</span>` +
+            '<span class="row-status running"><span class="loading-dots"></span></span>';
+
+        const body = document.createElement('div');
+        body.className = 'agent-turn-row-body';
+
+        // Optional plain-english description above the fold (shown for
+        // non-auto-approve proposals so the user can decide).
         if (!autoApproved) {
             const desc = (reasoningText && reasoningText.trim())
                 ? reasoningText.trim()
                 : this.describeToolCalls(calls);
             if (desc) {
                 const descHtml = typeof marked !== 'undefined' ? marked.parse(desc) : this.escapeHtml(desc);
-                html += `<div class="tool-reasoning">${descHtml}</div>`;
+                body.insertAdjacentHTML('beforeend', `<div class="tool-reasoning">${descHtml}</div>`);
             }
         }
-
-        // Build collapsible header
-        const names = calls.map(c => c.function.name).join(', ');
-        const label = autoApproved ? `Running: ${names}` : `Details: ${names}`;
-
-        html += `<details><summary class="query-summary-btn">${label}</summary><div class="tool-detail">`;
 
         for (const tc of calls) {
-            let args;
-            try { args = JSON.parse(tc.function.arguments); } catch { args = tc.function.arguments; }
-
-            let argDisplay = '';
-            if (typeof args === 'object' && args !== null) {
-                // Extract SQL query field and display it highlighted with real newlines
-                const sqlText = args.sql_query || args.query || args.sql || null;
-                const sqlKey = args.sql_query !== undefined ? 'sql_query' : args.query !== undefined ? 'query' : 'sql';
-                if (sqlText) {
-                    argDisplay += `<details class="sql-detail"><summary>SQL</summary><pre><code class="language-sql">${this.escapeHtml(sqlText)}</code></pre></details>`;
-                    const REDACTED_KEYS = ['s3_key', 's3_secret', 's3_endpoint', 's3_scope', 'catalog_token'];
-                    const otherArgs = Object.fromEntries(
-                        Object.entries(args).filter(([k]) => k !== sqlKey && !REDACTED_KEYS.includes(k))
-                    );
-                    if (Object.keys(otherArgs).length > 0) {
-                        argDisplay += `<pre><code>${this.escapeHtml(JSON.stringify(otherArgs, null, 2))}</code></pre>`;
-                    }
-                } else {
-                    argDisplay = `<pre><code>${this.escapeHtml(JSON.stringify(args, null, 2))}</code></pre>`;
-                }
-            } else {
-                argDisplay = `<pre><code>${this.escapeHtml(String(args))}</code></pre>`;
-            }
-
-            html += `<div class="tool-call-item"><strong>${tc.function.name}</strong>${argDisplay}</div>`;
+            body.insertAdjacentHTML('beforeend', this.renderToolCallArgs(tc));
         }
 
-        html += '</div></details>';
+        row.appendChild(summary);
+        row.appendChild(body);
+        this.currentTurn.body.appendChild(row);
+        this.currentTurn.rowsByIter.set(iteration, row);
+        this.currentTurn.stepCount++;
 
-        if (!autoApproved) {
-            html += '<div class="tool-approval-buttons"><button class="approve-btn approve-yes">▶ Run</button><button class="approve-btn approve-no" style="background:#dc3545">✕ Cancel</button></div>';
-        }
-        block.innerHTML = html;
-        this.messagesEl.appendChild(block);
-
-        // Highlight any SQL blocks in the proposal
-        block.querySelectorAll('code.language-sql').forEach(el => {
+        row.querySelectorAll('code.language-sql').forEach(el => {
             if (typeof hljs !== 'undefined') hljs.highlightElement(el);
         });
 
         this.scrollToBottom();
 
-        if (autoApproved) {
-            return Promise.resolve({ approved: true });
-        }
+        if (autoApproved) return Promise.resolve({ approved: true });
 
-        // Wait for user to click approve/cancel
+        // Open the row so the user can see what's being proposed.
+        row.open = true;
+        body.insertAdjacentHTML('beforeend',
+            '<div class="tool-approval-buttons">' +
+            '<button class="approve-btn approve-yes">▶ Run</button>' +
+            '<button class="approve-btn approve-no" style="background:#dc3545">✕ Cancel</button>' +
+            '</div>'
+        );
+
         return new Promise(resolve => {
-            const yesBtn = block.querySelector('.approve-yes');
-            const noBtn = block.querySelector('.approve-no');
+            const yesBtn = row.querySelector('.approve-yes');
+            const noBtn = row.querySelector('.approve-no');
+            const cleanup = () => row.querySelector('.tool-approval-buttons')?.remove();
 
             yesBtn.addEventListener('click', () => {
-                yesBtn.disabled = true;
-                noBtn.disabled = true;
-                yesBtn.textContent = '✓ Approved';
+                cleanup();
                 resolve({ approved: true });
             });
-
             noBtn.addEventListener('click', () => {
-                yesBtn.disabled = true;
-                noBtn.disabled = true;
-                noBtn.textContent = '✕ Cancelled';
+                cleanup();
                 resolve({ approved: false });
             });
         });
     }
 
     /**
-     * Show tool results as a collapsible block.
+     * Render the body block for one tool call (args, with SQL pretty-print
+     * and redaction of credential-like keys).
      */
-    showToolResults(results, iteration) {
-        this.removeToolExecuting();
-        const block = document.createElement('div');
-        block.className = 'chat-message tool-block';
+    renderToolCallArgs(tc) {
+        let args;
+        try { args = JSON.parse(tc.function.arguments); } catch { args = tc.function.arguments; }
 
-        const count = results.length;
-        const label = `✅ ${count} tool result${count > 1 ? 's' : ''}`;
-
-        let html = `<details><summary class="query-summary-btn">${label}</summary><div class="tool-detail">`;
-
-        for (const r of results) {
-            const icon = r.success ? '✓' : '✗';
-            const sourceTag = r.source === 'remote' ? ' <span class="tool-tag remote">MCP</span>' : '';
-            const truncated = this.truncateResult(r.result, 2000);
-            html += `<div class="tool-result-item"><strong>${icon} ${r.name}</strong>${sourceTag}`;
-
-            // If it's a SQL query, show it specially
-            if (r.sqlQuery) {
-                html += `<details class="sql-detail"><summary>SQL</summary><pre><code class="language-sql">${this.escapeHtml(r.sqlQuery)}</code></pre></details>`;
+        let argDisplay = '';
+        if (typeof args === 'object' && args !== null) {
+            const sqlText = args.sql_query || args.query || args.sql || null;
+            const sqlKey = args.sql_query !== undefined ? 'sql_query' : args.query !== undefined ? 'query' : 'sql';
+            if (sqlText) {
+                argDisplay += `<details class="sql-detail"><summary>SQL</summary><pre><code class="language-sql">${this.escapeHtml(sqlText)}</code></pre></details>`;
+                const REDACTED_KEYS = ['s3_key', 's3_secret', 's3_endpoint', 's3_scope', 'catalog_token'];
+                const otherArgs = Object.fromEntries(
+                    Object.entries(args).filter(([k]) => k !== sqlKey && !REDACTED_KEYS.includes(k))
+                );
+                if (Object.keys(otherArgs).length > 0) {
+                    argDisplay += `<pre><code>${this.escapeHtml(JSON.stringify(otherArgs, null, 2))}</code></pre>`;
+                }
+            } else {
+                argDisplay = `<pre><code>${this.escapeHtml(JSON.stringify(args, null, 2))}</code></pre>`;
             }
-
-            html += `<pre class="tool-output"><code>${this.escapeHtml(truncated)}</code></pre></div>`;
+        } else {
+            argDisplay = `<pre><code>${this.escapeHtml(String(args))}</code></pre>`;
         }
 
-        html += '</div></details>';
-        block.innerHTML = html;
-        this.messagesEl.appendChild(block);
-        this.scrollToBottom();
+        return `<div class="tool-call-item"><strong>${tc.function.name}</strong>${argDisplay}</div>`;
+    }
 
-        // Highlight SQL if available
-        block.querySelectorAll('code.language-sql').forEach(el => {
+    /**
+     * Mutate the tool row created in showToolProposal: change its status
+     * icon and append the result panels to the body.
+     */
+    showToolResults(results, iteration) {
+        if (!this.currentTurn) return;
+        const row = this.currentTurn.rowsByIter.get(iteration);
+        if (!row) return;
+
+        const anyError = results.some(r => !r.success);
+        const status = anyError ? 'error' : 'done';
+        const icon = anyError ? '✗' : '✓';
+
+        row.classList.remove('running');
+        row.classList.add(status);
+
+        const statusEl = row.querySelector('.row-status');
+        if (statusEl) {
+            statusEl.className = `row-status ${status}`;
+            statusEl.textContent = icon;
+        }
+
+        const body = row.querySelector('.agent-turn-row-body');
+        if (!body) return;
+
+        let resultsHtml = '<div class="tool-results-list">';
+        for (const r of results) {
+            const itemIcon = r.success ? '✓' : '✗';
+            const sourceTag = r.source === 'remote' ? ' <span class="tool-tag remote">MCP</span>' : '';
+            const truncated = this.truncateResult(r.result, 2000);
+            resultsHtml += `<div class="tool-result-item"><strong>${itemIcon} ${r.name}</strong>${sourceTag}`;
+            if (r.sqlQuery) {
+                resultsHtml += `<details class="sql-detail"><summary>SQL</summary><pre><code class="language-sql">${this.escapeHtml(r.sqlQuery)}</code></pre></details>`;
+            }
+            resultsHtml += `<pre class="tool-output"><code>${this.escapeHtml(truncated)}</code></pre></div>`;
+        }
+        resultsHtml += '</div>';
+        body.insertAdjacentHTML('beforeend', resultsHtml);
+
+        // Highlight any new SQL blocks in the appended results
+        body.querySelectorAll('code.language-sql:not(.hljs)').forEach(el => {
             if (typeof hljs !== 'undefined') hljs.highlightElement(el);
         });
+
+        this.scrollToBottom();
     }
 
     /* ------------------------------------------------------------------ */
