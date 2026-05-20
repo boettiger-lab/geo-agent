@@ -187,10 +187,12 @@ export class Agent {
                     // Track SQL queries
                     if (execResult.sqlQuery) sqlQueries.push(execResult.sqlQuery);
 
-                    // Add to conversation — cap at 4K chars to prevent SQL results
-                    // from consuming the remaining context budget mid-turn
-                    const resultContent = execResult.result?.length > 4000
-                        ? execResult.result.substring(0, 4000) + '\n... (truncated)'
+                    // Add to conversation — cap to prevent SQL results from consuming
+                    // the remaining context budget mid-turn. 16K fits current STAC
+                    // schema-discovery payloads (~8–10 KB at largest) with headroom.
+                    const TOOL_RESULT_CAP = 16000;
+                    const resultContent = execResult.result?.length > TOOL_RESULT_CAP
+                        ? execResult.result.substring(0, TOOL_RESULT_CAP) + '\n... (truncated)'
                         : execResult.result;
                     turnMessages.push({
                         role: 'tool',
