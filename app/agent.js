@@ -31,6 +31,7 @@ export class Agent {
         // Event callbacks (set by chat-ui.js)
         this.onThinkingStart = () => { };
         this.onThinkingEnd = () => { };
+        this.onReasoning = () => { };
         this.onToolProposal = async () => ({ approved: true }); // auto-approve by default
         this.onToolExecuting = () => { };
         this.onToolResults = () => { };
@@ -131,6 +132,11 @@ export class Agent {
             } finally {
                 this.onThinkingEnd();
             }
+            // Surface reasoning before pushing back into the loop. Strips
+            // <think> blocks from content and drops reasoning_content from
+            // the message so it isn't re-sent on subsequent turns.
+            const reasoning = this.extractReasoning(message);
+            if (reasoning) this.onReasoning(reasoning, iterations);
             turnMessages.push(message);
 
             // Check for tool calls
@@ -187,10 +193,12 @@ export class Agent {
                     // Track SQL queries
                     if (execResult.sqlQuery) sqlQueries.push(execResult.sqlQuery);
 
-                    // Add to conversation — cap at 4K chars to prevent SQL results
-                    // from consuming the remaining context budget mid-turn
-                    const resultContent = execResult.result?.length > 4000
-                        ? execResult.result.substring(0, 4000) + '\n... (truncated)'
+                    // Add to conversation — cap to prevent SQL results from consuming
+                    // the remaining context budget mid-turn. 16K fits current STAC
+                    // schema-discovery payloads (~8–10 KB at largest) with headroom.
+                    const TOOL_RESULT_CAP = 16000;
+                    const resultContent = execResult.result?.length > TOOL_RESULT_CAP
+                        ? execResult.result.substring(0, TOOL_RESULT_CAP) + '\n... (truncated)'
                         : execResult.result;
                     turnMessages.push({
                         role: 'tool',
@@ -332,6 +340,36 @@ export class Agent {
         if (error.name === 'TypeError') return true;
         if (typeof error.status === 'number' && error.status >= 500 && error.status < 600) return true;
         return false;
+    }
+
+    /**
+     * Extract reasoning from a model message (mutates: strips reasoning_content
+     * and inline <think> blocks so they don't get re-sent on the next turn).
+     * Returns the combined reasoning text, or null if none was present.
+     *
+     * Handles two shapes:
+     *   1. `reasoning_content` field (vLLM/qwen3/DeepSeek thinking-mode template)
+     *   2. Inline <think>...</think> blocks in `content` (qwen3 default, others)
+     */
+    extractReasoning(message) {
+        const parts = [];
+
+        if (typeof message.reasoning_content === 'string' && message.reasoning_content.trim()) {
+            parts.push(message.reasoning_content.trim());
+        }
+        delete message.reasoning_content;
+
+        if (typeof message.content === 'string' && message.content.includes('<think>')) {
+            const pattern = /<think>([\s\S]*?)<\/think>/gi;
+            let m;
+            while ((m = pattern.exec(message.content)) !== null) {
+                const text = m[1].trim();
+                if (text) parts.push(text);
+            }
+            message.content = message.content.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+        }
+
+        return parts.length > 0 ? parts.join('\n\n') : null;
     }
 
     /**
