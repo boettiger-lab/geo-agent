@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
 import { MapManager } from '../app/map-manager.js';
 
@@ -212,5 +213,56 @@ describe('MapManager.sendTopVisibleLayerToBack', () => {
         const before = mm.map._stack().slice();
         for (let i = 0; i < 4; i++) mm.sendTopVisibleLayerToBack();
         expect(mm.map._stack()).toEqual(before);
+    });
+});
+
+describe('MapManager._refreshCycleBtnState', () => {
+    it('disables the button when fewer than 2 visible non-animation layers', () => {
+        const mm = withVisibility(createManager(
+            [{ id: 'layer-A' }],
+            {
+                A: { mapLayerId: 'layer-A', outlineLayerId: null, type: 'vector' },
+                Anim: { mapLayerId: null, outlineLayerId: null, type: 'animation' },
+            },
+        ), { A: true, Anim: true });
+
+        const btn = document.createElement('button');
+        btn.id = 'cycle-top-layer';
+        document.body.appendChild(btn);
+        try {
+            mm._refreshCycleBtnState();
+            expect(btn.disabled).toBe(true);
+        } finally {
+            btn.remove();
+        }
+    });
+
+    it('enables the button when 2+ visible non-animation layers', () => {
+        const mm = withVisibility(createManager(
+            [{ id: 'layer-A' }, { id: 'layer-B' }],
+            {
+                A: { mapLayerId: 'layer-A', outlineLayerId: null, type: 'vector' },
+                B: { mapLayerId: 'layer-B', outlineLayerId: null, type: 'vector' },
+            },
+        ), { A: true, B: true });
+
+        const btn = document.createElement('button');
+        btn.id = 'cycle-top-layer';
+        btn.disabled = true;
+        document.body.appendChild(btn);
+        try {
+            mm._refreshCycleBtnState();
+            expect(btn.disabled).toBe(false);
+        } finally {
+            btn.remove();
+        }
+    });
+
+    it('is a no-op when the button is not in the DOM', () => {
+        const mm = withVisibility(createManager(
+            [{ id: 'layer-A' }],
+            { A: { mapLayerId: 'layer-A', outlineLayerId: null, type: 'vector' } },
+        ), { A: true });
+        expect(() => mm._refreshCycleBtnState()).not.toThrow();
     });
 });
