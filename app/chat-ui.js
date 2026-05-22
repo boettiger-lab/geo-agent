@@ -5,6 +5,23 @@
  * Renders collapsible tool-call blocks (VSCode Copilot-inspired).
  */
 
+/**
+ * Rewrite `s3://bucket/path` URLs to the public HTTPS endpoint so that the
+ * SQL is re-runnable from any DuckDB with httpfs loaded, outside the
+ * cluster. Mirrors (in reverse) the conversion in
+ * dataset-catalog.js:460-461.
+ *
+ * @param {string} sql
+ * @returns {string}
+ */
+export function rewriteS3UrlsInSql(sql) {
+    if (!sql) return sql;
+    return sql.replace(
+        /\bs3:\/\/([A-Za-z0-9._-]+)(\/[^\s'"]*)?/g,
+        (_m, bucket, path) => `https://s3-west.nrp-nautilus.io/${bucket}${path || ''}`
+    );
+}
+
 export class ChatUI {
     /**
      * @param {import('./agent.js').Agent} agent
