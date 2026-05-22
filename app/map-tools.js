@@ -258,6 +258,101 @@ ${formatLayerList(allLayers())}`,
         },
 
         {
+            name: 'move_layer_to_top',
+            description: `Move a layer to the top of the map's paint stack so it draws on top of every other overlay. Use when the user asks to "bring to top", "put on top", "raise to front", or "make visible above" other layers.
+
+"Above" means visually higher / drawn on top of. The \`z_order\` array returned by \`get_map_state\` is top-to-bottom — index 0 is whatever currently paints on top.
+
+${pickLayerNudge}
+
+Available layers:
+${formatLayerList(allLayers())}`,
+            inputSchema: {
+                type: 'object',
+                properties: {
+                    layer_id: { type: 'string', description: 'Layer ID to raise to the top' },
+                },
+                required: ['layer_id'],
+            },
+            execute: (args) => JSON.stringify(mapManager.moveLayerToTop(args.layer_id)),
+        },
+
+        {
+            name: 'move_layer_to_bottom',
+            description: `Move a layer to the bottom of the map's paint stack so every other overlay draws on top of it (basemap stays underneath). Use when the user asks to "send to back", "put on the bottom", or "lower beneath" other layers.
+
+${pickLayerNudge}
+
+Available layers:
+${formatLayerList(allLayers())}`,
+            inputSchema: {
+                type: 'object',
+                properties: {
+                    layer_id: { type: 'string', description: 'Layer ID to send to the bottom' },
+                },
+                required: ['layer_id'],
+            },
+            execute: (args) => JSON.stringify(mapManager.moveLayerToBottom(args.layer_id)),
+        },
+
+        {
+            name: 'move_layer_above',
+            description: `Move \`layer_id\` so it paints just on top of \`reference_layer_id\`. Use when the user asks to "put A above B", "draw A on top of B", or "raise A over B".
+
+"Above" means visually higher / drawn on top of.
+
+${pickLayerNudge}
+
+Available layers:
+${formatLayerList(allLayers())}`,
+            inputSchema: {
+                type: 'object',
+                properties: {
+                    layer_id: { type: 'string', description: 'Layer ID being moved' },
+                    reference_layer_id: { type: 'string', description: 'Layer ID it should paint on top of' },
+                },
+                required: ['layer_id', 'reference_layer_id'],
+            },
+            execute: (args) => JSON.stringify(
+                mapManager.moveLayerAbove(args.layer_id, args.reference_layer_id),
+            ),
+        },
+
+        {
+            name: 'move_layer_below',
+            description: `Move \`layer_id\` so it paints just underneath \`reference_layer_id\`. Use when the user asks to "put A below B", "draw A under B", or "lower A beneath B".
+
+"Below" means visually lower / painted underneath.
+
+${pickLayerNudge}
+
+Available layers:
+${formatLayerList(allLayers())}`,
+            inputSchema: {
+                type: 'object',
+                properties: {
+                    layer_id: { type: 'string', description: 'Layer ID being moved' },
+                    reference_layer_id: { type: 'string', description: 'Layer ID it should paint underneath' },
+                },
+                required: ['layer_id', 'reference_layer_id'],
+            },
+            execute: (args) => JSON.stringify(
+                mapManager.moveLayerBelow(args.layer_id, args.reference_layer_id),
+            ),
+        },
+
+        {
+            name: 'reset_layer_order',
+            description: `Restore the map's layer paint order to the order defined in the app's config (the order layers appear in \`layers-input.json\`). Use when the user asks to "reset the layer order", "put the layers back where they were", or "restore the default order".`,
+            inputSchema: {
+                type: 'object',
+                properties: {},
+                required: [],
+            },
+            execute: () => JSON.stringify(mapManager.resetLayerOrder()),
+        },
+
+        {
             name: 'get_map_state',
             description: 'Get the current state of all map layers: which are visible, which have filters applied, etc. Use only when the user asks about current map state.',
             inputSchema: {
