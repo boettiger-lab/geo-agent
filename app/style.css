@@ -124,6 +124,24 @@ body {
     color: #333;
 }
 
+.menu-header-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #666;
+    padding: 0 4px;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+}
+.menu-header-btn:hover:not(:disabled) {
+    color: #333;
+}
+.menu-header-btn:disabled {
+    opacity: 0.35;
+    cursor: default;
+}
+
 #menu.collapsed #menu-body {
     display: none;
 }
