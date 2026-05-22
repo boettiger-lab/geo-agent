@@ -790,7 +790,27 @@ export class MapManager {
                 defaultFilterDescription: state.defaultFilter ? this.describeFilter(state.defaultFilter) : null,
             };
         }
-        return { success: true, layers };
+
+        // Build sub-id → logical-id reverse index.
+        const subToLogical = new Map();
+        for (const id of this.layers.keys()) {
+            for (const sub of this._mapSublayersFor(id)) {
+                subToLogical.set(sub, id);
+            }
+        }
+        const seen = new Set();
+        const z_order = [];
+        const styleLayers = this.map.getStyle().layers;
+        // Walk top-to-bottom of MapLibre stack, recording each logical layer once.
+        for (let i = styleLayers.length - 1; i >= 0; i--) {
+            const logical = subToLogical.get(styleLayers[i].id);
+            if (logical && !seen.has(logical)) {
+                seen.add(logical);
+                z_order.push(logical);
+            }
+        }
+
+        return { success: true, layers, z_order };
     }
 
     /**

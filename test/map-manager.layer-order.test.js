@@ -327,6 +327,68 @@ describe('MapManager.moveLayerBelow', () => {
     });
 });
 
+describe('MapManager.getMapState z_order extension', () => {
+    function withStateLayers(styleLayers, logicalLayers) {
+        const mm = createManager(styleLayers, logicalLayers);
+        for (const [id, state] of mm.layers) {
+            mm.layers.set(id, {
+                ...state,
+                displayName: state.displayName || id,
+                type: state.type || 'vector',
+                visible: false,
+                filter: null,
+                defaultFilter: null,
+            });
+        }
+        mm.describeFilter = () => null;
+        return mm;
+    }
+
+    it('returns z_order top-to-bottom', () => {
+        const mm = withStateLayers(
+            [{ id: 'layer-A' }, { id: 'layer-B' }, { id: 'layer-C' }],
+            {
+                A: { mapLayerId: 'layer-A' },
+                B: { mapLayerId: 'layer-B' },
+                C: { mapLayerId: 'layer-C' },
+            },
+        );
+        const r = mm.getMapState();
+        expect(r.z_order).toEqual(['C', 'B', 'A']);
+    });
+
+    it('dedupes by logical layer when a layer has multiple sublayers', () => {
+        const mm = withStateLayers(
+            [
+                { id: 'layer-A' }, { id: 'layer-A-outline' },
+                { id: 'layer-B' }, { id: 'layer-B-outline' },
+            ],
+            {
+                A: { mapLayerId: 'layer-A', outlineLayerId: 'layer-A-outline' },
+                B: { mapLayerId: 'layer-B', outlineLayerId: 'layer-B-outline' },
+            },
+        );
+        const r = mm.getMapState();
+        expect(r.z_order).toEqual(['B', 'A']);
+    });
+
+    it('skips MapLibre layers not belonging to any registered layer (basemap)', () => {
+        const mm = withStateLayers(
+            [
+                { id: 'basemap-tiles' },
+                { id: 'layer-A' },
+                { id: 'layer-B' },
+            ],
+            {
+                A: { mapLayerId: 'layer-A' },
+                B: { mapLayerId: 'layer-B' },
+            },
+        );
+        const r = mm.getMapState();
+        expect(r.z_order).toEqual(['B', 'A']);
+    });
+});
+
 describe('MapManager.resetLayerOrder', () => {
     it('restores the cached initial order top-to-bottom = [last, ..., first]', () => {
         const mm = createManager(
