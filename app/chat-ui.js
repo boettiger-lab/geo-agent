@@ -60,6 +60,13 @@ export function scrubCredentials(text) {
     return out;
 }
 
+/**
+ * Tool-call argument keys whose values are credentials and must never be
+ * rendered to the chat or to any export. Used by both `renderToolCallArgs`
+ * (live chat) and `exportHtml` (download).
+ */
+export const REDACTED_KEYS = ['s3_key', 's3_secret', 's3_endpoint', 's3_scope', 'catalog_token'];
+
 export class ChatUI {
     /**
      * @param {import('./agent.js').Agent} agent
@@ -815,7 +822,6 @@ export class ChatUI {
             const sqlKey = args.sql_query !== undefined ? 'sql_query' : args.query !== undefined ? 'query' : 'sql';
             if (sqlText) {
                 argDisplay += `<details class="sql-detail"><summary>SQL</summary><pre><code class="language-sql">${this.escapeHtml(sqlText)}</code></pre></details>`;
-                const REDACTED_KEYS = ['s3_key', 's3_secret', 's3_endpoint', 's3_scope', 'catalog_token'];
                 const otherArgs = Object.fromEntries(
                     Object.entries(args).filter(([k]) => k !== sqlKey && !REDACTED_KEYS.includes(k))
                 );
