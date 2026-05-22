@@ -75,3 +75,142 @@ describe('MapManager._mapSublayersFor', () => {
         expect(mm._mapSublayersFor('missing')).toEqual([]);
     });
 });
+
+function withVisibility(mm, visibilityMap) {
+    for (const [id, visible] of Object.entries(visibilityMap)) {
+        const state = mm.layers.get(id);
+        if (state) state.visible = visible;
+    }
+    return mm;
+}
+
+describe('MapManager.sendTopVisibleLayerToBack', () => {
+    it('demotes the topmost visible layer to just above the floor', () => {
+        const mm = withVisibility(createManager(
+            [{ id: 'layer-A' }, { id: 'layer-B' }, { id: 'layer-C' }],
+            {
+                A: { mapLayerId: 'layer-A', outlineLayerId: null, type: 'vector' },
+                B: { mapLayerId: 'layer-B', outlineLayerId: null, type: 'vector' },
+                C: { mapLayerId: 'layer-C', outlineLayerId: null, type: 'vector' },
+            },
+        ), { A: true, B: true, C: true });
+        const r = mm.sendTopVisibleLayerToBack();
+        expect(r).toEqual({ success: true, layer: 'C' });
+        expect(mm.map._stack()).toEqual(['layer-C', 'layer-A', 'layer-B']);
+    });
+
+    it('moves fill+outline group atomically — outline stays above fill', () => {
+        const mm = withVisibility(createManager(
+            [
+                { id: 'layer-A' }, { id: 'layer-A-outline' },
+                { id: 'layer-B' }, { id: 'layer-B-outline' },
+            ],
+            {
+                A: { mapLayerId: 'layer-A', outlineLayerId: 'layer-A-outline', type: 'vector' },
+                B: { mapLayerId: 'layer-B', outlineLayerId: 'layer-B-outline', type: 'vector' },
+            },
+        ), { A: true, B: true });
+        mm.sendTopVisibleLayerToBack();
+        expect(mm.map._stack()).toEqual([
+            'layer-B', 'layer-B-outline',
+            'layer-A', 'layer-A-outline',
+        ]);
+    });
+
+    it('moves all version sublayers together for a versioned top layer', () => {
+        const mm = withVisibility(createManager(
+            [
+                { id: 'layer-A' },
+                { id: 'layer-V--v-0' }, { id: 'layer-V--v-0-outline' },
+                { id: 'layer-V--v-1' }, { id: 'layer-V--v-1-outline' },
+            ],
+            {
+                A: { mapLayerId: 'layer-A', outlineLayerId: null, type: 'vector' },
+                V: {
+                    mapLayerId: 'layer-V--v-0',
+                    outlineLayerId: 'layer-V--v-0-outline',
+                    type: 'vector',
+                    versions: [
+                        { mapLayerId: 'layer-V--v-0', outlineLayerId: 'layer-V--v-0-outline' },
+                        { mapLayerId: 'layer-V--v-1', outlineLayerId: 'layer-V--v-1-outline' },
+                    ],
+                },
+            },
+        ), { A: true, V: true });
+        const r = mm.sendTopVisibleLayerToBack();
+        expect(r.layer).toBe('V');
+        expect(mm.map._stack()).toEqual([
+            'layer-V--v-0', 'layer-V--v-0-outline',
+            'layer-V--v-1', 'layer-V--v-1-outline',
+            'layer-A',
+        ]);
+    });
+
+    it('skips hidden layers when finding top visible', () => {
+        const mm = withVisibility(createManager(
+            [{ id: 'layer-A' }, { id: 'layer-B' }, { id: 'layer-C' }],
+            {
+                A: { mapLayerId: 'layer-A', outlineLayerId: null, type: 'vector' },
+                B: { mapLayerId: 'layer-B', outlineLayerId: null, type: 'vector' },
+                C: { mapLayerId: 'layer-C', outlineLayerId: null, type: 'vector' },
+            },
+        ), { A: true, B: true, C: false });
+        const r = mm.sendTopVisibleLayerToBack();
+        expect(r.layer).toBe('B');
+        expect(mm.map._stack()).toEqual(['layer-B', 'layer-A', 'layer-C']);
+    });
+
+    it('skips animation-type layers when finding top visible', () => {
+        const mm = withVisibility(createManager(
+            [{ id: 'layer-A' }, { id: 'layer-B' }],
+            {
+                A: { mapLayerId: 'layer-A', outlineLayerId: null, type: 'vector' },
+                B: { mapLayerId: 'layer-B', outlineLayerId: null, type: 'vector' },
+                Anim: { mapLayerId: null, outlineLayerId: null, type: 'animation' },
+            },
+        ), { A: true, B: true, Anim: true });
+        const r = mm.sendTopVisibleLayerToBack();
+        expect(r.layer).toBe('B');
+    });
+
+    it('returns insufficient_visible_layers when 0 visible', () => {
+        const mm = withVisibility(createManager(
+            [{ id: 'layer-A' }, { id: 'layer-B' }],
+            {
+                A: { mapLayerId: 'layer-A', outlineLayerId: null, type: 'vector' },
+                B: { mapLayerId: 'layer-B', outlineLayerId: null, type: 'vector' },
+            },
+        ), { A: false, B: false });
+        const r = mm.sendTopVisibleLayerToBack();
+        expect(r).toEqual({ success: true, layer: null, reason: 'insufficient_visible_layers' });
+        expect(mm.map._stack()).toEqual(['layer-A', 'layer-B']);
+    });
+
+    it('returns insufficient_visible_layers when only 1 visible', () => {
+        const mm = withVisibility(createManager(
+            [{ id: 'layer-A' }, { id: 'layer-B' }],
+            {
+                A: { mapLayerId: 'layer-A', outlineLayerId: null, type: 'vector' },
+                B: { mapLayerId: 'layer-B', outlineLayerId: null, type: 'vector' },
+            },
+        ), { A: true, B: false });
+        const r = mm.sendTopVisibleLayerToBack();
+        expect(r.layer).toBe(null);
+        expect(mm.map._stack()).toEqual(['layer-A', 'layer-B']);
+    });
+
+    it('cycles through visible layers with period N', () => {
+        const mm = withVisibility(createManager(
+            [{ id: 'layer-A' }, { id: 'layer-B' }, { id: 'layer-C' }, { id: 'layer-D' }],
+            {
+                A: { mapLayerId: 'layer-A', outlineLayerId: null, type: 'vector' },
+                B: { mapLayerId: 'layer-B', outlineLayerId: null, type: 'vector' },
+                C: { mapLayerId: 'layer-C', outlineLayerId: null, type: 'vector' },
+                D: { mapLayerId: 'layer-D', outlineLayerId: null, type: 'vector' },
+            },
+        ), { A: true, B: true, C: true, D: true });
+        const before = mm.map._stack().slice();
+        for (let i = 0; i < 4; i++) mm.sendTopVisibleLayerToBack();
+        expect(mm.map._stack()).toEqual(before);
+    });
+});

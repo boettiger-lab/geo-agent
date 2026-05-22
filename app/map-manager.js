@@ -831,6 +831,73 @@ export class MapManager {
     }
 
     /**
+     * Send the topmost visible (non-animation) registered layer to the
+     * bottom of the registered-layer stack (just above basemap). Repeated
+     * calls cycle through visible layers with period N.
+     *
+     * Returns:
+     *   { success: true, layer: <id> }   when a layer was moved
+     *   { success: true, layer: null, reason: 'insufficient_visible_layers' }
+     *     when 0 or 1 visible layers, or only one registered layer total
+     */
+    sendTopVisibleLayerToBack() {
+        // Build sub-id → logical-id reverse index.
+        const subToLogical = new Map();
+        for (const id of this.layers.keys()) {
+            for (const sub of this._mapSublayersFor(id)) {
+                subToLogical.set(sub, id);
+            }
+        }
+
+        // Find topmost visible non-animation layer by walking style top-down.
+        const styleLayers = this.map.getStyle().layers;
+        let topVisibleId = null;
+        for (let i = styleLayers.length - 1; i >= 0; i--) {
+            const logical = subToLogical.get(styleLayers[i].id);
+            if (!logical) continue;
+            const state = this.layers.get(logical);
+            if (state && state.visible && state.type !== 'animation') {
+                topVisibleId = logical;
+                break;
+            }
+        }
+        if (!topVisibleId) {
+            return { success: true, layer: null, reason: 'insufficient_visible_layers' };
+        }
+
+        // Count visible non-animation layers; need at least 2 to cycle.
+        let visibleCount = 0;
+        for (const [, state] of this.layers) {
+            if (state.visible && state.type !== 'animation') visibleCount++;
+        }
+        if (visibleCount < 2) {
+            return { success: true, layer: null, reason: 'insufficient_visible_layers' };
+        }
+
+        // Find floor: bottommost registered sublayer not belonging to topVisibleId.
+        const ownSubs = new Set(this._mapSublayersFor(topVisibleId));
+        const styleIds = styleLayers.map(l => l.id);
+        const floorId = styleIds.find(id => subToLogical.has(id) && !ownSubs.has(id));
+        if (!floorId) {
+            return { success: true, layer: null, reason: 'insufficient_visible_layers' };
+        }
+
+        // Move all own sublayers bottom-to-top, all using the same beforeId.
+        for (const sub of ownSubs) {
+            this.map.moveLayer(sub, floorId);
+        }
+
+        this._refreshCycleBtnState();
+        return { success: true, layer: topVisibleId };
+    }
+
+    /**
+     * Stub — real implementation in the next task. Defensive call from
+     * sendTopVisibleLayerToBack relies on this existing.
+     */
+    _refreshCycleBtnState() { /* implemented in Task 3 */ }
+
+    /**
      * Get [{id, displayName, type}, ...] for all registered layers — used to
      * build informative layer lists in LLM tool descriptions so the agent can
      * disambiguate siblings by displayName instead of guessing by ID suffix.
