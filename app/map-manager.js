@@ -831,6 +831,23 @@ export class MapManager {
     }
 
     /**
+     * Move a logical layer above every other registered layer in the map's
+     * paint stack. Vector fill+outline and all version sublayers move as a
+     * group. Basemap is never affected because basemap layers are not in
+     * `this.layers`.
+     */
+    moveLayerToTop(layerId) {
+        if (!this.layers.has(layerId)) {
+            return { success: false, error: `Layer not found: ${layerId}` };
+        }
+        const subs = this._mapSublayersFor(layerId);
+        for (const sub of subs) {
+            this.map.moveLayer(sub);
+        }
+        return { success: true, layerId };
+    }
+
+    /**
      * Get [{id, displayName, type}, ...] for all registered layers — used to
      * build informative layer lists in LLM tool descriptions so the agent can
      * disambiguate siblings by displayName instead of guessing by ID suffix.

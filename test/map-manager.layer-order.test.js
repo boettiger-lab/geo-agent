@@ -68,3 +68,61 @@ describe('MapManager._mapSublayersFor', () => {
         expect(mm._mapSublayersFor('missing')).toEqual([]);
     });
 });
+
+describe('MapManager.moveLayerToTop', () => {
+    it('moves a single-sublayer layer to the top', () => {
+        const mm = createManager(
+            [{ id: 'layer-A' }, { id: 'layer-B' }, { id: 'layer-C' }],
+            {
+                A: { mapLayerId: 'layer-A', outlineLayerId: null, displayName: 'A' },
+                B: { mapLayerId: 'layer-B', outlineLayerId: null, displayName: 'B' },
+                C: { mapLayerId: 'layer-C', outlineLayerId: null, displayName: 'C' },
+            },
+        );
+        const r = mm.moveLayerToTop('A');
+        expect(r.success).toBe(true);
+        expect(r.layerId).toBe('A');
+        expect(mm.map._stack()).toEqual(['layer-B', 'layer-C', 'layer-A']);
+    });
+
+    it('moves a fill+outline group atomically with outline on top of fill', () => {
+        const mm = createManager(
+            [
+                { id: 'layer-A' }, { id: 'layer-A-outline' },
+                { id: 'layer-B' }, { id: 'layer-B-outline' },
+            ],
+            {
+                A: { mapLayerId: 'layer-A', outlineLayerId: 'layer-A-outline', displayName: 'A' },
+                B: { mapLayerId: 'layer-B', outlineLayerId: 'layer-B-outline', displayName: 'B' },
+            },
+        );
+        mm.moveLayerToTop('A');
+        expect(mm.map._stack()).toEqual([
+            'layer-B', 'layer-B-outline',
+            'layer-A', 'layer-A-outline',
+        ]);
+    });
+
+    it('returns success=false with error when the layerId is unknown', () => {
+        const mm = createManager(
+            [{ id: 'layer-A' }],
+            { A: { mapLayerId: 'layer-A', outlineLayerId: null } },
+        );
+        const r = mm.moveLayerToTop('missing');
+        expect(r.success).toBe(false);
+        expect(r.error).toMatch(/Layer not found/);
+    });
+
+    it('is a no-op when the layer is already at the top', () => {
+        const mm = createManager(
+            [{ id: 'layer-A' }, { id: 'layer-B' }],
+            {
+                A: { mapLayerId: 'layer-A', outlineLayerId: null },
+                B: { mapLayerId: 'layer-B', outlineLayerId: null },
+            },
+        );
+        const r = mm.moveLayerToTop('B');
+        expect(r.success).toBe(true);
+        expect(mm.map._stack()).toEqual(['layer-A', 'layer-B']);
+    });
+});
