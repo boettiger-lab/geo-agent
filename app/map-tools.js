@@ -354,7 +354,7 @@ ${formatLayerList(allLayers())}`,
 
         {
             name: 'get_map_state',
-            description: 'Get the current state of all map layers: which are visible, which have filters applied, etc. Use only when the user asks about current map state.',
+            description: 'Get the current state of all map layers: which are visible, which have filters applied, the top-to-bottom `z_order` array, etc. Use only when the user asks about current map state.',
             inputSchema: {
                 type: 'object',
                 properties: {},

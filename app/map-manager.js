@@ -859,7 +859,7 @@ export class MapManager {
      */
     moveLayerToTop(layerId) {
         if (!this.layers.has(layerId)) {
-            return { success: false, error: `Unknown layer: ${layerId}` };
+            return { success: false, error: `Unknown layer: ${layerId}. Available: ${this.getLayerIds().join(', ')}` };
         }
         const subs = this._mapSublayersFor(layerId);
         for (const sub of subs) {
@@ -875,7 +875,7 @@ export class MapManager {
      */
     moveLayerToBottom(layerId) {
         if (!this.layers.has(layerId)) {
-            return { success: false, error: `Unknown layer: ${layerId}` };
+            return { success: false, error: `Unknown layer: ${layerId}. Available: ${this.getLayerIds().join(', ')}` };
         }
         const ownSubs = new Set(this._mapSublayersFor(layerId));
         const registeredSubs = new Set();
@@ -902,15 +902,18 @@ export class MapManager {
      */
     moveLayerAbove(layerId, referenceLayerId) {
         if (!this.layers.has(layerId)) {
-            return { success: false, error: `Unknown layer: ${layerId}` };
+            return { success: false, error: `Unknown layer: ${layerId}. Available: ${this.getLayerIds().join(', ')}` };
         }
         if (!this.layers.has(referenceLayerId)) {
-            return { success: false, error: `Unknown layer: ${referenceLayerId}` };
+            return { success: false, error: `Unknown layer: ${referenceLayerId}. Available: ${this.getLayerIds().join(', ')}` };
         }
         if (layerId === referenceLayerId) {
             return { success: false, error: 'Layer and reference must differ' };
         }
         const refSubs = this._mapSublayersFor(referenceLayerId);
+        if (refSubs.length === 0) {
+            return { success: false, error: `Layer ${referenceLayerId} has no renderable sublayers — cannot use as reference` };
+        }
         const refTopSub = refSubs[refSubs.length - 1];
         const styleIds = this.map.getStyle().layers.map(l => l.id);
         const refTopIdx = styleIds.indexOf(refTopSub);
@@ -927,15 +930,18 @@ export class MapManager {
      */
     moveLayerBelow(layerId, referenceLayerId) {
         if (!this.layers.has(layerId)) {
-            return { success: false, error: `Unknown layer: ${layerId}` };
+            return { success: false, error: `Unknown layer: ${layerId}. Available: ${this.getLayerIds().join(', ')}` };
         }
         if (!this.layers.has(referenceLayerId)) {
-            return { success: false, error: `Unknown layer: ${referenceLayerId}` };
+            return { success: false, error: `Unknown layer: ${referenceLayerId}. Available: ${this.getLayerIds().join(', ')}` };
         }
         if (layerId === referenceLayerId) {
             return { success: false, error: 'Layer and reference must differ' };
         }
         const refSubs = this._mapSublayersFor(referenceLayerId);
+        if (refSubs.length === 0) {
+            return { success: false, error: `Layer ${referenceLayerId} has no renderable sublayers — cannot use as reference` };
+        }
         const beforeId = refSubs[0];
         for (const sub of this._mapSublayersFor(layerId)) {
             this.map.moveLayer(sub, beforeId);

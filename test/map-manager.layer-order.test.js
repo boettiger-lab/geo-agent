@@ -430,3 +430,45 @@ describe('MapManager.resetLayerOrder', () => {
         ]);
     });
 });
+
+describe('animation-layer reference guard', () => {
+    it('moveLayerAbove returns error when reference is an animation layer (no sublayers)', () => {
+        const mm = createManager(
+            [{ id: 'layer-A' }],
+            {
+                A: { mapLayerId: 'layer-A', outlineLayerId: null },
+                Anim: { mapLayerId: null, outlineLayerId: null, type: 'animation' },
+            },
+        );
+        const r = mm.moveLayerAbove('A', 'Anim');
+        expect(r.success).toBe(false);
+        expect(r.error).toMatch(/no renderable sublayers/);
+    });
+
+    it('moveLayerBelow returns error when reference is an animation layer (no sublayers)', () => {
+        const mm = createManager(
+            [{ id: 'layer-A' }],
+            {
+                A: { mapLayerId: 'layer-A', outlineLayerId: null },
+                Anim: { mapLayerId: null, outlineLayerId: null, type: 'animation' },
+            },
+        );
+        const r = mm.moveLayerBelow('A', 'Anim');
+        expect(r.success).toBe(false);
+        expect(r.error).toMatch(/no renderable sublayers/);
+    });
+});
+
+describe('error messages include the available layer list', () => {
+    it('moveLayerToTop unknown-layer error lists available layers', () => {
+        const mm = createManager(
+            [{ id: 'layer-A' }, { id: 'layer-B' }],
+            {
+                A: { mapLayerId: 'layer-A', outlineLayerId: null },
+                B: { mapLayerId: 'layer-B', outlineLayerId: null },
+            },
+        );
+        const r = mm.moveLayerToTop('missing');
+        expect(r.error).toMatch(/Available: A, B/);
+    });
+});
