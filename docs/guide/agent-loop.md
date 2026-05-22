@@ -53,7 +53,7 @@ user message
 
 Tools registered via `toolRegistry.registerLocal()` (the map tools) are **auto-approved** — they run silently with a collapsed "Running: …" block. No user interaction needed.
 
-The local map tools include: `show_layer`, `hide_layer`, `set_filter`, `reset_filter`, `set_style`, `get_dataset_details`, `list_datasets`, `fly_to`, and others. `fly_to` animates the map to any location — the agent looks up coordinates from parquet data via H3 SQL rather than guessing.
+The local map tools include: `show_layer`, `hide_layer`, `set_filter`, `reset_filter`, `set_style`, `set_tooltip`, `reset_tooltip`, `get_dataset_details`, `list_datasets`, `fly_to`, `move_layer_to_top`, `move_layer_to_bottom`, `move_layer_above`, `move_layer_below`, `reset_layer_order`, and others. `fly_to` animates the map to any location — the agent looks up coordinates from parquet data via H3 SQL rather than guessing. The layer-order tools (`move_layer_*`, `reset_layer_order`) let the agent rearrange which overlay paints on top of which; `get_map_state` returns a top-to-bottom `z_order` array so the agent can reason about current ordering.
 
 Tools registered via `toolRegistry.registerRemote()` (the MCP `query` tool) require **explicit user approval** — a "Details: query" block appears with Approve / Cancel buttons.
 
