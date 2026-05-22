@@ -865,26 +865,22 @@ export class MapManager {
             return { success: true, layer: null, reason: 'insufficient_visible_layers' };
         }
 
-        // Count visible non-animation layers; need at least 2 to cycle.
-        let visibleCount = 0;
-        for (const [, state] of this.layers) {
-            if (state.visible && state.type !== 'animation') visibleCount++;
-        }
-        if (visibleCount < 2) {
+        // Need at least 2 visible non-animation layers to have a cycle effect.
+        if (this._cycleBtnShouldBeDisabled()) {
             return { success: true, layer: null, reason: 'insufficient_visible_layers' };
         }
 
         // Find floor: bottommost registered sublayer not belonging to topVisibleId.
-        const ownSubs = new Set(this._mapSublayersFor(topVisibleId));
-        const styleIds = styleLayers.map(l => l.id);
-        const floorId = styleIds.find(id => subToLogical.has(id) && !ownSubs.has(id));
-        if (!floorId) {
+        const ownSubs = this._mapSublayersFor(topVisibleId);
+        const ownSubSet = new Set(ownSubs);
+        const floorLayer = styleLayers.find(l => subToLogical.has(l.id) && !ownSubSet.has(l.id));
+        if (!floorLayer) {
             return { success: true, layer: null, reason: 'insufficient_visible_layers' };
         }
 
-        // Move all own sublayers bottom-to-top, all using the same beforeId.
+        // Move all own sublayers bottom-to-top (order from _mapSublayersFor), all before floorLayer.
         for (const sub of ownSubs) {
-            this.map.moveLayer(sub, floorId);
+            this.map.moveLayer(sub, floorLayer.id);
         }
 
         this._refreshCycleBtnState();
@@ -1002,7 +998,6 @@ export class MapManager {
             container.classList.toggle('collapsed');
             menuToggle.textContent = container.classList.contains('collapsed') ? '+' : '−';
         });
-        // Cycle-top-layer button — sits between the title and the collapse toggle.
         const cycleBtn = document.createElement('button');
         cycleBtn.id = 'cycle-top-layer';
         cycleBtn.className = 'menu-header-btn';
@@ -1015,7 +1010,6 @@ export class MapManager {
         menuHeader.appendChild(menuToggle);
         container.appendChild(menuHeader);
 
-        // Reflect initial visible-layer count.
         this._refreshCycleBtnState();
 
         // ── Collapsible body ─────────────────────────────────────────────
