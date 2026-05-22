@@ -22,6 +22,43 @@ export function rewriteS3UrlsInSql(sql) {
     );
 }
 
+/**
+ * Defense-in-depth credential scrub. Replaces credential-shaped tokens with
+ * `[REDACTED]`. Each pattern requires a quoted value or structured
+ * delimiter, so false positives in prose are unlikely.
+ *
+ * @param {string} text
+ * @returns {string}
+ */
+export function scrubCredentials(text) {
+    if (text === '' || text == null) return text;
+
+    let out = text;
+
+    // DuckDB CREATE SECRET — KEY_ID 'value' / SECRET 'value'
+    out = out.replace(/(KEY_ID)\s+'[^']*'/gi, '$1 [REDACTED]');
+    out = out.replace(/(\bSECRET)\s+'[^']*'/gi, '$1 [REDACTED]');
+
+    // json/yaml/python access key assignments
+    out = out.replace(
+        /((?:aws_)?access_key(?:_id)?)["']?\s*([:=])\s*(['"])[^'"]+\3/gi,
+        '$1$2 [REDACTED]'
+    );
+    out = out.replace(
+        /((?:aws_)?secret(?:_access)?_key)["']?\s*([:=])\s*(['"])[^'"]+\3/gi,
+        '$1$2 [REDACTED]'
+    );
+
+    // Bearer tokens
+    out = out.replace(/(Authorization:)\s*Bearer\s+\S+/gi, '$1 [REDACTED]');
+
+    // Pre-signed URL signature/credential
+    out = out.replace(/X-Amz-Signature=[^&\s'"]+/gi, 'X-Amz-Signature=[REDACTED]');
+    out = out.replace(/X-Amz-Credential=[^&\s'"]+/gi, 'X-Amz-Credential=[REDACTED]');
+
+    return out;
+}
+
 export class ChatUI {
     /**
      * @param {import('./agent.js').Agent} agent

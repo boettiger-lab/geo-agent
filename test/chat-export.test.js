@@ -41,3 +41,66 @@ describe('rewriteS3UrlsInSql', () => {
         expect(rewriteS3UrlsInSql('')).toBe('');
     });
 });
+
+import { scrubCredentials } from '../app/chat-ui.js';
+
+describe('scrubCredentials', () => {
+    it('redacts DuckDB CREATE SECRET KEY_ID and SECRET values', () => {
+        const sql =
+            "CREATE SECRET my_secret (TYPE S3, KEY_ID 'AKIAIOSFODNN7EXAMPLE', " +
+            "SECRET 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY');";
+        const out = scrubCredentials(sql);
+        expect(out).not.toContain('AKIAIOSFODNN7EXAMPLE');
+        expect(out).not.toContain('wJalrXUtnFEMI');
+        expect(out).toMatch(/KEY_ID\s+\[REDACTED\]/);
+        expect(out).toMatch(/SECRET\s+\[REDACTED\]/);
+        expect(out).toContain('CREATE SECRET my_secret');
+    });
+
+    it('redacts case-insensitive key_id and secret', () => {
+        const sql = "key_id 'AKIA…' secret 'xyz'";
+        const out = scrubCredentials(sql);
+        expect(out).not.toContain('AKIA');
+        expect(out).not.toContain('xyz');
+    });
+
+    it('redacts aws_access_key_id assignments (json/yaml/python)', () => {
+        const json = '"aws_access_key_id": "AKIAEXAMPLE"';
+        const py = "aws_access_key_id = 'AKIAEXAMPLE'";
+        expect(scrubCredentials(json)).not.toContain('AKIAEXAMPLE');
+        expect(scrubCredentials(py)).not.toContain('AKIAEXAMPLE');
+    });
+
+    it('redacts aws_secret_access_key assignments', () => {
+        const text = '"aws_secret_access_key": "wJalrXUtnFEMI/K7MDENG"';
+        expect(scrubCredentials(text)).not.toContain('wJalrXUtnFEMI');
+    });
+
+    it('redacts Authorization Bearer tokens', () => {
+        const text = 'Authorization: Bearer eyJhbGciOiJIUzI1NiJ9.abc.def';
+        const out = scrubCredentials(text);
+        expect(out).not.toContain('eyJhbGciOiJIUzI1NiJ9');
+        expect(out).toMatch(/Authorization:\s*\[REDACTED\]/);
+    });
+
+    it('redacts X-Amz-Signature values inside URLs', () => {
+        const url =
+            'https://s3-west.nrp-nautilus.io/b/x.parquet?' +
+            'X-Amz-Signature=abc123def456&X-Amz-Credential=AKIA/20260101/us-east-1';
+        const out = scrubCredentials(url);
+        expect(out).not.toContain('abc123def456');
+        expect(out).not.toContain('AKIA/20260101');
+        expect(out).toContain('s3-west.nrp-nautilus.io/b/x.parquet');
+    });
+
+    it('leaves plain prose mentioning KEY_ID alone (no quoted value follows)', () => {
+        const prose = 'You must provide your KEY_ID before running this query.';
+        expect(scrubCredentials(prose)).toBe(prose);
+    });
+
+    it('returns empty input unchanged', () => {
+        expect(scrubCredentials('')).toBe('');
+        expect(scrubCredentials(undefined)).toBe(undefined);
+        expect(scrubCredentials(null)).toBe(null);
+    });
+});
