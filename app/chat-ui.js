@@ -902,6 +902,7 @@ export class ChatUI {
         const css = this._exportCss();
         const title = this._exportTitle();
         const appUrl = window.location.href;
+        const appUrlAttr = this.escapeHtml(appUrl).replace(/"/g, '&quot;');
         const appTitle = document.title || 'Geo-Agent';
         const exportedAt = new Date().toLocaleString();
 
@@ -916,7 +917,7 @@ export class ChatUI {
 <body>
 <header class="export-header">
   <h1>Geo-Agent chat transcript</h1>
-  <p>Exported ${this.escapeHtml(exportedAt)} — <a href="${this.escapeHtml(appUrl)}">${this.escapeHtml(appTitle)}</a></p>
+  <p>Exported ${this.escapeHtml(exportedAt)} — <a href="${appUrlAttr}">${this.escapeHtml(appTitle)}</a></p>
   <p class="export-note">SQL queries below have been rewritten to use the public S3 endpoint
      (<code>https://s3-west.nrp-nautilus.io/</code>) so they can be re-run from any DuckDB
      with the <code>httpfs</code> extension loaded.</p>
@@ -936,7 +937,7 @@ export class ChatUI {
             a.remove();
             URL.revokeObjectURL(url);
         } catch (err) {
-            console.warn('[ChatUI] Export failed:', err);
+            console.error('[ChatUI] Export failed:', err);
             this.addMessage('error',
                 "couldn't generate download — your browser may not support file downloads");
         }
