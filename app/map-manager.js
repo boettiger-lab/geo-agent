@@ -1002,9 +1002,21 @@ export class MapManager {
             container.classList.toggle('collapsed');
             menuToggle.textContent = container.classList.contains('collapsed') ? '+' : '−';
         });
+        // Cycle-top-layer button — sits between the title and the collapse toggle.
+        const cycleBtn = document.createElement('button');
+        cycleBtn.id = 'cycle-top-layer';
+        cycleBtn.className = 'menu-header-btn';
+        cycleBtn.title = 'Send the topmost visible layer to the back';
+        cycleBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>';
+        cycleBtn.addEventListener('click', () => this.sendTopVisibleLayerToBack());
+
         menuHeader.appendChild(layersTitle);
+        menuHeader.appendChild(cycleBtn);
         menuHeader.appendChild(menuToggle);
         container.appendChild(menuHeader);
+
+        // Reflect initial visible-layer count.
+        this._refreshCycleBtnState();
 
         // ── Collapsible body ─────────────────────────────────────────────
         const menuBody = document.createElement('div');
