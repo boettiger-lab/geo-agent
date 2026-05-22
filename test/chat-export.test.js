@@ -93,6 +93,17 @@ describe('scrubCredentials', () => {
         expect(out).toContain('s3-west.nrp-nautilus.io/b/x.parquet');
     });
 
+    it('redacts X-Amz-Security-Token values inside URLs (STS session tokens)', () => {
+        const url =
+            'https://s3-west.nrp-nautilus.io/b/x.parquet?' +
+            'X-Amz-Security-Token=FQoGZ.eXampleToken/abc123&X-Amz-Signature=def456';
+        const out = scrubCredentials(url);
+        expect(out).not.toContain('FQoGZ.eXampleToken');
+        expect(out).not.toContain('def456');
+        expect(out).toContain('s3-west.nrp-nautilus.io/b/x.parquet');
+        expect(out).toMatch(/X-Amz-Security-Token=\[REDACTED\]/);
+    });
+
     it('leaves plain prose mentioning KEY_ID alone (no quoted value follows)', () => {
         const prose = 'You must provide your KEY_ID before running this query.';
         expect(scrubCredentials(prose)).toBe(prose);
