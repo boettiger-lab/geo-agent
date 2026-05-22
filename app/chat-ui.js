@@ -150,6 +150,9 @@ export class ChatUI {
         // Auto-approve toggle (always shown)
         this.initAutoApproveToggle();
 
+        // Export-to-HTML button (always shown)
+        this.initExportButton();
+
         // Optional header/footer links (github, docs, carbon)
         this.initLinks();
 
@@ -500,6 +503,41 @@ export class ChatUI {
         });
 
         footer.prepend(btn);
+    }
+
+    /* ------------------------------------------------------------------ */
+    /*  Export-to-HTML button                                              */
+    /* ------------------------------------------------------------------ */
+
+    initExportButton() {
+        const footer = this.footerRightEl;
+        if (!footer) return;
+
+        const btn = document.createElement('button');
+        btn.id = 'export-btn';
+        btn.title = 'Download this conversation as a self-contained HTML file.';
+        btn.textContent = '⬇';
+        btn.disabled = true;
+
+        btn.addEventListener('click', () => {
+            if (btn.disabled) return;
+            this.exportHtml();
+        });
+
+        footer.prepend(btn);
+        this._exportBtn = btn;
+
+        // Observe messagesEl for the first real turn appearing; enable once
+        // we see a .chat-message.user or an .agent-turn child.
+        const refresh = () => {
+            const hasTurn = !!this.messagesEl.querySelector(
+                '.chat-message.user, .agent-turn'
+            );
+            btn.disabled = !hasTurn;
+        };
+        refresh();
+        const observer = new MutationObserver(refresh);
+        observer.observe(this.messagesEl, { childList: true, subtree: true });
     }
 
     /*  Send handler                                                       */

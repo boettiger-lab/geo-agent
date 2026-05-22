@@ -849,6 +849,27 @@ details[open]>.query-summary-btn::before {
     color: #d97706;
 }
 
+#export-btn {
+    background: transparent;
+    border: 1px solid #cbd5e1;
+    border-radius: 4px;
+    padding: 2px 8px;
+    font-size: 14px;
+    color: #475569;
+    cursor: pointer;
+    line-height: 1;
+}
+
+#export-btn:hover:not(:disabled) {
+    background: #f1f5f9;
+    color: #1e293b;
+}
+
+#export-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
 /* ── Settings panel (user-provided API key mode) ────────── */
 
 #settings-btn {
