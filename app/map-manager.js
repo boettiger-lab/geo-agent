@@ -892,10 +892,22 @@ export class MapManager {
     }
 
     /**
-     * Stub — real implementation in the next task. Defensive call from
-     * sendTopVisibleLayerToBack relies on this existing.
+     * Toggle the cycle button's disabled attribute based on whether
+     * there are 2+ visible non-animation layers (the minimum needed
+     * for a visible cycle effect). Called from generateMenu, the
+     * checkbox change handler in generateControls, syncCheckbox, and
+     * sendTopVisibleLayerToBack.
      */
-    _refreshCycleBtnState() { /* implemented in Task 3 */ }
+    _refreshCycleBtnState() {
+        const btn = document.getElementById('cycle-top-layer');
+        if (!btn) return;
+        let count = 0;
+        for (const state of this.layers.values()) {
+            if (state.visible && state.type !== 'animation') count++;
+            if (count >= 2) break;
+        }
+        btn.disabled = count < 2;
+    }
 
     /**
      * Get [{id, displayName, type}, ...] for all registered layers — used to
@@ -1095,6 +1107,7 @@ export class MapManager {
                 checkbox.addEventListener('change', () => {
                     if (checkbox.checked) this.showLayer(layerId);
                     else this.hideLayer(layerId);
+                    this._refreshCycleBtnState();
                 });
 
                 const span = document.createElement('span');
@@ -1136,6 +1149,7 @@ export class MapManager {
         if (!state) return;
         const checkbox = document.getElementById(`toggle-${layerId.replace(/\//g, '-')}`);
         if (checkbox) checkbox.checked = state.visible;
+        this._refreshCycleBtnState();
     }
 
     /**
