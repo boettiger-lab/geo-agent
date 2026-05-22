@@ -809,6 +809,28 @@ export class MapManager {
     }
 
     /**
+     * Return every MapLibre layer ID belonging to this logical layer,
+     * in bottom-to-top paint order. Used by sendTopVisibleLayerToBack
+     * so vector fill+outline and all version sublayers move as a group.
+     */
+    _mapSublayersFor(layerId) {
+        const state = this.layers.get(layerId);
+        if (!state) return [];
+        if (state.versions && state.versions.length > 0) {
+            const out = [];
+            for (const v of state.versions) {
+                if (v.mapLayerId) out.push(v.mapLayerId);
+                if (v.outlineLayerId) out.push(v.outlineLayerId);
+            }
+            return out;
+        }
+        const out = [];
+        if (state.mapLayerId) out.push(state.mapLayerId);
+        if (state.outlineLayerId) out.push(state.outlineLayerId);
+        return out;
+    }
+
+    /**
      * Get [{id, displayName, type}, ...] for all registered layers — used to
      * build informative layer lists in LLM tool descriptions so the agent can
      * disambiguate siblings by displayName instead of guessing by ID suffix.
