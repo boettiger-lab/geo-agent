@@ -326,3 +326,45 @@ describe('MapManager.moveLayerBelow', () => {
         expect(r.error).toMatch(/must differ/);
     });
 });
+
+describe('MapManager.resetLayerOrder', () => {
+    it('restores the cached initial order top-to-bottom = [last, ..., first]', () => {
+        const mm = createManager(
+            [{ id: 'layer-A' }, { id: 'layer-B' }, { id: 'layer-C' }],
+            {
+                A: { mapLayerId: 'layer-A', outlineLayerId: null },
+                B: { mapLayerId: 'layer-B', outlineLayerId: null },
+                C: { mapLayerId: 'layer-C', outlineLayerId: null },
+            },
+        );
+        mm._initialOrder = ['A', 'B', 'C'];
+        // Scramble first: move C to the bottom.
+        mm.moveLayerToBottom('C');
+        expect(mm.map._stack()).toEqual(['layer-C', 'layer-A', 'layer-B']);
+        // Reset should restore A at the bottom, C at the top.
+        const r = mm.resetLayerOrder();
+        expect(r.success).toBe(true);
+        expect(r.restoredOrder).toEqual(['A', 'B', 'C']);
+        expect(mm.map._stack()).toEqual(['layer-A', 'layer-B', 'layer-C']);
+    });
+
+    it('handles fill+outline groups during reset', () => {
+        const mm = createManager(
+            [
+                { id: 'layer-A' }, { id: 'layer-A-outline' },
+                { id: 'layer-B' }, { id: 'layer-B-outline' },
+            ],
+            {
+                A: { mapLayerId: 'layer-A', outlineLayerId: 'layer-A-outline' },
+                B: { mapLayerId: 'layer-B', outlineLayerId: 'layer-B-outline' },
+            },
+        );
+        mm._initialOrder = ['A', 'B'];
+        mm.moveLayerToBottom('B');
+        mm.resetLayerOrder();
+        expect(mm.map._stack()).toEqual([
+            'layer-A', 'layer-A-outline',
+            'layer-B', 'layer-B-outline',
+        ]);
+    });
+});

@@ -152,6 +152,7 @@ export class MapManager {
         for (const config of layerConfigs) {
             this.registerLayer(config);
         }
+        this._initialOrder = [...this.layers.keys()];
         console.log(`[Map] Registered ${this.layers.size} layers`);
     }
 
@@ -920,6 +921,20 @@ export class MapManager {
             this.map.moveLayer(sub, beforeId);
         }
         return { success: true, layer: layerId, referenceLayer: referenceLayerId };
+    }
+
+    /**
+     * Reset the map's paint stack to the registration order captured at
+     * boot (the order layers appear in `layers-input.json`). Each entry is
+     * sent to the top in turn, so the last-registered ends up on top —
+     * matching the initial state.
+     */
+    resetLayerOrder() {
+        const order = this._initialOrder || [...this.layers.keys()];
+        for (const id of order) {
+            if (this.layers.has(id)) this.moveLayerToTop(id);
+        }
+        return { success: true, restoredOrder: [...order] };
     }
 
     /**
