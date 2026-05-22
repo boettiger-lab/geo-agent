@@ -126,3 +126,61 @@ describe('MapManager.moveLayerToTop', () => {
         expect(mm.map._stack()).toEqual(['layer-A', 'layer-B']);
     });
 });
+
+describe('MapManager.moveLayerToBottom', () => {
+    it('moves a layer to the bottom of registered layers, above basemap', () => {
+        const mm = createManager(
+            [
+                { id: 'basemap-1' },           // not in this.layers — should not move
+                { id: 'layer-A' },
+                { id: 'layer-B' },
+                { id: 'layer-C' },
+            ],
+            {
+                A: { mapLayerId: 'layer-A', outlineLayerId: null },
+                B: { mapLayerId: 'layer-B', outlineLayerId: null },
+                C: { mapLayerId: 'layer-C', outlineLayerId: null },
+            },
+        );
+        const r = mm.moveLayerToBottom('C');
+        expect(r.success).toBe(true);
+        expect(mm.map._stack()).toEqual(['basemap-1', 'layer-C', 'layer-A', 'layer-B']);
+    });
+
+    it('moves a fill+outline group atomically, outline above fill', () => {
+        const mm = createManager(
+            [
+                { id: 'layer-A' }, { id: 'layer-A-outline' },
+                { id: 'layer-B' }, { id: 'layer-B-outline' },
+            ],
+            {
+                A: { mapLayerId: 'layer-A', outlineLayerId: 'layer-A-outline' },
+                B: { mapLayerId: 'layer-B', outlineLayerId: 'layer-B-outline' },
+            },
+        );
+        mm.moveLayerToBottom('B');
+        expect(mm.map._stack()).toEqual([
+            'layer-B', 'layer-B-outline',
+            'layer-A', 'layer-A-outline',
+        ]);
+    });
+
+    it('is a no-op when the layer is already at the bottom', () => {
+        const mm = createManager(
+            [{ id: 'layer-A' }, { id: 'layer-B' }],
+            {
+                A: { mapLayerId: 'layer-A', outlineLayerId: null },
+                B: { mapLayerId: 'layer-B', outlineLayerId: null },
+            },
+        );
+        mm.moveLayerToBottom('A');
+        expect(mm.map._stack()).toEqual(['layer-A', 'layer-B']);
+    });
+
+    it('returns success=false with error when the layerId is unknown', () => {
+        const mm = createManager([{ id: 'layer-A' }], { A: { mapLayerId: 'layer-A' } });
+        const r = mm.moveLayerToBottom('missing');
+        expect(r.success).toBe(false);
+        expect(r.error).toMatch(/Unknown layer/);
+    });
+});

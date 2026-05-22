@@ -848,6 +848,34 @@ export class MapManager {
     }
 
     /**
+     * Move a logical layer below every other registered layer in the map's
+     * paint stack. The basemap (not in `this.layers`) stays beneath; the
+     * moved layer lands directly above it.
+     */
+    moveLayerToBottom(layerId) {
+        if (!this.layers.has(layerId)) {
+            return { success: false, error: `Unknown layer: ${layerId}` };
+        }
+        const ownSubs = new Set(this._mapSublayersFor(layerId));
+        const registeredSubs = new Set();
+        for (const id of this.layers.keys()) {
+            for (const sub of this._mapSublayersFor(id)) registeredSubs.add(sub);
+        }
+        // Floor = first MapLibre layer in style.layers that is registered AND
+        // not part of the moving layer.
+        const styleIds = this.map.getStyle().layers.map(l => l.id);
+        const beforeId = styleIds.find(id => registeredSubs.has(id) && !ownSubs.has(id));
+        if (beforeId === undefined) {
+            // Already at the bottom of registered layers — nothing to do.
+            return { success: true, layer: layerId };
+        }
+        for (const sub of ownSubs) {
+            this.map.moveLayer(sub, beforeId);
+        }
+        return { success: true, layer: layerId };
+    }
+
+    /**
      * Get [{id, displayName, type}, ...] for all registered layers — used to
      * build informative layer lists in LLM tool descriptions so the agent can
      * disambiguate siblings by displayName instead of guessing by ID suffix.
