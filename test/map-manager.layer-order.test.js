@@ -262,3 +262,67 @@ describe('MapManager.moveLayerAbove', () => {
         expect(r.error).toMatch(/must differ/);
     });
 });
+
+describe('MapManager.moveLayerBelow', () => {
+    it('moves c below b', () => {
+        const mm = createManager(
+            [{ id: 'layer-A' }, { id: 'layer-B' }, { id: 'layer-C' }],
+            {
+                A: { mapLayerId: 'layer-A', outlineLayerId: null },
+                B: { mapLayerId: 'layer-B', outlineLayerId: null },
+                C: { mapLayerId: 'layer-C', outlineLayerId: null },
+            },
+        );
+        mm.moveLayerBelow('C', 'B');
+        expect(mm.map._stack()).toEqual(['layer-A', 'layer-C', 'layer-B']);
+    });
+
+    it('moves fill+outline below b, outline above fill', () => {
+        const mm = createManager(
+            [
+                { id: 'layer-A' }, { id: 'layer-A-outline' },
+                { id: 'layer-B' }, { id: 'layer-B-outline' },
+                { id: 'layer-C' }, { id: 'layer-C-outline' },
+            ],
+            {
+                A: { mapLayerId: 'layer-A', outlineLayerId: 'layer-A-outline' },
+                B: { mapLayerId: 'layer-B', outlineLayerId: 'layer-B-outline' },
+                C: { mapLayerId: 'layer-C', outlineLayerId: 'layer-C-outline' },
+            },
+        );
+        mm.moveLayerBelow('C', 'B');
+        expect(mm.map._stack()).toEqual([
+            'layer-A', 'layer-A-outline',
+            'layer-C', 'layer-C-outline',
+            'layer-B', 'layer-B-outline',
+        ]);
+    });
+
+    it('returns error for unknown layerId', () => {
+        const mm = createManager(
+            [{ id: 'layer-A' }],
+            { A: { mapLayerId: 'layer-A', outlineLayerId: null } },
+        );
+        const r = mm.moveLayerBelow('missing', 'A');
+        expect(r.success).toBe(false);
+    });
+
+    it('returns error for unknown referenceLayerId', () => {
+        const mm = createManager(
+            [{ id: 'layer-A' }],
+            { A: { mapLayerId: 'layer-A', outlineLayerId: null } },
+        );
+        const r = mm.moveLayerBelow('A', 'missing');
+        expect(r.success).toBe(false);
+    });
+
+    it('returns error when layerId equals referenceLayerId', () => {
+        const mm = createManager(
+            [{ id: 'layer-A' }],
+            { A: { mapLayerId: 'layer-A', outlineLayerId: null } },
+        );
+        const r = mm.moveLayerBelow('A', 'A');
+        expect(r.success).toBe(false);
+        expect(r.error).toMatch(/must differ/);
+    });
+});
