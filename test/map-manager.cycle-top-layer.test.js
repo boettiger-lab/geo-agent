@@ -1,4 +1,3 @@
-// @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
 import { MapManager } from '../app/map-manager.js';
 
@@ -216,8 +215,19 @@ describe('MapManager.sendTopVisibleLayerToBack', () => {
     });
 });
 
-describe('MapManager._refreshCycleBtnState', () => {
-    it('disables the button when fewer than 2 visible non-animation layers', () => {
+describe('MapManager._cycleBtnShouldBeDisabled', () => {
+    it('returns true when 0 visible non-animation layers', () => {
+        const mm = withVisibility(createManager(
+            [{ id: 'layer-A' }, { id: 'layer-B' }],
+            {
+                A: { mapLayerId: 'layer-A', outlineLayerId: null, type: 'vector' },
+                B: { mapLayerId: 'layer-B', outlineLayerId: null, type: 'vector' },
+            },
+        ), { A: false, B: false });
+        expect(mm._cycleBtnShouldBeDisabled()).toBe(true);
+    });
+
+    it('returns true when only 1 visible non-animation layer (animations excluded)', () => {
         const mm = withVisibility(createManager(
             [{ id: 'layer-A' }],
             {
@@ -225,19 +235,10 @@ describe('MapManager._refreshCycleBtnState', () => {
                 Anim: { mapLayerId: null, outlineLayerId: null, type: 'animation' },
             },
         ), { A: true, Anim: true });
-
-        const btn = document.createElement('button');
-        btn.id = 'cycle-top-layer';
-        document.body.appendChild(btn);
-        try {
-            mm._refreshCycleBtnState();
-            expect(btn.disabled).toBe(true);
-        } finally {
-            btn.remove();
-        }
+        expect(mm._cycleBtnShouldBeDisabled()).toBe(true);
     });
 
-    it('enables the button when 2+ visible non-animation layers', () => {
+    it('returns false when 2+ visible non-animation layers', () => {
         const mm = withVisibility(createManager(
             [{ id: 'layer-A' }, { id: 'layer-B' }],
             {
@@ -245,24 +246,6 @@ describe('MapManager._refreshCycleBtnState', () => {
                 B: { mapLayerId: 'layer-B', outlineLayerId: null, type: 'vector' },
             },
         ), { A: true, B: true });
-
-        const btn = document.createElement('button');
-        btn.id = 'cycle-top-layer';
-        btn.disabled = true;
-        document.body.appendChild(btn);
-        try {
-            mm._refreshCycleBtnState();
-            expect(btn.disabled).toBe(false);
-        } finally {
-            btn.remove();
-        }
-    });
-
-    it('is a no-op when the button is not in the DOM', () => {
-        const mm = withVisibility(createManager(
-            [{ id: 'layer-A' }],
-            { A: { mapLayerId: 'layer-A', outlineLayerId: null, type: 'vector' } },
-        ), { A: true });
-        expect(() => mm._refreshCycleBtnState()).not.toThrow();
+        expect(mm._cycleBtnShouldBeDisabled()).toBe(false);
     });
 });

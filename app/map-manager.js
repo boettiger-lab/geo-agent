@@ -899,14 +899,23 @@ export class MapManager {
      * sendTopVisibleLayerToBack.
      */
     _refreshCycleBtnState() {
+        if (typeof document === 'undefined') return;
         const btn = document.getElementById('cycle-top-layer');
         if (!btn) return;
+        btn.disabled = this._cycleBtnShouldBeDisabled();
+    }
+
+    /**
+     * Pure helper: returns true when fewer than 2 visible non-animation
+     * layers exist (i.e. the cycle button has no useful effect).
+     */
+    _cycleBtnShouldBeDisabled() {
         let count = 0;
         for (const state of this.layers.values()) {
             if (state.visible && state.type !== 'animation') count++;
-            if (count >= 2) break;
+            if (count >= 2) return false;
         }
-        btn.disabled = count < 2;
+        return true;
     }
 
     /**
