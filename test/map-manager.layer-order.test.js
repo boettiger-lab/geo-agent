@@ -184,3 +184,81 @@ describe('MapManager.moveLayerToBottom', () => {
         expect(r.error).toMatch(/Unknown layer/);
     });
 });
+
+describe('MapManager.moveLayerAbove', () => {
+    it('moves a above b when c is currently above b', () => {
+        const mm = createManager(
+            [{ id: 'layer-A' }, { id: 'layer-B' }, { id: 'layer-C' }],
+            {
+                A: { mapLayerId: 'layer-A', outlineLayerId: null },
+                B: { mapLayerId: 'layer-B', outlineLayerId: null },
+                C: { mapLayerId: 'layer-C', outlineLayerId: null },
+            },
+        );
+        mm.moveLayerAbove('A', 'B');
+        expect(mm.map._stack()).toEqual(['layer-B', 'layer-A', 'layer-C']);
+    });
+
+    it('moves a to the top when b is currently at the top', () => {
+        const mm = createManager(
+            [{ id: 'layer-A' }, { id: 'layer-B' }],
+            {
+                A: { mapLayerId: 'layer-A', outlineLayerId: null },
+                B: { mapLayerId: 'layer-B', outlineLayerId: null },
+            },
+        );
+        mm.moveLayerAbove('A', 'B');
+        expect(mm.map._stack()).toEqual(['layer-B', 'layer-A']);
+    });
+
+    it('moves fill+outline above b, with outline on top of fill', () => {
+        const mm = createManager(
+            [
+                { id: 'layer-A' }, { id: 'layer-A-outline' },
+                { id: 'layer-B' }, { id: 'layer-B-outline' },
+                { id: 'layer-C' }, { id: 'layer-C-outline' },
+            ],
+            {
+                A: { mapLayerId: 'layer-A', outlineLayerId: 'layer-A-outline' },
+                B: { mapLayerId: 'layer-B', outlineLayerId: 'layer-B-outline' },
+                C: { mapLayerId: 'layer-C', outlineLayerId: 'layer-C-outline' },
+            },
+        );
+        mm.moveLayerAbove('A', 'B');
+        expect(mm.map._stack()).toEqual([
+            'layer-B', 'layer-B-outline',
+            'layer-A', 'layer-A-outline',
+            'layer-C', 'layer-C-outline',
+        ]);
+    });
+
+    it('returns error for unknown layerId', () => {
+        const mm = createManager(
+            [{ id: 'layer-A' }],
+            { A: { mapLayerId: 'layer-A', outlineLayerId: null } },
+        );
+        const r = mm.moveLayerAbove('missing', 'A');
+        expect(r.success).toBe(false);
+        expect(r.error).toMatch(/Unknown layer/);
+    });
+
+    it('returns error for unknown referenceLayerId', () => {
+        const mm = createManager(
+            [{ id: 'layer-A' }],
+            { A: { mapLayerId: 'layer-A', outlineLayerId: null } },
+        );
+        const r = mm.moveLayerAbove('A', 'missing');
+        expect(r.success).toBe(false);
+        expect(r.error).toMatch(/Unknown layer/);
+    });
+
+    it('returns error when layerId equals referenceLayerId', () => {
+        const mm = createManager(
+            [{ id: 'layer-A' }],
+            { A: { mapLayerId: 'layer-A', outlineLayerId: null } },
+        );
+        const r = mm.moveLayerAbove('A', 'A');
+        expect(r.success).toBe(false);
+        expect(r.error).toMatch(/must differ/);
+    });
+});

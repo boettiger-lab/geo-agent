@@ -876,6 +876,31 @@ export class MapManager {
     }
 
     /**
+     * Move logical layer `a` above logical layer `b` in the paint stack.
+     * "Above" = paints on top of, visually higher.
+     */
+    moveLayerAbove(layerId, referenceLayerId) {
+        if (!this.layers.has(layerId)) {
+            return { success: false, error: `Unknown layer: ${layerId}` };
+        }
+        if (!this.layers.has(referenceLayerId)) {
+            return { success: false, error: `Unknown layer: ${referenceLayerId}` };
+        }
+        if (layerId === referenceLayerId) {
+            return { success: false, error: 'Layer and reference must differ' };
+        }
+        const refSubs = this._mapSublayersFor(referenceLayerId);
+        const refTopSub = refSubs[refSubs.length - 1];
+        const styleIds = this.map.getStyle().layers.map(l => l.id);
+        const refTopIdx = styleIds.indexOf(refTopSub);
+        const beforeId = styleIds[refTopIdx + 1]; // undefined if ref is at the top
+        for (const sub of this._mapSublayersFor(layerId)) {
+            this.map.moveLayer(sub, beforeId);
+        }
+        return { success: true, layer: layerId, referenceLayer: referenceLayerId };
+    }
+
+    /**
      * Get [{id, displayName, type}, ...] for all registered layers — used to
      * build informative layer lists in LLM tool descriptions so the agent can
      * disambiguate siblings by displayName instead of guessing by ID suffix.
