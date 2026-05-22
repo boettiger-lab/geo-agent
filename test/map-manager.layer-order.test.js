@@ -81,7 +81,7 @@ describe('MapManager.moveLayerToTop', () => {
         );
         const r = mm.moveLayerToTop('A');
         expect(r.success).toBe(true);
-        expect(r.layerId).toBe('A');
+        expect(r.layer).toBe('A');
         expect(mm.map._stack()).toEqual(['layer-B', 'layer-C', 'layer-A']);
     });
 
@@ -110,7 +110,7 @@ describe('MapManager.moveLayerToTop', () => {
         );
         const r = mm.moveLayerToTop('missing');
         expect(r.success).toBe(false);
-        expect(r.error).toMatch(/Layer not found/);
+        expect(r.error).toMatch(/Unknown layer/);
     });
 
     it('is a no-op when the layer is already at the top', () => {

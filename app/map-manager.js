@@ -838,13 +838,13 @@ export class MapManager {
      */
     moveLayerToTop(layerId) {
         if (!this.layers.has(layerId)) {
-            return { success: false, error: `Layer not found: ${layerId}` };
+            return { success: false, error: `Unknown layer: ${layerId}` };
         }
         const subs = this._mapSublayersFor(layerId);
         for (const sub of subs) {
             this.map.moveLayer(sub);
         }
-        return { success: true, layerId };
+        return { success: true, layer: layerId };
     }
 
     /**
