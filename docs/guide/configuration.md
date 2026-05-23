@@ -424,6 +424,17 @@ Set `auto_approve: false` to require a **Run** / **Cancel** confirmation before 
 
 A ⚡ toggle button in the chat footer lets users switch auto-approve on or off at runtime. The toggle affects only the current session — every page load resets to the `auto_approve` value from config.
 
+## Chat export
+
+A ⬇ button in the chat footer downloads the current conversation as a self-contained HTML file. The button is disabled until the first user message and enables automatically after. No configuration — it's always present.
+
+The downloaded file mirrors what the user sees in the live chat: user prompts, assistant prose, and tool-call rows with collapsible SQL and result blocks. Everything is in a single `.html` with inlined CSS — no external assets, no JavaScript required to view it.
+
+Two guarantees apply to the export:
+
+- **Reproducible SQL.** Every `s3://bucket/...` URL inside a SQL block is rewritten to `https://s3-west.nrp-nautilus.io/bucket/...`. Pasting the SQL into any DuckDB with `INSTALL httpfs; LOAD httpfs;` will run it against the public endpoint without secret configuration (public buckets only).
+- **Credential scrubbing.** On top of the live-chat redaction described in the agent-loop docs, the export pass replaces credential-shaped tokens with `[REDACTED]` — DuckDB `CREATE SECRET` key/value pairs, AWS access keys (`aws_access_key_id`, `aws_secret_access_key`), `Authorization: Bearer …` tokens, and pre-signed-URL `X-Amz-Signature` / `X-Amz-Credential` / `X-Amz-Security-Token` query parameters.
+
 ## Finding STAC asset IDs
 
 Browse the catalog in STAC Browser:
