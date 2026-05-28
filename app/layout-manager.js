@@ -121,6 +121,21 @@ function buildSidebarLayout(appConfig, title) {
     // Layers pane — MapManager.generateMenu() will mount inside this element.
     const layersPane = el('div', { id: 'sidebar-layers-pane' });
 
+    // Splitter — draggable bar to resize the layers/chat split.
+    const splitter = el('div', { class: 'sidebar-splitter', title: 'Drag to resize' });
+
+    // Chat section header — mirrors the layers .menu-header pattern so the
+    // chat can be collapsed independently. Title only shows while collapsed.
+    const chatSectionHeader = el('div', { id: 'chat-section-header' });
+    const chatSectionTitle = el('label', { class: 'section-title' });
+    chatSectionTitle.textContent = 'Chat';
+    const chatToggle = el('button', {
+        id: 'chat-section-toggle',
+        title: 'Toggle chat',
+    });
+    chatToggle.textContent = '−';
+    chatSectionHeader.append(chatSectionTitle, chatToggle);
+
     // Chat message list
     const messages = el('div', { id: 'chat-messages' });
 
@@ -153,7 +168,16 @@ function buildSidebarLayout(appConfig, title) {
     footerRight.append(modelSelector);
     footer.append(footerRight);
 
-    sidebar.append(resizeHandle, header, layersPane, messages, inputContainer, footer);
+    sidebar.append(
+        resizeHandle,
+        header,
+        layersPane,
+        splitter,
+        chatSectionHeader,
+        messages,
+        inputContainer,
+        footer,
+    );
     document.body.appendChild(sidebar);
 
     // Floating "show" button pinned to the top-right of the map,
@@ -167,6 +191,8 @@ function buildSidebarLayout(appConfig, title) {
 
     initSidebarResize(resizeHandle, defaultWidth);
     initSidebarCollapse(sidebar, hideBtn, showBtn);
+    initLayersSplitter(splitter, sidebar);
+    initChatCollapse(chatToggle);
 
     return {
         chatMount: {
@@ -325,6 +351,105 @@ function initSidebarCollapse(sidebar, hideBtn, showBtn) {
     // that's what actually transitions.
     sidebar.addEventListener('transitionend', (e) => {
         if (e.propertyName !== 'transform') return;
+        sidebarHooks.onResizeEnd?.();
+    });
+}
+
+/* ----- Layers/chat splitter: drag → CSS var → localStorage --------------- */
+
+const LAYERS_PANE_HEIGHT_KEY = 'geo-agent-layers-pane-height';
+// Min content height for either side; also leaves the chat input visible.
+const SPLITTER_MIN = 80;
+
+function layersHeightBounds(sidebar) {
+    // Reserve room for sidebar-header + chat-section-header + input + footer
+    // plus a SPLITTER_MIN floor for the chat-messages region.
+    const reserved = Array.from(
+        sidebar.querySelectorAll(
+            '#sidebar-header, #chat-section-header, #chat-input-container, #sidebar-footer',
+        ),
+    ).reduce((sum, n) => sum + n.offsetHeight, 0);
+    const max = Math.max(SPLITTER_MIN, sidebar.clientHeight - reserved - SPLITTER_MIN);
+    return { min: SPLITTER_MIN, max };
+}
+
+function applyLayersPaneHeight(h) {
+    document.documentElement.style.setProperty('--layers-pane-height', h + 'px');
+    document.body.classList.add('layers-pane-resized');
+}
+
+function initLayersSplitter(handle, sidebar) {
+    // Restore persisted height on boot (sets the body class so CSS takes over).
+    const stored = Number(localStorage.getItem(LAYERS_PANE_HEIGHT_KEY));
+    if (Number.isFinite(stored) && stored >= SPLITTER_MIN) {
+        applyLayersPaneHeight(stored);
+    }
+
+    let dragging = false;
+    let startY = 0;
+    let startH = 0;
+    let pendingH = 0;
+    let rafPending = false;
+
+    const onMove = (e) => {
+        if (!dragging) return;
+        const { min, max } = layersHeightBounds(sidebar);
+        pendingH = Math.min(max, Math.max(min, startH + (e.clientY - startY)));
+        if (!rafPending) {
+            rafPending = true;
+            requestAnimationFrame(() => {
+                rafPending = false;
+                applyLayersPaneHeight(pendingH);
+            });
+        }
+    };
+
+    const onUp = () => {
+        if (!dragging) return;
+        dragging = false;
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+        document.body.style.userSelect = '';
+        document.body.style.cursor = '';
+        applyLayersPaneHeight(pendingH);
+        localStorage.setItem(LAYERS_PANE_HEIGHT_KEY, String(pendingH));
+    };
+
+    handle.addEventListener('mousedown', (e) => {
+        if (getComputedStyle(handle).pointerEvents === 'none') return;
+        e.preventDefault();
+        dragging = true;
+        startY = e.clientY;
+        const layersPane = sidebar.querySelector('#sidebar-layers-pane');
+        startH = layersPane ? layersPane.offsetHeight : 200;
+        pendingH = startH;
+        document.body.style.userSelect = 'none';
+        document.body.style.cursor = 'row-resize';
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('mouseup', onUp);
+    });
+}
+
+/* ----- Chat collapse toggle --------------------------------------------- */
+
+const CHAT_COLLAPSED_KEY = 'geo-agent-chat-collapsed';
+
+function setChatCollapsed(collapsed, toggleBtn) {
+    document.body.classList.toggle('chat-collapsed', collapsed);
+    toggleBtn.textContent = collapsed ? '+' : '−';
+    localStorage.setItem(CHAT_COLLAPSED_KEY, collapsed ? '1' : '0');
+}
+
+function initChatCollapse(toggleBtn) {
+    // Restore persisted state.
+    const initial = localStorage.getItem(CHAT_COLLAPSED_KEY) === '1';
+    setChatCollapsed(initial, toggleBtn);
+
+    toggleBtn.addEventListener('click', () => {
+        const next = !document.body.classList.contains('chat-collapsed');
+        setChatCollapsed(next, toggleBtn);
+        // Map width hasn't changed, but trigger the same reflow hook used by
+        // sidebar resize in case downstream code wants to react.
         sidebarHooks.onResizeEnd?.();
     });
 }
