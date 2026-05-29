@@ -296,7 +296,8 @@ If your `index.html` contains a `<div id="chat-container">` block with nested ch
 "sidebar": {
     "enabled": true,
     "default_width": 420,
-    "title": "Data Assistant"
+    "title": "Data Assistant",
+    "chat_title": "Chatbot"
 }
 ```
 
@@ -304,7 +305,8 @@ If your `index.html` contains a `<div id="chat-container">` block with nested ch
 |---|---|---|---|
 | `enabled` | boolean | `false` | Opts in to sidebar mode. Omitting the whole `sidebar` block is equivalent to `false`. |
 | `default_width` | number | `420` | Starting width in pixels. The user's last-dragged width (stored in `localStorage`) overrides this on reload, as long as it's within bounds. |
-| `title` | string | `"Data Assistant"` | Text shown in the sidebar header (and in the floating panel header too — this key applies to both modes). |
+| `title` | string | `"Data Assistant"` | Text shown in the sidebar header (and in the floating panel header too — this key applies to both modes). This is the header at the **top** of the sidebar, above both the layers and the chat. |
+| `chat_title` | string | _(unset)_ | Optional heading shown **persistently above the chat section**, mirroring the layers "Overlays" label. When unset, the chat section has no visible heading except a "Chat" label that appears only while the chat pane is collapsed. |
 
 ### Behavior
 
