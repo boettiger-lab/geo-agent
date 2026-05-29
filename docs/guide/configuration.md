@@ -316,6 +316,13 @@ left edge is draggable (width clamps to `[280px, 60vw]`), and a header button
 collapses it off-screen for an unobstructed map. A floating "show" button on
 the map restores the sidebar when collapsed.
 
+Within the panel, the layer-controls menu sits on top (under its "Overlays"
+heading) and the chat below, separated by a draggable splitter that lets you
+rebalance the two. Each section can be collapsed independently. Set
+`chat_title` to give the chat section a persistent heading that mirrors the
+layers "Overlays" label; otherwise the chat has no heading except while
+collapsed.
+
 Below a viewport width of 700px (tablets, phones), the sidebar automatically
 switches to overlay mode: it floats above the map rather than pushing it, and
 drag-resize is disabled. It also starts collapsed by default, so mobile users
