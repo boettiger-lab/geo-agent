@@ -296,7 +296,8 @@ If your `index.html` contains a `<div id="chat-container">` block with nested ch
 "sidebar": {
     "enabled": true,
     "default_width": 420,
-    "title": "Data Assistant"
+    "title": "Data Assistant",
+    "chat_title": "Chatbot"
 }
 ```
 
@@ -304,7 +305,8 @@ If your `index.html` contains a `<div id="chat-container">` block with nested ch
 |---|---|---|---|
 | `enabled` | boolean | `false` | Opts in to sidebar mode. Omitting the whole `sidebar` block is equivalent to `false`. |
 | `default_width` | number | `420` | Starting width in pixels. The user's last-dragged width (stored in `localStorage`) overrides this on reload, as long as it's within bounds. |
-| `title` | string | `"Data Assistant"` | Text shown in the sidebar header (and in the floating panel header too — this key applies to both modes). |
+| `title` | string | `"Data Assistant"` | Text shown in the sidebar header (and in the floating panel header too — this key applies to both modes). This is the header at the **top** of the sidebar, above both the layers and the chat. |
+| `chat_title` | string | _(unset)_ | Optional heading shown **persistently above the chat section**, mirroring the layers "Overlays" label. When unset, the chat section has no visible heading except a "Chat" label that appears only while the chat pane is collapsed. |
 
 ### Behavior
 
@@ -313,6 +315,13 @@ right-side panel. The map reflows to fill the remaining width. The sidebar's
 left edge is draggable (width clamps to `[280px, 60vw]`), and a header button
 collapses it off-screen for an unobstructed map. A floating "show" button on
 the map restores the sidebar when collapsed.
+
+Within the panel, the layer-controls menu sits on top (under its "Overlays"
+heading) and the chat below, separated by a draggable splitter that lets you
+rebalance the two. Each section can be collapsed independently. Set
+`chat_title` to give the chat section a persistent heading that mirrors the
+layers "Overlays" label; otherwise the chat has no heading except while
+collapsed.
 
 Below a viewport width of 700px (tablets, phones), the sidebar automatically
 switches to overlay mode: it floats above the map rather than pushing it, and

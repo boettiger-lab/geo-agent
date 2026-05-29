@@ -125,10 +125,14 @@ function buildSidebarLayout(appConfig, title) {
     const splitter = el('div', { class: 'sidebar-splitter', title: 'Drag to resize' });
 
     // Chat section header — mirrors the layers .menu-header pattern so the
-    // chat can be collapsed independently. Title only shows while collapsed.
+    // chat can be collapsed independently. By default the title only shows
+    // while collapsed; set sidebar.chat_title to render it as a persistent
+    // heading above the chat (parallel to the layers "Overlays" label).
     const chatSectionHeader = el('div', { id: 'chat-section-header' });
     const chatSectionTitle = el('label', { class: 'section-title' });
-    chatSectionTitle.textContent = 'Chat';
+    const chatTitle = appConfig.sidebar?.chat_title;
+    chatSectionTitle.textContent = chatTitle || 'Chat';
+    if (chatTitle) chatSectionHeader.classList.add('has-chat-title');
     const chatToggle = el('button', {
         id: 'chat-section-toggle',
         title: 'Toggle chat',

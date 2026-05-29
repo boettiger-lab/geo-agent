@@ -189,6 +189,16 @@ body.sidebar-mode.chat-collapsed #chat-section-header .section-title {
     display: inline;
 }
 
+/* Opt-in via sidebar.chat_title: show the heading persistently (not just
+ * while collapsed), mirroring the always-visible layers "Overlays" label. */
+body.sidebar-mode #chat-section-header.has-chat-title {
+    justify-content: space-between;
+}
+
+body.sidebar-mode #chat-section-header.has-chat-title .section-title {
+    display: inline;
+}
+
 body.sidebar-mode #chat-section-toggle {
     background: transparent;
     border: none;
