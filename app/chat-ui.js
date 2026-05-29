@@ -5,6 +5,68 @@
  * Renders collapsible tool-call blocks (VSCode Copilot-inspired).
  */
 
+/**
+ * Rewrite `s3://bucket/path` URLs to the public HTTPS endpoint so that the
+ * SQL is re-runnable from any DuckDB with httpfs loaded, outside the
+ * cluster. Mirrors (in reverse) the conversion in
+ * dataset-catalog.js:460-461.
+ *
+ * @param {string} sql
+ * @returns {string}
+ */
+export function rewriteS3UrlsInSql(sql) {
+    if (!sql) return sql;
+    return sql.replace(
+        /\bs3:\/\/([A-Za-z0-9._-]+)(\/[^\s'"]*)?/g,
+        (_m, bucket, path) => `https://s3-west.nrp-nautilus.io/${bucket}${path || ''}`
+    );
+}
+
+/**
+ * Defense-in-depth credential scrub. Replaces credential-shaped tokens with
+ * `[REDACTED]`. Each pattern requires a quoted value or structured
+ * delimiter, so false positives in prose are unlikely.
+ *
+ * @param {string} text
+ * @returns {string}
+ */
+export function scrubCredentials(text) {
+    if (text === '' || text == null) return text;
+
+    let out = text;
+
+    // DuckDB CREATE SECRET — KEY_ID 'value' / SECRET 'value'
+    out = out.replace(/(KEY_ID)\s+'[^']*'/gi, '$1 [REDACTED]');
+    out = out.replace(/(\bSECRET)\s+'[^']*'/gi, '$1 [REDACTED]');
+
+    // json/yaml/python access key assignments
+    out = out.replace(
+        /((?:aws_)?access_key(?:_id)?)["']?\s*([:=])\s*(['"])[^'"]+\3/gi,
+        '$1$2 [REDACTED]'
+    );
+    out = out.replace(
+        /((?:aws_)?secret(?:_access)?_key)["']?\s*([:=])\s*(['"])[^'"]+\3/gi,
+        '$1$2 [REDACTED]'
+    );
+
+    // Bearer tokens
+    out = out.replace(/(Authorization:)\s*Bearer\s+\S+/gi, '$1 [REDACTED]');
+
+    // Pre-signed URL signature/credential
+    out = out.replace(/X-Amz-Signature=[^&\s'"]+/gi, 'X-Amz-Signature=[REDACTED]');
+    out = out.replace(/X-Amz-Credential=[^&\s'"]+/gi, 'X-Amz-Credential=[REDACTED]');
+    out = out.replace(/X-Amz-Security-Token=[^&\s'"]+/gi, 'X-Amz-Security-Token=[REDACTED]');
+
+    return out;
+}
+
+/**
+ * Tool-call argument keys whose values are credentials and must never be
+ * rendered to the chat or to any export. Used by both `renderToolCallArgs`
+ * (live chat) and `exportHtml` (download).
+ */
+export const REDACTED_KEYS = ['s3_key', 's3_secret', 's3_endpoint', 's3_scope', 'catalog_token'];
+
 export class ChatUI {
     /**
      * @param {import('./agent.js').Agent} agent
@@ -87,6 +149,9 @@ export class ChatUI {
 
         // Auto-approve toggle (always shown)
         this.initAutoApproveToggle();
+
+        // Export-to-HTML button (always shown)
+        this.initExportButton();
 
         // Optional header/footer links (github, docs, carbon)
         this.initLinks();
@@ -440,6 +505,41 @@ export class ChatUI {
         footer.prepend(btn);
     }
 
+    /* ------------------------------------------------------------------ */
+    /*  Export-to-HTML button                                              */
+    /* ------------------------------------------------------------------ */
+
+    initExportButton() {
+        const footer = this.footerRightEl;
+        if (!footer) return;
+
+        const btn = document.createElement('button');
+        btn.id = 'export-btn';
+        btn.title = 'Save this conversation as a self-contained HTML document you can share or print.';
+        btn.textContent = '💾';
+        btn.disabled = true;
+
+        btn.addEventListener('click', () => {
+            if (btn.disabled) return;
+            this.exportHtml();
+        });
+
+        footer.prepend(btn);
+        this._exportBtn = btn;
+
+        // Observe messagesEl for the first real turn appearing; enable once
+        // we see a .chat-message.user or an .agent-turn child.
+        const refresh = () => {
+            const hasTurn = !!this.messagesEl.querySelector(
+                '.chat-message.user, .agent-turn'
+            );
+            btn.disabled = !hasTurn;
+        };
+        refresh();
+        const observer = new MutationObserver(refresh);
+        observer.observe(this.messagesEl, { childList: true, subtree: true });
+    }
+
     /*  Send handler                                                       */
     /* ------------------------------------------------------------------ */
 
@@ -760,7 +860,6 @@ export class ChatUI {
             const sqlKey = args.sql_query !== undefined ? 'sql_query' : args.query !== undefined ? 'query' : 'sql';
             if (sqlText) {
                 argDisplay += `<details class="sql-detail"><summary>SQL</summary><pre><code class="language-sql">${this.escapeHtml(sqlText)}</code></pre></details>`;
-                const REDACTED_KEYS = ['s3_key', 's3_secret', 's3_endpoint', 's3_scope', 'catalog_token'];
                 const otherArgs = Object.fromEntries(
                     Object.entries(args).filter(([k]) => k !== sqlKey && !REDACTED_KEYS.includes(k))
                 );
@@ -822,6 +921,176 @@ export class ChatUI {
         });
 
         this.scrollToBottom();
+    }
+
+    /* ------------------------------------------------------------------ */
+    /*  HTML export                                                        */
+    /* ------------------------------------------------------------------ */
+
+    /**
+     * Build a self-contained HTML transcript of the current conversation
+     * and trigger a download. Faithful mirror of the live chat panel,
+     * with SQL rewritten for reproducibility and credential-shaped tokens
+     * scrubbed.
+     */
+    exportHtml() {
+        const clone = this.messagesEl.cloneNode(true);
+        this._sanitizeExportClone(clone);
+
+        const css = this._exportCss();
+        const title = this._exportTitle();
+        const appUrl = window.location.href;
+        const appUrlAttr = this.escapeHtml(appUrl).replace(/"/g, '&quot;');
+        const appTitle = document.title || 'Geo-Agent';
+        const exportedAt = new Date().toLocaleString();
+
+        const html =
+`<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>${this.escapeHtml(title)}</title>
+<style>${css}</style>
+</head>
+<body>
+<header class="export-header">
+  <h1>Geo-Agent chat transcript</h1>
+  <p>Exported ${this.escapeHtml(exportedAt)} — <a href="${appUrlAttr}">${this.escapeHtml(appTitle)}</a></p>
+  <p class="export-note">SQL queries below have been rewritten to use the public S3 endpoint
+     (<code>https://s3-west.nrp-nautilus.io/</code>) so they can be re-run from any DuckDB
+     with the <code>httpfs</code> extension loaded.</p>
+</header>
+<main id="chat-messages">${clone.innerHTML}</main>
+</body>
+</html>`;
+
+        try {
+            const blob = new Blob([html], { type: 'text/html' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = this._exportFilename();
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            URL.revokeObjectURL(url);
+        } catch (err) {
+            console.error('[ChatUI] Export failed:', err);
+            this.addMessage('error',
+                "couldn't generate download — your browser may not support file downloads");
+        }
+    }
+
+    /**
+     * Walk a cloned messagesEl subtree applying export-time transforms:
+     * drop transient UI, rewrite SQL, scrub credentials.
+     */
+    _sanitizeExportClone(root) {
+        // Drop transient interactive UI.
+        root.querySelectorAll('.tool-approval-buttons, button, script')
+            .forEach(el => el.remove());
+
+        // Remove .running class from any rows still in-flight at click time.
+        root.querySelectorAll('.running').forEach(el => el.classList.remove('running'));
+
+        // SQL rewrite: only inside .language-sql code blocks.
+        root.querySelectorAll('code.language-sql').forEach(codeEl => {
+            const original = codeEl.textContent;
+            const rewritten = rewriteS3UrlsInSql(original);
+            // Replace text content; drop any prior syntax-highlight spans
+            // (they reference the original token offsets and become stale).
+            codeEl.className = 'language-sql';
+            codeEl.textContent = rewritten;
+        });
+
+        // Credential scrub: DOM-wide on text nodes only.
+        const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+        const toUpdate = [];
+        let node = walker.nextNode();
+        while (node) {
+            const scrubbed = scrubCredentials(node.nodeValue);
+            if (scrubbed !== node.nodeValue) toUpdate.push([node, scrubbed]);
+            node = walker.nextNode();
+        }
+        for (const [n, v] of toUpdate) n.nodeValue = v;
+    }
+
+    _exportFilename() {
+        const d = new Date();
+        const pad = (n) => String(n).padStart(2, '0');
+        const stamp = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}` +
+                      `-${pad(d.getHours())}${pad(d.getMinutes())}`;
+        return `geo-agent-chat-${stamp}.html`;
+    }
+
+    _exportTitle() {
+        const d = new Date();
+        const pad = (n) => String(n).padStart(2, '0');
+        const stamp = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ` +
+                      `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+        return `Geo-Agent chat — ${stamp}`;
+    }
+
+    /**
+     * Inlined CSS subset for the export. Covers what's needed to render
+     * messages, turn rows, tool calls, SQL/result <details>, and code
+     * blocks. Excludes anything related to live input, layout, scrollbars,
+     * or interactive buttons.
+     */
+    _exportCss() {
+        return `
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+       max-width: 900px; margin: 1rem auto; padding: 0 1rem; color: #1a1a2e; line-height: 1.5; }
+.export-header { border-bottom: 1px solid #ddd; padding-bottom: 0.75rem; margin-bottom: 1rem; }
+.export-header h1 { margin: 0 0 0.25rem; font-size: 1.25rem; }
+.export-header p { margin: 0.25rem 0; color: #555; font-size: 13px; }
+.export-note { font-size: 12px; color: #6b7280; background: #f3f4f6;
+               padding: 6px 10px; border-radius: 4px; }
+.chat-message { padding: 8px 10px; margin: 6px 0; border-radius: 6px; font-size: 14px; }
+.chat-message.user { background: #e0f2fe; }
+.chat-message.assistant { background: #f9fafb; }
+.chat-message.system { background: #fff7ed; color: #92400e; font-size: 12px; font-style: italic; }
+.chat-message.error { background: #fef2f2; color: #991b1b; font-size: 12px; }
+.chat-message pre { background: #1e293b; color: #e2e8f0; padding: 8px; border-radius: 4px;
+                    overflow-x: auto; font-size: 12px; }
+.chat-message code { background: rgba(0,0,0,0.05); padding: 1px 4px; border-radius: 3px;
+                     font-size: 12px; }
+.chat-message pre code { background: transparent; padding: 0; color: inherit; }
+.chat-message table { border-collapse: collapse; margin: 6px 0; font-size: 12px; }
+.chat-message th, .chat-message td { border: 1px solid #ddd; padding: 4px 8px; }
+.chat-message th { background: #f3f4f6; }
+.agent-turn { margin: 8px 0; border: 1px solid #e5e7eb; border-radius: 6px;
+              padding: 4px 8px; }
+.agent-turn > summary { cursor: pointer; font-size: 12px; color: #2c5282;
+                        padding: 2px 4px; list-style: none; }
+.agent-turn > summary::-webkit-details-marker { display: none; }
+.agent-turn-row { font-size: 12px; margin: 2px 0; }
+.agent-turn-row-summary { padding: 2px 6px; cursor: pointer; list-style: none;
+                          display: flex; align-items: center; gap: 6px; color: #2c5282; }
+.agent-turn-row-summary::-webkit-details-marker { display: none; }
+.agent-turn-row-body { padding: 4px 10px 6px 24px; font-size: 12px; color: #1a1a2e; }
+.tool-call-item, .tool-result-item { margin: 4px 0; }
+.tool-call-item strong, .tool-result-item strong { font-weight: 600; color: #374151; }
+.row-status.done { color: #28a745; font-weight: 600; }
+.row-status.error { color: #dc3545; font-weight: 600; }
+.sql-detail summary { cursor: pointer; color: #2c5282; font-size: 11px;
+                      padding: 2px 0; list-style: none; }
+.sql-detail summary::-webkit-details-marker { display: none; }
+.sql-detail summary::before { content: '▸ '; }
+.sql-detail[open] summary::before { content: '▾ '; }
+.sql-detail pre { background: #1e293b; color: #e2e8f0; padding: 8px;
+                  border-radius: 4px; overflow-x: auto; font-size: 11px;
+                  white-space: pre-wrap; word-break: break-word; }
+.tool-output { background: #f9fafb; padding: 6px; border-radius: 3px;
+               font-size: 11px; white-space: pre-wrap; word-break: break-word;
+               max-height: 400px; overflow-y: auto; }
+.tool-tag { font-size: 10px; padding: 1px 5px; border-radius: 3px;
+            background: #e5e7eb; color: #374151; margin-left: 4px; }
+.tool-tag.remote { background: #dbeafe; color: #1e40af; }
+.welcome-message { background: #f9fafb; padding: 8px 10px; border-radius: 6px;
+                   font-size: 13px; color: #6b7280; }
+.welcome-examples { display: none; }
+`;
     }
 
     /* ------------------------------------------------------------------ */
