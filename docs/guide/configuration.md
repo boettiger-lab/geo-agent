@@ -296,7 +296,8 @@ If your `index.html` contains a `<div id="chat-container">` block with nested ch
 "sidebar": {
     "enabled": true,
     "default_width": 420,
-    "title": "Data Assistant"
+    "title": "Data Assistant",
+    "chat_title": "Chatbot"
 }
 ```
 
@@ -304,7 +305,8 @@ If your `index.html` contains a `<div id="chat-container">` block with nested ch
 |---|---|---|---|
 | `enabled` | boolean | `false` | Opts in to sidebar mode. Omitting the whole `sidebar` block is equivalent to `false`. |
 | `default_width` | number | `420` | Starting width in pixels. The user's last-dragged width (stored in `localStorage`) overrides this on reload, as long as it's within bounds. |
-| `title` | string | `"Data Assistant"` | Text shown in the sidebar header (and in the floating panel header too — this key applies to both modes). |
+| `title` | string | `"Data Assistant"` | Text shown in the sidebar header (and in the floating panel header too — this key applies to both modes). This is the header at the **top** of the sidebar, above both the layers and the chat. |
+| `chat_title` | string | _(unset)_ | Optional heading shown **persistently above the chat section**, mirroring the layers "Overlays" label. When unset, the chat section has no visible heading except a "Chat" label that appears only while the chat pane is collapsed. |
 
 ### Behavior
 
@@ -313,6 +315,13 @@ right-side panel. The map reflows to fill the remaining width. The sidebar's
 left edge is draggable (width clamps to `[280px, 60vw]`), and a header button
 collapses it off-screen for an unobstructed map. A floating "show" button on
 the map restores the sidebar when collapsed.
+
+Within the panel, the layer-controls menu sits on top (under its "Overlays"
+heading) and the chat below, separated by a draggable splitter that lets you
+rebalance the two. Each section can be collapsed independently. Set
+`chat_title` to give the chat section a persistent heading that mirrors the
+layers "Overlays" label; otherwise the chat has no heading except while
+collapsed.
 
 Below a viewport width of 700px (tablets, phones), the sidebar automatically
 switches to overlay mode: it floats above the map rather than pushing it, and
@@ -423,6 +432,17 @@ Set `auto_approve: false` to require a **Run** / **Cancel** confirmation before 
 | `auto_approve` | boolean | `true` | When `true`, remote tool calls execute immediately without user confirmation. Set to `false` to require manual approval. |
 
 A ⚡ toggle button in the chat footer lets users switch auto-approve on or off at runtime. The toggle affects only the current session — every page load resets to the `auto_approve` value from config.
+
+## Chat export
+
+A 💾 save button in the chat footer saves the current conversation as a self-contained HTML document you can share or print. The button is disabled until the first user message and enables automatically after. No configuration — it's always present.
+
+The saved file mirrors what the user sees in the live chat: user prompts, assistant prose, and tool-call rows with collapsible SQL and result blocks. Everything is in a single `.html` with inlined CSS — no external assets, no JavaScript required to view it.
+
+Two guarantees apply to the export:
+
+- **Reproducible SQL.** Every `s3://bucket/...` URL inside a SQL block is rewritten to `https://s3-west.nrp-nautilus.io/bucket/...`. Pasting the SQL into any DuckDB with `INSTALL httpfs; LOAD httpfs;` will run it against the public endpoint without secret configuration (public buckets only).
+- **Credential scrubbing.** On top of the live-chat redaction described in the agent-loop docs, the export pass replaces credential-shaped tokens with `[REDACTED]` — DuckDB `CREATE SECRET` key/value pairs, AWS access keys (`aws_access_key_id`, `aws_secret_access_key`), `Authorization: Bearer …` tokens, and pre-signed-URL `X-Amz-Signature` / `X-Amz-Credential` / `X-Amz-Security-Token` query parameters.
 
 ## Finding STAC asset IDs
 
