@@ -426,9 +426,9 @@ A ⚡ toggle button in the chat footer lets users switch auto-approve on or off 
 
 ## Chat export
 
-A ⬇ button in the chat footer downloads the current conversation as a self-contained HTML file. The button is disabled until the first user message and enables automatically after. No configuration — it's always present.
+A 💾 save button in the chat footer saves the current conversation as a self-contained HTML document you can share or print. The button is disabled until the first user message and enables automatically after. No configuration — it's always present.
 
-The downloaded file mirrors what the user sees in the live chat: user prompts, assistant prose, and tool-call rows with collapsible SQL and result blocks. Everything is in a single `.html` with inlined CSS — no external assets, no JavaScript required to view it.
+The saved file mirrors what the user sees in the live chat: user prompts, assistant prose, and tool-call rows with collapsible SQL and result blocks. Everything is in a single `.html` with inlined CSS — no external assets, no JavaScript required to view it.
 
 Two guarantees apply to the export:
 

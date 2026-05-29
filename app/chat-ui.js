@@ -515,8 +515,8 @@ export class ChatUI {
 
         const btn = document.createElement('button');
         btn.id = 'export-btn';
-        btn.title = 'Download this conversation as a self-contained HTML file.';
-        btn.textContent = '⬇';
+        btn.title = 'Save this conversation as a self-contained HTML document you can share or print.';
+        btn.textContent = '💾';
         btn.disabled = true;
 
         btn.addEventListener('click', () => {
