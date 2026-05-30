@@ -809,6 +809,112 @@ export class MapManager {
     }
 
     /**
+     * Return every MapLibre layer ID belonging to this logical layer,
+     * in bottom-to-top paint order. Used by sendTopVisibleLayerToBack
+     * so vector fill+outline and all version sublayers move as a group.
+     */
+    _mapSublayersFor(layerId) {
+        const state = this.layers.get(layerId);
+        if (!state) return [];
+        if (state.versions && state.versions.length > 0) {
+            const out = [];
+            for (const v of state.versions) {
+                if (v.mapLayerId) out.push(v.mapLayerId);
+                if (v.outlineLayerId) out.push(v.outlineLayerId);
+            }
+            return out;
+        }
+        const out = [];
+        if (state.mapLayerId) out.push(state.mapLayerId);
+        if (state.outlineLayerId) out.push(state.outlineLayerId);
+        return out;
+    }
+
+    /**
+     * Send the topmost visible (non-animation) registered layer to the
+     * bottom of the registered-layer stack (just above basemap). Repeated
+     * calls cycle through visible layers with period N.
+     *
+     * Returns:
+     *   { success: true, layer: <id> }   when a layer was moved
+     *   { success: true, layer: null, reason: 'insufficient_visible_layers' }
+     *     when 0 or 1 visible layers, or only one registered layer total
+     */
+    sendTopVisibleLayerToBack() {
+        // Build sub-id → logical-id reverse index.
+        const subToLogical = new Map();
+        for (const id of this.layers.keys()) {
+            for (const sub of this._mapSublayersFor(id)) {
+                subToLogical.set(sub, id);
+            }
+        }
+
+        // Find topmost visible non-animation layer by walking style top-down.
+        const styleLayers = this.map.getStyle().layers;
+        let topVisibleId = null;
+        for (let i = styleLayers.length - 1; i >= 0; i--) {
+            const logical = subToLogical.get(styleLayers[i].id);
+            if (!logical) continue;
+            const state = this.layers.get(logical);
+            if (state && state.visible && state.type !== 'animation') {
+                topVisibleId = logical;
+                break;
+            }
+        }
+        if (!topVisibleId) {
+            return { success: true, layer: null, reason: 'insufficient_visible_layers' };
+        }
+
+        // Need at least 2 visible non-animation layers to have a cycle effect.
+        if (this._cycleBtnShouldBeDisabled()) {
+            return { success: true, layer: null, reason: 'insufficient_visible_layers' };
+        }
+
+        // Find floor: bottommost registered sublayer not belonging to topVisibleId.
+        const ownSubs = this._mapSublayersFor(topVisibleId);
+        const ownSubSet = new Set(ownSubs);
+        const floorLayer = styleLayers.find(l => subToLogical.has(l.id) && !ownSubSet.has(l.id));
+        if (!floorLayer) {
+            return { success: true, layer: null, reason: 'insufficient_visible_layers' };
+        }
+
+        // Move all own sublayers bottom-to-top (order from _mapSublayersFor), all before floorLayer.
+        for (const sub of ownSubs) {
+            this.map.moveLayer(sub, floorLayer.id);
+        }
+
+        this._refreshCycleBtnState();
+        return { success: true, layer: topVisibleId };
+    }
+
+    /**
+     * Toggle the cycle button's disabled attribute based on whether
+     * there are 2+ visible non-animation layers (the minimum needed
+     * for a visible cycle effect). Called from generateMenu, the
+     * checkbox change handler in generateControls, syncCheckbox, and
+     * sendTopVisibleLayerToBack.
+     */
+    _refreshCycleBtnState() {
+        if (typeof document === 'undefined') return;
+        const btn = document.getElementById('cycle-top-layer');
+        if (!btn) return;
+        btn.disabled = this._cycleBtnShouldBeDisabled();
+    }
+
+    /**
+     * Pure helper: returns true when fewer than 2 visible non-animation
+     * layers exist (i.e. the cycle button has no useful effect).
+     */
+    _cycleBtnShouldBeDisabled() {
+        let count = 0;
+        for (const state of this.layers.values()) {
+            if (state.visible && state.type !== 'animation') count++;
+            if (count >= 2) return false;
+        }
+        return true;
+    }
+
+    /**
      * Get [{id, displayName, type}, ...] for all registered layers — used to
      * build informative layer lists in LLM tool descriptions so the agent can
      * disambiguate siblings by displayName instead of guessing by ID suffix.
@@ -906,7 +1012,7 @@ export class MapManager {
 
         // Basemap header: "BASEMAP" label + globe icon button inline
         const basemapHeader = document.createElement('div');
-        basemapHeader.className = 'basemap-section-header';
+        basemapHeader.className = 'menu-section-header';
         const basemapTitle = document.createElement('label');
         basemapTitle.className = 'section-title';
         basemapTitle.textContent = 'Basemap';
@@ -941,10 +1047,24 @@ export class MapManager {
         // Overlays section
         const overlaysSection = document.createElement('div');
         overlaysSection.className = 'menu-section';
+
+        // Overlays header: "OVERLAYS" label + send-to-back button inline,
+        // right next to the layer stack the button reorders.
+        const overlaysHeader = document.createElement('div');
+        overlaysHeader.className = 'menu-section-header';
         const overlaysTitle = document.createElement('label');
         overlaysTitle.className = 'section-title';
         overlaysTitle.textContent = 'Overlays';
-        overlaysSection.appendChild(overlaysTitle);
+        const cycleBtn = document.createElement('button');
+        cycleBtn.id = 'cycle-top-layer';
+        cycleBtn.className = 'menu-header-btn';
+        cycleBtn.title = 'Send the topmost visible layer to the back';
+        cycleBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5 5.5 5.5 0 0 1-5.5 5.5H11"/></svg>';
+        cycleBtn.addEventListener('click', () => this.sendTopVisibleLayerToBack());
+        overlaysHeader.appendChild(overlaysTitle);
+        overlaysHeader.appendChild(cycleBtn);
+        overlaysSection.appendChild(overlaysHeader);
+
         const layerControls = document.createElement('div');
         layerControls.id = 'layer-controls-container';
         layerControls.className = 'checkbox-group';
@@ -952,6 +1072,8 @@ export class MapManager {
         menuBody.appendChild(overlaysSection);
 
         container.appendChild(menuBody);
+
+        this._refreshCycleBtnState();
     }
 
     /**
@@ -1006,6 +1128,7 @@ export class MapManager {
                 checkbox.addEventListener('change', () => {
                     if (checkbox.checked) this.showLayer(layerId);
                     else this.hideLayer(layerId);
+                    this._refreshCycleBtnState();
                 });
 
                 const span = document.createElement('span');
@@ -1047,6 +1170,7 @@ export class MapManager {
         if (!state) return;
         const checkbox = document.getElementById(`toggle-${layerId.replace(/\//g, '-')}`);
         if (checkbox) checkbox.checked = state.visible;
+        this._refreshCycleBtnState();
     }
 
     /**
