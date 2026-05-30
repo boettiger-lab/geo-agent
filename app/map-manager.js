@@ -998,19 +998,9 @@ export class MapManager {
             container.classList.toggle('collapsed');
             menuToggle.textContent = container.classList.contains('collapsed') ? '+' : '−';
         });
-        const cycleBtn = document.createElement('button');
-        cycleBtn.id = 'cycle-top-layer';
-        cycleBtn.className = 'menu-header-btn';
-        cycleBtn.title = 'Send the topmost visible layer to the back';
-        cycleBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>';
-        cycleBtn.addEventListener('click', () => this.sendTopVisibleLayerToBack());
-
         menuHeader.appendChild(layersTitle);
-        menuHeader.appendChild(cycleBtn);
         menuHeader.appendChild(menuToggle);
         container.appendChild(menuHeader);
-
-        this._refreshCycleBtnState();
 
         // ── Collapsible body ─────────────────────────────────────────────
         const menuBody = document.createElement('div');
@@ -1022,7 +1012,7 @@ export class MapManager {
 
         // Basemap header: "BASEMAP" label + globe icon button inline
         const basemapHeader = document.createElement('div');
-        basemapHeader.className = 'basemap-section-header';
+        basemapHeader.className = 'menu-section-header';
         const basemapTitle = document.createElement('label');
         basemapTitle.className = 'section-title';
         basemapTitle.textContent = 'Basemap';
@@ -1057,10 +1047,24 @@ export class MapManager {
         // Overlays section
         const overlaysSection = document.createElement('div');
         overlaysSection.className = 'menu-section';
+
+        // Overlays header: "OVERLAYS" label + send-to-back button inline,
+        // right next to the layer stack the button reorders.
+        const overlaysHeader = document.createElement('div');
+        overlaysHeader.className = 'menu-section-header';
         const overlaysTitle = document.createElement('label');
         overlaysTitle.className = 'section-title';
         overlaysTitle.textContent = 'Overlays';
-        overlaysSection.appendChild(overlaysTitle);
+        const cycleBtn = document.createElement('button');
+        cycleBtn.id = 'cycle-top-layer';
+        cycleBtn.className = 'menu-header-btn';
+        cycleBtn.title = 'Send the topmost visible layer to the back';
+        cycleBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5 5.5 5.5 0 0 1-5.5 5.5H11"/></svg>';
+        cycleBtn.addEventListener('click', () => this.sendTopVisibleLayerToBack());
+        overlaysHeader.appendChild(overlaysTitle);
+        overlaysHeader.appendChild(cycleBtn);
+        overlaysSection.appendChild(overlaysHeader);
+
         const layerControls = document.createElement('div');
         layerControls.id = 'layer-controls-container';
         layerControls.className = 'checkbox-group';
@@ -1068,6 +1072,8 @@ export class MapManager {
         menuBody.appendChild(overlaysSection);
 
         container.appendChild(menuBody);
+
+        this._refreshCycleBtnState();
     }
 
     /**
