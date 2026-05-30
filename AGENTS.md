@@ -109,7 +109,13 @@ Because every consumer is pinned, `jsdelivr.net` cache purges are normally unnec
 **Live deployments:**
 - [boettiger-lab/geo-agent-template](https://github.com/boettiger-lab/geo-agent-template) → canonical starting point for new apps; deployed to GitHub Pages as live demo (pinned to a tag).
 
-All downstream apps serve a static HTML file that loads app code from jsDelivr, so a `kubectl rollout restart` is not required when a downstream app bumps its pin.
+Downstream apps serve a static HTML file that loads the pinned app code from jsDelivr at runtime. Two cases are easy to conflate:
+
+- **The library ships a new version here.** Pinned downstream apps are unaffected and need no action — that's the whole point of pinning. Nothing to roll out.
+- **A downstream app bumps its own pin.** This *edits the app's `index.html`*, so the new file must be re-served. How depends on the deployment:
+  - **GitHub Pages** (e.g. the geo-agent-template demo) — auto-rebuilds on push; nothing further needed.
+  - **k8s pods that `git clone` at pod start** (initContainer, e.g. the `padus` deployment of geo-agent-template) — the running pod keeps serving the `index.html` it cloned at startup, so you **must** `kubectl -n biodiversity rollout restart deployment/<name>` for the initContainer to re-clone the new pin. No `kubectl apply` is needed when `index.html` comes from the clone rather than a ConfigMap.
+  - **k8s pods serving content from a ConfigMap** (private configmap-based apps) — regenerate and `kubectl apply` the ConfigMap, *then* rollout restart.
 
 ## Development
 - Local: `cd app && python -m http.server 8000`
