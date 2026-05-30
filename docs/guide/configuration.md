@@ -221,6 +221,12 @@ When a dataset has multiple related assets that differ along one axis (resolutio
 
 Switching versions swaps the visible map layer without adding or removing panel entries. All per-asset config options (`default_style`, `default_filter`, `colormap`, etc.) apply uniformly to every version. Works for both PMTiles (vector) and COG (raster) assets; all versions must share the same layer type.
 
+## Layer paint order
+
+Overlays are painted in the order they are declared in `layers-input.json`: the **first** asset sits at the bottom of the overlay stack (just above the basemap) and the **last** asset paints on top. Reorder the entries to change the initial stacking.
+
+At runtime, users can demote whichever overlay is currently on top with the **send-to-back button** (↩) in the **Overlays** panel header. Each click sends the topmost visible overlay to the bottom of the stack, so repeated clicks cycle through the visible overlays — useful for peeking at a layer hidden beneath another. The button is disabled until at least two overlays are visible, and the stacking resets to the configured order on reload (the change is not persisted).
+
 ## Basemap configuration
 
 Three basemap presets are always available via the toggle buttons: **NatGeo** (default), **Satellite**, and **Plain**.
