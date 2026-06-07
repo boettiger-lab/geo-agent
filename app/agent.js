@@ -283,6 +283,9 @@ export class Agent {
      * renders as a checkpoint (summary + Continue), not an error.
      */
     async _checkpoint(endpoint, modelConfig, turnMessages, sqlQueries, iterations) {
+        const fallbackSummary = `I've run ${iterations} data queries so far and paused to check in. `
+            + `Let me know if you'd like me to continue.`;
+
         turnMessages.push({
             role: 'user',
             content: `You have reached a checkpoint after ${iterations} data ${iterations === 1 ? 'query' : 'queries'}. `
@@ -297,14 +300,18 @@ export class Agent {
             turnMessages.push(msg);
         } catch (err) {
             if (err.name === 'AbortError') {
+                // User stopped during the summary call. The completed tool work
+                // is still valuable — preserve it (minus the checkpoint
+                // instruction we just appended) so "continue" resumes the
+                // investigation rather than discarding the remote rounds.
+                turnMessages.pop();
+                this.suspendedTurn = { turnMessages, sqlQueries };
                 return { response: null, sqlQueries, cancelled: true };
             }
-            summary = `I've run ${iterations} data queries so far and paused to check in. `
-                + `Let me know if you'd like me to continue.`;
+            summary = fallbackSummary;
         }
         if (!summary) {
-            summary = `I've run ${iterations} data queries so far and paused to check in. `
-                + `Let me know if you'd like me to continue.`;
+            summary = fallbackSummary;
         }
 
         // Persist the live turn so the next message resumes it instead of

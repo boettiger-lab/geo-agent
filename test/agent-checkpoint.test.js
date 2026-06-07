@@ -119,6 +119,29 @@ describe('Agent checkpoint', () => {
         expect(checkpoint).toBeFalsy();
         expect(response).toBe('final');
     });
+
+    it('preserves the suspended turn when the summary call is aborted', async () => {
+        // Round 1 (remote) trips the threshold; the summary call then aborts.
+        global.fetch = vi.fn()
+            .mockResolvedValueOnce(okToolCall('remote_tool'))
+            .mockRejectedValueOnce(new DOMException('Aborted', 'AbortError'));
+        const agent = new Agent(
+            baseConfig({ max_tool_calls: 1 }),
+            stubRegistry({ isLocal: () => false, execute: async () => ({ result: 'rows', sqlQuery: 'SELECT 1' }) }),
+        );
+        agent.autoApprove = true;
+
+        const { response, cancelled } = await agent.processMessage('hard question');
+
+        expect(cancelled).toBe(true);
+        expect(response).toBe(null);
+        // Work is preserved so "continue" can resume, not restart.
+        expect(agent.suspendedTurn).not.toBe(null);
+        expect(agent.suspendedTurn.sqlQueries).toContain('SELECT 1');
+        // The checkpoint-summary instruction was stripped; last message is the tool result.
+        const last = agent.suspendedTurn.turnMessages[agent.suspendedTurn.turnMessages.length - 1];
+        expect(last.role).toBe('tool');
+    });
 });
 
 describe('Agent resume', () => {
