@@ -16,6 +16,8 @@ Client apps configure geo-agent via `layers-input.json`. All fields except `cata
 | `default_basemap` | No | Which basemap is active on load: `"natgeo"` (default), `"satellite"`, or `"plain"`. |
 | `custom_basemap` | No | Replace the NatGeo slot with a custom tile URL — see below. |
 | `auto_approve` | No | Start with remote tool calls auto-approved (no confirmation prompt). Default: `true`. |
+| `max_tool_calls` | No | Remote queries in auto-approve mode before the agent pauses at a checkpoint. Default: `15`. |
+| `max_tool_calls_manual` | No | Remote queries in manual mode before a checkpoint. Default: `100`. |
 | `links` | No | Optional links shown in the chat UI — see below. |
 
 ## View
@@ -438,6 +440,23 @@ Set `auto_approve: false` to require a **Run** / **Cancel** confirmation before 
 | `auto_approve` | boolean | `true` | When `true`, remote tool calls execute immediately without user confirmation. Set to `false` to require manual approval. |
 
 A ⚡ toggle button in the chat footer lets users switch auto-approve on or off at runtime. The toggle affects only the current session — every page load resets to the `auto_approve` value from config.
+
+## Tool call checkpoints
+
+On a complex question the agent may run many data queries. Rather than cutting it off at a hard limit, the agent pauses at a **checkpoint** after a configurable number of **remote queries** (MCP/SQL): it summarizes what it has done, the key findings, and what remains, then offers a **▶ Continue** button. Local map actions — `show_layer`, `fly_to`, `set_filter`, and the like — are instant and never count toward the limit.
+
+Continuing preserves the agent's in-flight work, so it resumes where it left off instead of re-running earlier queries. Each Continue grants another full interval, so a session is effectively unlimited as long as you keep approving. You can also just type a follow-up to steer the resumed work (e.g. *"continue, but only for Alameda County"*).
+
+```json
+{ "max_tool_calls": 15, "max_tool_calls_manual": 100 }
+```
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `max_tool_calls` | number | `15` | Remote queries in auto-approve mode before a checkpoint. The checkpoint is the user's periodic gate plus a progress report. Set to `0` to disable. |
+| `max_tool_calls_manual` | number | `100` | Remote queries in manual mode (⚡ off) before a checkpoint. Set high because you already approve each remote call individually. Set to `0` to disable. |
+
+Both keys may also be supplied at deploy time via `config.json`, which overrides the static `layers-input.json` value.
 
 ## Chat export
 
