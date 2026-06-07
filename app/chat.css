@@ -372,6 +372,31 @@
     max-width: 95%;
 }
 
+/* Checkpoint "Continue" affordance, shown when the agent pauses mid-turn */
+.chat-message.checkpoint-actions {
+    align-self: flex-start;
+    padding: 0;
+}
+
+.continue-btn {
+    padding: 6px 14px;
+    border: none;
+    border-radius: 8px;
+    background: rgba(0, 122, 255, 0.85);
+    color: #fff;
+    font-size: 13px;
+    cursor: pointer;
+}
+
+.continue-btn:hover {
+    background: rgba(0, 122, 255, 1);
+}
+
+.continue-btn:disabled {
+    opacity: 0.5;
+    cursor: default;
+}
+
 /* Thinking indicator */
 .chat-message.assistant-thinking {
     align-self: flex-start;

@@ -587,6 +587,13 @@ export class ChatUI {
             } else {
                 this.endTurn('done');
             }
+
+            // If the turn paused with work preserved — a checkpoint, or Stop
+            // pressed during the checkpoint summary — offer a one-click resume.
+            // Typing any message also resumes (and can steer) the paused turn.
+            if (this.agent.suspendedTurn) {
+                this.renderContinueButton();
+            }
         } catch (err) {
             console.error('[ChatUI] Error:', err);
             this.endTurn('error');
@@ -619,6 +626,10 @@ export class ChatUI {
      * assistant's final answer arrives.
      */
     startTurn() {
+        // A new turn supersedes any prior checkpoint prompt — drop stale
+        // Continue buttons so only the latest pause offers a resume.
+        this.messagesEl.querySelectorAll('.checkpoint-actions').forEach(el => el.remove());
+
         const container = document.createElement('details');
         container.className = 'agent-turn running';
         container.open = true;
@@ -1116,6 +1127,32 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-
             if (typeof hljs !== 'undefined') hljs.highlightElement(block);
         });
 
+        this.scrollToBottom();
+    }
+
+    /**
+     * Offer a one-click resume after the agent pauses at a checkpoint (or the
+     * user stopped during the checkpoint summary). The agent keeps the
+     * in-flight work in suspendedTurn; sending "continue" resumes it, while
+     * typing any other message resumes with that steer instead.
+     */
+    renderContinueButton() {
+        const wrap = document.createElement('div');
+        wrap.className = 'chat-message checkpoint-actions';
+
+        const btn = document.createElement('button');
+        btn.className = 'continue-btn';
+        btn.textContent = '▶ Continue';
+        btn.title = 'Resume where the agent paused';
+        btn.addEventListener('click', () => {
+            if (this.busy) return;
+            btn.disabled = true;
+            this.inputEl.value = 'continue';
+            this.handleSend();
+        });
+
+        wrap.appendChild(btn);
+        this.messagesEl.appendChild(wrap);
         this.scrollToBottom();
     }
 
