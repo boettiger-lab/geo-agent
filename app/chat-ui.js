@@ -1147,7 +1147,8 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-
         btn.addEventListener('click', () => {
             if (this.busy) return;
             btn.disabled = true;
-            this.inputEl.value = 'continue';
+            // Preserve a steer the user already typed; default to a plain resume.
+            if (!this.inputEl.value.trim()) this.inputEl.value = 'continue';
             this.handleSend();
         });
 
