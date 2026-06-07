@@ -103,8 +103,10 @@ export class Agent {
      * @returns {Promise<{response: string, sqlQueries: string[], cancelled: boolean}>}
      */
     async processMessage(userMessage) {
-        // Track SQL queries for this turn
-        const sqlQueries = [];
+        // Track SQL queries for this turn. When resuming a suspended turn, carry
+        // forward the queries already collected before the pause.
+        const resuming = this.suspendedTurn;
+        const sqlQueries = resuming ? resuming.sqlQueries : [];
 
         // Per-turn AbortController — triggered by abort() (user-pressed Stop)
         // or by the 5-min timeout inside callLLM(). Either path rejects any
@@ -123,10 +125,21 @@ export class Agent {
 
         this.messages.push({ role: 'user', content: userMessage });
 
-        const turnMessages = [
-            { role: 'system', content: this.systemPrompt },
-            ...this.messages.slice(-12),
-        ];
+        let turnMessages;
+        if (resuming) {
+            // Resume the paused turn: reuse its full tool-call history and append
+            // the new user message (a canned "continue" or a steering instruction).
+            // Do NOT rebuild from this.messages — that would discard the in-flight
+            // work and restart from scratch.
+            this.suspendedTurn = null;
+            turnMessages = resuming.turnMessages;
+            turnMessages.push({ role: 'user', content: userMessage });
+        } else {
+            turnMessages = [
+                { role: 'system', content: this.systemPrompt },
+                ...this.messages.slice(-12),
+            ];
+        }
 
         const tools = this.toolRegistry.getToolsForLLM();
         const modelConfig = this.getModelConfig();
@@ -251,6 +264,7 @@ export class Agent {
 
             // Store in conversation history
             this.messages.push({ role: 'assistant', content });
+            this.suspendedTurn = null;
 
             return { response: content, sqlQueries, cancelled: false };
         }

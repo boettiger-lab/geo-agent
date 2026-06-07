@@ -120,3 +120,34 @@ describe('Agent checkpoint', () => {
         expect(response).toBe('final');
     });
 });
+
+describe('Agent resume', () => {
+    afterEach(() => { vi.restoreAllMocks(); });
+
+    it('resumes the saved turnMessages instead of rebuilding, then clears on final answer', async () => {
+        global.fetch = vi.fn()
+            .mockResolvedValueOnce(okToolCall('remote_tool'))
+            .mockResolvedValueOnce(okText('Summary so far.'));
+        const agent = new Agent(
+            baseConfig({ max_tool_calls: 1 }),
+            stubRegistry({ isLocal: () => false, execute: async () => ({ result: 'rows', sqlQuery: 'SELECT 1' }) }),
+        );
+        agent.autoApprove = true;
+        await agent.processMessage('hard question');
+        expect(agent.suspendedTurn).not.toBe(null);
+        const savedTurn = agent.suspendedTurn.turnMessages;
+        const lenBeforeResume = savedTurn.length;
+
+        let sentMessages = null;
+        global.fetch = vi.fn(async (url, opts) => {
+            sentMessages = JSON.parse(opts.body).messages;
+            return okText('Final answer.');
+        });
+        const { response } = await agent.processMessage('continue');
+
+        expect(response).toBe('Final answer.');
+        expect(sentMessages.length).toBe(lenBeforeResume + 1); // + the "continue" user msg
+        expect(sentMessages[sentMessages.length - 1]).toEqual({ role: 'user', content: 'continue' });
+        expect(agent.suspendedTurn).toBe(null);
+    });
+});
