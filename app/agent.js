@@ -30,6 +30,9 @@ export class Agent {
         // null/0 in either disables the checkpoint for that mode.
         this.maxToolCalls = config.max_tool_calls ?? 15;
         this.maxToolCallsManual = config.max_tool_calls_manual ?? 100;
+        // In-flight turn state preserved across user messages when a turn pauses
+        // at a checkpoint. null when no turn is suspended.
+        this.suspendedTurn = null;
         this.autoApprove = config.auto_approve ?? true;
         this.sessionId = crypto.randomUUID();
         this.abortController = null;
@@ -158,11 +161,14 @@ export class Agent {
             const embeddedCalls = toolCalls.length === 0 ? this.parseEmbeddedToolCalls(message.content) : [];
 
             if (toolCalls.length > 0 || embeddedCalls.length > 0) {
-                iterations++;
                 const calls = toolCalls.length > 0 ? toolCalls : this.syntheticToolCalls(embeddedCalls);
 
                 // Classify: are all calls local (auto-approve) or mixed?
                 const allLocal = calls.every(tc => this.toolRegistry.isLocal(tc.function.name));
+
+                // Only remote (MCP/SQL) rounds count toward the checkpoint
+                // threshold — local map tools are cheap and never gated.
+                if (!allLocal) iterations++;
 
                 // Strip embedded <tool_call> tags from content before displaying to user
                 const displayContent = message.content

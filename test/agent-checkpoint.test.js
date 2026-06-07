@@ -51,3 +51,28 @@ describe('Agent threshold configuration', () => {
         expect(agent.activeThreshold()).toBe(50);
     });
 });
+
+describe('Agent remote-round counting', () => {
+    beforeEach(() => { vi.useRealTimers(); });
+    afterEach(() => { vi.restoreAllMocks(); });
+
+    it('initializes suspendedTurn to null', () => {
+        const agent = new Agent(baseConfig(), stubRegistry());
+        expect(agent.suspendedTurn).toBe(null);
+    });
+
+    it('does not checkpoint a turn that only uses local tools', async () => {
+        // One local tool round, then a final text answer.
+        global.fetch = vi.fn()
+            .mockResolvedValueOnce(okToolCall('local_tool'))
+            .mockResolvedValueOnce(okText('all done'));
+        const agent = new Agent(
+            baseConfig({ max_tool_calls: 1 }),    // tiny threshold
+            stubRegistry({ isLocal: () => true }), // every call is local
+        );
+        agent.autoApprove = true;
+        const { response } = await agent.processMessage('hi');
+        expect(response).toBe('all done');
+        expect(agent.suspendedTurn).toBe(null);
+    });
+});
