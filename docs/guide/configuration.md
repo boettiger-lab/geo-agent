@@ -458,6 +458,10 @@ Continuing preserves the agent's in-flight work, so it resumes where it left off
 
 Both keys may also be supplied at deploy time via `config.json`, which overrides the static `layers-input.json` value.
 
+::: warning
+The checkpoint is the only per-turn cap on tool use. Setting a value to `0` removes it entirely for that mode — a misbehaving model could then loop indefinitely, stopped only by the per-call timeout or a manual **Stop**. Prefer a high value (e.g. several hundred) over `0` unless you have another guard in place.
+:::
+
 ## Chat export
 
 A 💾 save button in the chat footer saves the current conversation as a self-contained HTML document you can share or print. The button is disabled until the first user message and enables automatically after. No configuration — it's always present.

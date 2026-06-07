@@ -173,4 +173,30 @@ describe('Agent resume', () => {
         expect(sentMessages[sentMessages.length - 1]).toEqual({ role: 'user', content: 'continue' });
         expect(agent.suspendedTurn).toBe(null);
     });
+
+    it('resumes an already-checkpointed turn and can checkpoint again, accumulating in place', async () => {
+        global.fetch = vi.fn()
+            .mockResolvedValueOnce(okToolCall('remote_tool'))        // turn 1 round 1 (remote)
+            .mockResolvedValueOnce(okText('Summary 1.'))             // turn 1 checkpoint summary
+            .mockResolvedValueOnce(okToolCall('remote_tool', 'c2'))  // turn 2 round 1 (remote)
+            .mockResolvedValueOnce(okText('Summary 2.'));            // turn 2 checkpoint summary
+        const agent = new Agent(
+            baseConfig({ max_tool_calls: 1 }),
+            stubRegistry({ isLocal: () => false, execute: async () => ({ result: 'rows', sqlQuery: 'SELECT 1' }) }),
+        );
+        agent.autoApprove = true;
+
+        const first = await agent.processMessage('hard question');
+        expect(first.checkpoint).toBe(true);
+        const arrayRef = agent.suspendedTurn.turnMessages;
+        const lenAfterFirst = arrayRef.length;
+
+        const second = await agent.processMessage('continue');
+        expect(second.checkpoint).toBe(true);
+        // Same array, accumulated in place — not rebuilt from history.
+        expect(agent.suspendedTurn.turnMessages).toBe(arrayRef);
+        expect(agent.suspendedTurn.turnMessages.length).toBeGreaterThan(lenAfterFirst);
+        // sqlQueries carried across both turns.
+        expect(agent.suspendedTurn.sqlQueries.length).toBe(2);
+    });
 });
