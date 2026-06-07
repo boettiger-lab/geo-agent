@@ -47,6 +47,7 @@ export class Agent {
         this.onResponse = () => { };
         this.onError = () => { };
         this.onRetry = () => { };
+        this.onCheckpoint = () => { };
     }
 
     /**
@@ -137,7 +138,11 @@ export class Agent {
         let iterations = 0;
 
         try {
-        while (iterations < this.maxToolCalls) {
+        while (true) {
+            const threshold = this.activeThreshold();
+            if (threshold && iterations >= threshold) {
+                return await this._checkpoint(endpoint, modelConfig, turnMessages, sqlQueries, iterations);
+            }
             this.onThinkingStart();
 
             // Call LLM — no withAbort wrapper: the shared AbortController's
@@ -249,19 +254,52 @@ export class Agent {
 
             return { response: content, sqlQueries, cancelled: false };
         }
-
-        // Hit max iterations
-        return {
-            response: `I've reached the maximum number of steps (${this.maxToolCalls}). Please try a more specific question.`,
-            sqlQueries,
-            cancelled: false
-        };
         } catch (err) {
             if (err.name === 'AbortError') {
                 return { response: null, sqlQueries, cancelled: true };
             }
             throw err;
         }
+    }
+
+    /**
+     * Pause the turn at a checkpoint: make one no-tools LLM call to produce a
+     * human-readable progress report, persist the in-flight turn so the next
+     * user message resumes it, and emit onCheckpoint. Returns a result the UI
+     * renders as a checkpoint (summary + Continue), not an error.
+     */
+    async _checkpoint(endpoint, modelConfig, turnMessages, sqlQueries, iterations) {
+        turnMessages.push({
+            role: 'user',
+            content: `You have reached a checkpoint after ${iterations} data ${iterations === 1 ? 'query' : 'queries'}. `
+                + `Summarize for the user what you have done so far, the key findings, and what remains to be done. `
+                + `Then offer to continue.`,
+        });
+
+        let summary = '';
+        try {
+            const msg = await this.callLLM(endpoint, modelConfig, turnMessages, [] /* no tools → tool_choice none */);
+            summary = (msg.content || '').trim();
+            turnMessages.push(msg);
+        } catch (err) {
+            if (err.name === 'AbortError') {
+                return { response: null, sqlQueries, cancelled: true };
+            }
+            summary = `I've run ${iterations} data queries so far and paused to check in. `
+                + `Let me know if you'd like me to continue.`;
+        }
+        if (!summary) {
+            summary = `I've run ${iterations} data queries so far and paused to check in. `
+                + `Let me know if you'd like me to continue.`;
+        }
+
+        // Persist the live turn so the next message resumes it instead of
+        // rebuilding from scratch. Record the summary in cross-turn history.
+        this.suspendedTurn = { turnMessages, sqlQueries };
+        this.messages.push({ role: 'assistant', content: summary });
+
+        this.onCheckpoint(summary, iterations);
+        return { response: summary, sqlQueries, checkpoint: true, cancelled: false };
     }
 
     /**
@@ -274,7 +312,7 @@ export class Agent {
             model: this.selectedModel,
             messages,
             tools: tools.length > 0 ? tools : undefined,
-            tool_choice: tools.length > 0 ? 'auto' : undefined,
+            tool_choice: tools.length > 0 ? 'auto' : 'none',
             user: this.sessionId,
         };
 

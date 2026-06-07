@@ -76,3 +76,47 @@ describe('Agent remote-round counting', () => {
         expect(agent.suspendedTurn).toBe(null);
     });
 });
+
+describe('Agent checkpoint', () => {
+    afterEach(() => { vi.restoreAllMocks(); });
+
+    it('pauses at the threshold, makes a no-tools summary call, and suspends', async () => {
+        const fetchMock = vi.fn()
+            .mockResolvedValueOnce(okToolCall('remote_tool'))      // round 1 (remote)
+            .mockResolvedValueOnce(okText('Progress: ran 1 query; next I would join counties.'));
+        global.fetch = fetchMock;
+
+        const onCheckpoint = vi.fn();
+        const agent = new Agent(
+            baseConfig({ max_tool_calls: 1 }),
+            stubRegistry({ isLocal: () => false, execute: async () => ({ result: 'rows', sqlQuery: 'SELECT 1' }) }),
+        );
+        agent.autoApprove = true;
+        agent.onCheckpoint = onCheckpoint;
+
+        const { response, checkpoint } = await agent.processMessage('hard question');
+
+        expect(checkpoint).toBe(true);
+        expect(response).toContain('Progress');
+        expect(onCheckpoint).toHaveBeenCalledOnce();
+        expect(agent.suspendedTurn).not.toBe(null);
+        const summaryBody = JSON.parse(fetchMock.mock.calls[1][1].body);
+        expect(summaryBody.tool_choice).toBe('none');
+        expect(summaryBody.tools).toBeUndefined();
+    });
+
+    it('does not checkpoint when threshold is 0 (disabled)', async () => {
+        global.fetch = vi.fn()
+            .mockResolvedValueOnce(okToolCall('remote_tool'))
+            .mockResolvedValueOnce(okToolCall('remote_tool', 'c2'))
+            .mockResolvedValueOnce(okText('final'));
+        const agent = new Agent(
+            baseConfig({ max_tool_calls: 0 }),
+            stubRegistry({ isLocal: () => false }),
+        );
+        agent.autoApprove = true;
+        const { response, checkpoint } = await agent.processMessage('q');
+        expect(checkpoint).toBeFalsy();
+        expect(response).toBe('final');
+    });
+});
