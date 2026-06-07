@@ -23,7 +23,13 @@ export class Agent {
         this.systemPrompt = '';
         this.messages = [];
         this.selectedModel = config.llm_model || config.llm_models?.[0]?.value || 'default';
-        this.maxToolCalls = 20;
+        // Checkpoint thresholds: how many *remote* tool-call rounds before the
+        // agent pauses to report progress and ask to continue. Auto-approve uses
+        // the tighter value (the checkpoint is the user's periodic gate); manual
+        // mode uses a high value since per-call approval is already the guard.
+        // null/0 in either disables the checkpoint for that mode.
+        this.maxToolCalls = config.max_tool_calls ?? 15;
+        this.maxToolCallsManual = config.max_tool_calls_manual ?? 100;
         this.autoApprove = config.auto_approve ?? true;
         this.sessionId = crypto.randomUUID();
         this.abortController = null;
@@ -64,6 +70,14 @@ export class Agent {
             endpoint: 'https://llm-proxy.nrp-nautilus.io/v1',
             api_key: 'EMPTY'
         };
+    }
+
+    /**
+     * The active remote-round checkpoint threshold for the current mode.
+     * 0 or null means "no checkpoint" for that mode.
+     */
+    activeThreshold() {
+        return this.autoApprove ? this.maxToolCalls : this.maxToolCallsManual;
     }
 
     /**
