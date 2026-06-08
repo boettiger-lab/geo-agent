@@ -19,6 +19,11 @@ export class MCPClient {
         this.tools = [];
         this.reconnectAttempts = 0;
         this.maxReconnectAttempts = 3;
+        // The attempt budget caps a single burst of failures, but it must not
+        // latch forever — after this much quiet time, the next attempt gets a
+        // fresh budget so a transient outage can't permanently disable MCP.
+        this.reconnectResetMs = 30000;
+        this.lastReconnectTime = 0;
         this._connectPromise = null;
         this._onReconnect = null;
     }
@@ -98,8 +103,17 @@ export class MCPClient {
      * Reconnect with exponential backoff.
      */
     async reconnect() {
+        const now = Date.now();
+        // A fresh attempt after a quiet period gets a clean budget. Rapid
+        // retries within one burst still hit the cap (no hammering), but a
+        // user action after the outage clears retries instead of failing.
+        if (now - this.lastReconnectTime > this.reconnectResetMs) {
+            this.reconnectAttempts = 0;
+        }
+        this.lastReconnectTime = now;
+
         if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-            throw new Error('MCP server unreachable after multiple attempts. Please refresh the page.');
+            throw new Error('MCP server temporarily unavailable. Please try again in a moment.');
         }
 
         this.reconnectAttempts++;
