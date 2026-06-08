@@ -66,3 +66,8 @@ docs/superpowers/
 # Git worktrees
 .worktrees/
 coverage/
+
+# Claude Code (local, machine-specific). Shared project config such as
+# .claude/settings.json or .claude/commands/ can still be committed.
+.claude/settings.local.json
+.claude/worktrees/
