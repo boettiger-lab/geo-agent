@@ -106,10 +106,35 @@ describe('MCPClient ensureConnected and reconnect', () => {
         }
     });
 
-    it('throws after maxReconnectAttempts', async () => {
+    it('throws when the reconnect budget is exhausted within the cooldown window', async () => {
         const c = new MCPClient('https://mcp/');
         c.reconnectAttempts = c.maxReconnectAttempts;
-        await expect(c.reconnect()).rejects.toThrow(/unreachable after multiple attempts/i);
+        c.lastReconnectTime = Date.now();   // recent burst → no budget reset
+        await expect(c.reconnect()).rejects.toThrow(/temporarily unavailable/i);
+    });
+
+    it('does not latch permanently — after the cooldown window a fresh reconnect is attempted', async () => {
+        vi.useFakeTimers();
+        try {
+            const c = new MCPClient('https://mcp/');
+            // Simulate a burst that exhausted the reconnect budget.
+            c.reconnectAttempts = c.maxReconnectAttempts;
+            c.lastReconnectTime = Date.now();
+
+            // User pauses past the reset window, then acts again.
+            vi.advanceTimersByTime(c.reconnectResetMs + 1000);
+
+            const promise = c.reconnect();
+            await vi.advanceTimersByTimeAsync(1000); // backoff for the fresh attempt
+            await promise;
+
+            // The counter was reset and a real connection was made, instead of
+            // throwing the permanent "refresh the page" error forever.
+            expect(c.isConnected).toBe(true);
+            expect(c.reconnectAttempts).toBe(0);
+        } finally {
+            vi.useRealTimers();
+        }
     });
 });
 
