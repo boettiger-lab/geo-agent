@@ -23,7 +23,16 @@ export class Agent {
         this.systemPrompt = '';
         this.messages = [];
         this.selectedModel = config.llm_model || config.llm_models?.[0]?.value || 'default';
-        this.maxToolCalls = 20;
+        // Checkpoint thresholds: how many *remote* tool-call rounds before the
+        // agent pauses to report progress and ask to continue. Auto-approve uses
+        // the tighter value (the checkpoint is the user's periodic gate); manual
+        // mode uses a high value since per-call approval is already the guard.
+        // null/0 in either disables the checkpoint for that mode.
+        this.maxToolCalls = config.max_tool_calls ?? 15;
+        this.maxToolCallsManual = config.max_tool_calls_manual ?? 100;
+        // In-flight turn state preserved across user messages when a turn pauses
+        // at a checkpoint. null when no turn is suspended.
+        this.suspendedTurn = null;
         this.autoApprove = config.auto_approve ?? true;
         this.sessionId = crypto.randomUUID();
         this.abortController = null;
@@ -38,6 +47,7 @@ export class Agent {
         this.onResponse = () => { };
         this.onError = () => { };
         this.onRetry = () => { };
+        this.onCheckpoint = () => { };
     }
 
     /**
@@ -67,6 +77,14 @@ export class Agent {
     }
 
     /**
+     * The active remote-round checkpoint threshold for the current mode.
+     * 0 or null means "no checkpoint" for that mode.
+     */
+    activeThreshold() {
+        return this.autoApprove ? this.maxToolCalls : this.maxToolCallsManual;
+    }
+
+    /**
      * Abort the in-flight turn, if any. Cancels the current LLM fetch
      * and causes the agent loop to bail out at its next await point.
      */
@@ -85,8 +103,10 @@ export class Agent {
      * @returns {Promise<{response: string, sqlQueries: string[], cancelled: boolean}>}
      */
     async processMessage(userMessage) {
-        // Track SQL queries for this turn
-        const sqlQueries = [];
+        // Track SQL queries for this turn. When resuming a suspended turn, carry
+        // forward the queries already collected before the pause.
+        const resuming = this.suspendedTurn;
+        const sqlQueries = resuming ? resuming.sqlQueries : [];
 
         // Per-turn AbortController — triggered by abort() (user-pressed Stop)
         // or by the 5-min timeout inside callLLM(). Either path rejects any
@@ -105,10 +125,21 @@ export class Agent {
 
         this.messages.push({ role: 'user', content: userMessage });
 
-        const turnMessages = [
-            { role: 'system', content: this.systemPrompt },
-            ...this.messages.slice(-12),
-        ];
+        let turnMessages;
+        if (resuming) {
+            // Resume the paused turn: reuse its full tool-call history and append
+            // the new user message (a canned "continue" or a steering instruction).
+            // Do NOT rebuild from this.messages — that would discard the in-flight
+            // work and restart from scratch.
+            this.suspendedTurn = null;
+            turnMessages = resuming.turnMessages;
+            turnMessages.push({ role: 'user', content: userMessage });
+        } else {
+            turnMessages = [
+                { role: 'system', content: this.systemPrompt },
+                ...this.messages.slice(-12),
+            ];
+        }
 
         const tools = this.toolRegistry.getToolsForLLM();
         const modelConfig = this.getModelConfig();
@@ -120,7 +151,11 @@ export class Agent {
         let iterations = 0;
 
         try {
-        while (iterations < this.maxToolCalls) {
+        while (true) {
+            const threshold = this.activeThreshold();
+            if (threshold && iterations >= threshold) {
+                return await this._checkpoint(endpoint, modelConfig, turnMessages, sqlQueries, iterations);
+            }
             this.onThinkingStart();
 
             // Call LLM — no withAbort wrapper: the shared AbortController's
@@ -144,11 +179,14 @@ export class Agent {
             const embeddedCalls = toolCalls.length === 0 ? this.parseEmbeddedToolCalls(message.content) : [];
 
             if (toolCalls.length > 0 || embeddedCalls.length > 0) {
-                iterations++;
                 const calls = toolCalls.length > 0 ? toolCalls : this.syntheticToolCalls(embeddedCalls);
 
                 // Classify: are all calls local (auto-approve) or mixed?
                 const allLocal = calls.every(tc => this.toolRegistry.isLocal(tc.function.name));
+
+                // Only remote (MCP/SQL) rounds count toward the checkpoint
+                // threshold — local map tools are cheap and never gated.
+                if (!allLocal) iterations++;
 
                 // Strip embedded <tool_call> tags from content before displaying to user
                 const displayContent = message.content
@@ -226,22 +264,63 @@ export class Agent {
 
             // Store in conversation history
             this.messages.push({ role: 'assistant', content });
+            this.suspendedTurn = null;
 
             return { response: content, sqlQueries, cancelled: false };
         }
-
-        // Hit max iterations
-        return {
-            response: `I've reached the maximum number of steps (${this.maxToolCalls}). Please try a more specific question.`,
-            sqlQueries,
-            cancelled: false
-        };
         } catch (err) {
             if (err.name === 'AbortError') {
                 return { response: null, sqlQueries, cancelled: true };
             }
             throw err;
         }
+    }
+
+    /**
+     * Pause the turn at a checkpoint: make one no-tools LLM call to produce a
+     * human-readable progress report, persist the in-flight turn so the next
+     * user message resumes it, and emit onCheckpoint. Returns a result the UI
+     * renders as a checkpoint (summary + Continue), not an error.
+     */
+    async _checkpoint(endpoint, modelConfig, turnMessages, sqlQueries, iterations) {
+        const fallbackSummary = `I've run ${iterations} data queries so far and paused to check in. `
+            + `Let me know if you'd like me to continue.`;
+
+        turnMessages.push({
+            role: 'user',
+            content: `You have reached a checkpoint after ${iterations} data ${iterations === 1 ? 'query' : 'queries'}. `
+                + `Summarize for the user what you have done so far, the key findings, and what remains to be done. `
+                + `Then offer to continue.`,
+        });
+
+        let summary = '';
+        try {
+            const msg = await this.callLLM(endpoint, modelConfig, turnMessages, [] /* no tools → tool_choice none */);
+            summary = (msg.content || '').trim();
+            turnMessages.push(msg);
+        } catch (err) {
+            if (err.name === 'AbortError') {
+                // User stopped during the summary call. The completed tool work
+                // is still valuable — preserve it (minus the checkpoint
+                // instruction we just appended) so "continue" resumes the
+                // investigation rather than discarding the remote rounds.
+                turnMessages.pop();
+                this.suspendedTurn = { turnMessages, sqlQueries };
+                return { response: null, sqlQueries, cancelled: true };
+            }
+            summary = fallbackSummary;
+        }
+        if (!summary) {
+            summary = fallbackSummary;
+        }
+
+        // Persist the live turn so the next message resumes it instead of
+        // rebuilding from scratch. Record the summary in cross-turn history.
+        this.suspendedTurn = { turnMessages, sqlQueries };
+        this.messages.push({ role: 'assistant', content: summary });
+
+        this.onCheckpoint(summary, iterations);
+        return { response: summary, sqlQueries, checkpoint: true, cancelled: false };
     }
 
     /**
@@ -254,7 +333,7 @@ export class Agent {
             model: this.selectedModel,
             messages,
             tools: tools.length > 0 ? tools : undefined,
-            tool_choice: tools.length > 0 ? 'auto' : undefined,
+            tool_choice: tools.length > 0 ? 'auto' : 'none',
             user: this.sessionId,
         };
 

@@ -34,6 +34,9 @@ async function main() {
         if (runtimeConfig.mcp_auth_token) appConfig.mcp_auth_token = runtimeConfig.mcp_auth_token;
         if (runtimeConfig.catalog_token) appConfig.catalog_token = runtimeConfig.catalog_token;
         if (runtimeConfig.draw_enabled != null) appConfig.draw_enabled = runtimeConfig.draw_enabled;
+        // != null (not truthiness) so 0 — which disables the checkpoint — survives.
+        if (runtimeConfig.max_tool_calls != null) appConfig.max_tool_calls = runtimeConfig.max_tool_calls;
+        if (runtimeConfig.max_tool_calls_manual != null) appConfig.max_tool_calls_manual = runtimeConfig.max_tool_calls_manual;
     }
 
     // If no server-provided LLM config, check for user-provided key mode
