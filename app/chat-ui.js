@@ -911,7 +911,7 @@ export class ChatUI {
             argDisplay = `<pre><code>${this.escapeHtml(String(args))}</code></pre>`;
         }
 
-        return `<div class="tool-call-item"><strong>${tc.function.name}</strong>${argDisplay}</div>`;
+        return `<div class="tool-call-item"><strong>${this.escapeHtml(tc.function.name)}</strong>${argDisplay}</div>`;
     }
 
     /**
@@ -944,7 +944,7 @@ export class ChatUI {
             const itemIcon = r.success ? '✓' : '✗';
             const sourceTag = r.source === 'remote' ? ' <span class="tool-tag remote">MCP</span>' : '';
             const truncated = this.truncateResult(r.result, 2000);
-            resultsHtml += `<div class="tool-result-item"><strong>${itemIcon} ${r.name}</strong>${sourceTag}`;
+            resultsHtml += `<div class="tool-result-item"><strong>${itemIcon} ${this.escapeHtml(r.name)}</strong>${sourceTag}`;
             if (r.sqlQuery) {
                 resultsHtml += `<details class="sql-detail"><summary>SQL</summary><pre><code class="language-sql">${this.escapeHtml(r.sqlQuery)}</code></pre></details>`;
             }
