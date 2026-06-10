@@ -2,7 +2,7 @@
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
 import { marked } from 'marked';
 import DOMPurify from 'dompurify';
-import { renderMarkdown } from '../app/chat-ui.js';
+import { renderMarkdown, ChatUI } from '../app/chat-ui.js';
 
 // chat-ui.js consumes marked and DOMPurify as page globals (CDN script
 // tags); mirror that here with the real libraries.
@@ -76,5 +76,39 @@ describe('renderMarkdown sanitization', () => {
         delete globalThis.marked;
         const el = render('<img src=x onerror=alert(1)>');
         expect(el.querySelector('img')).toBeNull();
+    });
+});
+
+/**
+ * Tool-call names come from the LLM response JSON (structured tool_calls),
+ * which prompt injection can steer — they must be escaped like every other
+ * value in the tool rows.
+ */
+describe('tool-call name escaping', () => {
+    it('escapes HTML in proposed tool-call names (renderToolCallArgs)', () => {
+        const ui = Object.create(ChatUI.prototype);
+        const html = ui.renderToolCallArgs({
+            function: { name: '<img src=x onerror=alert(1)>', arguments: '{}' },
+        });
+        const el = document.createElement('div');
+        el.innerHTML = html;
+        expect(el.querySelector('img')).toBeNull();
+        expect(el.textContent).toContain('<img');
+    });
+
+    it('escapes HTML in result names (showToolResults)', () => {
+        const ui = Object.create(ChatUI.prototype);
+        const row = document.createElement('details');
+        row.innerHTML = '<summary><span class="row-status running"></span></summary>' +
+            '<div class="agent-turn-row-body"></div>';
+        ui.currentTurn = { rowsByIter: new Map([[1, row]]) };
+        ui.scrollToBottom = () => {};
+        ui.showToolResults(
+            [{ name: '<img src=x onerror=alert(1)>', success: true, result: 'ok' }],
+            1
+        );
+        const body = row.querySelector('.agent-turn-row-body');
+        expect(body.querySelector('img')).toBeNull();
+        expect(body.textContent).toContain('<img');
     });
 });
