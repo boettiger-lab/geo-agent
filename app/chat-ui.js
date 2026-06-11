@@ -67,6 +67,35 @@ export function scrubCredentials(text) {
  */
 export const REDACTED_KEYS = ['s3_key', 's3_secret', 's3_endpoint', 's3_scope', 'catalog_token'];
 
+/**
+ * Render LLM-derived text to HTML for innerHTML insertion. The model can be
+ * steered by anything it reads (dataset values, STAC descriptions), so its
+ * output may carry attacker-controlled markup: scrub credential-shaped
+ * tokens, parse markdown, then sanitize through DOMPurify. If either page
+ * global is missing, fail closed to escaped plain text rather than raw HTML.
+ *
+ * @param {string} md
+ * @returns {string} HTML safe to assign to innerHTML
+ */
+export function renderMarkdown(md) {
+    const text = scrubCredentials(String(md ?? ''));
+    if (typeof marked !== 'undefined' && typeof DOMPurify !== 'undefined') {
+        return DOMPurify.sanitize(marked.parse(text));
+    }
+    if (!renderMarkdown._warned) {
+        renderMarkdown._warned = true;
+        console.warn('[ChatUI] marked and/or DOMPurify not loaded — chat text will render as escaped plain text. Check the CDN <script> tags in index.html.');
+    }
+    return `<pre>${escapeHtmlText(text)}</pre>`;
+}
+
+/** DOM-free HTML escape (renderMarkdown fallback path). */
+function escapeHtmlText(str) {
+    return String(str).replace(/[&<>"']/g, (c) => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+    }[c]));
+}
+
 export class ChatUI {
     /**
      * @param {import('./agent.js').Agent} agent
@@ -754,9 +783,7 @@ export class ChatUI {
 
         const body = document.createElement('div');
         body.className = 'agent-turn-row-body';
-        body.innerHTML = typeof marked !== 'undefined'
-            ? marked.parse(text)
-            : `<pre>${this.escapeHtml(text)}</pre>`;
+        body.innerHTML = renderMarkdown(text);
 
         row.appendChild(summary);
         row.appendChild(body);
@@ -809,7 +836,7 @@ export class ChatUI {
                 ? reasoningText.trim()
                 : this.describeToolCalls(calls);
             if (desc) {
-                const descHtml = typeof marked !== 'undefined' ? marked.parse(desc) : this.escapeHtml(desc);
+                const descHtml = renderMarkdown(desc);
                 body.insertAdjacentHTML('beforeend', `<div class="tool-reasoning">${descHtml}</div>`);
             }
         }
@@ -884,7 +911,7 @@ export class ChatUI {
             argDisplay = `<pre><code>${this.escapeHtml(String(args))}</code></pre>`;
         }
 
-        return `<div class="tool-call-item"><strong>${tc.function.name}</strong>${argDisplay}</div>`;
+        return `<div class="tool-call-item"><strong>${this.escapeHtml(tc.function.name)}</strong>${argDisplay}</div>`;
     }
 
     /**
@@ -917,7 +944,7 @@ export class ChatUI {
             const itemIcon = r.success ? '✓' : '✗';
             const sourceTag = r.source === 'remote' ? ' <span class="tool-tag remote">MCP</span>' : '';
             const truncated = this.truncateResult(r.result, 2000);
-            resultsHtml += `<div class="tool-result-item"><strong>${itemIcon} ${r.name}</strong>${sourceTag}`;
+            resultsHtml += `<div class="tool-result-item"><strong>${itemIcon} ${this.escapeHtml(r.name)}</strong>${sourceTag}`;
             if (r.sqlQuery) {
                 resultsHtml += `<details class="sql-detail"><summary>SQL</summary><pre><code class="language-sql">${this.escapeHtml(r.sqlQuery)}</code></pre></details>`;
             }
@@ -1119,7 +1146,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-
     addMarkdown(role, md) {
         const el = document.createElement('div');
         el.className = `chat-message ${role}`;
-        el.innerHTML = typeof marked !== 'undefined' ? marked.parse(md) : md;
+        el.innerHTML = renderMarkdown(md);
         this.messagesEl.appendChild(el);
 
         // Highlight code blocks

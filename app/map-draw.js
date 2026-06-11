@@ -7,13 +7,19 @@
  */
 
 const DRAW_JS  = 'https://unpkg.com/@mapbox/mapbox-gl-draw@1.4.3/dist/mapbox-gl-draw.js';
+const DRAW_JS_SRI = 'sha384-9tKNac0N0Yq08XtOQRfX8ivYwyzoSOriQtGhBKAxi2ezpT1C859IZ9bO1QNrKmMX';
 const DRAW_CSS = 'https://unpkg.com/@mapbox/mapbox-gl-draw@1.4.3/dist/mapbox-gl-draw.css';
+const DRAW_CSS_SRI = 'sha384-4Y8+jUOlZUhQTrhjMAldWS0wpm/HjKvwEzKSXzLoaf3HJozxCpjiRXmXq71XbLT6';
 
 /** Load a JS script by URL, resolves when loaded. */
-function loadScript(url) {
+function loadScript(url, integrity) {
     return new Promise((resolve, reject) => {
         const s = document.createElement('script');
         s.src = url;
+        if (integrity) {
+            s.integrity = integrity;
+            s.crossOrigin = 'anonymous';
+        }
         s.onload = resolve;
         s.onerror = () => reject(new Error(`Failed to load ${url}`));
         document.head.appendChild(s);
@@ -21,10 +27,14 @@ function loadScript(url) {
 }
 
 /** Load a CSS stylesheet by URL. */
-function loadCSS(url) {
+function loadCSS(url, integrity) {
     const link = document.createElement('link');
     link.rel = 'stylesheet';
     link.href = url;
+    if (integrity) {
+        link.integrity = integrity;
+        link.crossOrigin = 'anonymous';
+    }
     document.head.appendChild(link);
 }
 
@@ -64,8 +74,8 @@ export class MapDraw {
 
     /** Initialize: load library, add controls, wire events. */
     async init() {
-        loadCSS(DRAW_CSS);
-        await loadScript(DRAW_JS);
+        loadCSS(DRAW_CSS, DRAW_CSS_SRI);
+        await loadScript(DRAW_JS, DRAW_JS_SRI);
 
         /* global MapboxDraw */
         this.draw = new MapboxDraw({
