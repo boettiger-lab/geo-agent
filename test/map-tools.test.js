@@ -127,6 +127,38 @@ describe('filter_by_query', () => {
         expect(result.error).toContain('Could not parse ID list');
         expect(mapManager.setFilter).not.toHaveBeenCalled();
     });
+
+    it('rejects id_property containing SQL metacharacters without calling MCP', async () => {
+        const mapManager = stubMapManager();
+        const mcpClient = { callTool: vi.fn(async () => '[1]') };
+        const tool = getFilterTool(mapManager, mcpClient);
+
+        const raw = await tool.execute({
+            layer_id: 'parcels',
+            sql: 'SELECT id FROM x',
+            id_property: 'id") IS NOT NULL)) AS ids FROM evil --',
+        });
+        const result = JSON.parse(raw);
+
+        expect(result.success).toBe(false);
+        expect(result.error).toContain('id_property');
+        expect(mcpClient.callTool).not.toHaveBeenCalled();
+        expect(mapManager.setFilter).not.toHaveBeenCalled();
+    });
+
+    it('accepts underscore-prefixed and uppercase identifiers (_cng_fid, OBJECTID)', async () => {
+        for (const col of ['_cng_fid', 'OBJECTID', 'GEOID20']) {
+            const mapManager = stubMapManager();
+            const mcpClient = { callTool: vi.fn(async () => '[1,2]') };
+            const tool = getFilterTool(mapManager, mcpClient);
+
+            const raw = await tool.execute({ layer_id: 'parcels', sql: 'SELECT id FROM x', id_property: col });
+            const result = JSON.parse(raw);
+
+            expect(result.success).toBe(true);
+            expect(mcpClient.callTool).toHaveBeenCalledOnce();
+        }
+    });
 });
 
 describe('list_datasets', () => {

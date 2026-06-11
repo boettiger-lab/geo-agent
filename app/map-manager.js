@@ -1288,25 +1288,39 @@ export class MapManager {
         const item = document.createElement('div');
         item.className = 'legend-section';
 
+        // Display name, class names, and color hints come from STAC metadata
+        // (untrusted) — build the legend via textContent and validate colors
+        // before they reach a style attribute.
+        const heading = document.createElement('h4');
+        heading.textContent = state.displayName;
+        item.appendChild(heading);
+
         if (state.legendType === 'categorical' && state.legendClasses?.length) {
-            const rows = state.legendClasses.map(cls => {
-                const color = cls['color-hint'] || cls.color_hint ? `#${cls['color-hint'] || cls.color_hint}` : '#888888';
-                const label = cls.name || `Class ${cls.value}`;
-                return `<div class="legend-item"><span style="background:${color};"></span>${label}</div>`;
-            }).join('');
-            item.innerHTML = `<h4>${state.displayName}</h4>${rows}`;
+            for (const cls of state.legendClasses) {
+                const row = document.createElement('div');
+                row.className = 'legend-item';
+                const swatch = document.createElement('span');
+                swatch.style.background = this._safeColorHint(cls['color-hint'] || cls.color_hint);
+                row.appendChild(swatch);
+                row.appendChild(document.createTextNode(cls.name || `Class ${cls.value}`));
+                item.appendChild(row);
+            }
         } else {
             const gradient = await this._getColormapGradient(state.colormap || 'reds');
             const [minVal, maxVal] = (state.rescale || '0,1').split(',');
             const unit = state.legendLabel ? ` ${state.legendLabel}` : '';
-            item.innerHTML = `
-                <h4>${state.displayName}</h4>
-                <div class="legend-colorbar" style="background: ${gradient};"></div>
-                <div class="legend-labels">
-                    <span>${minVal}${unit}</span>
-                    <span>${maxVal}${unit}</span>
-                </div>
-            `;
+            const bar = document.createElement('div');
+            bar.className = 'legend-colorbar';
+            bar.style.background = gradient;
+            const labels = document.createElement('div');
+            labels.className = 'legend-labels';
+            for (const v of [minVal, maxVal]) {
+                const span = document.createElement('span');
+                span.textContent = `${v}${unit}`;
+                labels.appendChild(span);
+            }
+            item.appendChild(bar);
+            item.appendChild(labels);
         }
 
         this._legendContent.appendChild(item);
@@ -1331,12 +1345,23 @@ export class MapManager {
             if (!fields || fields.length === 0) return;
             if (!e.features || e.features.length === 0) return;
             const props = e.features[0].properties;
-            const rows = fields
-                .filter(f => props[f] !== undefined && props[f] !== null && props[f] !== '')
-                .map(f => `<tr><th>${f}</th><td>${this._formatTooltipValue(f, props[f])}</td></tr>`)
-                .join('');
-            if (!rows) return;
-            this._tooltip.innerHTML = `<table>${rows}</table>`;
+            const present = fields
+                .filter(f => props[f] !== undefined && props[f] !== null && props[f] !== '');
+            if (present.length === 0) return;
+            // Field names and feature values are untrusted (LLM-chosen /
+            // dataset-supplied) — build the table via textContent, never HTML.
+            const table = document.createElement('table');
+            for (const f of present) {
+                const tr = document.createElement('tr');
+                const th = document.createElement('th');
+                th.textContent = f;
+                const td = document.createElement('td');
+                td.textContent = String(this._formatTooltipValue(f, props[f]));
+                tr.appendChild(th);
+                tr.appendChild(td);
+                table.appendChild(tr);
+            }
+            this._tooltip.replaceChildren(table);
             this._tooltip.style.display = 'block';
             this._tooltip.style.left = (e.originalEvent.clientX + 12) + 'px';
             this._tooltip.style.top = (e.originalEvent.clientY - 12) + 'px';
@@ -1347,6 +1372,16 @@ export class MapManager {
             this._tooltip.style.display = 'none';
             this.map.getCanvas().style.cursor = '';
         });
+    }
+
+    /**
+     * STAC `color-hint` values land in a style attribute — accept only hex
+     * colors (with or without leading '#'), grey fallback for anything else.
+     */
+    _safeColorHint(raw) {
+        if (raw == null || !/^#?[0-9a-fA-F]{3,8}$/.test(String(raw))) return '#888888';
+        const hex = String(raw);
+        return hex.startsWith('#') ? hex : `#${hex}`;
     }
 
     _formatTooltipValue(field, value) {

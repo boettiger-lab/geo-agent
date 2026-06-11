@@ -415,6 +415,13 @@ ${formatLayerList(vectorLayers())}`,
                 // (space-separated, no commas — e.g. "[ 1  2  3]") is not valid JSON,
                 // so without it the extractJsonArray() call below fails to parse.
                 const col = args.id_property;
+                // col is quoted into wrappedSql — restrict to plain identifier chars.
+                if (!/^[A-Za-z0-9_]+$/.test(col || '')) {
+                    return JSON.stringify({
+                        success: false,
+                        error: `Invalid id_property "${col}" — must contain only letters, digits, or underscores. Check get_stac_details for the feature ID column name.`,
+                    });
+                }
                 const wrappedSql = `SELECT to_json(array_agg("${col}") FILTER (WHERE "${col}" IS NOT NULL)) AS ids FROM (${args.sql}) _filter_subquery`;
 
                 let rawResult;

@@ -21,4 +21,4 @@ jobs:
       - run: npx vitest run --coverage --coverage.include='app/**' --coverage.reporter=json-summary --coverage.reporter=json --coverage.reporter=text
       - name: Coverage report comment
         if: github.event_name == 'pull_request'
-        uses: davelosert/vitest-coverage-report-action@v2
+        uses: davelosert/vitest-coverage-report-action@2500dafcee7dd64f85ab689c0b83798a8359770e # v2.9.3
