@@ -1,0 +1,24 @@
+{
+   "creators":[
+      {
+         "name":"Boettiger, Carl",
+         "orcid":"0000-0002-1642-628X",
+         "affiliation":"University of California Berkeley"
+      },
+      {
+         "name":"Buhler, Cassidy Kim",
+         "orcid":"0000-0003-4157-4273",
+         "affiliation":"University of Colorado Boulder"
+      }
+   ],
+   "title":"geo-agent: A reusable library for map-based applications with LLM-powered data analysis",
+   "description":"A reusable JavaScript library for building interactive map applications with an agentic chatbot for natural language data queries and map control. It pairs a MapLibre GL JS map (PMTiles vectors, cloud-optimized GeoTIFF rasters via TiTiler) with an LLM agent that answers complex, real-world natural language queries by running reproducible SQL analytics over H3-indexed parquet through the Model Context Protocol (MCP) and DuckDB, returning verifiable data summaries, charts, maps, and text. Datasets are described by a STAC catalog and surfaced as unified records with both visual and tabular assets. Downstream applications (with their own datasets, branding, and deployments) import these modules from a CDN and supply their own configuration.",
+   "access_right":"open",
+   "license":"apache-2.0",
+   "upload_type":"software",
+   "grants":[
+      {
+         "id":"10.13039/100000001::2153040"
+      }
+   ]
+}
