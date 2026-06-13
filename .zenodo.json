@@ -15,6 +15,7 @@
    "description":"A reusable JavaScript library for building interactive map applications with an agentic chatbot for natural language data queries and map control. It pairs a MapLibre GL JS map (PMTiles vectors, cloud-optimized GeoTIFF rasters via TiTiler) with an LLM agent that answers complex, real-world natural language queries by running reproducible SQL analytics over H3-indexed parquet through the Model Context Protocol (MCP) and DuckDB, returning verifiable data summaries, charts, maps, and text. Datasets are described by a STAC catalog and surfaced as unified records with both visual and tabular assets. Downstream applications (with their own datasets, branding, and deployments) import these modules from a CDN and supply their own configuration.",
    "access_right":"open",
    "license":"apache-2.0",
+   "doi":"10.5281/zenodo.20673850",
    "upload_type":"software",
    "grants":[
       {

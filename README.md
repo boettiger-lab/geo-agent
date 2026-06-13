@@ -1,5 +1,7 @@
 # Geo-Agent: Map + AI Data Analyst
 
+[![DOI](https://zenodo.org/badge/1151803996.svg)](https://doi.org/10.5281/zenodo.20673849)
+
 A reusable JavaScript library for interactive map applications with LLM-powered data analysis. MapLibre GL JS on the front end, agentic tool-use with MCP (Model Context Protocol) for SQL analytics via DuckDB.
 
 **This repo is the core library.** Individual apps (different datasets, URLs, branding) import these modules from the CDN and provide their own configuration.
