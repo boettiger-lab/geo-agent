@@ -440,7 +440,7 @@ Geocoding is **on by default** using Nominatim (OpenStreetMap) — no API key re
 | `geocoder.provider` | string | `"nominatim"` | Backend: `"nominatim"`, `"photon"`, or `"maptiler"`. All are global. |
 | `geocoder.maptiler_key` | string | — | Required for the `maptiler` provider. Falls back to the basemap `maptiler_key` if not set here. |
 | `geocoder.email` | string | — | Contact email sent to Nominatim per its [usage policy](https://operations.osmfoundation.org/policies/nominatim/). Recommended for production apps. |
-| `geocoder.endpoint` | string | — | Base-URL override (e.g. a self-hosted Nominatim instance, or a proxy in front of a CORS-restricted backend). |
+| `geocoder.endpoint` | string | — | Base-URL override (e.g. a self-hosted Nominatim instance). |
 | `geocoder.search_box` | boolean | `false` | Show the on-map search box. Lazy-loads the geocoder library from CDN only when enabled. |
 | `geocoder.search_box_position` | string | `"top-left"` | MapLibre control position for the search box. |
 | `geocoder.search_box_placeholder` | string | `"Search address or place…"` | Placeholder text in the search box. |
@@ -455,7 +455,7 @@ Geocoding is **on by default** using Nominatim (OpenStreetMap) — no API key re
 }
 ```
 
-**Provider notes.** `nominatim` and `photon` are both free OpenStreetMap-based services with no key — Nominatim returns richer confidence signals, Photon is more lenient on request volume. `maptiler` is higher quality but needs an API key. The US Census geocoder is *not* offered as a browser provider: it sends no CORS headers, so a static app can only reach it via a server-side proxy (point `geocoder.endpoint` at one if you need authoritative US-address matching).
+**Provider notes.** `nominatim` and `photon` are both free OpenStreetMap-based services with no key — Nominatim returns richer confidence signals, Photon is more lenient on request volume. `maptiler` is higher quality but needs an API key. All three are global (not US-only) and work directly from a static browser app.
 
 ## Tool call auto-approve
 

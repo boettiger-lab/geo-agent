@@ -11,10 +11,8 @@
  *   - photon              — OSM (Komoot), free, no key. Returns extents.
  *   - maptiler            — high quality, requires an API key.
  *
- * Census (US addresses) is intentionally NOT a browser provider: it sends no
- * CORS headers, so a static app can only reach it via JSONP (a script-injection
- * sink we will not reintroduce) or a server-side proxy. It can be added later
- * as an `endpoint`-backed proxy provider.
+ * A custom `endpoint` lets an app point a provider at a self-hosted instance
+ * (e.g. a private Nominatim) without changing the parsing.
  *
  * Every provider normalizes to the same shape so both consumers — and any
  * future provider — are interchangeable:
