@@ -1,4 +1,4 @@
-# Geo-Agent: Map + AI Data Analyst
+# GLEN: Map + AI Data Analyst
 
 [![DOI](https://zenodo.org/badge/1151803996.svg)](https://doi.org/10.5281/zenodo.20673849)
 

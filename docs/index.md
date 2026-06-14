@@ -2,7 +2,7 @@
 layout: home
 
 hero:
-  name: Geo-Agent
+  name: GLEN
   text: Map + AI Data Analyst
   tagline: Build interactive map applications with LLM-powered data analysis — no JavaScript required.
   actions:

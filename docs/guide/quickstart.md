@@ -27,7 +27,7 @@ No JavaScript to write. The core library (map, chat, agent, tools) loads from CD
 
 ## index.html
 
-The HTML shell loads two kinds of code: a set of **pinned third-party libraries** (MapLibre, PMTiles, marked, DOMPurify, highlight.js) as page-global `<script>` tags, and the **geo-agent core** (JS + CSS) from the CDN. The `<body>` only needs two placeholder `<div>`s — the layout manager builds the rest (chat panel, controls, etc.) dynamically.
+The HTML shell loads two kinds of code: a set of **pinned third-party libraries** (MapLibre, PMTiles, marked, DOMPurify, highlight.js) as page-global `<script>` tags, and the **GLEN core** (JS + CSS) from the CDN. The `<body>` only needs two placeholder `<div>`s — the layout manager builds the rest (chat panel, controls, etc.) dynamically.
 
 ::: warning Copy this file from the template — don't hand-author it
 The canonical `index.html` lives in [boettiger-lab/geo-agent-template](https://github.com/boettiger-lab/geo-agent-template). **Copy it verbatim** rather than retyping the script tags below. In particular, never hand-edit the `integrity="sha384-…"` hashes — see [Subresource Integrity](#about-the-integrity-hashes) for why. The block below is reproduced for reference and matches the template at the pinned release.
@@ -91,7 +91,7 @@ The canonical `index.html` lives in [boettiger-lab/geo-agent-template](https://g
     integrity="sha384-8q00eP+tyV9451aJYD5ML3ftuHKsGnDcezp7EXMEclDg1fZVSoj8O+3VyJTkXmWp"
     crossorigin="anonymous"></script>
 
-  <!-- geo-agent core styles (pinned) -->
+  <!-- GLEN core styles (pinned) -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/boettiger-lab/geo-agent@v3.9.0/app/style.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/boettiger-lab/geo-agent@v3.9.0/app/chat.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/boettiger-lab/geo-agent@v3.9.0/app/sidebar.css">
@@ -99,7 +99,7 @@ The canonical `index.html` lives in [boettiger-lab/geo-agent-template](https://g
 <body>
   <div id="map"></div>
   <div id="menu"></div>
-  <!-- geo-agent bootstrap (pinned) -->
+  <!-- GLEN bootstrap (pinned) -->
   <script type="module"
     src="https://cdn.jsdelivr.net/gh/boettiger-lab/geo-agent@v3.9.0/app/main.js">
   </script>
