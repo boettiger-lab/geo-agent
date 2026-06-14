@@ -979,7 +979,7 @@ export class ChatUI {
         const title = this._exportTitle();
         const appUrl = window.location.href;
         const appUrlAttr = this.escapeHtml(appUrl).replace(/"/g, '&quot;');
-        const appTitle = document.title || 'Geo-Agent';
+        const appTitle = document.title || 'GLEN';
         const exportedAt = new Date().toLocaleString();
 
         const html =
@@ -992,7 +992,7 @@ export class ChatUI {
 </head>
 <body>
 <header class="export-header">
-  <h1>Geo-Agent chat transcript</h1>
+  <h1>GLEN chat transcript</h1>
   <p>Exported ${this.escapeHtml(exportedAt)} — <a href="${appUrlAttr}">${this.escapeHtml(appTitle)}</a></p>
   <p class="export-note">SQL queries below have been rewritten to use the public S3 endpoint
      (<code>https://s3-west.nrp-nautilus.io/</code>) so they can be re-run from any DuckDB
@@ -1058,7 +1058,7 @@ export class ChatUI {
         const pad = (n) => String(n).padStart(2, '0');
         const stamp = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}` +
                       `-${pad(d.getHours())}${pad(d.getMinutes())}`;
-        return `geo-agent-chat-${stamp}.html`;
+        return `glen-chat-${stamp}.html`;
     }
 
     _exportTitle() {
@@ -1066,7 +1066,7 @@ export class ChatUI {
         const pad = (n) => String(n).padStart(2, '0');
         const stamp = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ` +
                       `${pad(d.getHours())}:${pad(d.getMinutes())}`;
-        return `Geo-Agent chat — ${stamp}`;
+        return `GLEN chat — ${stamp}`;
     }
 
     /**

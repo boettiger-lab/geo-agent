@@ -1,5 +1,5 @@
 export default {
-  title: 'Geo-Agent',
+  title: 'GLEN',
   description: 'Map + AI Data Analyst — interactive MapLibre maps with LLM-powered data analysis.',
   base: '/geo-agent/',
 
