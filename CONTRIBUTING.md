@@ -1,6 +1,6 @@
 # Contributing
 
-Thanks for your interest in `geo-agent` — we'd love to hear from you.
+Thanks for your interest in GLEN — we'd love to hear from you.
 
 This document covers how to contribute, and a note on our policy around AI-generated code.
 
