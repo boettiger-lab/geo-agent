@@ -1,6 +1,6 @@
 # Deployment
 
-Geo-agent apps are **static sites** — just HTML, JSON, and Markdown files. They can be hosted anywhere. The only variable is how the LLM API key reaches the app.
+GLEN apps are **static sites** — just HTML, JSON, and Markdown files. They can be hosted anywhere. The only variable is how the LLM API key reaches the app.
 
 ## Option 1: GitHub Pages (or any static host)
 

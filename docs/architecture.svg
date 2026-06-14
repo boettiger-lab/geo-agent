@@ -24,7 +24,7 @@
   <rect width="1000" height="800" fill="url(#grid)"/>
 
   <!-- ===== TITLE ===== -->
-  <text x="500" y="35" font-size="26" font-weight="900" text-anchor="middle" fill="#1A252F" letter-spacing="0.5">Geo-Agent Architecture</text>
+  <text x="500" y="35" font-size="26" font-weight="900" text-anchor="middle" fill="#1A252F" letter-spacing="0.5">GLEN Architecture</text>
   <text x="500" y="56" font-size="13" text-anchor="middle" fill="#95A5A6" font-style="italic">Modular components that snap together — like LEGO® bricks</text>
 
   <!-- ================================================================
@@ -75,7 +75,7 @@
   <!-- Top sheen -->
   <rect x="22" y="155" width="586" height="15" rx="6" fill="#FFD070" opacity="0.50"/>
   <!-- Title -->
-  <text x="315" y="188" font-size="15" font-weight="900" text-anchor="middle" fill="#5D3A00">geo-agent JS Client</text>
+  <text x="315" y="188" font-size="15" font-weight="900" text-anchor="middle" fill="#5D3A00">GLEN JS Client</text>
   <text x="315" y="206" font-size="10.5" text-anchor="middle" fill="#7A4F00">main.js · agent.js · tool-registry.js · mcp-client.js · dataset-catalog.js</text>
 
   <!-- Sub-brick: MapLibre GL JS -->

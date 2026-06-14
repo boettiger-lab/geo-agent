@@ -1,6 +1,6 @@
 # Configuration Reference
 
-Client apps configure geo-agent via `layers-input.json`. All fields except `catalog` and `collections` are optional.
+Client apps configure GLEN via `layers-input.json`. All fields except `catalog` and `collections` are optional.
 
 ## Top-level fields
 
@@ -268,7 +268,7 @@ Both fields are optional independently — you can swap the URL without changing
 
 ## Sidebar layout
 
-By default, geo-agent renders a small translucent chat panel floating in the
+By default, GLEN renders a small translucent chat panel floating in the
 bottom-right corner of the map. Apps that benefit from more chat real-estate
 (e.g., heavy analytical use, long tool-call transcripts, prominent layer menus)
 can opt in to a full-height, resizable sidebar via a top-level `sidebar` block
