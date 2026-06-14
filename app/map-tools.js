@@ -41,9 +41,10 @@ export function extractJsonArray(text) {
  * @param {import('./map-manager.js').MapManager} mapManager
  * @param {import('./dataset-catalog.js').DatasetCatalog} catalog
  * @param {import('./mcp-client.js').MCPClient} [mcpClient]
+ * @param {{ forwardGeocode: Function }} [geocoder] - optional geocoder backend (see geocoder.js)
  * @returns {Array<Object>} Tool definitions
  */
-export function createMapTools(mapManager, catalog, mcpClient) {
+export function createMapTools(mapManager, catalog, mcpClient, geocoder) {
     const allLayers = () => mapManager.getLayerSummaries();
     const vectorLayers = () => mapManager.getLayerSummaries().filter(l => l.type === 'vector');
 
@@ -288,6 +289,49 @@ ${formatLayerList(allLayers())}`,
             },
             execute: (args) => JSON.stringify(mapManager.flyTo(args)),
         },
+
+        // ---- Geocoding ----
+        ...(geocoder ? [{
+            name: 'geocode',
+            description: `Resolve a free-text place reference — street address, city, landmark, or named region — to real coordinates. Use this WHENEVER the user names a place rather than giving coordinates: "what watershed is 3109 6th Ave, LA in?", "show me Yosemite", "fly to Chicago", "which district contains downtown Fresno".
+
+NEVER invent, recall, or estimate coordinates from your own memory — always call this tool so the coordinate is traceable to a geocoder.
+
+Returns up to \`limit\` ranked candidates. Each candidate has:
+  - lat, lon          — pass to fly_to as center [lon, lat] (lon first!), or into point-in-hex SQL lookups
+  - bbox [w,s,e,n]    — for framing/fit-bounds; null for precise point addresses
+  - display_name      — the normalized, matched location
+  - match_quality     — "high" | "medium" | "low"
+
+How to use the result:
+  - Echo the resolved \`display_name\` back to the user so they can confirm the location is the one they meant.
+  - If more than one candidate is returned, or the top match_quality is "low" (e.g. "Springfield"), ASK the user which one they mean — do NOT silently pick the first.
+  - Then act: fly_to the coordinate, or use it in a containing-polygon / nearest-feature query.`,
+            inputSchema: {
+                type: 'object',
+                properties: {
+                    query: { type: 'string', description: 'Free-text place reference: address, city, landmark, or region name.' },
+                    limit: { type: 'number', description: 'Max candidates to return (1–10, default 5). Use a small limit unless disambiguating.' },
+                },
+                required: ['query'],
+            },
+            execute: async (args) => {
+                try {
+                    const results = await geocoder.forwardGeocode(args.query, { limit: args.limit ?? 5 });
+                    if (!results.length) {
+                        return JSON.stringify({
+                            success: true,
+                            count: 0,
+                            results: [],
+                            message: `No location found for "${args.query}". Ask the user to add detail (city, state, or a more specific address).`,
+                        });
+                    }
+                    return JSON.stringify({ success: true, count: results.length, source: results[0].source, results });
+                } catch (err) {
+                    return JSON.stringify({ success: false, error: `Geocoding failed: ${err.message}` });
+                }
+            },
+        }] : []),
 
         // ---- Dynamic Hex Tile Layers ----
         {
