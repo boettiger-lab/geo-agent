@@ -177,3 +177,32 @@ describe('MapManager._hasLegend', () => {
         expect(mm._hasLegend({ type: 'vector', legendType: 'categorical', legendClasses: [] })).toBeFalsy();
     });
 });
+
+describe('MapManager._showLegendIfVisible (legend at boot for default-visible layers)', () => {
+    it('renders a default-visible categorical vector layer legend', async () => {
+        const mm = createLegendManager({
+            type: 'vector', visible: true, displayName: 'Trails',
+            legendType: 'categorical',
+            legendClasses: [{ name: 'USFS', 'color-hint': '#2E7D32' }],
+        });
+        await mm._showLegendIfVisible('A');
+        expect(mm._legendItems.has('A')).toBe(true);
+        expect(mm._legendContent.textContent).toContain('USFS');
+    });
+
+    it('does not render the legend for a hidden categorical layer', async () => {
+        const mm = createLegendManager({
+            type: 'vector', visible: false, displayName: 'Trails',
+            legendType: 'categorical',
+            legendClasses: [{ name: 'USFS', 'color-hint': '#2E7D32' }],
+        });
+        await mm._showLegendIfVisible('A');
+        expect(mm._legendItems.has('A')).toBe(false);
+    });
+
+    it('does not render a legend for a default-visible plain vector layer', async () => {
+        const mm = createLegendManager({ type: 'vector', visible: true, displayName: 'Boundaries' });
+        await mm._showLegendIfVisible('A');
+        expect(mm._legendItems.has('A')).toBe(false);
+    });
+});

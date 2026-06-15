@@ -273,6 +273,7 @@ export class MapManager {
                 versions: versionStates,
                 activeVersionIndex: config.defaultVersionIndex,
             });
+            this._showLegendIfVisible(layerId);
             return;
         }
 
@@ -373,6 +374,8 @@ export class MapManager {
         if (type === 'vector') {
             this._wireTooltip(mapLayerId, layerId);
         }
+
+        this._showLegendIfVisible(layerId);
     }
 
     /**
@@ -1250,6 +1253,16 @@ export class MapManager {
     _hasLegend(state) {
         return state.type === 'raster'
             || (state.legendType === 'categorical' && state.legendClasses?.length > 0);
+    }
+
+    /**
+     * Render the legend for a layer that loads visible, so default-on layers
+     * show their legend at boot (registerLayer sets visibility directly and
+     * never routes through showLayer).
+     */
+    _showLegendIfVisible(layerId) {
+        const state = this.layers.get(layerId);
+        if (state?.visible && this._hasLegend(state)) this._showLegend(layerId);
     }
 
     _ensureLegend() {
