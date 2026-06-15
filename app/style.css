@@ -593,74 +593,74 @@ details.layer-group:not([open]) .layer-group-title::before {
 }
 
 /* ── Geocoder search box (maplibre-gl-geocoder) ──────────────────────────
-   Translucent glass to match the app's chat panel / map controls instead of
-   the library's solid white. The geocoder's CDN stylesheet is appended to
+   Frosted-glass surface to match the app's other map controls (#menu,
+   .version-select) instead of the library's solid white — light tint +
+   backdrop blur with DARK text, the way the rest of the map chrome reads
+   over the (light) basemaps. The geocoder's CDN stylesheet is appended to
    <head> at runtime (after this file), so !important pins the surface colors
    against the later, equal-specificity library rules. Covers both the
    maplibregl- and mapboxgl- class prefixes the control emits. */
 .maplibregl-ctrl-geocoder,
 .mapboxgl-ctrl-geocoder {
-    background: rgba(255, 255, 255, 0.08) !important;
+    background: rgba(255, 255, 255, 0.15) !important;
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
-    border: 1px solid rgba(255, 255, 255, 0.25);
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(0, 0, 0, 0.18);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
     border-radius: 10px;
 }
 
 .maplibregl-ctrl-geocoder input,
 .mapboxgl-ctrl-geocoder input {
-    color: #f5f5f5;
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+    color: #2b2b2b;
 }
 
 .maplibregl-ctrl-geocoder input::placeholder,
 .mapboxgl-ctrl-geocoder input::placeholder {
-    color: rgba(255, 255, 255, 0.7);
+    color: rgba(0, 0, 0, 0.5);
 }
 
 /* Search / loading / close icons */
 .maplibregl-ctrl-geocoder--icon,
 .mapboxgl-ctrl-geocoder--icon {
-    fill: rgba(255, 255, 255, 0.85);
+    fill: rgba(0, 0, 0, 0.55);
 }
 
-/* Suggestions dropdown — darker glass so the list stays legible over any basemap */
+/* Suggestions dropdown — lighter, more opaque frosted glass for list legibility */
 .maplibregl-ctrl-geocoder .suggestions,
 .mapboxgl-ctrl-geocoder .suggestions {
-    background: rgba(28, 28, 30, 0.6) !important;
+    background: rgba(255, 255, 255, 0.85) !important;
     backdrop-filter: blur(14px);
     -webkit-backdrop-filter: blur(14px);
-    border: 1px solid rgba(255, 255, 255, 0.2);
+    border: 1px solid rgba(0, 0, 0, 0.15);
     border-radius: 10px;
     overflow: hidden;
 }
 
 .maplibregl-ctrl-geocoder .suggestions > li > a,
 .mapboxgl-ctrl-geocoder .suggestions > li > a {
-    color: #f0f0f0;
+    color: #333;
 }
 
 .maplibregl-ctrl-geocoder .suggestions > .active > a,
 .maplibregl-ctrl-geocoder .suggestions > li > a:hover,
 .mapboxgl-ctrl-geocoder .suggestions > .active > a,
 .mapboxgl-ctrl-geocoder .suggestions > li > a:hover {
-    background: rgba(255, 255, 255, 0.15);
-    color: #fff;
+    background: rgba(0, 0, 0, 0.07);
+    color: #000;
 }
 
 /* ── Navigation control (zoom +/- and compass) ───────────────────────────
-   Same glass treatment as the search box so the on-map controls match.
-   The zoom/compass glyphs are dark SVGs baked into background-images (not
-   recolorable via fill), so invert them to read on the glass and add a
-   drop-shadow for legibility over light basemaps. */
+   Same frosted-glass surface as the search box so the on-map controls match.
+   The zoom/compass glyphs keep their natural dark fill — they read well on
+   the light glass and stay crisp (no invert / shadow blurring). */
 .maplibregl-ctrl-group,
 .mapboxgl-ctrl-group {
-    background: rgba(255, 255, 255, 0.08) !important;
+    background: rgba(255, 255, 255, 0.15) !important;
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
-    border: 1px solid rgba(255, 255, 255, 0.25);
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(0, 0, 0, 0.18);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
     border-radius: 10px;
     overflow: hidden;
 }
@@ -672,15 +672,10 @@ details.layer-group:not([open]) .layer-group-title::before {
 
 .maplibregl-ctrl-group button + button,
 .mapboxgl-ctrl-group button + button {
-    border-top: 1px solid rgba(255, 255, 255, 0.18);
+    border-top: 1px solid rgba(0, 0, 0, 0.12);
 }
 
 .maplibregl-ctrl-group button:hover,
 .mapboxgl-ctrl-group button:hover {
-    background: rgba(255, 255, 255, 0.15) !important;
-}
-
-.maplibregl-ctrl-group button .maplibregl-ctrl-icon,
-.mapboxgl-ctrl-group button .mapboxgl-ctrl-icon {
-    filter: invert(1) drop-shadow(0 1px 1px rgba(0, 0, 0, 0.4));
+    background: rgba(0, 0, 0, 0.06) !important;
 }
