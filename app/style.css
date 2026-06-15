@@ -648,3 +648,39 @@ details.layer-group:not([open]) .layer-group-title::before {
     background: rgba(255, 255, 255, 0.15);
     color: #fff;
 }
+
+/* ── Navigation control (zoom +/- and compass) ───────────────────────────
+   Same glass treatment as the search box so the on-map controls match.
+   The zoom/compass glyphs are dark SVGs baked into background-images (not
+   recolorable via fill), so invert them to read on the glass and add a
+   drop-shadow for legibility over light basemaps. */
+.maplibregl-ctrl-group,
+.mapboxgl-ctrl-group {
+    background: rgba(255, 255, 255, 0.08) !important;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.maplibregl-ctrl-group button,
+.mapboxgl-ctrl-group button {
+    background: transparent !important;
+}
+
+.maplibregl-ctrl-group button + button,
+.mapboxgl-ctrl-group button + button {
+    border-top: 1px solid rgba(255, 255, 255, 0.18);
+}
+
+.maplibregl-ctrl-group button:hover,
+.mapboxgl-ctrl-group button:hover {
+    background: rgba(255, 255, 255, 0.15) !important;
+}
+
+.maplibregl-ctrl-group button .maplibregl-ctrl-icon,
+.mapboxgl-ctrl-group button .mapboxgl-ctrl-icon {
+    filter: invert(1) drop-shadow(0 1px 1px rgba(0, 0, 0, 0.4));
+}
