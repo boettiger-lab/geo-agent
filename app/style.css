@@ -591,3 +591,60 @@ details.layer-group:not([open]) .layer-group-title::before {
     background: #fff;
     font-size: 12px;
 }
+
+/* ── Geocoder search box (maplibre-gl-geocoder) ──────────────────────────
+   Translucent glass to match the app's chat panel / map controls instead of
+   the library's solid white. The geocoder's CDN stylesheet is appended to
+   <head> at runtime (after this file), so !important pins the surface colors
+   against the later, equal-specificity library rules. Covers both the
+   maplibregl- and mapboxgl- class prefixes the control emits. */
+.maplibregl-ctrl-geocoder,
+.mapboxgl-ctrl-geocoder {
+    background: rgba(255, 255, 255, 0.08) !important;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    border-radius: 10px;
+}
+
+.maplibregl-ctrl-geocoder input,
+.mapboxgl-ctrl-geocoder input {
+    color: #f5f5f5;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+}
+
+.maplibregl-ctrl-geocoder input::placeholder,
+.mapboxgl-ctrl-geocoder input::placeholder {
+    color: rgba(255, 255, 255, 0.7);
+}
+
+/* Search / loading / close icons */
+.maplibregl-ctrl-geocoder--icon,
+.mapboxgl-ctrl-geocoder--icon {
+    fill: rgba(255, 255, 255, 0.85);
+}
+
+/* Suggestions dropdown — darker glass so the list stays legible over any basemap */
+.maplibregl-ctrl-geocoder .suggestions,
+.mapboxgl-ctrl-geocoder .suggestions {
+    background: rgba(28, 28, 30, 0.6) !important;
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.maplibregl-ctrl-geocoder .suggestions > li > a,
+.mapboxgl-ctrl-geocoder .suggestions > li > a {
+    color: #f0f0f0;
+}
+
+.maplibregl-ctrl-geocoder .suggestions > .active > a,
+.maplibregl-ctrl-geocoder .suggestions > li > a:hover,
+.mapboxgl-ctrl-geocoder .suggestions > .active > a,
+.mapboxgl-ctrl-geocoder .suggestions > li > a:hover {
+    background: rgba(255, 255, 255, 0.15);
+    color: #fff;
+}
