@@ -176,13 +176,15 @@ async function main() {
     /* ── 5. Build tool registry ───────────────────────────────────────── */
     const toolRegistry = new ToolRegistry();
 
-    // Geocoder backend (powers the `geocode` tool and the optional search box).
-    // Opt-in: set geocoder.enabled=true for the agent tool, or geocoder.search_box=true
-    // (which implies the backend). Off otherwise. The MapTiler key, when present,
-    // falls back to the basemap key.
+    // Geocoder backend, shared by two independently-toggled surfaces:
+    //   • the `geocode` agent tool — ON by default (opt-out: geocoder.enabled=false)
+    //   • the on-map search box — OFF by default (opt-in: geocoder.search_box=true)
+    // The backend is built when either surface needs it. The MapTiler key, when
+    // present, falls back to the basemap key.
     const geoCfg = appConfig.geocoder || {};
+    const geocodeToolEnabled = geoCfg.enabled !== false;
     let geocoder = null;
-    if (geoCfg.enabled === true || geoCfg.search_box) {
+    if (geocodeToolEnabled || geoCfg.search_box) {
         try {
             geocoder = createGeocoder({
                 ...geoCfg,
@@ -207,8 +209,9 @@ async function main() {
         }
     }
 
-    // Register local map tools
-    for (const tool of createMapTools(mapManager, catalog, mcp, geocoder)) {
+    // Register local map tools. The geocode tool is gated on geocodeToolEnabled
+    // (not merely on the backend existing), so search_box can run without it.
+    for (const tool of createMapTools(mapManager, catalog, mcp, geocodeToolEnabled ? geocoder : null)) {
         toolRegistry.registerLocal(tool);
     }
 

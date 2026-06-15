@@ -434,11 +434,16 @@ Geocoding turns a free-text place reference — a street address, city, landmark
 1. A **`geocode` agent tool**, so the LLM resolves a *traceable* coordinate instead of inventing lat/lng from memory. The model is instructed to echo the matched location back and to ask for clarification on ambiguous queries (e.g. "Springfield").
 2. An optional **on-map search box** (the [maplibre-gl-geocoder](https://maplibre.org/maplibre-gl-geocoder/) control), enabled per-app.
 
-Geocoding is **opt-in**. Enable it with `geocoder.enabled: true` (registers the `geocode` tool) or `geocoder.search_box: true` (shows the search box and implies the backend). When neither is set, the `geocode` tool is not registered and no geocoder library is loaded. The default provider is Nominatim (OpenStreetMap) — no API key required.
+The two surfaces toggle **independently**, sharing one backend:
+
+- The **`geocode` agent tool** is **on by default** (opt-out) — it's invisible and just lets the LLM resolve coordinates traceably. Set `geocoder.enabled: false` to turn it off.
+- The **on-map search box** is **off by default** (opt-in) — it's a visible UI change, so apps enable it deliberately with `geocoder.search_box: true`.
+
+So `search_box: true` alone gives you the box *and* the tool; `enabled: false` + `search_box: true` gives the box with no agent tool; the default (no geocoder config) gives the tool with no box. The default provider is Nominatim (OpenStreetMap) — no API key required.
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `geocoder.enabled` | boolean | `false` | Register the `geocode` agent tool. `geocoder.search_box: true` implies this even when unset. |
+| `geocoder.enabled` | boolean | `true` | Register the `geocode` agent tool. Set `false` to disable it (the search box can still run independently). |
 | `geocoder.provider` | string | `"nominatim"` | Backend: `"nominatim"`, `"photon"`, or `"maptiler"`. All are global. |
 | `geocoder.maptiler_key` | string | — | Required for the `maptiler` provider. Falls back to the basemap `maptiler_key` if not set here. |
 | `geocoder.email` | string | — | Contact email sent to Nominatim per its [usage policy](https://operations.osmfoundation.org/policies/nominatim/). Recommended for production apps. |
