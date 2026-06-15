@@ -313,6 +313,36 @@ describe('DatasetCatalog.extractMapLayers', () => {
         expect(layers[0].sourceLayer).toBe('holdings_layer');
     });
 
+    it('normalizes legend_classes ({label,color}) for a categorical vector layer (issue #118)', () => {
+        const layers = cat.extractMapLayers(collectionWithAssets({
+            geo: { type: 'application/vnd.pmtiles', href: 'https://x/geo.pmtiles' },
+        }), {}, [{
+            key: 'geo', assetId: 'geo', config: {
+                legend_type: 'categorical',
+                legend_label: 'Type',
+                legend_classes: [
+                    { label: 'Seamounts', color: '#F57F17' },
+                    { label: 'Ridges', color: '#BF360C' },
+                ],
+            },
+        }]);
+
+        expect(layers[0].layerType).toBe('vector');
+        expect(layers[0].legendType).toBe('categorical');
+        expect(layers[0].legendLabel).toBe('Type');
+        expect(layers[0].legendClasses).toEqual([
+            { name: 'Seamounts', 'color-hint': '#F57F17' },
+            { name: 'Ridges', 'color-hint': '#BF360C' },
+        ]);
+    });
+
+    it('leaves legendClasses null for a vector layer without legend_classes', () => {
+        const layers = cat.extractMapLayers(collectionWithAssets({
+            geo: { type: 'application/vnd.pmtiles', href: 'https://x/geo.pmtiles' },
+        }), {}, [{ key: 'geo', assetId: 'geo', config: {} }]);
+        expect(layers[0].legendClasses).toBeNull();
+    });
+
     it('falls back to assetId for sourceLayer when vector:layers is absent', () => {
         const layers = cat.extractMapLayers(collectionWithAssets({
             tiles: { type: 'application/vnd.pmtiles', href: 'https://x/x.pmtiles' },
@@ -551,6 +581,22 @@ describe('DatasetCatalog.getMapLayerConfigs', () => {
         const [c] = cat.getMapLayerConfigs();
         expect(c.versions[0].type).toBe('raster');
         expect(c.versions[0].source.tiles[0]).toContain('colormap_name=viridis');
+    });
+
+    it('passes legendType/legendClasses through to a vector layer config (issue #118)', () => {
+        cat.datasets.set('sf', {
+            id: 'sf', title: 'Seafloor', columns: [],
+            mapLayers: [{
+                assetId: 'geo', layerType: 'vector', title: 'Seafloor Geomorphology',
+                url: 'https://x/geo.pmtiles', sourceLayer: 'geo',
+                legendType: 'categorical',
+                legendClasses: [{ name: 'Seamounts', 'color-hint': '#F57F17' }],
+            }],
+        });
+        const [c] = cat.getMapLayerConfigs();
+        expect(c.type).toBe('vector');
+        expect(c.legendType).toBe('categorical');
+        expect(c.legendClasses).toEqual([{ name: 'Seamounts', 'color-hint': '#F57F17' }]);
     });
 
     it('emits an inline colormap JSON for categorical raster layers from classification:classes', () => {
