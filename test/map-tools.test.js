@@ -371,4 +371,28 @@ describe('createMapTools smoke test', () => {
             expect(typeof tool.execute).toBe('function');
         }
     });
+
+    // Regression guard for #243: an array-typed param with no `items` compiles,
+    // under grammar-constrained tool decoding, to a grammar that can only emit
+    // `[]` — which silently collapsed every set_filter call to an empty filter.
+    // Every array param MUST declare `items` (even `{}`) so the grammar permits
+    // content. This invariant catches the bug for set_filter and any future tool.
+    it('every array-typed tool param declares items (constrained-decoding safety, #243)', () => {
+        const tools = createMapTools(stubMapManager, stubCatalog, { callTool: () => null });
+        for (const tool of tools) {
+            const props = tool.inputSchema?.properties || {};
+            for (const [name, schema] of Object.entries(props)) {
+                if (schema.type === 'array') {
+                    expect(schema.items, `${tool.name}.${name} must declare 'items'`).toBeDefined();
+                }
+            }
+        }
+    });
+
+    it('set_filter.filter declares items so it is not grammar-collapsed to [] (#243)', () => {
+        const tools = createMapTools(stubMapManager, stubCatalog);
+        const setFilter = tools.find(t => t.name === 'set_filter');
+        expect(setFilter.inputSchema.properties.filter.type).toBe('array');
+        expect(setFilter.inputSchema.properties.filter.items).toBeDefined();
+    });
 });
