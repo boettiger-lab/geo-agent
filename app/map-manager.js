@@ -665,9 +665,14 @@ export class MapManager {
         if (state.outlineLayerId) this.map.setFilter(state.outlineLayerId, filter);
         state.filter = filter;
 
-        // Count features in view
+        // featuresInView is a viewport metric, NOT a global match count:
+        // queryRenderedFeatures only sees currently-rendered tiles in the visible
+        // area. A valid filter whose matches are off-screen legitimately returns 0,
+        // so we deliberately do NOT flag 0 as a failure — that wrongly told users a
+        // correct filter had matched nothing (the human just needs to zoom out, and
+        // the filtered tiles redraw automatically as the view changes).
         const features = this.map.queryRenderedFeatures({ layers: [state.mapLayerId] });
-        const result = {
+        return {
             success: true,
             layer: layerId,
             displayName: state.displayName,
@@ -675,12 +680,6 @@ export class MapManager {
             filterDescription: filter ? this.describeFilter(filter) : 'No filter (showing all)',
             featuresInView: features.length,
         };
-
-        if (features.length === 0 && filter) {
-            result.warning = 'No features match this filter in the current view. The filter may be too restrictive or property values may not match. Use the query tool to check actual data values.';
-        }
-
-        return result;
     }
 
     /**
