@@ -289,6 +289,46 @@ describe('set_tooltip / reset_tooltip', () => {
     });
 });
 
+describe('geocode tool', () => {
+    const stubMap = { getLayerSummaries: () => [] };
+    const stubCatalog = { records: new Map() };
+    const getTool = (geocoder) =>
+        createMapTools(stubMap, stubCatalog, null, geocoder).find(t => t.name === 'geocode');
+
+    it('is only registered when a geocoder is provided', () => {
+        expect(getTool(undefined)).toBeUndefined();
+        expect(getTool({ forwardGeocode: vi.fn() })).toBeDefined();
+    });
+
+    it('returns ranked candidates and the source on success', async () => {
+        const results = [{ lat: 37.8, lon: -119.5, bbox: null, display_name: 'Yosemite', match_quality: 'high', source: 'nominatim' }];
+        const forwardGeocode = vi.fn(async () => results);
+        const out = JSON.parse(await getTool({ forwardGeocode }).execute({ query: 'Yosemite' }));
+        expect(out).toMatchObject({ success: true, count: 1, source: 'nominatim', results });
+        // default limit applied
+        expect(forwardGeocode).toHaveBeenCalledWith('Yosemite', { limit: 5 });
+    });
+
+    it('passes a custom limit through', async () => {
+        const forwardGeocode = vi.fn(async () => []);
+        await getTool({ forwardGeocode }).execute({ query: 'x', limit: 3 });
+        expect(forwardGeocode).toHaveBeenCalledWith('x', { limit: 3 });
+    });
+
+    it('returns a no-match message (success:true, count:0) when nothing is found', async () => {
+        const out = JSON.parse(await getTool({ forwardGeocode: async () => [] }).execute({ query: 'asdfqwer' }));
+        expect(out).toMatchObject({ success: true, count: 0, results: [] });
+        expect(out.message).toMatch(/No location found/);
+    });
+
+    it('surfaces backend failures as success:false with the error message', async () => {
+        const forwardGeocode = async () => { throw new Error('HTTP 429'); };
+        const out = JSON.parse(await getTool({ forwardGeocode }).execute({ query: 'x' }));
+        expect(out).toMatchObject({ success: false });
+        expect(out.error).toMatch(/429/);
+    });
+});
+
 describe('createMapTools smoke test', () => {
     const stubMapManager = {
         getLayerSummaries: () => [],

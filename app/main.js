@@ -10,6 +10,7 @@ import { DatasetCatalog } from './dataset-catalog.js';
 import { MapManager } from './map-manager.js';
 import { ToolRegistry } from './tool-registry.js';
 import { createMapTools } from './map-tools.js';
+import { createGeocoder } from './geocoder.js';
 import { Agent } from './agent.js';
 import { ChatUI } from './chat-ui.js';
 import { buildLayout, sidebarHooks } from './layout-manager.js';
@@ -155,8 +156,38 @@ async function main() {
     /* ── 5. Build tool registry ───────────────────────────────────────── */
     const toolRegistry = new ToolRegistry();
 
+    // Geocoder backend (shared by the `geocode` tool and the optional search
+    // box). Enabled by default; set geocoder.enabled=false to disable. The
+    // MapTiler key, when present, falls back to the basemap key.
+    const geoCfg = appConfig.geocoder || {};
+    let geocoder = null;
+    if (geoCfg.enabled !== false) {
+        try {
+            geocoder = createGeocoder({
+                ...geoCfg,
+                maptiler_key: geoCfg.maptiler_key || runtimeConfig?.maptiler_key,
+            });
+        } catch (err) {
+            console.warn('[main] Geocoder disabled — invalid config:', err.message);
+        }
+    }
+
+    // Optional on-map search box, sharing the same geocoder backend.
+    if (geocoder && geoCfg.search_box) {
+        try {
+            const { addSearchBox } = await import('./map-geocoder.js');
+            await addSearchBox(mapManager.map, geocoder, {
+                position: geoCfg.search_box_position,
+                placeholder: geoCfg.search_box_placeholder,
+            });
+            console.log('[main] Search box ready');
+        } catch (err) {
+            console.warn('[main] Failed to load search box:', err.message);
+        }
+    }
+
     // Register local map tools
-    for (const tool of createMapTools(mapManager, catalog, mcp)) {
+    for (const tool of createMapTools(mapManager, catalog, mcp, geocoder)) {
         toolRegistry.registerLocal(tool);
     }
 
