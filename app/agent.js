@@ -149,11 +149,23 @@ export class Agent {
         }
 
         let iterations = 0;
+        // Consecutive local-only tool rounds. Local map tools never increment
+        // `iterations` (they're cheap and never gated), so a model stuck
+        // re-issuing a local tool — e.g. set_filter failing — would loop forever
+        // with no checkpoint to stop it (#243). This counter bounds that.
+        let localOnlyStreak = 0;
 
         try {
         while (true) {
             const threshold = this.activeThreshold();
             if (threshold && iterations >= threshold) {
+                return await this._checkpoint(endpoint, modelConfig, turnMessages, sqlQueries, iterations);
+            }
+            // Runaway guard: a turn that does `threshold` local-only rounds in a row
+            // (with no remote round and no final answer) is stuck looping, not making
+            // progress. Checkpoint it like any other cap. A remote round resets the
+            // streak, so legitimately tool-heavy turns are unaffected.
+            if (threshold && localOnlyStreak >= threshold) {
                 return await this._checkpoint(endpoint, modelConfig, turnMessages, sqlQueries, iterations);
             }
             this.onThinkingStart();
@@ -185,8 +197,15 @@ export class Agent {
                 const allLocal = calls.every(tc => this.toolRegistry.isLocal(tc.function.name));
 
                 // Only remote (MCP/SQL) rounds count toward the checkpoint
-                // threshold — local map tools are cheap and never gated.
-                if (!allLocal) iterations++;
+                // threshold — local map tools are cheap and never gated. But a
+                // remote round breaks a local-only streak, while a local-only
+                // round extends it (the runaway guard above).
+                if (!allLocal) {
+                    iterations++;
+                    localOnlyStreak = 0;
+                } else {
+                    localOnlyStreak++;
+                }
 
                 // Strip embedded <tool_call> tags from content before displaying to user
                 const displayContent = message.content
