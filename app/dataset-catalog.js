@@ -12,6 +12,24 @@
  * and is injected into both the system prompt and the map layer setup.
  */
 
+/**
+ * Normalize a vector layer's `legend_classes` config into the internal
+ * categorical-legend shape (`{ name, 'color-hint' }`) the legend renderer
+ * expects. Accepts the documented `{ label, color }` form as well as the
+ * STAC-style `{ name | value, 'color-hint' }` form so either author style
+ * works. Rasters keep deriving their classes from STAC `classification:classes`.
+ * @param {Array<Object>} raw
+ * @returns {Array<Object>|null}
+ */
+function normalizeLegendClasses(raw) {
+    if (!Array.isArray(raw) || raw.length === 0) return null;
+    return raw.map(c => ({
+        name: c.name ?? c.label ?? (c.value != null ? `Class ${c.value}` : ''),
+        'color-hint': c['color-hint'] ?? c.color_hint ?? c.color ?? null,
+        ...(c.value != null ? { value: c.value } : {}),
+    }));
+}
+
 export class DatasetCatalog {
     constructor() {
         /** @type {Map<string, DatasetEntry>} keyed by collection ID */
@@ -310,6 +328,7 @@ export class DatasetCatalog {
                         paint: config.paint || null,
                         legendLabel: config.legend_label || null,
                         legendType: config.legend_type || null,
+                        legendClasses: normalizeLegendClasses(config.legend_classes),
                         // Versioned metadata
                         versions,
                         defaultVersionIndex: defaultIndex,
@@ -339,6 +358,9 @@ export class DatasetCatalog {
                         tooltipFields: config.tooltip_fields || null,
                         defaultVisible: config.visible === true,
                         defaultFilter: config.default_filter || null,
+                        legendLabel: config.legend_label || null,
+                        legendType: config.legend_type || null,
+                        legendClasses: normalizeLegendClasses(config.legend_classes),
                     });
                 } else if (type.includes('geotiff') || type.includes('tiff')) {
                     const band0 = asset['raster:bands']?.[0];
@@ -386,6 +408,9 @@ export class DatasetCatalog {
                         tooltipFields: config.tooltip_fields || null,
                         defaultVisible: config.visible === true,
                         defaultFilter: config.default_filter || null,
+                        legendLabel: config.legend_label || null,
+                        legendType: config.legend_type || null,
+                        legendClasses: normalizeLegendClasses(config.legend_classes),
                         animation,
                     });
                 }
@@ -721,6 +746,7 @@ export class DatasetCatalog {
                         rescale: ml.rescale || null,
                         legendLabel: ml.legendLabel || null,
                         legendType: ml.legendType || null,
+                        legendClasses: ml.legendClasses || null,
                         // Versioned metadata
                         versions: versionConfigs,
                         defaultVersionIndex: ml.defaultVersionIndex,
@@ -753,6 +779,9 @@ export class DatasetCatalog {
                         tooltipFields: ml.tooltipFields || null,
                         defaultVisible: ml.defaultVisible || false,
                         defaultFilter: ml.defaultFilter || null,
+                        legendLabel: ml.legendLabel || null,
+                        legendType: ml.legendType || null,
+                        legendClasses: ml.legendClasses || null,
                         animation: ml.animation || null,
                         tracksUrl: isGeoJson ? ml.url : null,
                     };

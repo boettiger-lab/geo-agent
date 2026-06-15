@@ -77,6 +77,8 @@ Each entry in `assets` may be a **bare string** (the STAC asset key, loaded with
 | `default_filter` | array | MapLibre filter expression applied at load time. |
 | `tooltip_fields` | array | Feature property names shown in the hover tooltip. |
 | `group` | string | Overrides the collection-level `group` for this specific layer. |
+| `legend_type` | string | `"categorical"` to show a discrete swatch legend (see `legend_classes`). |
+| `legend_classes` | array | `{ label, color }` entries describing the discrete legend swatches. Required when `legend_type` is `"categorical"` on a vector layer — vectors have no STAC `classification:classes` to derive from. |
 
 ## Asset config — raster (COG)
 
@@ -553,6 +555,33 @@ Open a collection → click the **Assets** tab. The keys listed there (e.g., `"p
   },
   "default_filter": ["match", ["get", "GAP_Sts"], ["1", "2"], true, false],
   "tooltip_fields": ["Unit_Nm", "GAP_Sts", "Mang_Type"]
+}
+```
+
+### Categorical legend on a vector layer
+
+When a vector layer is colored by category via a `match` expression, add a `legend_classes` list so the color scheme is explained in the legend panel. The labels and colors are authored to match the `match` arms (they are not derived automatically):
+
+```json
+{
+  "id": "seafloor-geomorphology-pmtiles",
+  "display_name": "Seafloor Geomorphology",
+  "visible": true,
+  "default_style": {
+    "fill-color": ["match", ["get", "feature_type"],
+      "Seamounts", "#F57F17",
+      "Ridges", "#BF360C",
+      "Trenches", "#311B92",
+      "#888888"
+    ],
+    "fill-opacity": 0.7
+  },
+  "legend_type": "categorical",
+  "legend_classes": [
+    { "label": "Seamounts", "color": "#F57F17" },
+    { "label": "Ridges", "color": "#BF360C" },
+    { "label": "Trenches", "color": "#311B92" }
+  ]
 }
 ```
 

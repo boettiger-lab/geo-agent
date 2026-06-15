@@ -82,7 +82,7 @@ describe('MapManager raster legend (SEC-3)', () => {
             legendType: 'categorical',
             legendClasses: [{ name: '<img src=x onerror=alert(1)>', 'color-hint': 'ff0000' }],
         });
-        await mm._showRasterLegend('A');
+        await mm._showLegend('A');
         expect(mm._legendContent.querySelector('img')).toBeNull();
         expect(mm._legendContent.textContent).toContain('<img');
     });
@@ -93,7 +93,7 @@ describe('MapManager raster legend (SEC-3)', () => {
             legendType: 'categorical',
             legendClasses: [{ name: 'Forest', 'color-hint': '00ff00' }],
         });
-        await mm._showRasterLegend('A');
+        await mm._showLegend('A');
         expect(mm._legendContent.querySelector('script')).toBeNull();
         expect(mm._legendContent.querySelector('h4').textContent).toContain('Cover');
     });
@@ -104,7 +104,7 @@ describe('MapManager raster legend (SEC-3)', () => {
             legendType: 'categorical',
             legendClasses: [{ name: 'Forest', 'color-hint': '00ff00' }],
         });
-        await mm._showRasterLegend('A');
+        await mm._showLegend('A');
         const swatch = mm._legendContent.querySelector('.legend-item span');
         expect(swatch.getAttribute('style')).toMatch(/00ff00|rgb\(0,\s*255,\s*0\)/i);
     });
@@ -115,7 +115,7 @@ describe('MapManager raster legend (SEC-3)', () => {
             legendType: 'categorical',
             legendClasses: [{ name: 'Evil', 'color-hint': 'red;"></span><img src=x onerror=alert(1)>' }],
         });
-        await mm._showRasterLegend('A');
+        await mm._showLegend('A');
         expect(mm._legendContent.querySelector('img')).toBeNull();
         const swatch = mm._legendContent.querySelector('.legend-item span');
         expect(swatch.getAttribute('style')).toMatch(/888888|rgb\(136,\s*136,\s*136\)/i);
@@ -129,11 +129,51 @@ describe('MapManager raster legend (SEC-3)', () => {
             legendLabel: 'tC/ha',
         });
         mm._getColormapGradient = async () => 'linear-gradient(to right, #fff, #000)';
-        await mm._showRasterLegend('A');
+        await mm._showLegend('A');
         expect(mm._legendContent.querySelector('i')).toBeNull();
         const labels = [...mm._legendContent.querySelectorAll('.legend-labels span')].map(s => s.textContent);
         expect(labels).toEqual(['0 tC/ha', '100 tC/ha']);
         const bar = mm._legendContent.querySelector('.legend-colorbar');
         expect(bar.getAttribute('style')).toContain('linear-gradient');
+    });
+
+    it('renders a categorical legend for a vector layer (issue #118)', async () => {
+        const mm = createLegendManager({
+            type: 'vector',
+            displayName: 'Seafloor Geomorphology',
+            legendType: 'categorical',
+            legendClasses: [
+                { name: 'Seamounts', 'color-hint': '#F57F17' },
+                { name: 'Ridges', 'color-hint': '#BF360C' },
+            ],
+        });
+        await mm._showLegend('A');
+        const rows = mm._legendContent.querySelectorAll('.legend-item');
+        expect(rows).toHaveLength(2);
+        expect(mm._legendContent.textContent).toContain('Seamounts');
+        expect(mm._legendContent.textContent).toContain('Ridges');
+    });
+});
+
+describe('MapManager._hasLegend', () => {
+    const mm = Object.create(MapManager.prototype);
+
+    it('is true for any raster layer (continuous colorbar)', () => {
+        expect(mm._hasLegend({ type: 'raster' })).toBe(true);
+    });
+
+    it('is true for a categorical vector layer with classes', () => {
+        expect(mm._hasLegend({
+            type: 'vector', legendType: 'categorical',
+            legendClasses: [{ name: 'A', 'color-hint': 'ff0000' }],
+        })).toBe(true);
+    });
+
+    it('is false for a plain vector layer', () => {
+        expect(mm._hasLegend({ type: 'vector' })).toBeFalsy();
+    });
+
+    it('is false for a vector layer flagged categorical but with no classes', () => {
+        expect(mm._hasLegend({ type: 'vector', legendType: 'categorical', legendClasses: [] })).toBeFalsy();
     });
 });
