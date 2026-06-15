@@ -51,8 +51,8 @@ function createManager() {
     mm.map = createMockMap();
     mm.layers = new Map();
     // Stub legend helpers the mutators might call.
-    mm._showRasterLegend = () => {};
-    mm._hideRasterLegend = () => {};
+    mm._showLegend = () => {};
+    mm._hideLegend = () => {};
     return mm;
 }
 

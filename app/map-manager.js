@@ -273,6 +273,7 @@ export class MapManager {
                 versions: versionStates,
                 activeVersionIndex: config.defaultVersionIndex,
             });
+            this._showLegendIfVisible(layerId);
             return;
         }
 
@@ -373,6 +374,8 @@ export class MapManager {
         if (type === 'vector') {
             this._wireTooltip(mapLayerId, layerId);
         }
+
+        this._showLegendIfVisible(layerId);
     }
 
     /**
@@ -446,7 +449,7 @@ export class MapManager {
         }
         this.map.setLayoutProperty(state.mapLayerId, 'visibility', 'visible');
         if (state.outlineLayerId) this.map.setLayoutProperty(state.outlineLayerId, 'visibility', 'visible');
-        if (state.type === 'raster') this._showRasterLegend(layerId);
+        if (this._hasLegend(state)) this._showLegend(layerId);
         return { success: true, layer: layerId, displayName: state.displayName, visible: true };
     }
 
@@ -466,7 +469,7 @@ export class MapManager {
         }
         this.map.setLayoutProperty(state.mapLayerId, 'visibility', 'none');
         if (state.outlineLayerId) this.map.setLayoutProperty(state.outlineLayerId, 'visibility', 'none');
-        if (state.type === 'raster') this._hideRasterLegend(layerId);
+        if (this._hasLegend(state)) this._hideLegend(layerId);
         return { success: true, layer: layerId, displayName: state.displayName, visible: false };
     }
 
@@ -1233,15 +1236,34 @@ export class MapManager {
 
         // Refresh raster legend if visible (tile URL changed)
         if (state.type === 'raster' && state.visible) {
-            this._hideRasterLegend(layerId);
+            this._hideLegend(layerId);
             this._legendItems.delete(layerId);   // force re-creation with new source
-            this._showRasterLegend(layerId);
+            this._showLegend(layerId);
         }
 
         return { success: true, layer: layerId, version: newV.label };
     }
 
-    // ---- Raster Legend ----
+    // ---- Legend ----
+
+    /**
+     * Whether a layer contributes a legend entry: continuous rasters (colorbar)
+     * and any layer — raster or vector — with a categorical class list.
+     */
+    _hasLegend(state) {
+        return state.type === 'raster'
+            || (state.legendType === 'categorical' && state.legendClasses?.length > 0);
+    }
+
+    /**
+     * Render the legend for a layer that loads visible, so default-on layers
+     * show their legend at boot (registerLayer sets visibility directly and
+     * never routes through showLayer).
+     */
+    _showLegendIfVisible(layerId) {
+        const state = this.layers.get(layerId);
+        if (state?.visible && this._hasLegend(state)) this._showLegend(layerId);
+    }
 
     _ensureLegend() {
         if (this._legendEl) return;
@@ -1283,7 +1305,7 @@ export class MapManager {
         }
     }
 
-    async _showRasterLegend(layerId) {
+    async _showLegend(layerId) {
         const state = this.layers.get(layerId);
         if (!state) return;
 
@@ -1337,7 +1359,7 @@ export class MapManager {
         this._legendItems.set(layerId, item);
     }
 
-    _hideRasterLegend(layerId) {
+    _hideLegend(layerId) {
         const item = this._legendItems.get(layerId);
         if (item) item.style.display = 'none';
         // Hide the whole panel when nothing is visible
