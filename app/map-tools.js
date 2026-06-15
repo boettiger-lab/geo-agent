@@ -124,6 +124,11 @@ ${formatLayerList(vectorLayers())}`,
                     layer_id: { type: 'string', description: 'Vector layer ID to filter' },
                     filter: {
                         type: 'array',
+                        // `items: {}` (any JSON value, including nested arrays) is
+                        // REQUIRED: under grammar-constrained tool decoding, an array
+                        // schema with no `items` compiles to a grammar that can only
+                        // emit `[]`, silently collapsing every filter to empty (#243).
+                        items: {},
                         description: 'MapLibre filter expression array'
                     }
                 },

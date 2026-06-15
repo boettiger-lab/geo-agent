@@ -635,6 +635,17 @@ export class MapManager {
      * @returns {Object} Result with feature count
      */
     setFilter(layerId, filter) {
+        // An empty array is never a meaningful predicate. MapLibre applies it as a
+        // silent no-op (clearing any filter), so a model that emits `[]` — e.g. when
+        // grammar-constrained decoding collapses the filter argument — sees
+        // success + no visible change and retries forever (#243). Reject it
+        // explicitly; clear_filter / reset_filter are the ways to show all features.
+        if (Array.isArray(filter) && filter.length === 0) {
+            return {
+                success: false,
+                error: 'filter was empty ([]) — no predicate applied. Provide a MapLibre expression like ["==", ["get", "NO_TAKE"], "All"], or call clear_filter to show all features.',
+            };
+        }
         const state = this.layers.get(layerId);
         if (!state) return { success: false, error: `Unknown layer: ${layerId}` };
         if (state.type === 'animation') {

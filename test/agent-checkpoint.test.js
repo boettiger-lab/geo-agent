@@ -67,13 +67,60 @@ describe('Agent remote-round counting', () => {
             .mockResolvedValueOnce(okToolCall('local_tool'))
             .mockResolvedValueOnce(okText('all done'));
         const agent = new Agent(
-            baseConfig({ max_tool_calls: 1 }),    // tiny threshold
+            baseConfig({ max_tool_calls: 3 }),     // threshold above the single round
             stubRegistry({ isLocal: () => true }), // every call is local
         );
         agent.autoApprove = true;
         const { response } = await agent.processMessage('hi');
         expect(response).toBe('all done');
         expect(agent.suspendedTurn).toBe(null);
+    });
+
+    // Regression guard for #243: local tool rounds don't increment the remote
+    // checkpoint counter, so a model stuck re-issuing a local tool (e.g.
+    // set_filter failing) would loop FOREVER — no cap ever fired. The
+    // consecutive-local-streak guard must bound it.
+    it('bounds a runaway local-only tool loop instead of looping forever (#243)', async () => {
+        // The model NEVER returns a final answer — it re-issues a local tool
+        // every round. Without the streak guard this never terminates.
+        global.fetch = vi.fn().mockResolvedValue(okToolCall('set_filter'));
+        const agent = new Agent(
+            baseConfig({ max_tool_calls: 3 }),
+            stubRegistry({ isLocal: () => true }),
+        );
+        agent.autoApprove = true;
+        const onCheckpoint = vi.fn();
+        agent.onCheckpoint = onCheckpoint;
+
+        const { checkpoint } = await agent.processMessage('filter it');
+
+        expect(checkpoint).toBe(true);
+        expect(onCheckpoint).toHaveBeenCalledOnce();
+        // 3 local rounds, then the streak guard trips and makes 1 summary call.
+        // The key assertion is that it terminated at all (bounded, not infinite).
+        expect(global.fetch.mock.calls.length).toBe(4);
+    });
+
+    it('a remote round resets the local-only streak, so interleaved turns are not cut short (#243)', async () => {
+        // local, local, REMOTE, local, local, final — the remote round resets the
+        // streak, so with threshold 3 the 2-local / 1-remote / 2-local pattern
+        // never reaches 3 consecutive local rounds and the turn completes normally.
+        const isLocal = vi.fn((name) => name !== 'remote_tool');
+        global.fetch = vi.fn()
+            .mockResolvedValueOnce(okToolCall('set_filter'))   // local streak 1
+            .mockResolvedValueOnce(okToolCall('set_filter'))   // local streak 2
+            .mockResolvedValueOnce(okToolCall('remote_tool'))  // remote → streak reset, iterations 1
+            .mockResolvedValueOnce(okToolCall('set_filter'))   // local streak 1
+            .mockResolvedValueOnce(okToolCall('set_filter'))   // local streak 2
+            .mockResolvedValueOnce(okText('done'));
+        const agent = new Agent(
+            baseConfig({ max_tool_calls: 3 }),
+            stubRegistry({ isLocal }),
+        );
+        agent.autoApprove = true;
+        const { response, checkpoint } = await agent.processMessage('do stuff');
+        expect(checkpoint).toBeFalsy();
+        expect(response).toBe('done');
     });
 });
 
