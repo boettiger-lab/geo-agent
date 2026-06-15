@@ -102,8 +102,6 @@ ${formatLayerList(allLayers())}`,
 
 IMPORTANT: Never guess categorical values used in filters. Check the dataset catalog in your system prompt for documented coded values, or call get_stac_details for full column details. Only use SELECT DISTINCT via SQL if the metadata doesn't cover it.
 
-IMPORTANT: After filtering, check 'featuresInView' in the result. If 0, the filter may be wrong.
-
 Filter syntax (use MapLibre expressions — NOT legacy filter arrays):
 - Equality: ["==", ["get", "property"], "value"]
 - Inequality: ["!=", ["get", "property"], "value"]
