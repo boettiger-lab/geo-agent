@@ -35,6 +35,7 @@ async function main() {
         if (runtimeConfig.mcp_auth_token) appConfig.mcp_auth_token = runtimeConfig.mcp_auth_token;
         if (runtimeConfig.catalog_token) appConfig.catalog_token = runtimeConfig.catalog_token;
         if (runtimeConfig.draw_enabled != null) appConfig.draw_enabled = runtimeConfig.draw_enabled;
+        if (runtimeConfig.geolocate != null) appConfig.geolocate = runtimeConfig.geolocate;
         // != null (not truthiness) so 0 — which disables the checkpoint — survives.
         if (runtimeConfig.max_tool_calls != null) appConfig.max_tool_calls = runtimeConfig.max_tool_calls;
         if (runtimeConfig.max_tool_calls_manual != null) appConfig.max_tool_calls_manual = runtimeConfig.max_tool_calls_manual;
@@ -142,6 +143,25 @@ async function main() {
         }
     }
 
+    /* ── 3d. Geolocate control (optional — requires geolocate) ───────── */
+    // "Locate me" button using the device geolocation. Opt-in; off by default.
+    // GeolocateControl ships with MapLibre GL JS, so there's nothing to pin.
+    if (appConfig.geolocate) {
+        try {
+            mapManager.map.addControl(
+                new maplibregl.GeolocateControl({
+                    positionOptions: { enableHighAccuracy: true },
+                    trackUserLocation: true,
+                    showUserLocation: true,
+                }),
+                'top-left',
+            );
+            console.log('[main] Geolocate control ready');
+        } catch (err) {
+            console.warn('[main] Failed to add geolocate control:', err.message);
+        }
+    }
+
     /* ── 4. Set up MCP client ─────────────────────────────────────────── */
     const mcpUrl = appConfig.mcp_url || 'https://duckdb-mcp.nrp-nautilus.io/mcp';
     const mcpHeaders = {};
@@ -156,12 +176,13 @@ async function main() {
     /* ── 5. Build tool registry ───────────────────────────────────────── */
     const toolRegistry = new ToolRegistry();
 
-    // Geocoder backend (shared by the `geocode` tool and the optional search
-    // box). Enabled by default; set geocoder.enabled=false to disable. The
-    // MapTiler key, when present, falls back to the basemap key.
+    // Geocoder backend (powers the `geocode` tool and the optional search box).
+    // Opt-in: set geocoder.enabled=true for the agent tool, or geocoder.search_box=true
+    // (which implies the backend). Off otherwise. The MapTiler key, when present,
+    // falls back to the basemap key.
     const geoCfg = appConfig.geocoder || {};
     let geocoder = null;
-    if (geoCfg.enabled !== false) {
+    if (geoCfg.enabled === true || geoCfg.search_box) {
         try {
             geocoder = createGeocoder({
                 ...geoCfg,

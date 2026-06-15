@@ -434,11 +434,11 @@ Geocoding turns a free-text place reference — a street address, city, landmark
 1. A **`geocode` agent tool**, so the LLM resolves a *traceable* coordinate instead of inventing lat/lng from memory. The model is instructed to echo the matched location back and to ask for clarification on ambiguous queries (e.g. "Springfield").
 2. An optional **on-map search box** (the [maplibre-gl-geocoder](https://maplibre.org/maplibre-gl-geocoder/) control), enabled per-app.
 
-Geocoding is **on by default** using Nominatim (OpenStreetMap) — no API key required. Set `geocoder.enabled: false` to turn it off entirely (the `geocode` tool is then not registered).
+Geocoding is **opt-in**. Enable it with `geocoder.enabled: true` (registers the `geocode` tool) or `geocoder.search_box: true` (shows the search box and implies the backend). When neither is set, the `geocode` tool is not registered and no geocoder library is loaded. The default provider is Nominatim (OpenStreetMap) — no API key required.
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `geocoder.enabled` | boolean | `true` | Register the `geocode` tool and (if configured) the search box. Set `false` to disable. |
+| `geocoder.enabled` | boolean | `false` | Register the `geocode` agent tool. `geocoder.search_box: true` implies this even when unset. |
 | `geocoder.provider` | string | `"nominatim"` | Backend: `"nominatim"`, `"photon"`, or `"maptiler"`. All are global. |
 | `geocoder.maptiler_key` | string | — | Required for the `maptiler` provider. Falls back to the basemap `maptiler_key` if not set here. |
 | `geocoder.email` | string | — | Contact email sent to Nominatim per its [usage policy](https://operations.osmfoundation.org/policies/nominatim/). Recommended for production apps. |
@@ -456,6 +456,20 @@ Geocoding is **on by default** using Nominatim (OpenStreetMap) — no API key re
   }
 }
 ```
+
+## Geolocation (optional)
+
+A "locate me" button ([MapLibre `GeolocateControl`](https://maplibre.org/maplibre-gl-js/docs/API/classes/GeolocateControl/)) that uses the device's geolocation to drop a marker and recenter the map on the user's position. Opt-in; off by default. The control ships with MapLibre GL JS, so there's nothing extra to load or pin.
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `geolocate` | boolean | `false` | Add the geolocate ("locate me") button to the top-left map controls. |
+
+```json
+{ "geolocate": true }
+```
+
+Geolocation requires a secure context (HTTPS) and a browser permission prompt — both already true for deployed apps. Once the user locates themselves, the agent can answer "what's near me?" via `get_map_state` (the map is now centered on them); no dedicated location tool is added.
 
 **Provider notes.** `nominatim` and `photon` are both free OpenStreetMap-based services with no key — Nominatim returns richer confidence signals, Photon is more lenient on request volume. `maptiler` is higher quality but needs an API key. All three are global (not US-only) and work directly from a static browser app.
 
