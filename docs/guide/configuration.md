@@ -425,6 +425,38 @@ When enabled, a pentagon icon button appears in the top-left map controls (below
 
 The agent receives a `get_drawn_region` tool that returns the polygon as WKT along with a suggested H3 resolution scaled to the region size. This prevents expensive high-resolution hexing of large areas.
 
+## Geocoding (optional)
+
+Geocoding turns a free-text place reference — a street address, city, landmark, or named region — into real coordinates. It powers two things from one shared backend:
+
+1. A **`geocode` agent tool**, so the LLM resolves a *traceable* coordinate instead of inventing lat/lng from memory. The model is instructed to echo the matched location back and to ask for clarification on ambiguous queries (e.g. "Springfield").
+2. An optional **on-map search box** (the [maplibre-gl-geocoder](https://maplibre.org/maplibre-gl-geocoder/) control), enabled per-app.
+
+Geocoding is **on by default** using Nominatim (OpenStreetMap) — no API key required. Set `geocoder.enabled: false` to turn it off entirely (the `geocode` tool is then not registered).
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `geocoder.enabled` | boolean | `true` | Register the `geocode` tool and (if configured) the search box. Set `false` to disable. |
+| `geocoder.provider` | string | `"nominatim"` | Backend: `"nominatim"`, `"photon"`, or `"maptiler"`. All are global. |
+| `geocoder.maptiler_key` | string | — | Required for the `maptiler` provider. Falls back to the basemap `maptiler_key` if not set here. |
+| `geocoder.email` | string | — | Contact email sent to Nominatim per its [usage policy](https://operations.osmfoundation.org/policies/nominatim/). Recommended for production apps. |
+| `geocoder.endpoint` | string | — | Base-URL override (e.g. a self-hosted Nominatim instance). |
+| `geocoder.search_box` | boolean | `false` | Show the on-map search box. Lazy-loads the geocoder library from CDN only when enabled. |
+| `geocoder.search_box_position` | string | `"top-left"` | MapLibre control position for the search box. |
+| `geocoder.search_box_placeholder` | string | `"Search address or place…"` | Placeholder text in the search box. |
+
+```json
+{
+  "geocoder": {
+    "provider": "nominatim",
+    "email": "ops@example.org",
+    "search_box": true
+  }
+}
+```
+
+**Provider notes.** `nominatim` and `photon` are both free OpenStreetMap-based services with no key — Nominatim returns richer confidence signals, Photon is more lenient on request volume. `maptiler` is higher quality but needs an API key. All three are global (not US-only) and work directly from a static browser app.
+
 ## Tool call auto-approve
 
 By default, the agent executes remote tool calls (SQL queries via the MCP server) immediately. Local tools — map controls like `show_layer`, `fly_to`, `set_filter` — also run without confirmation.
