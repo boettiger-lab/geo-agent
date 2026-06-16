@@ -539,6 +539,10 @@ https://radiantearth.github.io/stac-browser/#/external/s3-west.nrp-nautilus.io/p
 
 Open a collection → click the **Assets** tab. The keys listed there (e.g., `"pmtiles"`, `"v2-total-2024-cog"`) are the `id` values to use. For PMTiles vector layers, the asset's `vector:layers` field gives the internal layer name used by MapLibre (the app reads this automatically).
 
+::: tip Mismatched asset IDs are flagged at startup
+If a configured `id` (or a `versions` entry's `asset_id`) doesn't match any key in the STAC collection, the app logs a `console.warn` at load naming the collection, the offending id, and the available keys. It's a warning, not an error — a mismatched id can still render via a source-layer fallback — but the warning surfaces the silent key-drift that's otherwise expensive to debug. Check the browser console if a layer behaves unexpectedly.
+:::
+
 ## Worked examples
 
 ### Point features as circles

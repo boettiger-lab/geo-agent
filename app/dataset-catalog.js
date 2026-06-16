@@ -235,6 +235,40 @@ export class DatasetCatalog {
     }
 
     /**
+     * Soft-validate configured `asset.id`s against the STAC collection's asset keys (#177).
+     *
+     * Emits a single, informative `console.warn` per configured id that doesn't match a
+     * STAC asset key, naming the collection, the offending id, and the keys that *are*
+     * available. Warn-only by design: drift is tolerated because an asset may be added
+     * later, and the asset-id-as-source-layer fallback can still render a mismatched id —
+     * but that silent key-drift is exactly what's expensive to debug in the field, so we
+     * surface it in dev logs. The `versions` form validates each version's `asset_id`
+     * (the logical `id` of a versioned entry is not itself a STAC key, so it's skipped).
+     *
+     * @param {Object} collection - STAC collection (reads `.id` and `.assets`)
+     * @param {Array<{assetId: string, config: Object}>} assetConfigList
+     * @private
+     */
+    _validateAssetIds(collection, assetConfigList) {
+        const available = Object.keys(collection.assets || {});
+        const availableSet = new Set(available);
+        const warnMissing = (id) => console.warn(
+            `[Catalog] Asset id "${id}" configured for collection "${collection.id}" ` +
+            `does not match any STAC asset key. Available: ${available.join(', ') || '(none)'}`
+        );
+
+        for (const { assetId, config } of assetConfigList) {
+            if (config.versions && Array.isArray(config.versions)) {
+                for (const v of config.versions) {
+                    if (v.asset_id && !availableSet.has(v.asset_id)) warnMissing(v.asset_id);
+                }
+            } else if (!availableSet.has(assetId)) {
+                warnMissing(assetId);
+            }
+        }
+    }
+
+    /**
      * Extract map-displayable assets (PMTiles, GeoJSON, and COGs).
      * Each becomes a potential map layer.
      *
@@ -251,6 +285,9 @@ export class DatasetCatalog {
         const stacAssets = collection.assets || {};
 
         if (assetConfigList) {
+            // Soft-validate configured asset ids against STAC keys before building (#177)
+            this._validateAssetIds(collection, assetConfigList);
+
             // Filtered mode: iterate config entries so aliases and ordering are respected
             for (const { key, assetId, config } of assetConfigList) {
 

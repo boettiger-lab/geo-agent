@@ -479,6 +479,50 @@ describe('DatasetCatalog.extractMapLayers', () => {
     });
 });
 
+describe('DatasetCatalog asset-id soft validation (issue #177)', () => {
+    const cat = new DatasetCatalog();
+    const collectionWithAssets = (assets) =>
+        stacCollection({ id: 'demo', title: 'Demo', assets });
+
+    let warnSpy;
+    beforeEach(() => { warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {}); });
+    afterEach(() => { warnSpy.mockRestore(); });
+
+    it('warns once, naming collection + bad id + available keys, when an asset id is not a STAC key', () => {
+        cat.extractMapLayers(collectionWithAssets({
+            'cd-pmtiles': { type: 'application/vnd.pmtiles', href: 'https://x/cd.pmtiles' },
+        }), {}, [{ key: 'cd', assetId: 'cd', config: {} }]);
+
+        expect(warnSpy).toHaveBeenCalledTimes(1);
+        const msg = warnSpy.mock.calls[0][0];
+        expect(msg).toContain('"cd"');
+        expect(msg).toContain('"demo"');
+        expect(msg).toContain('cd-pmtiles');
+    });
+
+    it('produces no warning when every configured id matches a STAC asset key', () => {
+        cat.extractMapLayers(collectionWithAssets({
+            holdings: { type: 'application/vnd.pmtiles', href: 'https://x/h.pmtiles' },
+        }), {}, [{ key: 'holdings', assetId: 'holdings', config: {} }]);
+        expect(warnSpy).not.toHaveBeenCalled();
+    });
+
+    it('validates each asset_id in a versioned entry (not the logical id) and warns per offender', () => {
+        cat.extractMapLayers(collectionWithAssets({
+            l3: { type: 'application/vnd.pmtiles', href: 'https://x/l3.pmtiles' },
+        }), {}, [{
+            key: 'basins',
+            assetId: 'basins',  // logical id — not itself a STAC key, must not warn
+            config: { versions: [
+                { label: 'L3', asset_id: 'l3' },     // valid
+                { label: 'L4', asset_id: 'l4-typo' }, // invalid
+            ] },
+        }]);
+        expect(warnSpy).toHaveBeenCalledTimes(1);
+        expect(warnSpy.mock.calls[0][0]).toContain('l4-typo');
+    });
+});
+
 describe('DatasetCatalog.getMapLayerConfigs', () => {
     let cat;
     beforeEach(() => { cat = new DatasetCatalog(); });
