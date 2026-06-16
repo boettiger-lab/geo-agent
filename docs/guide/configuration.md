@@ -434,11 +434,16 @@ Geocoding turns a free-text place reference — a street address, city, landmark
 1. A **`geocode` agent tool**, so the LLM resolves a *traceable* coordinate instead of inventing lat/lng from memory. The model is instructed to echo the matched location back and to ask for clarification on ambiguous queries (e.g. "Springfield").
 2. An optional **on-map search box** (the [maplibre-gl-geocoder](https://maplibre.org/maplibre-gl-geocoder/) control), enabled per-app.
 
-Geocoding is **on by default** using Nominatim (OpenStreetMap) — no API key required. Set `geocoder.enabled: false` to turn it off entirely (the `geocode` tool is then not registered).
+The two surfaces toggle **independently**, sharing one backend:
+
+- The **`geocode` agent tool** is **on by default** (opt-out) — it's invisible and just lets the LLM resolve coordinates traceably. Set `geocoder.enabled: false` to turn it off.
+- The **on-map search box** is **off by default** (opt-in) — it's a visible UI change, so apps enable it deliberately with `geocoder.search_box: true`.
+
+So `search_box: true` alone gives you the box *and* the tool; `enabled: false` + `search_box: true` gives the box with no agent tool; the default (no geocoder config) gives the tool with no box. The default provider is Nominatim (OpenStreetMap) — no API key required.
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `geocoder.enabled` | boolean | `true` | Register the `geocode` tool and (if configured) the search box. Set `false` to disable. |
+| `geocoder.enabled` | boolean | `true` | Register the `geocode` agent tool. Set `false` to disable it (the search box can still run independently). |
 | `geocoder.provider` | string | `"nominatim"` | Backend: `"nominatim"`, `"photon"`, or `"maptiler"`. All are global. |
 | `geocoder.maptiler_key` | string | — | Required for the `maptiler` provider. Falls back to the basemap `maptiler_key` if not set here. |
 | `geocoder.email` | string | — | Contact email sent to Nominatim per its [usage policy](https://operations.osmfoundation.org/policies/nominatim/). Recommended for production apps. |
@@ -458,6 +463,23 @@ Geocoding is **on by default** using Nominatim (OpenStreetMap) — no API key re
 ```
 
 **Provider notes.** `nominatim` and `photon` are both free OpenStreetMap-based services with no key — Nominatim returns richer confidence signals, Photon is more lenient on request volume. `maptiler` is higher quality but needs an API key. All three are global (not US-only) and work directly from a static browser app.
+
+## Geolocation (optional)
+
+Answers "where am *I*?" using the device's location. Two **independently opt-in** surfaces, both off by default:
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `geolocate.button` | boolean | `false` | "Locate me" button ([MapLibre `GeolocateControl`](https://maplibre.org/maplibre-gl-js/docs/API/classes/GeolocateControl/)) in the top-left map controls; recenters the map on the user. Ships with MapLibre — nothing to pin. |
+| `geolocate.agent_tool` | boolean | `false` | Register the `get_user_location` agent tool, which reads the device's coordinate so the agent can answer "what county/district am I in?", "carbon near me", etc. |
+
+```json
+{ "geolocate": { "button": true, "agent_tool": true } }
+```
+
+The shorthand `"geolocate": true` is equivalent to `{ "button": true }`.
+
+Note the deliberate asymmetry with the [`geocode` tool](#geocoding-optional), which is **on** by default: `get_user_location` reaches into the user's *actual device location*, so it stays **off** unless an app opts in — even though, like `geocode`, it's an invisible agent tool. Both require a secure context (HTTPS) and a browser permission prompt. The `get_user_location` tool returns `{ latitude, longitude, accuracy_m }` only — it does not move the map; the agent calls `fly_to` itself if it wants to recenter.
 
 ## Tool call auto-approve
 

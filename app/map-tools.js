@@ -36,15 +36,32 @@ export function extractJsonArray(text) {
 }
 
 /**
+ * Promisified `navigator.geolocation.getCurrentPosition`. Rejects (rather than
+ * hanging) when geolocation isn't available in the environment.
+ * @returns {Promise<GeolocationPosition>}
+ */
+export function getCurrentPositionAsync(options = { enableHighAccuracy: true, timeout: 10000 }) {
+    return new Promise((resolve, reject) => {
+        const geo = typeof navigator !== 'undefined' && navigator.geolocation;
+        if (!geo) {
+            reject(new Error('Geolocation is not available in this browser.'));
+            return;
+        }
+        geo.getCurrentPosition(resolve, reject, options);
+    });
+}
+
+/**
  * Generate all local tools given the app's MapManager and DatasetCatalog.
  *
  * @param {import('./map-manager.js').MapManager} mapManager
  * @param {import('./dataset-catalog.js').DatasetCatalog} catalog
  * @param {import('./mcp-client.js').MCPClient} [mcpClient]
  * @param {{ forwardGeocode: Function }} [geocoder] - optional geocoder backend (see geocoder.js)
+ * @param {{ geolocateTool?: boolean }} [options] - opt-in flags for privacy-sensitive tools
  * @returns {Array<Object>} Tool definitions
  */
-export function createMapTools(mapManager, catalog, mcpClient, geocoder) {
+export function createMapTools(mapManager, catalog, mcpClient, geocoder, options = {}) {
     const allLayers = () => mapManager.getLayerSummaries();
     const vectorLayers = () => mapManager.getLayerSummaries().filter(l => l.type === 'vector');
 
@@ -332,6 +349,34 @@ How to use the result:
                     return JSON.stringify({ success: true, count: results.length, source: results[0].source, results });
                 } catch (err) {
                     return JSON.stringify({ success: false, error: `Geocoding failed: ${err.message}` });
+                }
+            },
+        }] : []),
+
+        // ---- Geolocation (device location; opt-in) ----
+        ...(options.geolocateTool ? [{
+            name: 'get_user_location',
+            description: `Get the user's CURRENT PHYSICAL location from their device (GPS/network), returning { latitude, longitude, accuracy_m }. Use this when the relevant place is *where the user is* — "near me", "my area", "what county/district am I in", "carbon here". For a place the user NAMES (a city, address, landmark), use \`geocode\` instead.
+
+The browser asks the user for permission. If they deny it (success:false), tell them you couldn't access their location and offer to let them name a place instead (\`geocode\`).
+
+Returns a single point. This tool does NOT move the map — call \`fly_to\` yourself if you want to recenter. To answer "what's here", feed the coordinate into a containing-polygon / point-in-hex query.`,
+            inputSchema: { type: 'object', properties: {} },
+            execute: async () => {
+                try {
+                    const pos = await getCurrentPositionAsync();
+                    return JSON.stringify({
+                        success: true,
+                        latitude: pos.coords.latitude,
+                        longitude: pos.coords.longitude,
+                        accuracy_m: pos.coords.accuracy,
+                    });
+                } catch (err) {
+                    const reason = err?.code === 1 ? 'The user denied location permission.'
+                        : err?.code === 2 ? 'The location is currently unavailable.'
+                        : err?.code === 3 ? 'The location request timed out.'
+                        : (err?.message || 'Unknown error.');
+                    return JSON.stringify({ success: false, error: `Could not get the user's location: ${reason}` });
                 }
             },
         }] : []),
