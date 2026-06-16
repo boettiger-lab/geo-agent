@@ -462,21 +462,24 @@ So `search_box: true` alone gives you the box *and* the tool; `enabled: false` +
 }
 ```
 
+**Provider notes.** `nominatim` and `photon` are both free OpenStreetMap-based services with no key — Nominatim returns richer confidence signals, Photon is more lenient on request volume. `maptiler` is higher quality but needs an API key. All three are global (not US-only) and work directly from a static browser app.
+
 ## Geolocation (optional)
 
-A "locate me" button ([MapLibre `GeolocateControl`](https://maplibre.org/maplibre-gl-js/docs/API/classes/GeolocateControl/)) that uses the device's geolocation to drop a marker and recenter the map on the user's position. Opt-in; off by default. The control ships with MapLibre GL JS, so there's nothing extra to load or pin.
+Answers "where am *I*?" using the device's location. Two **independently opt-in** surfaces, both off by default:
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `geolocate` | boolean | `false` | Add the geolocate ("locate me") button to the top-left map controls. |
+| `geolocate.button` | boolean | `false` | "Locate me" button ([MapLibre `GeolocateControl`](https://maplibre.org/maplibre-gl-js/docs/API/classes/GeolocateControl/)) in the top-left map controls; recenters the map on the user. Ships with MapLibre — nothing to pin. |
+| `geolocate.agent_tool` | boolean | `false` | Register the `get_user_location` agent tool, which reads the device's coordinate so the agent can answer "what county/district am I in?", "carbon near me", etc. |
 
 ```json
-{ "geolocate": true }
+{ "geolocate": { "button": true, "agent_tool": true } }
 ```
 
-Geolocation requires a secure context (HTTPS) and a browser permission prompt — both already true for deployed apps. Once the user locates themselves, the agent can answer "what's near me?" via `get_map_state` (the map is now centered on them); no dedicated location tool is added.
+The shorthand `"geolocate": true` is equivalent to `{ "button": true }`.
 
-**Provider notes.** `nominatim` and `photon` are both free OpenStreetMap-based services with no key — Nominatim returns richer confidence signals, Photon is more lenient on request volume. `maptiler` is higher quality but needs an API key. All three are global (not US-only) and work directly from a static browser app.
+Note the deliberate asymmetry with the [`geocode` tool](#geocoding-optional), which is **on** by default: `get_user_location` reaches into the user's *actual device location*, so it stays **off** unless an app opts in — even though, like `geocode`, it's an invisible agent tool. Both require a secure context (HTTPS) and a browser permission prompt. The `get_user_location` tool returns `{ latitude, longitude, accuracy_m }` only — it does not move the map; the agent calls `fly_to` itself if it wants to recenter.
 
 ## Tool call auto-approve
 

@@ -143,10 +143,19 @@ async function main() {
         }
     }
 
-    /* ── 3d. Geolocate control (optional — requires geolocate) ───────── */
-    // "Locate me" button using the device geolocation. Opt-in; off by default.
+    /* ── 3d. Geolocation (optional — "where am I?") ──────────────────── */
+    // Two independently opt-in surfaces, both off by default:
+    //   • locate-me button (UI)        — geolocate.button
+    //   • get_user_location agent tool — geolocate.agent_tool (reaches device
+    //     GPS, so off by default even though it's invisible — see map-tools.js)
+    // `geolocate: true` is back-compat shorthand for { button: true }.
+    const geoLocCfg = appConfig.geolocate === true
+        ? { button: true }
+        : (appConfig.geolocate && typeof appConfig.geolocate === 'object')
+            ? appConfig.geolocate
+            : {};
     // GeolocateControl ships with MapLibre GL JS, so there's nothing to pin.
-    if (appConfig.geolocate) {
+    if (geoLocCfg.button) {
         try {
             mapManager.map.addControl(
                 new maplibregl.GeolocateControl({
@@ -211,7 +220,8 @@ async function main() {
 
     // Register local map tools. The geocode tool is gated on geocodeToolEnabled
     // (not merely on the backend existing), so search_box can run without it.
-    for (const tool of createMapTools(mapManager, catalog, mcp, geocodeToolEnabled ? geocoder : null)) {
+    // get_user_location is gated separately on the opt-in geolocate.agent_tool.
+    for (const tool of createMapTools(mapManager, catalog, mcp, geocodeToolEnabled ? geocoder : null, { geolocateTool: !!geoLocCfg.agent_tool })) {
         toolRegistry.registerLocal(tool);
     }
 
