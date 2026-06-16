@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import { extractJsonArray, createMapTools } from '../app/map-tools.js';
 
 describe('extractJsonArray', () => {
@@ -326,6 +326,50 @@ describe('geocode tool', () => {
         const out = JSON.parse(await getTool({ forwardGeocode }).execute({ query: 'x' }));
         expect(out).toMatchObject({ success: false });
         expect(out.error).toMatch(/429/);
+    });
+});
+
+describe('get_user_location tool', () => {
+    const stubMap = { getLayerSummaries: () => [] };
+    const stubCatalog = { records: new Map() };
+    const getTool = (options) =>
+        createMapTools(stubMap, stubCatalog, null, null, options).find(t => t.name === 'get_user_location');
+
+    const origNavigator = globalThis.navigator;
+    afterEach(() => {
+        if (origNavigator === undefined) delete globalThis.navigator;
+        else Object.defineProperty(globalThis, 'navigator', { value: origNavigator, configurable: true });
+    });
+    const setGeolocation = (geo) => {
+        Object.defineProperty(globalThis, 'navigator', { value: { geolocation: geo }, configurable: true });
+    };
+
+    it('is only registered when geolocateTool is opted in', () => {
+        expect(getTool({})).toBeUndefined();
+        expect(getTool({ geolocateTool: false })).toBeUndefined();
+        expect(getTool({ geolocateTool: true })).toBeDefined();
+    });
+
+    it('returns the coordinate on success', async () => {
+        setGeolocation({
+            getCurrentPosition: (ok) => ok({ coords: { latitude: 37.87, longitude: -122.27, accuracy: 12 } }),
+        });
+        const out = JSON.parse(await getTool({ geolocateTool: true }).execute({}));
+        expect(out).toEqual({ success: true, latitude: 37.87, longitude: -122.27, accuracy_m: 12 });
+    });
+
+    it('reports a permission denial as success:false with a clear reason', async () => {
+        setGeolocation({ getCurrentPosition: (_ok, err) => err({ code: 1, message: 'User denied Geolocation' }) });
+        const out = JSON.parse(await getTool({ geolocateTool: true }).execute({}));
+        expect(out.success).toBe(false);
+        expect(out.error).toMatch(/denied/i);
+    });
+
+    it('reports gracefully when geolocation is unavailable', async () => {
+        setGeolocation(undefined);
+        const out = JSON.parse(await getTool({ geolocateTool: true }).execute({}));
+        expect(out.success).toBe(false);
+        expect(out.error).toMatch(/not available/i);
     });
 });
 
