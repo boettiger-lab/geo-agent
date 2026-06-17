@@ -230,6 +230,80 @@ describe('MapManager.addHexTileLayer', () => {
     });
 });
 
+describe('MapManager.addHexTileLayer (format: geojson)', () => {
+    let mm;
+    beforeEach(() => { mm = createManager(); });
+
+    const geojsonOpts = (overrides = {}) => ({
+        tileUrl: 'https://example.com/tiles/hex/gj123/{z}/{x}/{y}.pbf',
+        geojsonUrl: 'https://s3.example.com/hex/gj123/data.geojson',
+        format: 'geojson',
+        valueColumn: 'count',
+        valueStats: { by_res: { '9': { min: 1, max: 100 } } },
+        bounds: [-122, 38, -121, 39],
+        palette: 'viridis',
+        opacity: 0.7,
+        displayName: 'Carbon',
+        fitBounds: false,
+        ...overrides,
+    });
+
+    it('registers a GeoJSON source pointed at geojson_url (not the .pbf)', () => {
+        const result = mm.addHexTileLayer(geojsonOpts());
+        expect(result.success).toBe(true);
+        expect(result.layer_id).toBe('hex-gj123');
+
+        const src = mm.map._sources.get('hex-gj123');
+        expect(src).toEqual({ type: 'geojson', data: 'https://s3.example.com/hex/gj123/data.geojson' });
+    });
+
+    it('builds a fill layer with NO source-layer and a flat (non-res-match) paint', () => {
+        mm.addHexTileLayer(geojsonOpts());
+        const layer = mm.map._layers.get('hex-gj123');
+        expect(layer.type).toBe('fill');
+        expect(layer.source).toBe('hex-gj123');
+        expect('source-layer' in layer).toBe(false);
+
+        // Flat interpolate directly over the value — never branches on `res`,
+        // which GeoJSON features don't carry.
+        const expr = layer.paint['fill-color'];
+        const json = JSON.stringify(expr);
+        expect(json).not.toContain('match');
+        expect(json).not.toContain('"res"');
+        expect(expr[3][0]).toBe('interpolate');
+    });
+
+    it('derives the hash from tile_url, not geojson_url', () => {
+        const r = mm.addHexTileLayer(geojsonOpts());
+        // geojson_url shape (.../hex/<hash>/data.geojson) isn't parseable by
+        // extractHashFromUrl; the hash must come from the .pbf template.
+        expect(r.layer_id).toBe('hex-gj123');
+        expect(mm.layers.get('hex-gj123').sourceLayer).toBeNull();
+    });
+
+    it('uses the finest (largest) resolution stats for the flat ramp', () => {
+        mm.addHexTileLayer(geojsonOpts({
+            valueStats: { by_res: { '6': { min: 1, max: 9999 }, '9': { min: 2, max: 80 } } },
+        }));
+        const expr = mm.map._layers.get('hex-gj123').paint['fill-color'];
+        // finest res = 9 → domain min 2, max 80
+        expect(expr[3]).toEqual(['interpolate', ['linear'], ['get', 'count'],
+            2, '#440154', 41, '#21918c', 80, '#fde725']);
+    });
+
+    it('errors when format is geojson but geojson_url is missing', () => {
+        const r = mm.addHexTileLayer(geojsonOpts({ geojsonUrl: undefined }));
+        expect(r.success).toBe(false);
+        expect(r.error).toMatch(/geojson_url/);
+    });
+
+    it('still requires a valid tile_url for the hash', () => {
+        const r = mm.addHexTileLayer(geojsonOpts({ tileUrl: 'https://example.com/bad' }));
+        expect(r.success).toBe(false);
+        expect(r.error).toMatch(/Invalid tile_url/);
+    });
+});
+
 describe('MapManager.removeHexTileLayer', () => {
     let mm;
     beforeEach(() => { mm = createManager(); });

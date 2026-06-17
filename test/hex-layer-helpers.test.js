@@ -25,7 +25,7 @@ describe('extractHashFromUrl', () => {
   });
 });
 
-import { PALETTES, buildFillColorExpression } from '../app/hex-layer-helpers.js';
+import { PALETTES, buildFillColorExpression, buildFlatFillColorExpression } from '../app/hex-layer-helpers.js';
 
 describe('PALETTES', () => {
   it('exposes three named 3-stop palettes', () => {
@@ -116,5 +116,34 @@ describe('buildFillColorExpression', () => {
         .toThrow(/by_res/);
     expect(() => buildFillColorExpression('v', null, 'viridis'))
         .toThrow(/by_res/);
+  });
+});
+
+describe('buildFlatFillColorExpression', () => {
+  it('builds a case-wrapped flat interpolate (no res match)', () => {
+    const expr = buildFlatFillColorExpression('count', { min: 1, max: 100 }, 'viridis');
+
+    expect(expr[0]).toBe('case');
+    expect(expr[1]).toEqual(['==', ['get', 'count'], null]);
+    expect(expr[2]).toBe('rgba(0,0,0,0)');
+
+    // No `match` / no `['get','res']` — interpolates directly over the value.
+    expect(expr[3]).toEqual(['interpolate', ['linear'], ['get', 'count'],
+      1, '#440154', 50.5, '#21918c', 100, '#fde725']);
+  });
+
+  it('collapses a min == max range to the palette midpoint color', () => {
+    const expr = buildFlatFillColorExpression('count', { min: 5, max: 5 }, 'viridis');
+    expect(expr[3]).toBe('#21918c');
+  });
+
+  it('throws on unknown palette', () => {
+    expect(() => buildFlatFillColorExpression('v', { min: 0, max: 1 }, 'nope'))
+        .toThrow(/Unknown palette/);
+  });
+
+  it('throws when stats lack numeric min/max', () => {
+    expect(() => buildFlatFillColorExpression('v', null, 'viridis')).toThrow(/min and max/);
+    expect(() => buildFlatFillColorExpression('v', { min: 0 }, 'viridis')).toThrow(/min and max/);
   });
 });
