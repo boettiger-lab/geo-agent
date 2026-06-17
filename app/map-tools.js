@@ -401,10 +401,14 @@ Pass the following fields straight through from the register_hex_tiles return va
   - value_stats           ← value_stats[value_column]  (has { by_res: { "<res>": { min, max } } })
   - bounds                ← bounds
   - layer_name            ← layer_name (when present; defaults to "layer" otherwise)
+  - format                ← format ("geojson" or "vector"; defaults to "vector")
+  - geojson_url           ← geojson_url (REQUIRED when format="geojson"; ignored otherwise)
 
-Hexes get finer as the user zooms in: the tile server's pyramid serves the appropriate H3 resolution for each zoom level automatically. If the user wants a coarser overall view, re-run \`register_hex_tiles\` with the SQL projected to a coarser resolution by wrapping the first column in \`h3_cell_to_parent(<h3_col>, <target_res>)\` — the server auto-detects the H3 resolution from that column.
+ALWAYS pass \`format\` and (when present) \`geojson_url\` through. The server auto-selects GeoJSON for small/single-resolution tilesets and vector tiles otherwise; for GeoJSON the \`.pbf\` tile_url 404s, so the layer renders blank unless you also pass format="geojson" + geojson_url.
 
-IMPORTANT: The tile_url must be the exact tile_url_template returned by register_hex_tiles — the tool rejects other URLs.
+Hexes get finer as the user zooms in: the tile server's pyramid serves the appropriate H3 resolution for each zoom level automatically (vector format only). If the user wants a coarser overall view, re-run \`register_hex_tiles\` with the SQL projected to a coarser resolution by wrapping the first column in \`h3_cell_to_parent(<h3_col>, <target_res>)\` — the server auto-detects the H3 resolution from that column.
+
+IMPORTANT: tile_url must be the exact tile_url_template returned by register_hex_tiles — the tool rejects other URLs. It supplies the layer's content hash for both formats (the GeoJSON layer still keys off it).
 
 The returned layer_id can be used with show_layer / hide_layer / set_style / set_filter / get_map_state like any other vector layer, and with remove_hex_tile_layer to free the source.`,
             inputSchema: {
@@ -421,7 +425,13 @@ The returned layer_id can be used with show_layer / hide_layer / set_style / set
                         items: { type: 'number' },
                         description: '[w, s, e, n] from register_hex_tiles.bounds'
                     },
-                    layer_name: { type: 'string', description: 'MVT source-layer name from register_hex_tiles.layer_name (defaults to "layer" when omitted)' },
+                    layer_name: { type: 'string', description: 'MVT source-layer name from register_hex_tiles.layer_name (defaults to "layer" when omitted; ignored for format="geojson")' },
+                    format: {
+                        type: 'string',
+                        enum: ['vector', 'geojson'],
+                        description: 'Tileset format from register_hex_tiles.format. "vector" (default) reads MVT tiles from tile_url; "geojson" reads the whole FeatureCollection from geojson_url.'
+                    },
+                    geojson_url: { type: 'string', description: 'register_hex_tiles.geojson_url — REQUIRED when format="geojson"' },
                     display_name: { type: 'string', description: 'Optional human-readable layer name (default: "Hex: <value_column>")' },
                     palette: {
                         type: 'string',
@@ -445,6 +455,8 @@ The returned layer_id can be used with show_layer / hide_layer / set_style / set
                     displayName,
                     fitBounds: args.fit_bounds !== false,
                     layerName: args.layer_name,
+                    format: args.format,
+                    geojsonUrl: args.geojson_url,
                 });
                 return JSON.stringify(result);
             },

@@ -12,7 +12,7 @@
  * No knowledge of LLMs, tools, or chat — pure map operations.
  */
 
-import { extractHashFromUrl, buildFillColorExpression } from './hex-layer-helpers.js';
+import { extractHashFromUrl, buildFillColorExpression, buildFlatFillColorExpression } from './hex-layer-helpers.js';
 
 const BASEMAPS = {
     natgeo: {
@@ -503,12 +503,19 @@ export class MapManager {
      * @returns {{success: boolean, layer_id?: string, error?: string}}
      */
     addHexTileLayer(opts) {
-        const { tileUrl, valueColumn, valueStats, bounds, palette, opacity, displayName, fitBounds, layerName, resolution } = opts;
-        const sourceLayer = layerName || 'layer';
+        const { tileUrl, valueColumn, valueStats, bounds, palette, opacity, displayName, fitBounds, layerName, resolution, format, geojsonUrl } = opts;
+        const isGeoJson = format === 'geojson';
+        const sourceLayer = isGeoJson ? null : (layerName || 'layer');
 
+        // The hash always comes from tile_url_template (returned by
+        // register_hex_tiles for both formats), never from geojson_url whose
+        // shape (.../hex/<hash>/data.geojson) extractHashFromUrl doesn't parse.
         const hash = extractHashFromUrl(tileUrl);
         if (!hash) {
             return { success: false, error: `Invalid tile_url — expected template from register_hex_tiles ending in /tiles/hex/<hash>/{z}/{x}/{y}.pbf` };
+        }
+        if (isGeoJson && !geojsonUrl) {
+            return { success: false, error: 'format "geojson" requires geojson_url from register_hex_tiles' };
         }
         const layerId = `hex-${hash}`;
 
@@ -536,7 +543,15 @@ export class MapManager {
 
         let fillColor;
         try {
-            fillColor = buildFillColorExpression(valueColumn, valueStats, palette);
+            if (isGeoJson) {
+                // Single-resolution: GeoJSON features carry no `res`, so the
+                // per-res `match` would render everything transparent. Paint a
+                // flat ramp over the finest (largest) resolution's stats.
+                const finestRes = availableRes[availableRes.length - 1];
+                fillColor = buildFlatFillColorExpression(valueColumn, valueStats.by_res[finestRes], palette);
+            } else {
+                fillColor = buildFillColorExpression(valueColumn, valueStats, palette);
+            }
         } catch (err) {
             return { success: false, error: err.message };
         }
@@ -554,12 +569,17 @@ export class MapManager {
         // render at most zoom levels. Let MapLibre render whatever the tile
         // contains; buildFillColorExpression's per-res `match` picks the
         // right branch for each tile's resolution.
-        this.map.addSource(layerId, { type: 'vector', tiles: [tileUrl], minzoom: 0, maxzoom: 14 });
+        if (isGeoJson) {
+            this.map.addSource(layerId, { type: 'geojson', data: geojsonUrl });
+        } else {
+            this.map.addSource(layerId, { type: 'vector', tiles: [tileUrl], minzoom: 0, maxzoom: 14 });
+        }
         this.map.addLayer({
             id: layerId,
             type: 'fill',
             source: layerId,
-            'source-layer': sourceLayer,
+            // GeoJSON sources have no source-layer; omit it for that branch.
+            ...(isGeoJson ? {} : { 'source-layer': sourceLayer }),
             layout: { visibility: 'visible' },
             paint,
         });
