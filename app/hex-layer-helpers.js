@@ -81,3 +81,42 @@ export function buildFillColorExpression(valueColumn, valueStats, palette) {
         ['match', ['get', 'res'], ...branches, 'rgba(0,0,0,0)'],
     ];
 }
+
+/**
+ * Build a *flat* `fill-color` expression for a single-resolution hex layer.
+ *
+ * GeoJSON hex tilesets (server `format: "geojson"`) are materialized at one H3
+ * resolution (finest_res) and their features carry only the value columns — no
+ * `res` property — so the per-`res` `match` that {@link buildFillColorExpression}
+ * emits would render every feature transparent (match fallback). This helper
+ * interpolates directly over a single `{min, max}` instead.
+ *
+ * Null values render transparent; a collapsed range (min == max) renders a flat
+ * palette-midpoint color.
+ *
+ * @param {string} valueColumn - Feature property to color by.
+ * @param {{min: number, max: number}} stats - Single-resolution value range.
+ * @param {string} palette - One of the keys in PALETTES.
+ * @returns {Array} MapLibre expression.
+ */
+export function buildFlatFillColorExpression(valueColumn, stats, palette) {
+    if (!(palette in PALETTES)) {
+        throw new Error(`Unknown palette '${palette}'. Valid: ${Object.keys(PALETTES).join(', ')}`);
+    }
+    if (!stats || stats.min == null || stats.max == null) {
+        throw new Error('stats must contain numeric min and max');
+    }
+
+    const [c0, c1, c2] = PALETTES[palette];
+    const { min, max } = stats;
+    const branch = (min < max)
+        ? ['interpolate', ['linear'], ['get', valueColumn], min, c0, (min + max) / 2, c1, max, c2]
+        : c1;
+
+    return [
+        'case',
+        ['==', ['get', valueColumn], null],
+        'rgba(0,0,0,0)',
+        branch,
+    ];
+}
