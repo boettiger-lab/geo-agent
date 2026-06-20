@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { extractHashFromUrl } from '../app/hex-layer-helpers.js';
+import { extractHashFromUrl, rewriteValueColumn } from '../app/hex-layer-helpers.js';
 
 describe('extractHashFromUrl', () => {
   it('extracts hash from a valid MCP tile URL template', () => {
@@ -145,5 +145,49 @@ describe('buildFlatFillColorExpression', () => {
   it('throws when stats lack numeric min/max', () => {
     expect(() => buildFlatFillColorExpression('v', null, 'viridis')).toThrow(/min and max/);
     expect(() => buildFlatFillColorExpression('v', { min: 0 }, 'viridis')).toThrow(/min and max/);
+  });
+});
+
+describe('rewriteValueColumn', () => {
+  it('repoints a guessed ["get","count"] to the real value column', () => {
+    const expr = ['interpolate', ['linear'], ['get', 'count'], 1, '#440154', 125, '#FDE725'];
+    const { value, replaced } = rewriteValueColumn(expr, 'species_richness');
+    expect(value).toEqual(
+      ['interpolate', ['linear'], ['get', 'species_richness'], 1, '#440154', 125, '#FDE725']);
+    expect(replaced).toEqual(['count']);
+  });
+
+  it('leaves an expression that already targets the value column untouched', () => {
+    const expr = ['interpolate', ['linear'], ['get', 'species_richness'], 0, '#000', 10, '#fff'];
+    const { value, replaced } = rewriteValueColumn(expr, 'species_richness');
+    expect(value).toEqual(expr);
+    expect(replaced).toEqual([]);
+  });
+
+  it('does not touch the per-resolution `res` key', () => {
+    const expr = ['case', ['==', ['get', 'count'], null], 'rgba(0,0,0,0)',
+      ['match', ['get', 'res'], 3, ['get', 'count'], 'rgba(0,0,0,0)']];
+    const { value, replaced } = rewriteValueColumn(expr, 'pop');
+    expect(value).toEqual(['case', ['==', ['get', 'pop'], null], 'rgba(0,0,0,0)',
+      ['match', ['get', 'res'], 3, ['get', 'pop'], 'rgba(0,0,0,0)']]);
+    expect(replaced).toEqual(['count']);
+  });
+
+  it('reports each distinct replaced property once', () => {
+    const expr = ['+', ['get', 'count'], ['get', 'foo'], ['get', 'count']];
+    const { replaced } = rewriteValueColumn(expr, 'val');
+    expect(replaced.sort()).toEqual(['count', 'foo']);
+  });
+
+  it('passes through literals and non-expression values', () => {
+    expect(rewriteValueColumn('red', 'val')).toEqual({ value: 'red', replaced: [] });
+    expect(rewriteValueColumn(0.7, 'val')).toEqual({ value: 0.7, replaced: [] });
+  });
+
+  it('leaves longer get forms (["get", key, obj]) alone', () => {
+    const expr = ['get', 'count', ['properties']];
+    const { value, replaced } = rewriteValueColumn(expr, 'val');
+    expect(value).toEqual(expr);
+    expect(replaced).toEqual([]);
   });
 });
