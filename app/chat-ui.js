@@ -137,12 +137,32 @@ export class ChatUI {
     /* ------------------------------------------------------------------ */
 
     init() {
-        // Wire send button & enter key. Button doubles as Stop while busy;
-        // Enter simply no-ops while busy (handleSend guards).
+        // Default placeholder, restored by _syncInputControls when not paused.
+        this._defaultPlaceholder = this.inputEl.placeholder;
+
+        // The send button is a 3-state control:
+        //   idle           → "Send"      (click/Enter sends a new message)
+        //   busy           → "■" Stop    (click/Esc aborts the in-flight turn)
+        //   suspended+idle → "Continue"  (click/Enter resumes the paused turn;
+        //                                 typing a steer first resumes with it)
+        // While busy it aborts; otherwise it sends/resumes via handleSend.
         this.sendBtn.addEventListener('click', () => {
             if (this.busy) this.agent.abort();
             else this.handleSend();
         });
+
+        // Abandon control — shown only while a turn is suspended (and not busy).
+        // Discards the preserved work so the next message starts a fresh turn,
+        // instead of being folded into the old turn as a steer.
+        this.abandonBtn = document.createElement('button');
+        this.abandonBtn.id = 'chat-abandon';
+        this.abandonBtn.type = 'button';
+        this.abandonBtn.textContent = '✕';
+        this.abandonBtn.title = 'Discard the paused work and start fresh';
+        this.abandonBtn.hidden = true;
+        this.abandonBtn.addEventListener('click', () => this.abandonSuspendedTurn());
+        this.sendBtn.parentNode.insertBefore(this.abandonBtn, this.sendBtn);
+        this._syncInputControls();
         this.inputEl.addEventListener('keydown', e => {
             if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
@@ -578,9 +598,15 @@ export class ChatUI {
     }
 
     async handleSend() {
-        const text = this.inputEl.value.trim();
-        if (!text) return;
         if (this.busy) return;
+
+        // Empty input resumes a paused turn (Continue); otherwise there's
+        // nothing to send. A typed steer takes precedence over the canned resume.
+        let text = this.inputEl.value.trim();
+        if (!text) {
+            if (!this.agent.suspendedTurn) return;
+            text = 'continue';
+        }
 
         // In user-provided mode, check for API key before sending
         if (this.config._userProvidedMode && !localStorage.getItem('geo-agent-api-key')) {
@@ -589,9 +615,7 @@ export class ChatUI {
         }
 
         this.busy = true;
-        this.sendBtn.classList.add('stop');
-        this.sendBtn.textContent = '■';
-        this.sendBtn.title = 'Stop';
+        this._syncInputControls();
         this.inputEl.value = '';
         this._autoResizeInput();
 
@@ -616,13 +640,10 @@ export class ChatUI {
             } else {
                 this.endTurn('done');
             }
-
-            // If the turn paused with work preserved — a checkpoint, or Stop
-            // pressed during the checkpoint summary — offer a one-click resume.
-            // Typing any message also resumes (and can steer) the paused turn.
-            if (this.agent.suspendedTurn) {
-                this.renderContinueButton();
-            }
+            // If the turn paused with work preserved (a checkpoint, or Stop
+            // during the checkpoint summary), _syncInputControls() in finally
+            // relabels the send button to "Continue" and reveals the abandon
+            // control — the input area itself becomes the resume affordance.
         } catch (err) {
             console.error('[ChatUI] Error:', err);
             this.endTurn('error');
@@ -636,12 +657,47 @@ export class ChatUI {
                 : msg);
         } finally {
             this.busy = false;
-            this.sendBtn.classList.remove('stop');
-            this.sendBtn.textContent = 'Send';
-            this.sendBtn.title = '';
+            this._syncInputControls();
             document.removeEventListener('keydown', escHandler);
             this.inputEl.focus();
         }
+    }
+
+    /**
+     * Reflect the current (busy / suspended / idle) state onto the input
+     * controls. Single source of truth for the send button's three modes and
+     * the abandon button's visibility, so the wiring lives in one place.
+     */
+    _syncInputControls() {
+        const suspended = !this.busy && !!this.agent.suspendedTurn;
+        this.sendBtn.classList.toggle('stop', this.busy);
+        this.sendBtn.classList.toggle('continue', suspended);
+        if (this.busy) {
+            this.sendBtn.textContent = '■';
+            this.sendBtn.title = 'Stop';
+        } else if (suspended) {
+            this.sendBtn.textContent = 'Continue';
+            this.sendBtn.title = 'Resume where the agent paused — or type a steer first';
+        } else {
+            this.sendBtn.textContent = 'Send';
+            this.sendBtn.title = '';
+        }
+        this.abandonBtn.hidden = !suspended;
+        this.inputEl.placeholder = suspended
+            ? 'Press Continue, or type a steer / choice to resume…'
+            : this._defaultPlaceholder;
+    }
+
+    /**
+     * Discard a suspended turn so the next message starts fresh rather than
+     * being folded into the paused turn as a steer. Wired to the abandon (✕)
+     * button, which is only visible while a turn is suspended.
+     */
+    abandonSuspendedTurn() {
+        if (this.busy || !this.agent.suspendedTurn) return;
+        this.agent.suspendedTurn = null;
+        this._syncInputControls();
+        this.addMessage('system', 'Discarded the paused work. Your next message starts a new turn.');
     }
 
     /* ------------------------------------------------------------------ */
@@ -655,10 +711,6 @@ export class ChatUI {
      * assistant's final answer arrives.
      */
     startTurn() {
-        // A new turn supersedes any prior checkpoint prompt — drop stale
-        // Continue buttons so only the latest pause offers a resume.
-        this.messagesEl.querySelectorAll('.checkpoint-actions').forEach(el => el.remove());
-
         const container = document.createElement('details');
         container.className = 'agent-turn running';
         container.open = true;
@@ -1154,33 +1206,6 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-
             if (typeof hljs !== 'undefined') hljs.highlightElement(block);
         });
 
-        this.scrollToBottom();
-    }
-
-    /**
-     * Offer a one-click resume after the agent pauses at a checkpoint (or the
-     * user stopped during the checkpoint summary). The agent keeps the
-     * in-flight work in suspendedTurn; sending "continue" resumes it, while
-     * typing any other message resumes with that steer instead.
-     */
-    renderContinueButton() {
-        const wrap = document.createElement('div');
-        wrap.className = 'chat-message checkpoint-actions';
-
-        const btn = document.createElement('button');
-        btn.className = 'continue-btn';
-        btn.textContent = '▶ Continue';
-        btn.title = 'Resume where the agent paused';
-        btn.addEventListener('click', () => {
-            if (this.busy) return;
-            btn.disabled = true;
-            // Preserve a steer the user already typed; default to a plain resume.
-            if (!this.inputEl.value.trim()) this.inputEl.value = 'continue';
-            this.handleSend();
-        });
-
-        wrap.appendChild(btn);
-        this.messagesEl.appendChild(wrap);
         this.scrollToBottom();
     }
 
