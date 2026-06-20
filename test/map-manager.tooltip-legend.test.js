@@ -153,6 +153,42 @@ describe('MapManager raster legend (SEC-3)', () => {
         expect(mm._legendContent.textContent).toContain('Seamounts');
         expect(mm._legendContent.textContent).toContain('Ridges');
     });
+
+    it('renders a continuous vector colorbar derived from the paint expression (issue #258)', async () => {
+        const mm = createLegendManager({
+            type: 'vector',
+            displayName: 'ACE Amphibian Richness',
+            legendType: 'continuous',
+            legendLabel: 'species',
+            defaultPaint: {
+                'fill-color': ['interpolate', ['linear'], ['get', 'species'],
+                    0, '#edf8e9', 242, '#005a32'],
+                'fill-opacity': 0.7,
+            },
+        });
+        await mm._showLegend('A');
+        const bar = mm._legendContent.querySelector('.legend-colorbar');
+        expect(bar.getAttribute('style')).toContain('linear-gradient');
+        expect(bar.getAttribute('style')).toContain('#edf8e9');
+        const labels = [...mm._legendContent.querySelectorAll('.legend-labels span')].map(s => s.textContent);
+        expect(labels).toEqual(['0 species', '242 species']);
+    });
+
+    it('continuous vector colorbar honors explicit legend_range / legend_gradient over the paint', async () => {
+        const mm = createLegendManager({
+            type: 'vector',
+            displayName: 'CalEnviroScreen',
+            legendType: 'continuous',
+            legendRange: [0, 100],
+            legendGradient: ['#ffffcc', '#800026'],
+            defaultPaint: { 'fill-color': '#2E7D32' },  // flat — nothing to derive
+        });
+        await mm._showLegend('A');
+        const bar = mm._legendContent.querySelector('.legend-colorbar');
+        expect(bar.getAttribute('style')).toContain('#ffffcc');
+        const labels = [...mm._legendContent.querySelectorAll('.legend-labels span')].map(s => s.textContent);
+        expect(labels).toEqual(['0', '100']);
+    });
 });
 
 describe('MapManager._hasLegend', () => {
@@ -175,6 +211,27 @@ describe('MapManager._hasLegend', () => {
 
     it('is false for a vector layer flagged categorical but with no classes', () => {
         expect(mm._hasLegend({ type: 'vector', legendType: 'categorical', legendClasses: [] })).toBeFalsy();
+    });
+
+    it('is true for a continuous vector layer whose colorbar derives from its paint (#258)', () => {
+        expect(mm._hasLegend({
+            type: 'vector', legendType: 'continuous',
+            defaultPaint: { 'fill-color': ['interpolate', ['linear'], ['get', 'v'], 0, '#000', 10, '#fff'] },
+        })).toBe(true);
+    });
+
+    it('is true for a continuous vector layer with explicit gradient + range', () => {
+        expect(mm._hasLegend({
+            type: 'vector', legendType: 'continuous',
+            legendGradient: ['#fff', '#000'], legendRange: [0, 5],
+        })).toBe(true);
+    });
+
+    it('is false for a continuous vector layer with nothing to source a colorbar from', () => {
+        expect(mm._hasLegend({
+            type: 'vector', legendType: 'continuous',
+            defaultPaint: { 'fill-color': '#2E7D32' },
+        })).toBeFalsy();
     });
 });
 

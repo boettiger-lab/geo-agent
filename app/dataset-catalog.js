@@ -366,6 +366,8 @@ export class DatasetCatalog {
                         legendLabel: config.legend_label || null,
                         legendType: config.legend_type || null,
                         legendClasses: normalizeLegendClasses(config.legend_classes),
+                        legendRange: config.legend_range || null,
+                        legendGradient: config.legend_gradient || null,
                         // Versioned metadata
                         versions,
                         defaultVersionIndex: defaultIndex,
@@ -398,6 +400,8 @@ export class DatasetCatalog {
                         legendLabel: config.legend_label || null,
                         legendType: config.legend_type || null,
                         legendClasses: normalizeLegendClasses(config.legend_classes),
+                        legendRange: config.legend_range || null,
+                        legendGradient: config.legend_gradient || null,
                     });
                 } else if (type.includes('geotiff') || type.includes('tiff')) {
                     const band0 = asset['raster:bands']?.[0];
@@ -448,6 +452,8 @@ export class DatasetCatalog {
                         legendLabel: config.legend_label || null,
                         legendType: config.legend_type || null,
                         legendClasses: normalizeLegendClasses(config.legend_classes),
+                        legendRange: config.legend_range || null,
+                        legendGradient: config.legend_gradient || null,
                         animation,
                     });
                 }
@@ -784,6 +790,8 @@ export class DatasetCatalog {
                         legendLabel: ml.legendLabel || null,
                         legendType: ml.legendType || null,
                         legendClasses: ml.legendClasses || null,
+                        legendRange: ml.legendRange || null,
+                        legendGradient: ml.legendGradient || null,
                         // Versioned metadata
                         versions: versionConfigs,
                         defaultVersionIndex: ml.defaultVersionIndex,
@@ -819,6 +827,8 @@ export class DatasetCatalog {
                         legendLabel: ml.legendLabel || null,
                         legendType: ml.legendType || null,
                         legendClasses: ml.legendClasses || null,
+                        legendRange: ml.legendRange || null,
+                        legendGradient: ml.legendGradient || null,
                         animation: ml.animation || null,
                         tracksUrl: isGeoJson ? ml.url : null,
                     };
