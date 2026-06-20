@@ -12,7 +12,7 @@
  * No knowledge of LLMs, tools, or chat — pure map operations.
  */
 
-import { extractHashFromUrl, buildFillColorExpression, buildFlatFillColorExpression } from './hex-layer-helpers.js';
+import { extractHashFromUrl, buildFillColorExpression, buildFlatFillColorExpression, rewriteValueColumn } from './hex-layer-helpers.js';
 import { deriveContinuousLegend } from './legend-helpers.js';
 
 const BASEMAPS = {
@@ -600,6 +600,7 @@ export class MapManager {
             displayName,
             type: 'vector',
             sourceLayer,
+            valueColumn,
             columns: [],
             visible: true,
             filter: null,
@@ -770,8 +771,20 @@ export class MapManager {
         const state = this.layers.get(layerId);
         if (!state) return { success: false, error: `Unknown layer: ${layerId}` };
 
+        // Hex layers carry a single dynamic value column (e.g. "species_richness").
+        // The agent often emits a data-driven expression against a guessed
+        // property name — typically ["get","count"] — which resolves to null on
+        // every feature and silently fails to recolor (issue #259). Repoint any
+        // value-bearing `get` to the layer's real column before applying.
+        const corrected = new Set();
         const results = [];
-        for (const [prop, value] of Object.entries(paintProps)) {
+        for (const [prop, rawValue] of Object.entries(paintProps)) {
+            let value = rawValue;
+            if (state.valueColumn) {
+                const { value: rewritten, replaced } = rewriteValueColumn(rawValue, state.valueColumn);
+                value = rewritten;
+                replaced.forEach(p => corrected.add(p));
+            }
             try {
                 this.map.setPaintProperty(state.mapLayerId, prop, value);
                 results.push({ property: prop, success: true });
@@ -787,6 +800,9 @@ export class MapManager {
             layer: layerId,
             displayName: state.displayName,
             updates: results,
+            ...(corrected.size > 0 && {
+                note: `Repointed value reference(s) ${[...corrected].map(p => `"${p}"`).join(', ')} to this layer's actual value column "${state.valueColumn}".`,
+            }),
             ...(failed.length > 0 && {
                 error: `${failed.length}/${results.length} property update(s) failed: ${failed.join(', ')}. Layer type is "${layerType}" — use ${layerType}-prefixed paint properties (see set_style tool description for the supported set).`,
             }),
@@ -825,6 +841,9 @@ export class MapManager {
                 filterDescription: state.filter ? this.describeFilter(state.filter) : null,
                 hasDefaultFilter: state.defaultFilter !== null,
                 defaultFilterDescription: state.defaultFilter ? this.describeFilter(state.defaultFilter) : null,
+                // Hex layers color by a single dynamic column; expose it so the
+                // agent styles against the real property, not a guess (#259).
+                ...(state.valueColumn && { valueColumn: state.valueColumn }),
             };
         }
         return { success: true, layers };

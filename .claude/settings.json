@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(./scripts/update-pins.sh --yes)",
+      "Bash(kubectl config *)",
+      "Bash(kubectl -n biodiversity get deployment padus -o wide)",
+      "Bash(kubectl -n biodiversity get pods -l app=padus)",
+      "Bash(kubectl -n biodiversity get pods)",
+      "Bash(kubectl -n biodiversity rollout restart deployment/padus)",
+      "Bash(kubectl -n biodiversity rollout status deployment/padus --timeout=120s)",
+      "Read(//home/jovyan/boettiger-lab/k8s/images/**)",
+      "Bash(ln -sfn /home/jovyan/boettiger-lab/geo-agent/node_modules /tmp/geo-agent-wt-fiv/node_modules)",
+      "Bash(/home/jovyan/boettiger-lab/geo-agent/node_modules/.bin/vitest run *)"
+    ],
+    "additionalDirectories": [
+      "/home/jovyan/boettiger-lab/geo-agent-ops"
+    ]
+  }
+}

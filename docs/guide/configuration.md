@@ -55,11 +55,32 @@ Each entry in `collections` is either a **bare string** (loads all visual assets
 | Field | Type | Description |
 |---|---|---|
 | `collection_id` | string | STAC collection ID to load. |
-| `collection_url` | string | Direct URL to the STAC collection JSON. Bypasses root catalog traversal — useful for private or external catalogs. |
+| `collection_url` | string | Direct URL to the STAC collection JSON. **Required** for any collection that is not a direct child of the root catalog — see [Nested collections](#nested-collections). Also needed for private or external catalogs, and recommended even for top-level collections since it skips the (slow) catalog walk. |
 | `group` | string or object | Group label shown in the layer toggle panel. Use an object `{ "name": "...", "collapsed": true }` to start the group folded — see [Collapsed groups](#collapsed-groups). |
 | `assets` | array | Asset selector — see below. Omit to load all visual assets. |
 | `display_name` | string | Override the collection title shown in the UI. |
 | `preload` | boolean | Inject the full column schema into the LLM system prompt — see [Preloaded schemas](#preloaded-schemas). Default: `false`. |
+
+### Nested collections
+
+The framework resolves bare `collection_id`s by scanning **only the direct `child` links of the root catalog** (`appConfig.catalog`). It does **not** recurse into parent/container collections. So any collection nested under a parent — *even within the same public catalog* — must specify an explicit `collection_url`, or its layer **silently never appears** (the miss is only a `console.warn`, not a user-visible error).
+
+This bites when a collection shows up in the flat `list_datasets` output (so it looks loadable by ID) but actually lives under a container collection rather than directly under the root.
+
+**How to tell whether a collection is nested:** fetch the root catalog JSON and inspect its `links[rel=child]`. If your `collection_id` isn't among those direct children, it's nested under one of them and needs a `collection_url`.
+
+**How to find the URL:** open the collection's own JSON and copy its `self` href (typically the `stac-collection.json` path in object storage, e.g. `https://.../<collection_id>/stac-collection.json`).
+
+```json
+{
+  "collection_id": "ace-amphibian-richness",
+  "collection_url": "https://data.source.coop/cboettig/ca30x30/ace-amphibian-richness/stac-collection.json"
+}
+```
+
+**Trade-off:** a hardcoded `collection_url` breaks if the bucket/path is renamed or moved, so prefer it only where the catalog walk can't reach the collection (or where skipping the walk is a deliberate perf choice).
+
+> **Troubleshooting:** *a layer never appears and its `collection_id` is correct* → it is probably nested under a parent collection. Set `collection_url`.
 
 ## Asset config — vector (PMTiles)
 
