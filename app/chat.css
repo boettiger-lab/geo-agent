@@ -372,29 +372,33 @@
     max-width: 95%;
 }
 
-/* Checkpoint "Continue" affordance, shown when the agent pauses mid-turn */
-.chat-message.checkpoint-actions {
-    align-self: flex-start;
-    padding: 0;
+/* Send button in "Continue" mode — shown when a turn is suspended at a
+   checkpoint. Green reads as resume/go, distinct from the blue Send and the
+   red Stop. Resume lives in the input row now, not an inline message button. */
+#chat-send.continue {
+    background: #2e9e5b;
 }
 
-.continue-btn {
-    padding: 6px 14px;
-    border: none;
-    border-radius: 8px;
-    background: rgba(0, 122, 255, 0.85);
+#chat-send.continue:hover {
+    background: #278a4f;
+}
+
+/* Abandon (✕) control — only visible while a turn is suspended; discards the
+   paused work so the next message starts fresh. Secondary, like the mic. */
+#chat-abandon {
+    padding: 9px 12px;
+    background: rgba(255, 255, 255, 0.08);
     color: #fff;
-    font-size: 13px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 6px;
     cursor: pointer;
+    font-size: 14px;
+    line-height: 1;
 }
 
-.continue-btn:hover {
-    background: rgba(0, 122, 255, 1);
-}
-
-.continue-btn:disabled {
-    opacity: 0.5;
-    cursor: default;
+#chat-abandon:hover {
+    background: rgba(220, 53, 69, 0.85);
+    border-color: rgba(220, 53, 69, 1);
 }
 
 /* Thinking indicator */
