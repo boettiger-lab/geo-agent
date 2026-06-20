@@ -13,6 +13,7 @@
  */
 
 import { extractHashFromUrl, buildFillColorExpression, buildFlatFillColorExpression } from './hex-layer-helpers.js';
+import { deriveContinuousLegend } from './legend-helpers.js';
 
 const BASEMAPS = {
     natgeo: {
@@ -159,7 +160,7 @@ export class MapManager {
      * Register a single layer on the map.
      */
     registerLayer(config) {
-        const { layerId, datasetId, group, groupCollapsed, displayName, type, paint, outlinePaint, renderType, columns, tooltipFields, defaultVisible, defaultFilter, colormap, rescale, legendLabel, legendType, legendClasses } = config;
+        const { layerId, datasetId, group, groupCollapsed, displayName, type, paint, outlinePaint, renderType, columns, tooltipFields, defaultVisible, defaultFilter, colormap, rescale, legendLabel, legendType, legendClasses, legendRange, legendGradient } = config;
 
         // ── Animated layer: delegate to TrajectoryAnimation ──
         if (config.animation && config.animation.type === 'trajectory') {
@@ -269,6 +270,8 @@ export class MapManager {
                 legendLabel: legendLabel || null,
                 legendType: legendType || null,
                 legendClasses: legendClasses || null,
+                legendRange: legendRange || null,
+                legendGradient: legendGradient || null,
                 // Version tracking
                 versions: versionStates,
                 activeVersionIndex: config.defaultVersionIndex,
@@ -366,6 +369,8 @@ export class MapManager {
             legendLabel: legendLabel || null,
             legendType: legendType || null,
             legendClasses: legendClasses || null,
+            legendRange: legendRange || null,
+            legendGradient: legendGradient || null,
         });
 
         // Wire tooltip handler on every vector layer (even those without
@@ -1267,12 +1272,36 @@ export class MapManager {
     // ---- Legend ----
 
     /**
-     * Whether a layer contributes a legend entry: continuous rasters (colorbar)
-     * and any layer — raster or vector — with a categorical class list.
+     * Whether a layer contributes a legend entry: continuous rasters (colorbar),
+     * any layer with a categorical class list, and continuous vector layers
+     * (graduated choropleths) whose colorbar can be sourced from config or
+     * derived from their paint expression (#258).
      */
     _hasLegend(state) {
         return state.type === 'raster'
-            || (state.legendType === 'categorical' && state.legendClasses?.length > 0);
+            || (state.legendType === 'categorical' && state.legendClasses?.length > 0)
+            || (state.legendType === 'continuous' && !!this._continuousVectorLegend(state));
+    }
+
+    /**
+     * Resolve a continuous vector layer's colorbar — explicit `legendGradient` /
+     * `legendRange` config wins, otherwise derive both from the layer's paint
+     * `interpolate`/`step` color expression. Returns null when neither is
+     * available (so the layer simply contributes no legend).
+     *
+     * @returns {{ colors: string[], range: [number, number] } | null}
+     */
+    _continuousVectorLegend(state) {
+        if (state.type !== 'vector') return null;
+        const derived = deriveContinuousLegend(state.defaultPaint);
+        const colors = (Array.isArray(state.legendGradient) && state.legendGradient.length >= 2)
+            ? state.legendGradient
+            : derived?.gradient;
+        const range = (Array.isArray(state.legendRange) && state.legendRange.length === 2)
+            ? state.legendRange
+            : derived?.range;
+        if (!colors || colors.length < 2 || !range) return null;
+        return { colors, range };
     }
 
     /**
@@ -1347,6 +1376,10 @@ export class MapManager {
         heading.textContent = state.displayName;
         item.appendChild(heading);
 
+        const continuousVector = state.legendType === 'continuous'
+            ? this._continuousVectorLegend(state)
+            : null;
+
         if (state.legendType === 'categorical' && state.legendClasses?.length) {
             for (const cls of state.legendClasses) {
                 const row = document.createElement('div');
@@ -1357,6 +1390,27 @@ export class MapManager {
                 row.appendChild(document.createTextNode(cls.name || `Class ${cls.value}`));
                 item.appendChild(row);
             }
+        } else if (continuousVector) {
+            // Continuous vector (graduated choropleth): build the gradient from
+            // the layer's own color stops — no TiTiler colormap/rescale (#258).
+            const safe = continuousVector.colors.map(c => this._safeColorHint(c)).filter(Boolean);
+            const gradient = safe.length >= 2
+                ? `linear-gradient(to right, ${safe.join(', ')})`
+                : 'linear-gradient(to right, #eee, #333)';
+            const [minVal, maxVal] = continuousVector.range;
+            const unit = state.legendLabel ? ` ${state.legendLabel}` : '';
+            const bar = document.createElement('div');
+            bar.className = 'legend-colorbar';
+            bar.style.background = gradient;
+            const labels = document.createElement('div');
+            labels.className = 'legend-labels';
+            for (const v of [minVal, maxVal]) {
+                const span = document.createElement('span');
+                span.textContent = `${v}${unit}`;
+                labels.appendChild(span);
+            }
+            item.appendChild(bar);
+            item.appendChild(labels);
         } else {
             const gradient = await this._getColormapGradient(state.colormap || 'reds');
             const [minVal, maxVal] = (state.rescale || '0,1').split(',');

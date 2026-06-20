@@ -77,8 +77,31 @@ Each entry in `assets` may be a **bare string** (the STAC asset key, loaded with
 | `default_filter` | array | MapLibre filter expression applied at load time. |
 | `tooltip_fields` | array | Feature property names shown in the hover tooltip. |
 | `group` | string | Overrides the collection-level `group` for this specific layer. |
-| `legend_type` | string | `"categorical"` to show a discrete swatch legend (see `legend_classes`). |
+| `legend_type` | string | `"categorical"` for a discrete swatch legend (see `legend_classes`), or `"continuous"` for a graduated colorbar (see below). |
 | `legend_classes` | array | `{ label, color }` entries describing the discrete legend swatches. Required when `legend_type` is `"categorical"` on a vector layer — vectors have no STAC `classification:classes` to derive from. |
+| `legend_label` | string | Unit/axis label shown next to the colorbar end values (e.g. `"species"`). Applies to `"continuous"` legends. |
+| `legend_range` | `[min, max]` | Override the colorbar's value-axis labels. Optional — derived from the `default_style` color stops when omitted. |
+| `legend_gradient` | array | Override the colorbar colors, low→high (e.g. `["#edf8e9", "#005a32"]`). Optional — derived from the `default_style` color stops when omitted. |
+
+### Continuous (graduated) vector legends
+
+A vector layer styled with a graduated `default_style` — an `interpolate` or `step` color expression — can show the same colorbar a raster does. Set `legend_type: "continuous"`; the colorbar's gradient and value range are **derived automatically from the `default_style` color stops**, so no extra config is required:
+
+```json
+{
+  "id": "ace-amphibian-richness-pmtiles",
+  "display_name": "ACE Amphibian Richness",
+  "legend_type": "continuous",
+  "legend_label": "species",
+  "default_style": {
+    "fill-color": ["interpolate", ["linear"], ["get", "species"],
+      0, "#edf8e9", 242, "#005a32"],
+    "fill-opacity": 0.7
+  }
+}
+```
+
+Use `legend_range` and/or `legend_gradient` only to override the derived values (e.g. when the paint expression doesn't cleanly map to the labels you want, or the color stops aren't plain hex). If neither config nor a parseable color expression is present, the layer shows no legend.
 
 ## Asset config — raster (COG)
 
