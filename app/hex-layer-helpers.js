@@ -83,6 +83,46 @@ export function buildFillColorExpression(valueColumn, valueStats, palette) {
 }
 
 /**
+ * Rewrite the `["get", <prop>]` value references in a MapLibre expression to
+ * target a hex layer's actual value column.
+ *
+ * The agent constructs `set_style` paint expressions without a reliable signal
+ * of a dynamic hex layer's value column, so it defaults to `["get", "count"]`
+ * (only correct for `agg="COUNT"` tilesets). On a layer whose property is e.g.
+ * `species_richness`, that `get` resolves to null on every feature and the ramp
+ * yields no color — a silent no-op (see issue #259). This pure walker repoints
+ * any value-bearing `get` to `valueColumn` so the recolor takes effect.
+ *
+ * `res` is left untouched: it's the per-feature resolution key the per-res
+ * `match` branches on (see {@link buildFillColorExpression}), not a value.
+ *
+ * @param {*} expr - A MapLibre paint value (expression array, literal, etc.).
+ * @param {string} valueColumn - The layer's real value property.
+ * @returns {{ value: *, replaced: string[] }} The rewritten value and the
+ *   distinct original property names that were repointed (empty if none).
+ */
+export function rewriteValueColumn(expr, valueColumn) {
+    const replaced = new Set();
+
+    const walk = (node) => {
+        if (!Array.isArray(node)) return node;
+        // ["get", "<prop>"] — the only form we repoint. Longer get forms
+        // (e.g. ["get", key, obj]) and other operators recurse normally.
+        if (node.length === 2 && node[0] === 'get' && typeof node[1] === 'string') {
+            const prop = node[1];
+            if (prop !== valueColumn && prop !== 'res') {
+                replaced.add(prop);
+                return ['get', valueColumn];
+            }
+            return node;
+        }
+        return node.map(walk);
+    };
+
+    return { value: walk(expr), replaced: [...replaced] };
+}
+
+/**
  * Build a *flat* `fill-color` expression for a single-resolution hex layer.
  *
  * GeoJSON hex tilesets (server `format: "geojson"`) are materialized at one H3

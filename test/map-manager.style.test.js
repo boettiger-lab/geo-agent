@@ -59,3 +59,54 @@ describe('MapManager.setStyle', () => {
         expect(r.error).toMatch(/Unknown layer/);
     });
 });
+
+describe('MapManager.setStyle — hex value-column rewrite (#259)', () => {
+    function createHexManager(valueColumn) {
+        const applied = {};
+        const map = {
+            getLayer: () => ({ id: 'hex-layer', type: 'fill' }),
+            setPaintProperty(id, prop, value) { applied[prop] = value; },
+        };
+        const mm = Object.create(MapManager.prototype);
+        mm.map = map;
+        mm.layers = new Map([[
+            'hex-abc',
+            { mapLayerId: 'hex-layer', displayName: 'Richness', valueColumn },
+        ]]);
+        return { mm, applied };
+    }
+
+    it('repoints a guessed ["get","count"] to the layer value column and applies the corrected paint', () => {
+        const { mm, applied } = createHexManager('species_richness');
+        const r = mm.setStyle('hex-abc', {
+            'fill-color': ['interpolate', ['log'], ['get', 'count'], 1, '#440154', 125, '#FDE725'],
+            'fill-opacity': 0.7,
+        });
+        expect(r.success).toBe(true);
+        expect(applied['fill-color']).toEqual(
+            ['interpolate', ['log'], ['get', 'species_richness'], 1, '#440154', 125, '#FDE725']);
+        expect(r.note).toMatch(/"count".*"species_richness"/);
+    });
+
+    it('leaves an already-correct expression unchanged and emits no note', () => {
+        const { mm, applied } = createHexManager('species_richness');
+        const r = mm.setStyle('hex-abc', {
+            'fill-color': ['interpolate', ['linear'], ['get', 'species_richness'], 0, '#000', 10, '#fff'],
+        });
+        expect(r.success).toBe(true);
+        expect(applied['fill-color']).toEqual(
+            ['interpolate', ['linear'], ['get', 'species_richness'], 0, '#000', 10, '#fff']);
+        expect(r.note).toBeUndefined();
+    });
+
+    it('does not rewrite for non-hex layers (no valueColumn in state)', () => {
+        const { mm, applied } = createHexManager(undefined);
+        const r = mm.setStyle('hex-abc', {
+            'fill-color': ['interpolate', ['linear'], ['get', 'count'], 0, '#000', 10, '#fff'],
+        });
+        expect(r.success).toBe(true);
+        expect(applied['fill-color']).toEqual(
+            ['interpolate', ['linear'], ['get', 'count'], 0, '#000', 10, '#fff']);
+        expect(r.note).toBeUndefined();
+    });
+});
