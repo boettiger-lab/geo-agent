@@ -232,15 +232,15 @@ describe('Agent._samplingParams', () => {
     const makeAgentWithConfig = (config) =>
         new Agent({ llm_models: [{ value: 'm', endpoint: 'https://x/v1', api_key: 'k' }], ...config }, stubToolRegistry);
 
-    it('omits all sampling params when nothing is configured', () => {
+    it('defaults temperature to 0 (and omits top_p/seed) when nothing is configured', () => {
         const agent = makeAgentWithConfig({});
-        expect(agent._samplingParams({})).toEqual({});
+        expect(agent._samplingParams({})).toEqual({ temperature: 0 });
     });
 
     it('reads temperature/top_p/seed from the per-model config', () => {
         const agent = makeAgentWithConfig({});
-        expect(agent._samplingParams({ temperature: 0, top_p: 0.9, seed: 42 }))
-            .toEqual({ temperature: 0, top_p: 0.9, seed: 42 });
+        expect(agent._samplingParams({ temperature: 0.5, top_p: 0.9, seed: 42 }))
+            .toEqual({ temperature: 0.5, top_p: 0.9, seed: 42 });
     });
 
     it('falls back to global config when per-model is unset', () => {
@@ -250,17 +250,22 @@ describe('Agent._samplingParams', () => {
 
     it('per-model value overrides the global default', () => {
         const agent = makeAgentWithConfig({ temperature: 0.7 });
-        expect(agent._samplingParams({ temperature: 0 })).toEqual({ temperature: 0 });
+        expect(agent._samplingParams({ temperature: 0.3 })).toEqual({ temperature: 0.3 });
     });
 
     it('keeps temperature: 0 (falsy but valid)', () => {
-        const agent = makeAgentWithConfig({});
+        const agent = makeAgentWithConfig({ temperature: 0.7 });
         expect(agent._samplingParams({ temperature: 0 })).toEqual({ temperature: 0 });
     });
 
-    it('drops null per-model values and falls back to global', () => {
+    it('per-model null is an explicit opt-out — omits the key past the default', () => {
+        const agent = makeAgentWithConfig({});
+        expect(agent._samplingParams({ temperature: null })).toEqual({});
+    });
+
+    it('per-model null opts out even when a global default exists', () => {
         const agent = makeAgentWithConfig({ temperature: 0.5 });
-        expect(agent._samplingParams({ temperature: null })).toEqual({ temperature: 0.5 });
+        expect(agent._samplingParams({ temperature: null })).toEqual({});
     });
 });
 
@@ -279,11 +284,11 @@ describe('Agent.callLLM sampling payload', () => {
         vi.restoreAllMocks();
     });
 
-    it('sends no temperature when unconfigured (preserves endpoint default)', async () => {
+    it('defaults to temperature: 0 (no top_p/seed) when unconfigured', async () => {
         const agent = makeAgent();
         agent.abortController = new AbortController();
         await agent.callLLM('https://x/v1', { api_key: 'k' }, [], []);
-        expect(captured).not.toHaveProperty('temperature');
+        expect(captured.temperature).toBe(0);
         expect(captured).not.toHaveProperty('top_p');
         expect(captured).not.toHaveProperty('seed');
     });
@@ -291,8 +296,8 @@ describe('Agent.callLLM sampling payload', () => {
     it('includes configured temperature/seed in the outgoing payload', async () => {
         const agent = makeAgent();
         agent.abortController = new AbortController();
-        await agent.callLLM('https://x/v1', { api_key: 'k', temperature: 0, seed: 42 }, [], []);
-        expect(captured.temperature).toBe(0);
+        await agent.callLLM('https://x/v1', { api_key: 'k', temperature: 0.4, seed: 42 }, [], []);
+        expect(captured.temperature).toBe(0.4);
         expect(captured.seed).toBe(42);
     });
 });

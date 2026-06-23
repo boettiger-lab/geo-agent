@@ -421,25 +421,25 @@ The `llm` section controls how the chat agent connects to a language model. Two 
 
 ### Sampling parameters (optional)
 
-By default the agent sends **no** `temperature` (or `top_p`/`seed`), so the LLM endpoint applies its own default — the NRP llm-proxy, for example, defaults to `temperature: 0.7`. That means repeated identical questions can return different answers.
+The agent sends **`temperature: 0` by default**, so identical questions give as reproducible an answer as the model allows. This is a deliberate client-side default: geo-agent talks to many OpenAI-compatible endpoints (the NRP llm-proxy, OpenRouter, a user's own key) whose own defaults vary (0.7 and up), so reproducibility shouldn't depend on which endpoint is behind it.
 
-To pin sampling for reproducibility, set any of `temperature`, `top_p`, or `seed`. Each is read **per-model first**, then falls back to a **top-level global default**; any value left unset is omitted from the request (so the endpoint default stands). Per-model overrides the global.
+To change sampling, set any of `temperature`, `top_p`, or `seed`. Each is read **per-model first**, then falls back to a **top-level global default**, then to the built-in default (`temperature: 0`; `top_p`/`seed` unset). Per-model overrides the global.
 
 ```json
 {
   "temperature": 0,
   "llm_models": [
     { "value": "minimax-m2", "endpoint": "…", "api_key": "…" },
-    { "value": "deepseek-v3", "endpoint": "…", "api_key": "…", "temperature": 0.2, "seed": 42 }
+    { "value": "deepseek-v3", "endpoint": "…", "api_key": "…", "temperature": 0.7, "seed": 42 }
   ]
 }
 ```
 
-| Field | Where | Description |
-|---|---|---|
-| `temperature` | per-model and/or top-level | Sampling temperature. Set `0` for the most deterministic output (factual/analyst deployments). |
-| `top_p` | per-model and/or top-level | Nucleus-sampling cutoff. |
-| `seed` | per-model and/or top-level | Fixed RNG seed, where the provider honors it. |
+| Field | Where | Default | Description |
+|---|---|---|---|
+| `temperature` | per-model and/or top-level | `0` | Sampling temperature. `0` is the most deterministic; raise it for more varied/creative output. Set to `null` on a model to omit it entirely and inherit the endpoint's own default. |
+| `top_p` | per-model and/or top-level | unset | Nucleus-sampling cutoff. |
+| `seed` | per-model and/or top-level | unset | Fixed RNG seed, where the provider honors it. |
 
 > **Reproducibility caveat:** open-weights MoE inference (e.g. minimax-m2) is not bit-reproducible even at `temperature: 0`, so this is necessary-but-not-sufficient — pair it with a pinned methodology for headline numbers.
 

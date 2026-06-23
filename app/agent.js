@@ -343,18 +343,27 @@ export class Agent {
     }
 
     /**
-     * Resolve optional sampling params (temperature, top_p, seed) for the
-     * outgoing chat-completion payload. Each is read per-model first, then
-     * falls back to a global config default. Any param left unset is omitted
-     * entirely so the endpoint keeps applying its own default (non-breaking).
+     * Resolve sampling params (temperature, top_p, seed) for the outgoing
+     * chat-completion payload. Each is read per-model first, then falls back
+     * to a global config default. Per-model `null` opts back out of a value
+     * (omits the key) even when a global default exists.
      *
-     * Pinning temperature: 0 (and a fixed seed where the provider honors it)
-     * is how factual/analyst deployments get reproducible answers.
+     * `temperature` additionally defaults to 0 when nothing is configured:
+     * factual/analyst use is the common case, and geo-agent talks to many
+     * OpenAI-compatible endpoints (NRP proxy, OpenRouter, user-supplied keys)
+     * whose own defaults vary (0.7 and up) — so we pin a reproducible value
+     * client-side rather than inheriting whatever the endpoint happens to use.
+     * `top_p`/`seed` have no sensible universal default, so they stay omitted.
      */
     _samplingParams(modelConfig) {
+        const defaults = { temperature: 0 };
         const params = {};
         for (const key of ['temperature', 'top_p', 'seed']) {
-            const value = modelConfig?.[key] ?? this.config[key];
+            // Per-model wins; `null` there is an explicit opt-out (skip the key).
+            // Otherwise fall back to global config, then to the built-in default.
+            const value = key in (modelConfig ?? {})
+                ? modelConfig[key]
+                : this.config[key] ?? defaults[key];
             if (value !== undefined && value !== null) params[key] = value;
         }
         return params;
