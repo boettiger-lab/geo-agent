@@ -343,6 +343,33 @@ export class Agent {
     }
 
     /**
+     * Resolve sampling params (temperature, top_p, seed) for the outgoing
+     * chat-completion payload. Each is read per-model first, then falls back
+     * to a global config default. Per-model `null` opts back out of a value
+     * (omits the key) even when a global default exists.
+     *
+     * `temperature` additionally defaults to 0 when nothing is configured:
+     * factual/analyst use is the common case, and geo-agent talks to many
+     * OpenAI-compatible endpoints (NRP proxy, OpenRouter, user-supplied keys)
+     * whose own defaults vary (0.7 and up) — so we pin a reproducible value
+     * client-side rather than inheriting whatever the endpoint happens to use.
+     * `top_p`/`seed` have no sensible universal default, so they stay omitted.
+     */
+    _samplingParams(modelConfig) {
+        const defaults = { temperature: 0 };
+        const params = {};
+        for (const key of ['temperature', 'top_p', 'seed']) {
+            // Per-model wins; `null` there is an explicit opt-out (skip the key).
+            // Otherwise fall back to global config, then to the built-in default.
+            const value = key in (modelConfig ?? {})
+                ? modelConfig[key]
+                : this.config[key] ?? defaults[key];
+            if (value !== undefined && value !== null) params[key] = value;
+        }
+        return params;
+    }
+
+    /**
      * Call the LLM API, with one auto-retry on transient errors (gateway 5xx,
      * network blips, client-side timeout). The retry uses a tight 90s timeout
      * so a still-dead model fails fast instead of burning another 5 minutes.
@@ -354,6 +381,7 @@ export class Agent {
             tools: tools.length > 0 ? tools : undefined,
             tool_choice: tools.length > 0 ? 'auto' : 'none',
             user: this.sessionId,
+            ...this._samplingParams(modelConfig),
         };
 
         try {
