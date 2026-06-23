@@ -419,6 +419,30 @@ The `llm` section controls how the chat agent connects to a language model. Two 
 | `default_endpoint` | Pre-filled endpoint URL shown in the settings panel. [OpenRouter](https://openrouter.ai) gives access to many models via one key. |
 | `models` | Array of `{ "value": "<model-id>", "label": "<display name>" }` entries in the model selector. |
 
+### Sampling parameters (optional)
+
+The agent sends **`temperature: 0` by default**, so identical questions give as reproducible an answer as the model allows. This is a deliberate client-side default: geo-agent talks to many OpenAI-compatible endpoints (the NRP llm-proxy, OpenRouter, a user's own key) whose own defaults vary (0.7 and up), so reproducibility shouldn't depend on which endpoint is behind it.
+
+To change sampling, set any of `temperature`, `top_p`, or `seed`. Each is read **per-model first**, then falls back to a **top-level global default**, then to the built-in default (`temperature: 0`; `top_p`/`seed` unset). Per-model overrides the global.
+
+```json
+{
+  "temperature": 0,
+  "llm_models": [
+    { "value": "minimax-m2", "endpoint": "…", "api_key": "…" },
+    { "value": "deepseek-v3", "endpoint": "…", "api_key": "…", "temperature": 0.7, "seed": 42 }
+  ]
+}
+```
+
+| Field | Where | Default | Description |
+|---|---|---|---|
+| `temperature` | per-model and/or top-level | `0` | Sampling temperature. `0` is the most deterministic; raise it for more varied/creative output. Set to `null` on a model to omit it entirely and inherit the endpoint's own default. |
+| `top_p` | per-model and/or top-level | unset | Nucleus-sampling cutoff. |
+| `seed` | per-model and/or top-level | unset | Fixed RNG seed, where the provider honors it. |
+
+> **Reproducibility caveat:** open-weights MoE inference (e.g. minimax-m2) is not bit-reproducible even at `temperature: 0`, so this is necessary-but-not-sufficient — pair it with a pinned methodology for headline numbers.
+
 ## Voice input (optional)
 
 Voice input is opt-in via a `transcription_model` entry in `config.json`. When present, a 🎤 button appears in the chat footer; when absent, the button stays hidden and the voice/transcription JS modules are never loaded (zero footprint).
