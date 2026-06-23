@@ -57,12 +57,24 @@ async function main() {
     /* ── 1b. Build UI chrome (layout-manager owns floating vs sidebar) ─── */
     const layoutRefs = buildLayout(appConfig);
 
-    /* ── 2. Build dataset catalog from STAC ────────────────────────────── */
-    const catalog = new DatasetCatalog();
-    await catalog.load(appConfig);
-    console.log(`[main] Catalog loaded: ${catalog.datasets.size} collections`);
+    /* ── 1c. Kick off independent network I/O so it overlaps ──────────────
+     * MCP cold-start, the STAC catalog walk, the map style, and the static
+     * system-prompt fetch are mutually independent. Fire the slow ones now and
+     * await them together below, instead of serializing each round trip. */
+    const mcpUrl = appConfig.mcp_url || 'https://duckdb-mcp.nrp-nautilus.io/mcp';
+    const mcpHeaders = {};
+    if (appConfig.mcp_auth_token) {
+        mcpHeaders['Authorization'] = `Bearer ${appConfig.mcp_auth_token}`;
+    }
+    console.log('[main] MCP URL:', mcpUrl, 'auth token present:', !!appConfig.mcp_auth_token);
+    const mcp = new MCPClient(mcpUrl, mcpHeaders);
+    // Connect eagerly but don't block boot — overlaps catalog + map load below.
+    mcp.connect().catch(err => console.warn('[main] Initial MCP connect failed (will retry):', err.message));
+    // Static system-prompt fetch (awaited at step 6) — independent of everything.
+    const basePromptP = fetchText('system-prompt.md');
 
-    /* ── 3. Initialise map ────────────────────────────────────────────── */
+    /* ── 2+3. Build dataset catalog + map, loaded in parallel ──────────── */
+    const catalog = new DatasetCatalog();
     const mapManager = new MapManager('map', {
         center: appConfig.view?.center || [-119.4, 36.8],
         zoom: appConfig.view?.zoom || 6,
@@ -74,7 +86,10 @@ async function main() {
         defaultBasemap: appConfig.default_basemap || 'natgeo',
         customBasemap: appConfig.custom_basemap || null,
     });
-    await mapManager.ready;                        // wait for style to load
+    // STAC walk and map-style load run concurrently (the MapManager constructor
+    // already kicked off the style fetch); wait for both before wiring layers.
+    await Promise.all([catalog.load(appConfig), mapManager.ready]);
+    console.log(`[main] Catalog loaded: ${catalog.datasets.size} collections`);
     // Sidebar resize: reflow the MapLibre canvas during drag (rAF-gated by
     // layout-manager) and one final time on drag-end / window-resize.
     sidebarHooks.onResizeTick = () => mapManager.map.resize();
@@ -170,17 +185,6 @@ async function main() {
             console.warn('[main] Failed to add geolocate control:', err.message);
         }
     }
-
-    /* ── 4. Set up MCP client ─────────────────────────────────────────── */
-    const mcpUrl = appConfig.mcp_url || 'https://duckdb-mcp.nrp-nautilus.io/mcp';
-    const mcpHeaders = {};
-    if (appConfig.mcp_auth_token) {
-        mcpHeaders['Authorization'] = `Bearer ${appConfig.mcp_auth_token}`;
-    }
-    console.log('[main] MCP URL:', mcpUrl, 'auth token present:', !!appConfig.mcp_auth_token);
-    const mcp = new MCPClient(mcpUrl, mcpHeaders);
-    // Connect eagerly but don't block boot
-    mcp.connect().catch(err => console.warn('[main] Initial MCP connect failed (will retry):', err.message));
 
     /* ── 5. Build tool registry ───────────────────────────────────────── */
     const toolRegistry = new ToolRegistry();
@@ -285,11 +289,15 @@ async function main() {
         let lastErr;
         for (let i = 0; i < attempts; i++) {
             try {
-                return await mcp.listTools();
+                // connect() dedupes with the eager connect fired at boot and
+                // caches the tool list internally, so getTools() avoids the
+                // extra listTools() round trip the old path incurred.
+                await mcp.connect();
+                return mcp.getTools();
             } catch (err) {
                 lastErr = err;
                 const delay = Math.min(2000 * Math.pow(2, i), 8000);
-                console.warn(`[main] listTools attempt ${i + 1}/${attempts} failed: ${err.message}`);
+                console.warn(`[main] MCP connect attempt ${i + 1}/${attempts} failed: ${err.message}`);
                 if (i < attempts - 1) await new Promise(r => setTimeout(r, delay));
             }
         }
@@ -327,7 +335,7 @@ async function main() {
     }
 
     /* ── 6. Build system prompt ────────────────────────────────────────── */
-    const basePrompt = await fetchText('system-prompt.md');
+    const basePrompt = await basePromptP;   // fetch was kicked off at step 1c
     const catalogText = catalog.generatePromptCatalog();
     let systemPrompt = basePrompt + '\n\n' + catalogText;
 
