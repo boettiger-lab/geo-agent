@@ -419,6 +419,30 @@ The `llm` section controls how the chat agent connects to a language model. Two 
 | `default_endpoint` | Pre-filled endpoint URL shown in the settings panel. [OpenRouter](https://openrouter.ai) gives access to many models via one key. |
 | `models` | Array of `{ "value": "<model-id>", "label": "<display name>" }` entries in the model selector. |
 
+### Sampling parameters (optional)
+
+By default the agent sends **no** `temperature` (or `top_p`/`seed`), so the LLM endpoint applies its own default — the NRP llm-proxy, for example, defaults to `temperature: 0.7`. That means repeated identical questions can return different answers.
+
+To pin sampling for reproducibility, set any of `temperature`, `top_p`, or `seed`. Each is read **per-model first**, then falls back to a **top-level global default**; any value left unset is omitted from the request (so the endpoint default stands). Per-model overrides the global.
+
+```json
+{
+  "temperature": 0,
+  "llm_models": [
+    { "value": "minimax-m2", "endpoint": "…", "api_key": "…" },
+    { "value": "deepseek-v3", "endpoint": "…", "api_key": "…", "temperature": 0.2, "seed": 42 }
+  ]
+}
+```
+
+| Field | Where | Description |
+|---|---|---|
+| `temperature` | per-model and/or top-level | Sampling temperature. Set `0` for the most deterministic output (factual/analyst deployments). |
+| `top_p` | per-model and/or top-level | Nucleus-sampling cutoff. |
+| `seed` | per-model and/or top-level | Fixed RNG seed, where the provider honors it. |
+
+> **Reproducibility caveat:** open-weights MoE inference (e.g. minimax-m2) is not bit-reproducible even at `temperature: 0`, so this is necessary-but-not-sufficient — pair it with a pinned methodology for headline numbers.
+
 ## Voice input (optional)
 
 Voice input is opt-in via a `transcription_model` entry in `config.json`. When present, a 🎤 button appears in the chat footer; when absent, the button stays hidden and the voice/transcription JS modules are never loaded (zero footprint).

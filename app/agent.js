@@ -343,6 +343,24 @@ export class Agent {
     }
 
     /**
+     * Resolve optional sampling params (temperature, top_p, seed) for the
+     * outgoing chat-completion payload. Each is read per-model first, then
+     * falls back to a global config default. Any param left unset is omitted
+     * entirely so the endpoint keeps applying its own default (non-breaking).
+     *
+     * Pinning temperature: 0 (and a fixed seed where the provider honors it)
+     * is how factual/analyst deployments get reproducible answers.
+     */
+    _samplingParams(modelConfig) {
+        const params = {};
+        for (const key of ['temperature', 'top_p', 'seed']) {
+            const value = modelConfig?.[key] ?? this.config[key];
+            if (value !== undefined && value !== null) params[key] = value;
+        }
+        return params;
+    }
+
+    /**
      * Call the LLM API, with one auto-retry on transient errors (gateway 5xx,
      * network blips, client-side timeout). The retry uses a tight 90s timeout
      * so a still-dead model fails fast instead of burning another 5 minutes.
@@ -354,6 +372,7 @@ export class Agent {
             tools: tools.length > 0 ? tools : undefined,
             tool_choice: tools.length > 0 ? 'auto' : 'none',
             user: this.sessionId,
+            ...this._samplingParams(modelConfig),
         };
 
         try {

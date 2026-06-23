@@ -227,3 +227,72 @@ describe('Agent.callLLM retry orchestration', () => {
         expect(onRetry).toHaveBeenCalledOnce();
     });
 });
+
+describe('Agent._samplingParams', () => {
+    const makeAgentWithConfig = (config) =>
+        new Agent({ llm_models: [{ value: 'm', endpoint: 'https://x/v1', api_key: 'k' }], ...config }, stubToolRegistry);
+
+    it('omits all sampling params when nothing is configured', () => {
+        const agent = makeAgentWithConfig({});
+        expect(agent._samplingParams({})).toEqual({});
+    });
+
+    it('reads temperature/top_p/seed from the per-model config', () => {
+        const agent = makeAgentWithConfig({});
+        expect(agent._samplingParams({ temperature: 0, top_p: 0.9, seed: 42 }))
+            .toEqual({ temperature: 0, top_p: 0.9, seed: 42 });
+    });
+
+    it('falls back to global config when per-model is unset', () => {
+        const agent = makeAgentWithConfig({ temperature: 0.2, seed: 7 });
+        expect(agent._samplingParams({})).toEqual({ temperature: 0.2, seed: 7 });
+    });
+
+    it('per-model value overrides the global default', () => {
+        const agent = makeAgentWithConfig({ temperature: 0.7 });
+        expect(agent._samplingParams({ temperature: 0 })).toEqual({ temperature: 0 });
+    });
+
+    it('keeps temperature: 0 (falsy but valid)', () => {
+        const agent = makeAgentWithConfig({});
+        expect(agent._samplingParams({ temperature: 0 })).toEqual({ temperature: 0 });
+    });
+
+    it('drops null per-model values and falls back to global', () => {
+        const agent = makeAgentWithConfig({ temperature: 0.5 });
+        expect(agent._samplingParams({ temperature: null })).toEqual({ temperature: 0.5 });
+    });
+});
+
+describe('Agent.callLLM sampling payload', () => {
+    let captured;
+
+    beforeEach(() => {
+        captured = null;
+        global.fetch = vi.fn(async (url, opts) => {
+            captured = JSON.parse(opts.body);
+            return okResponse('ok');
+        });
+    });
+
+    afterEach(() => {
+        vi.restoreAllMocks();
+    });
+
+    it('sends no temperature when unconfigured (preserves endpoint default)', async () => {
+        const agent = makeAgent();
+        agent.abortController = new AbortController();
+        await agent.callLLM('https://x/v1', { api_key: 'k' }, [], []);
+        expect(captured).not.toHaveProperty('temperature');
+        expect(captured).not.toHaveProperty('top_p');
+        expect(captured).not.toHaveProperty('seed');
+    });
+
+    it('includes configured temperature/seed in the outgoing payload', async () => {
+        const agent = makeAgent();
+        agent.abortController = new AbortController();
+        await agent.callLLM('https://x/v1', { api_key: 'k', temperature: 0, seed: 42 }, [], []);
+        expect(captured.temperature).toBe(0);
+        expect(captured.seed).toBe(42);
+    });
+});
