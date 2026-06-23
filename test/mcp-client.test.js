@@ -80,20 +80,25 @@ describe('MCPClient connect', () => {
 });
 
 describe('MCPClient ensureConnected and reconnect', () => {
-    it('listTools health check passes when connection is alive — no reconnect', async () => {
+    it('on a live connection returns immediately — no probe round trip, no reconnect', async () => {
         const c = new MCPClient('https://mcp/');
         await c.connect();
-        const before = clientInstances.length;
+        const clientsBefore = clientInstances.length;
+        const probesBefore = lastClient().listTools.mock.calls.length;
         await c.ensureConnected();
-        expect(clientInstances.length).toBe(before);
+        // No new client (no reconnect) and no extra listTools() health-check call.
+        expect(clientInstances.length).toBe(clientsBefore);
+        expect(lastClient().listTools.mock.calls.length).toBe(probesBefore);
     });
 
-    it('on stale connection (listTools throws), reconnects', async () => {
+    it('reconnects when the connection has been marked down', async () => {
         vi.useFakeTimers();
         try {
             const c = new MCPClient('https://mcp/');
             await c.connect();
-            lastClient().listTools.mockRejectedValueOnce(new Error('stale'));
+            // Simulate callTool catching a connection error and marking the
+            // transport down — ensureConnected should then rebuild it.
+            c.connected = false;
 
             const promise = c.ensureConnected();
             await vi.advanceTimersByTimeAsync(1000);
@@ -233,8 +238,7 @@ describe('MCPClient onReconnect', () => {
             const cb = vi.fn();
             c.setOnReconnect(cb);
 
-            // Health check throws → forces reconnect → fresh client returns 2 tools
-            lastClient().listTools.mockRejectedValueOnce(new Error('stale'));
+            // A reconnect builds a fresh client that lists 2 tools.
             Client.mockImplementationOnce(() => {
                 const instance = buildClientInstance();
                 instance.listTools = vi.fn(async () => ({
@@ -244,7 +248,7 @@ describe('MCPClient onReconnect', () => {
                 return instance;
             });
 
-            const promise = c.ensureConnected();
+            const promise = c.reconnect();
             await vi.advanceTimersByTimeAsync(1000);
             await promise;
 
@@ -269,9 +273,8 @@ describe('MCPClient onReconnect', () => {
             const c = new MCPClient('https://mcp/');
             await c.connect();
             c.setOnReconnect(() => { throw new Error('registry boom'); });
-            lastClient().listTools.mockRejectedValueOnce(new Error('stale'));
 
-            const promise = c.ensureConnected();
+            const promise = c.reconnect();
             await vi.advanceTimersByTimeAsync(1000);
             await expect(promise).resolves.toBeUndefined();
             expect(c.isConnected).toBe(true);

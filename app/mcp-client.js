@@ -86,16 +86,13 @@ export class MCPClient {
      * Called lazily before any operation.
      */
     async ensureConnected() {
-        if (this.connected && this.client) {
-            try {
-                // Lightweight health check
-                await this.client.listTools();
-                return;
-            } catch {
-                console.warn('[MCP] Connection stale, reconnecting...');
-                this.connected = false;
-            }
-        }
+        // Trust the `connected` flag rather than probing with a listTools()
+        // round trip on every operation — that probe added a full request to
+        // each callTool/listPrompts/getPrompt, multiplying boot latency. A
+        // genuinely stale connection is caught by callTool's reconnect-and-retry
+        // branch (the only frequent, long-lived op); boot-time prompt reads run
+        // right after a fresh connect, so they're never stale.
+        if (this.connected && this.client) return;
         await this.reconnect();
     }
 
