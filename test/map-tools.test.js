@@ -282,10 +282,21 @@ describe('set_tooltip / reset_tooltip', () => {
         expect(mapManager.resetTooltip).toHaveBeenCalledWith('parcels');
     });
 
-    it('set_tooltip description lists vector layers only', () => {
+    it('tool descriptions do NOT embed the layer list (#225)', () => {
+        // The live roster is injected once via the system-prompt catalog, not
+        // re-embedded per tool. Descriptions must not name any layer.
+        for (const name of ['set_tooltip', 'show_layer', 'set_filter', 'set_style', 'filter_by_query']) {
+            const { tool } = getTool(name);
+            if (!tool) continue;
+            expect(tool.description, name).not.toMatch(/Parcels/);
+            expect(tool.description, name).not.toMatch(/Irrecoverable Carbon/);
+            expect(tool.description, name).not.toMatch(/Available layers:|Vector layers:/);
+        }
+    });
+
+    it('disambiguation nudge stays on layer-targeting tools', () => {
         const { tool } = getTool('set_tooltip');
-        expect(tool.description).toMatch(/Parcels/);
-        expect(tool.description).not.toMatch(/Irrecoverable Carbon/);
+        expect(tool.description).toMatch(/displayName semantic match/);
     });
 });
 
