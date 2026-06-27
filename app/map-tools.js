@@ -62,11 +62,12 @@ export function getCurrentPositionAsync(options = { enableHighAccuracy: true, ti
  * @returns {Array<Object>} Tool definitions
  */
 export function createMapTools(mapManager, catalog, mcpClient, geocoder, options = {}) {
-    const allLayers = () => mapManager.getLayerSummaries();
-    const vectorLayers = () => mapManager.getLayerSummaries().filter(l => l.type === 'vector');
-
-    const formatLayerList = (layers) => layers.map(l => `- \`${l.id}\` — ${l.displayName}`).join('\n');
-
+    // The live layer roster is injected once into the system prompt via
+    // DatasetCatalog.generatePromptCatalog() (richer: id + title + type +
+    // versions + default filters). Tool descriptions deliberately do NOT
+    // re-embed it — that was N copies of a strict subset of the same list,
+    // frozen at boot and redundant with the catalog (#225). pickLayerNudge
+    // stays per-tool: it's the disambiguation rule, not the list.
     const pickLayerNudge = 'Pick the layer by displayName semantic match, not by ID suffix. When several layers could plausibly match the user\'s intent (e.g. "districts" could mean congressional, state senate, or state house), choose on displayName — the ID suffix is not a reliable disambiguator.';
 
     return [
@@ -75,10 +76,7 @@ export function createMapTools(mapManager, catalog, mcpClient, geocoder, options
             name: 'show_layer',
             description: `Show/display a layer on the map. Use when the user asks to "show", "display", or "visualize" a layer.
 
-${pickLayerNudge}
-
-Available layers:
-${formatLayerList(allLayers())}`,
+${pickLayerNudge}`,
             inputSchema: {
                 type: 'object',
                 properties: {
@@ -95,10 +93,7 @@ ${formatLayerList(allLayers())}`,
 
         {
             name: 'hide_layer',
-            description: `Hide/remove a layer from the map. Use when the user asks to "hide", "remove", or "turn off" a layer.
-
-Available layers:
-${formatLayerList(allLayers())}`,
+            description: `Hide/remove a layer from the map. Use when the user asks to "hide", "remove", or "turn off" a layer.`,
             inputSchema: {
                 type: 'object',
                 properties: {
@@ -129,10 +124,7 @@ Filter syntax (use MapLibre expressions — NOT legacy filter arrays):
 
 IMPORTANT: Do NOT use the legacy ["in", "property", val1, val2] form — it is silently ignored in current MapLibre. Always use ["match", ["get", "property"], [...values], true, false] for list membership.
 
-${pickLayerNudge}
-
-Vector layers:
-${formatLayerList(vectorLayers())}`,
+${pickLayerNudge}`,
             inputSchema: {
                 type: 'object',
                 properties: {
@@ -156,10 +148,7 @@ ${formatLayerList(vectorLayers())}`,
             name: 'clear_filter',
             description: `Remove ALL filters from a layer, showing every feature regardless of properties. Use when the user wants to see everything (e.g. "show all GAP codes", "remove filter", "show everything").
 
-Note: some layers have a config default filter applied at startup. This tool removes that too. Use reset_filter instead if you want to restore the default.
-
-Vector layers:
-${formatLayerList(vectorLayers())}`,
+Note: some layers have a config default filter applied at startup. This tool removes that too. Use reset_filter instead if you want to restore the default.`,
             inputSchema: {
                 type: 'object',
                 properties: {
@@ -172,10 +161,7 @@ ${formatLayerList(vectorLayers())}`,
 
         {
             name: 'reset_filter',
-            description: `Reset a layer's filter to its config default (the filter it had when the app loaded). If the layer had no default filter, this clears all filters. Use when the user asks to "reset to default", "restore original view", or "go back to how it was".
-
-Vector layers:
-${formatLayerList(vectorLayers())}`,
+            description: `Reset a layer's filter to its config default (the filter it had when the app loaded). If the layer had no default filter, this clears all filters. Use when the user asks to "reset to default", "restore original view", or "go back to how it was".`,
             inputSchema: {
                 type: 'object',
                 properties: {
@@ -194,10 +180,7 @@ Use when the user asks to "show X on hover", "include Y in the tooltip", or "sto
 
 Property names must exactly match the feature properties in the vector tiles. Call get_schema first if you need to see available property names — the agent's catalog may list them, but get_schema returns the live set. Unknown names render nothing (no error).
 
-${pickLayerNudge}
-
-Vector layers:
-${formatLayerList(vectorLayers())}`,
+${pickLayerNudge}`,
             inputSchema: {
                 type: 'object',
                 properties: {
@@ -215,10 +198,7 @@ ${formatLayerList(vectorLayers())}`,
 
         {
             name: 'reset_tooltip',
-            description: `Reset a layer's tooltip fields to its config default (the fields it had when the app loaded). If the layer had no default tooltip, this disables the tooltip. Use when the user asks to "reset the tooltip", "restore the default hover", or "go back to how it was".
-
-Vector layers:
-${formatLayerList(vectorLayers())}`,
+            description: `Reset a layer's tooltip fields to its config default (the fields it had when the app loaded). If the layer had no default tooltip, this disables the tooltip. Use when the user asks to "reset the tooltip", "restore the default hover", or "go back to how it was".`,
             inputSchema: {
                 type: 'object',
                 properties: {
@@ -249,10 +229,7 @@ Examples:
 
 For dynamic hex layers (\`hex-…\` ids from add_hex_tile_layer), \`PROP\` is the layer's value column (the \`value_column\` you passed to add_hex_tile_layer, e.g. "species_richness") — NOT "count" unless that is literally the column. If unsure, call get_map_state to read the layer's \`valueColumn\`.
 
-${pickLayerNudge}
-
-Available layers:
-${formatLayerList(allLayers())}`,
+${pickLayerNudge}`,
             inputSchema: {
                 type: 'object',
                 properties: {
@@ -266,10 +243,7 @@ ${formatLayerList(allLayers())}`,
 
         {
             name: 'reset_style',
-            description: `Reset a layer's style to its default appearance.
-
-Available layers:
-${formatLayerList(allLayers())}`,
+            description: `Reset a layer's style to its default appearance.`,
             inputSchema: {
                 type: 'object',
                 properties: {
@@ -500,10 +474,7 @@ Parameters:
 
 IMPORTANT: The sql must return only the id column — no extra columns. Write it as a plain SELECT, not wrapped in array_agg.
 
-${pickLayerNudge}
-
-Vector layers:
-${formatLayerList(vectorLayers())}`,
+${pickLayerNudge}`,
             inputSchema: {
                 type: 'object',
                 properties: {
