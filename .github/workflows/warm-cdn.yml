@@ -1,0 +1,86 @@
+# Warm + verify jsDelivr immediately after a release is tagged (#269).
+#
+# Why: jsDelivr resolves `gh/<owner>/<repo>@<tag>` by listing the repo's tags
+# from GitHub. For a brand-new tag, if the first request lands before jsDelivr
+# has refreshed that listing it returns 502 ("Failed to fetch version info")
+# and *caches the failure* for hours-to-days — which broke the whole fleet on
+# the v3.16.0 rollout (2026-06-24). The reliable fix is to request an asset URL
+# at the new tag right after publish, which prompts jsDelivr to ingest the tag.
+#
+# The 502 is a per-*tag* version-metadata failure, not per-file: once any one
+# asset under the tag resolves 200, the version is ingested and every other
+# file under that tag (incl. the modules main.js dynamically imports) resolves
+# too. We warm the four files the browser fetches first so the gate matches
+# what a real first deploy hits.
+#
+# This both WARMS the tag and GATES it: if jsDelivr can't serve the release,
+# this job goes red so we find out before geo-agent-ops bumps any app pin.
+
+name: Warm CDN
+
+on:
+  release:
+    types: [published]
+  # Manual trigger to (re-)warm or rescue a specific tag — e.g. one that already
+  # wedged, or a tag pushed before this workflow existed.
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to warm (e.g. v3.17.0)'
+        required: true
+        type: string
+
+concurrency:
+  group: warm-cdn-${{ github.event.release.tag_name || inputs.tag }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  warm:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Warm + verify jsDelivr
+        env:
+          TAG: ${{ github.event.release.tag_name || inputs.tag }}
+          REPO: boettiger-lab/geo-agent
+        run: |
+          set -uo pipefail
+          if [ -z "${TAG:-}" ]; then
+            echo "::error::No tag to warm (release tag_name and inputs.tag both empty)"
+            exit 1
+          fi
+          echo "Warming jsDelivr for $REPO@$TAG"
+
+          files="app/main.js app/style.css app/chat.css app/sidebar.css"
+          fail=0
+          for f in $files; do
+            url="https://cdn.jsdelivr.net/gh/${REPO}@${TAG}/$f"
+            code=000
+            for i in $(seq 1 20); do
+              code=$(curl -s -o /dev/null -w '%{http_code}' "$url")
+              echo "[$f] attempt $i -> $code"
+              [ "$code" = "200" ] && break
+              # Nudge a metadata refresh, then back off and retry.
+              curl -s -o /dev/null "https://purge.jsdelivr.net/gh/${REPO}@${TAG}/$f" || true
+              sleep 15
+            done
+            if [ "$code" != "200" ]; then
+              echo "::error::jsDelivr still returns $code for $url after 20 attempts"
+              fail=1
+            fi
+          done
+
+          # Informational: confirm the tag now appears in jsDelivr's version list.
+          echo "jsDelivr version metadata for $REPO:"
+          curl -s "https://data.jsdelivr.com/v1/packages/gh/${REPO}" \
+            | grep -o "\"${TAG#v}\"" | head -1 \
+            && echo "  -> ${TAG} is listed" \
+            || echo "  -> ${TAG} not yet in version list (assets resolving is the gate; this may lag)"
+
+          if [ "$fail" != "0" ]; then
+            echo "::error::CDN warm/verify failed for $TAG — do NOT bump fleet pins to this tag until it serves 200."
+            exit 1
+          fi
+          echo "All assets resolve 200 at $REPO@$TAG — safe to pin."
