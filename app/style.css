@@ -649,6 +649,97 @@ details.layer-group:not([open]) .layer-group-title::before {
     color: #555;
 }
 
+/* ── Chart panels (opt-in charting primitive, #277) ──────────────────────
+   Floating card anchored bottom-right; multiple charts cascade. */
+.chart-panel {
+    position: absolute;
+    z-index: 3;
+    /* Anchor to the bottom-right of the MAP area: offset past the sidebar
+       (--sidebar-width is 0 in floating mode) plus the per-panel cascade, so
+       charts never hide behind a right-docked sidebar. */
+    right: calc(var(--sidebar-width, 0px) + var(--chart-cascade, 12px));
+    bottom: var(--chart-cascade, 12px);
+    width: min(440px, 80vw);
+    height: 320px;
+    /* Drag the bottom-right grip to resize; the chart re-plots to fit. */
+    resize: both;
+    min-width: 260px;
+    min-height: 200px;
+    max-width: 96vw;
+    max-height: 92vh;
+    display: flex;
+    flex-direction: column;
+    background: rgba(255, 255, 255, 0.97);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    border: 1px solid rgba(0, 0, 0, 0.15);
+    border-radius: 8px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+    font-family: 'Open Sans', sans-serif;
+    overflow: hidden;
+}
+
+/* Popped out: a large centered view. right/bottom are released so the
+   transform-centering takes over; the ResizeObserver re-plots to the new box. */
+.chart-panel.chart-panel--popped {
+    right: auto;
+    bottom: auto;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: min(900px, 92vw);
+    height: min(640px, 86vh);
+}
+
+.chart-panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 8px 12px;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.chart-panel-title {
+    flex: 1 1 auto;
+    min-width: 0;
+    font-weight: 600;
+    font-size: 13px;
+    color: #222;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.chart-panel-close,
+.chart-panel-pop {
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    font-size: 14px;
+    line-height: 1;
+    color: #666;
+    padding: 2px 4px;
+    border-radius: 4px;
+}
+
+.chart-panel-header {
+    flex: 0 0 auto;
+}
+
+.chart-panel-close:hover,
+.chart-panel-pop:hover {
+    background: rgba(0, 0, 0, 0.08);
+    color: #000;
+}
+
+.chart-panel-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    padding: 8px 12px 12px;
+    overflow: auto;
+}
+
 /* ── Geocoder search box (maplibre-gl-geocoder) ──────────────────────────
    Frosted-glass surface to match the app's other map controls (#menu,
    .version-select) instead of the library's solid white — light tint +
