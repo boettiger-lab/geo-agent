@@ -368,6 +368,7 @@ export class DatasetCatalog {
                         legendClasses: normalizeLegendClasses(config.legend_classes),
                         legendRange: config.legend_range || null,
                         legendGradient: config.legend_gradient || null,
+                        control: config.control || null,
                         // Versioned metadata
                         versions,
                         defaultVersionIndex: defaultIndex,
@@ -402,6 +403,7 @@ export class DatasetCatalog {
                         legendClasses: normalizeLegendClasses(config.legend_classes),
                         legendRange: config.legend_range || null,
                         legendGradient: config.legend_gradient || null,
+                        control: config.control || null,
                     });
                 } else if (type.includes('geotiff') || type.includes('tiff')) {
                     const band0 = asset['raster:bands']?.[0];
@@ -455,6 +457,7 @@ export class DatasetCatalog {
                         legendRange: config.legend_range || null,
                         legendGradient: config.legend_gradient || null,
                         animation,
+                        control: config.control || null,
                     });
                 }
             }
@@ -792,6 +795,7 @@ export class DatasetCatalog {
                         legendClasses: ml.legendClasses || null,
                         legendRange: ml.legendRange || null,
                         legendGradient: ml.legendGradient || null,
+                        control: ml.control || null,
                         // Versioned metadata
                         versions: versionConfigs,
                         defaultVersionIndex: ml.defaultVersionIndex,
@@ -830,6 +834,7 @@ export class DatasetCatalog {
                         legendRange: ml.legendRange || null,
                         legendGradient: ml.legendGradient || null,
                         animation: ml.animation || null,
+                        control: ml.control || null,
                         tracksUrl: isGeoJson ? ml.url : null,
                     };
                     if (!isGeoJson) layerConfig.sourceLayer = ml.sourceLayer;
