@@ -65,6 +65,35 @@ describe('MCPClient connect', () => {
         expect(clientInstances.length).toBe(1);
     });
 
+    it('never reports connected with an empty tool cache (listTools-race)', async () => {
+        // Regression for the silent MCP-tools-missing boot: connect() must not
+        // flip `connected` until the tool list is cached, or a concurrent
+        // connect() short-circuits and getTools() returns [] (zero remote tools,
+        // no error, no fallback) for the life of the session.
+        let resolveTools;
+        Client.mockImplementationOnce(() => {
+            const instance = buildClientInstance();
+            instance.listTools = vi.fn(() => new Promise(r => { resolveTools = r; }));
+            clientInstances.push(instance);
+            return instance;
+        });
+
+        const c = new MCPClient('https://mcp.example/mcp');
+        const connecting = c.connect();
+        // Let transport.connect() resolve; we are now parked awaiting listTools.
+        await Promise.resolve();
+        await Promise.resolve();
+        // The transport is up but the tool cache is not yet populated — the flag
+        // must stay false so no concurrent caller sees an empty list as "ready".
+        expect(c.isConnected).toBe(false);
+        expect(c.getTools()).toEqual([]);
+
+        resolveTools({ tools: [{ name: 'query' }, { name: 'register_hex_tiles' }] });
+        await connecting;
+        expect(c.isConnected).toBe(true);
+        expect(c.getTools().map(t => t.name)).toEqual(['query', 'register_hex_tiles']);
+    });
+
     it('on connect failure, marks disconnected and rethrows', async () => {
         Client.mockImplementationOnce(() => {
             const instance = buildClientInstance();

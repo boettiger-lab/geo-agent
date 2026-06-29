@@ -66,12 +66,18 @@ export class MCPClient {
                 { capabilities: {} }
             );
             await this.client.connect(transport);
-            this.connected = true;
-            this.reconnectAttempts = 0;
 
-            // Cache available tools
+            // Cache available tools BEFORE flipping `connected`. The flag is the
+            // short-circuit for connect()/ensureConnected(); if it went true here
+            // (transport up) but the tool list were still empty, a concurrent
+            // connect() would short-circuit and a getTools() reader would see []
+            // — registering zero remote tools with no error, no fallback, and no
+            // reconnect to recover (the silent MCP-tools-missing boot). Populate
+            // the cache first so `connected === true` always implies tools ready.
             const response = await this.client.listTools();
             this.tools = response.tools || [];
+            this.connected = true;
+            this.reconnectAttempts = 0;
             console.log('[MCP] Connected. Tools:', this.tools.map(t => t.name));
         } catch (error) {
             this.connected = false;

@@ -293,7 +293,13 @@ async function main() {
                 // caches the tool list internally, so getTools() avoids the
                 // extra listTools() round trip the old path incurred.
                 await mcp.connect();
-                return mcp.getTools();
+                const tools = mcp.getTools();
+                // An empty list here means the connect resolved before its tool
+                // cache was populated — treat it as a failure so we retry, and
+                // fall back to the hardcoded `query` tool rather than silently
+                // registering zero MCP tools for the life of the session.
+                if (!tools.length) throw new Error('MCP connected but returned an empty tool list');
+                return tools;
             } catch (err) {
                 lastErr = err;
                 const delay = Math.min(2000 * Math.pow(2, i), 8000);
