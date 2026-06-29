@@ -654,6 +654,11 @@ details.layer-group:not([open]) .layer-group-title::before {
 .chart-panel {
     position: absolute;
     z-index: 3;
+    /* Anchor to the bottom-right of the MAP area: offset past the sidebar
+       (--sidebar-width is 0 in floating mode) plus the per-panel cascade, so
+       charts never hide behind a right-docked sidebar. */
+    right: calc(var(--sidebar-width, 0px) + var(--chart-cascade, 12px));
+    bottom: var(--chart-cascade, 12px);
     max-width: min(440px, 80vw);
     background: rgba(255, 255, 255, 0.97);
     backdrop-filter: blur(6px);

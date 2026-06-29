@@ -171,12 +171,14 @@ export class ChartRenderer {
         panel.appendChild(header);
         panel.appendChild(body);
 
-        // Cascade panels up the right edge. Use the monotonic sequence (not the
-        // live panel count) so closing a middle panel can't make the next chart
-        // land exactly on an open one; wrap after a few so it stays on-screen.
+        // Cascade panels up the bottom-right corner of the MAP area. Use the
+        // monotonic sequence (not the live panel count) so closing a middle
+        // panel can't make the next chart land exactly on an open one; wrap
+        // after a few so it stays on-screen. The base anchor is set in CSS via
+        // calc(--sidebar-width + --chart-cascade) so panels clear the sidebar
+        // in sidebar-mode layouts instead of hiding behind it.
         const offset = 12 + ((this._seq - 1) % 6) * 20;
-        panel.style.bottom = offset + 'px';
-        panel.style.right = offset + 'px';
+        panel.style.setProperty('--chart-cascade', offset + 'px');
 
         this.doc.body.appendChild(panel);
         this._panels.set(id, panel);
