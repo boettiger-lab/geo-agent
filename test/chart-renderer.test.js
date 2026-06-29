@@ -1,0 +1,78 @@
+import { describe, it, expect, afterEach } from 'vitest';
+import { buildPlotOptions, ChartRenderer } from '../app/chart-renderer.js';
+
+// Fake Plot namespace: each mark factory returns a tagged object so we can
+// assert mark selection + channel mapping without the real library.
+const fakePlot = {
+    barY: (data, opts) => ({ mark: 'barY', data, opts }),
+    lineY: (data, opts) => ({ mark: 'lineY', data, opts }),
+    dot: (data, opts) => ({ mark: 'dot', data, opts }),
+    rectY: (data, opts) => ({ mark: 'rectY', data, opts }),
+    binX: (outputs, opts) => ({ binX: outputs, opts }),
+    ruleY: (data) => ({ mark: 'ruleY', data }),
+    plot: (options) => ({ plotted: options }),
+};
+
+const rows = [{ country: 'Brazil', pct: 31 }, { country: 'Peru', pct: 22 }];
+
+describe('buildPlotOptions', () => {
+    it('bar → barY with x/y/fill channels and a y=0 baseline', () => {
+        const o = buildPlotOptions(fakePlot, { chart_type: 'bar', x: 'country', y: 'pct', series: 'region' }, rows);
+        const bar = o.marks.find(m => m.mark === 'barY');
+        expect(bar.data).toBe(rows);
+        expect(bar.opts).toMatchObject({ x: 'country', y: 'pct', fill: 'region' });
+        expect(o.marks.some(m => m.mark === 'ruleY')).toBe(true);
+        expect(o.color).toEqual({ legend: true });   // series → legend
+    });
+
+    it('scatter → dot with no y=0 baseline', () => {
+        const o = buildPlotOptions(fakePlot, { chart_type: 'scatter', x: 'carbon', y: 'biodiversity' }, rows);
+        expect(o.marks.some(m => m.mark === 'ruleY')).toBe(false);
+        expect(o.marks[0].mark).toBe('dot');
+        expect(o.color).toBeUndefined();   // no series → no legend
+    });
+
+    it('line → lineY', () => {
+        const o = buildPlotOptions(fakePlot, { chart_type: 'line', x: 'year', y: 'effort' }, rows);
+        expect(o.marks.some(m => m.mark === 'lineY')).toBe(true);
+    });
+
+    it('histogram → rectY+binX, count on y, no y column required', () => {
+        const o = buildPlotOptions(fakePlot, { chart_type: 'histogram', x: 'richness' }, rows);
+        const rect = o.marks.find(m => m.mark === 'rectY');
+        expect(rect.opts.binX).toEqual({ y: 'count' });
+        expect(o.y.label).toBe('count');
+    });
+
+    it('uses explicit axis labels when provided, else the column name', () => {
+        const o = buildPlotOptions(fakePlot, { chart_type: 'bar', x: 'country', y: 'pct', x_label: 'Country', y_label: '% protected' }, rows);
+        expect(o.x.label).toBe('Country');
+        expect(o.y.label).toBe('% protected');
+    });
+
+    it('throws on an unsupported chart type', () => {
+        expect(() => buildPlotOptions(fakePlot, { chart_type: 'pie', x: 'a', y: 'b' }, rows)).toThrow(/Unsupported chart_type/);
+    });
+
+    it('throws when x is missing, or y is missing for a non-histogram', () => {
+        expect(() => buildPlotOptions(fakePlot, { chart_type: 'bar', y: 'v' }, rows)).toThrow(/requires an x/);
+        expect(() => buildPlotOptions(fakePlot, { chart_type: 'bar', x: 'c' }, rows)).toThrow(/requires a y/);
+    });
+});
+
+describe('ChartRenderer', () => {
+    afterEach(() => { delete globalThis.Plot; });
+
+    it('prefers a preloaded global Plot and returns an id (headless: doc=null)', async () => {
+        globalThis.Plot = fakePlot;
+        const cr = new ChartRenderer({ doc: null });
+        const { id } = await cr.render({ chart_type: 'bar', x: 'country', y: 'pct' }, rows);
+        expect(id).toMatch(/^chart-\d+$/);
+    });
+
+    it('propagates buildPlotOptions validation errors', async () => {
+        globalThis.Plot = fakePlot;
+        const cr = new ChartRenderer({ doc: null });
+        await expect(cr.render({ chart_type: 'pie', x: 'a', y: 'b' }, rows)).rejects.toThrow(/Unsupported/);
+    });
+});

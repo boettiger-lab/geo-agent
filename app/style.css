@@ -649,6 +649,61 @@ details.layer-group:not([open]) .layer-group-title::before {
     color: #555;
 }
 
+/* ── Chart panels (opt-in charting primitive, #277) ──────────────────────
+   Floating card anchored bottom-right; multiple charts cascade. */
+.chart-panel {
+    position: absolute;
+    z-index: 3;
+    max-width: min(440px, 80vw);
+    background: rgba(255, 255, 255, 0.97);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    border: 1px solid rgba(0, 0, 0, 0.15);
+    border-radius: 8px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+    font-family: 'Open Sans', sans-serif;
+    overflow: hidden;
+}
+
+.chart-panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 8px 12px;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.chart-panel-title {
+    font-weight: 600;
+    font-size: 13px;
+    color: #222;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.chart-panel-close {
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    font-size: 14px;
+    line-height: 1;
+    color: #666;
+    padding: 2px 4px;
+    border-radius: 4px;
+}
+
+.chart-panel-close:hover {
+    background: rgba(0, 0, 0, 0.08);
+    color: #000;
+}
+
+.chart-panel-body {
+    padding: 8px 12px 12px;
+    overflow-x: auto;
+}
+
 /* ── Geocoder search box (maplibre-gl-geocoder) ──────────────────────────
    Frosted-glass surface to match the app's other map controls (#menu,
    .version-select) instead of the library's solid white — light tint +
