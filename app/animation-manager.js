@@ -208,8 +208,9 @@ export class TrajectoryAnimation {
                 <option value="4">4×</option>
             </select>
         `;
-        // Stack multiple panels vertically
-        const existing = document.querySelectorAll('.anim-controls').length;
+        // Stack multiple panels vertically — count reactive-control sliders too
+        // so the two panel types never render on top of each other.
+        const existing = document.querySelectorAll('.anim-controls, .reactive-controls').length;
         panel.style.bottom = (12 + existing * 44) + 'px';
         document.body.appendChild(panel);
 
