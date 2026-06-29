@@ -70,9 +70,39 @@ describe('ChartRenderer', () => {
         expect(id).toMatch(/^chart-\d+$/);
     });
 
-    it('propagates buildPlotOptions validation errors', async () => {
+    it('propagates validation errors before touching the DOM', async () => {
         globalThis.Plot = fakePlot;
         const cr = new ChartRenderer({ doc: null });
         await expect(cr.render({ chart_type: 'pie', x: 'a', y: 'b' }, rows)).rejects.toThrow(/Unsupported/);
+    });
+
+    it('_drawFigure re-plots sized to the panel body (resize reflow)', () => {
+        const cr = new ChartRenderer({ doc: null });
+        let captured;
+        cr._plot = { ...fakePlot, plot: (o) => { captured = o; return { tag: 'fig' }; } };
+        const replaced = [];
+        const entry = {
+            body: { clientWidth: 500, clientHeight: 400, replaceChildren: (f) => replaced.push(f) },
+            spec: { chart_type: 'bar', x: 'country', y: 'pct' },
+            rows,
+        };
+        cr._drawFigure(entry);
+        expect(captured.width).toBe(500);
+        expect(captured.height).toBe(400);
+        expect(replaced).toEqual([{ tag: 'fig' }]);
+    });
+
+    it('_drawFigure falls back to default size when the body has no layout yet', () => {
+        const cr = new ChartRenderer({ doc: null });
+        let captured;
+        cr._plot = { ...fakePlot, plot: (o) => { captured = o; return {}; } };
+        const entry = {
+            body: { clientWidth: 0, clientHeight: 0, replaceChildren: () => {} },
+            spec: { chart_type: 'scatter', x: 'a', y: 'b' },
+            rows,
+        };
+        cr._drawFigure(entry);
+        expect(captured.width).toBe(400);
+        expect(captured.height).toBe(300);
     });
 });

@@ -140,9 +140,8 @@ export class ChartRenderer {
      * @param {Array<Object>} rows
      */
     async render(spec, rows) {
-        const Plot = await this._loadPlot();
-        const options = buildPlotOptions(Plot, spec, rows);
-        const figure = Plot.plot(options);
+        validateChartSpec(spec);      // reject a bad spec before touching the DOM
+        await this._loadPlot();
 
         const id = `chart-${++this._seq}`;
         if (!this.doc) return { id };   // headless (shouldn't happen in-app)
@@ -156,17 +155,31 @@ export class ChartRenderer {
         const title = this.doc.createElement('span');
         title.className = 'chart-panel-title';
         title.textContent = spec.title || `${cap(spec.chart_type)} chart`;
+
+        // Pop-out: toggle between the docked corner card and a large centered
+        // view. The size change is picked up by the ResizeObserver, which
+        // re-plots to fit — so charts stay sharp at any size.
+        const pop = this.doc.createElement('button');
+        pop.className = 'chart-panel-pop';
+        pop.title = 'Pop out / restore';
+        pop.textContent = '⤢';
+        pop.addEventListener('click', () => {
+            const popped = panel.classList.toggle('chart-panel--popped');
+            pop.textContent = popped ? '⤡' : '⤢';
+        });
+
         const close = this.doc.createElement('button');
         close.className = 'chart-panel-close';
         close.title = 'Close chart';
         close.textContent = '✕';
         close.addEventListener('click', () => this.remove(id));
+
         header.appendChild(title);
+        header.appendChild(pop);
         header.appendChild(close);
 
         const body = this.doc.createElement('div');
         body.className = 'chart-panel-body';
-        body.appendChild(figure);
 
         panel.appendChild(header);
         panel.appendChild(body);
@@ -181,13 +194,45 @@ export class ChartRenderer {
         panel.style.setProperty('--chart-cascade', offset + 'px');
 
         this.doc.body.appendChild(panel);
-        this._panels.set(id, panel);
+
+        const entry = { panel, body, spec, rows, observer: null, raf: 0 };
+        this._drawFigure(entry);
+
+        // Re-plot to fit whenever the user drags the resize grip or pops out.
+        if (typeof ResizeObserver !== 'undefined') {
+            entry.observer = new ResizeObserver(() => {
+                if (entry.raf) cancelAnimationFrame(entry.raf);
+                entry.raf = requestAnimationFrame(() => this._drawFigure(entry));
+            });
+            entry.observer.observe(body);
+        }
+
+        this._panels.set(id, entry);
         return { id };
     }
 
+    /** (Re)render an entry's Plot figure sized to its current panel body. */
+    _drawFigure(entry) {
+        if (!entry || !this._plot || !entry.body) return;
+        const { body, spec, rows } = entry;
+        const width = Math.max(220, body.clientWidth || 400);
+        const height = Math.max(160, body.clientHeight || 300);
+        let figure;
+        try {
+            figure = this._plot.plot({ ...buildPlotOptions(this._plot, spec, rows), width, height });
+        } catch {
+            return;   // keep the prior figure on a transient draw error
+        }
+        body.replaceChildren(figure);
+    }
+
     remove(id) {
-        const panel = this._panels.get(id);
-        if (panel) { panel.remove(); this._panels.delete(id); }
+        const entry = this._panels.get(id);
+        if (!entry) return;
+        if (entry.observer) entry.observer.disconnect();
+        if (entry.raf) cancelAnimationFrame(entry.raf);
+        entry.panel.remove();
+        this._panels.delete(id);
     }
 
     removeAll() {

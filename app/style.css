@@ -659,7 +659,16 @@ details.layer-group:not([open]) .layer-group-title::before {
        charts never hide behind a right-docked sidebar. */
     right: calc(var(--sidebar-width, 0px) + var(--chart-cascade, 12px));
     bottom: var(--chart-cascade, 12px);
-    max-width: min(440px, 80vw);
+    width: min(440px, 80vw);
+    height: 320px;
+    /* Drag the bottom-right grip to resize; the chart re-plots to fit. */
+    resize: both;
+    min-width: 260px;
+    min-height: 200px;
+    max-width: 96vw;
+    max-height: 92vh;
+    display: flex;
+    flex-direction: column;
     background: rgba(255, 255, 255, 0.97);
     backdrop-filter: blur(6px);
     -webkit-backdrop-filter: blur(6px);
@@ -668,6 +677,18 @@ details.layer-group:not([open]) .layer-group-title::before {
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
     font-family: 'Open Sans', sans-serif;
     overflow: hidden;
+}
+
+/* Popped out: a large centered view. right/bottom are released so the
+   transform-centering takes over; the ResizeObserver re-plots to the new box. */
+.chart-panel.chart-panel--popped {
+    right: auto;
+    bottom: auto;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: min(900px, 92vw);
+    height: min(640px, 86vh);
 }
 
 .chart-panel-header {
@@ -680,6 +701,8 @@ details.layer-group:not([open]) .layer-group-title::before {
 }
 
 .chart-panel-title {
+    flex: 1 1 auto;
+    min-width: 0;
     font-weight: 600;
     font-size: 13px;
     color: #222;
@@ -688,7 +711,8 @@ details.layer-group:not([open]) .layer-group-title::before {
     white-space: nowrap;
 }
 
-.chart-panel-close {
+.chart-panel-close,
+.chart-panel-pop {
     border: none;
     background: transparent;
     cursor: pointer;
@@ -699,14 +723,21 @@ details.layer-group:not([open]) .layer-group-title::before {
     border-radius: 4px;
 }
 
-.chart-panel-close:hover {
+.chart-panel-header {
+    flex: 0 0 auto;
+}
+
+.chart-panel-close:hover,
+.chart-panel-pop:hover {
     background: rgba(0, 0, 0, 0.08);
     color: #000;
 }
 
 .chart-panel-body {
+    flex: 1 1 auto;
+    min-height: 0;
     padding: 8px 12px 12px;
-    overflow-x: auto;
+    overflow: auto;
 }
 
 /* ── Geocoder search box (maplibre-gl-geocoder) ──────────────────────────
