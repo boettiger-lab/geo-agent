@@ -254,6 +254,32 @@ The slider composes with the layer's configured `default_filter` (applied as `["
 }
 ```
 
+## Charts (opt-in)
+
+By default the agent answers analytical questions with the map and SQL result **tables**. Enabling charts gives it one more primitive — a `render_chart` tool that turns a query result into a **bar**, **line**, **scatter**, or **histogram** in a floating panel ([#277](https://github.com/boettiger-lab/geo-agent/issues/277)).
+
+It is **off by default** (zero footprint — the tool isn't registered and no charting library loads). Turn it on with a top-level flag in `layers-input.json`:
+
+```json
+{
+  "catalog": "https://…/catalog.json",
+  "charts": { "enabled": true }
+}
+```
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `enabled` | boolean | `false` | Register the `render_chart` tool and lazy-load the charting library. |
+
+When enabled, the agent calls `render_chart` with a chart type, the columns to plot (`x`, `y`, optional `series`), and the data — either an inline `data` array it already computed, or a `sql` query the panel runs itself (so large result sets never pass back through the LLM; if both are supplied, `sql` wins). Charts render client-side via [Observable Plot](https://observablehq.com/plot/), which (with d3) is fetched from the CDN via SRI-pinned scripts the first time a chart is drawn — downstream apps don't need to add any `<script>` tag.
+
+| Chart type | Shape | Channels |
+|---|---|---|
+| `bar` | ranking / category comparison | `x` = category, `y` = value |
+| `line` | time series / trend | `x` = ordered field (e.g. year), `y` = value |
+| `scatter` | relationship / trade-off (e.g. a Pareto frontier) | `x`, `y` = two numerics |
+| `histogram` | distribution of one numeric | `x` = the value (bars are counts; omit `y`) |
+
 ## Collapsed groups
 
 By default, layer groups in the panel start expanded. To start a group folded (useful when a collection has many layers), use the object form for `group`:

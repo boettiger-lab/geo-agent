@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { extractJsonArray, createMapTools } from '../app/map-tools.js';
+import { extractJsonArray, createMapTools, createRenderChartTool } from '../app/map-tools.js';
 
 describe('extractJsonArray', () => {
     it('parses to_json(array_agg(...)) output', () => {
@@ -297,6 +297,86 @@ describe('set_tooltip / reset_tooltip', () => {
     it('disambiguation nudge stays on layer-targeting tools', () => {
         const { tool } = getTool('set_tooltip');
         expect(tool.description).toMatch(/displayName semantic match/);
+    });
+});
+
+describe('render_chart (#277)', () => {
+    const stubRenderer = () => {
+        const calls = [];
+        return { render: vi.fn(async (spec, rows) => { calls.push({ spec, rows }); return { id: 'chart-1' }; }), _calls: calls };
+    };
+
+    it('renders directly from an inline data array', async () => {
+        const renderer = stubRenderer();
+        const tool = createRenderChartTool(renderer, null);
+        const data = [{ country: 'Brazil', pct: 31 }];
+        const result = JSON.parse(await tool.execute({ chart_type: 'bar', x: 'country', y: 'pct', data }));
+        expect(result.success).toBe(true);
+        expect(result.chart_id).toBe('chart-1');
+        expect(result.points).toBe(1);
+        expect(renderer.render).toHaveBeenCalledOnce();
+        expect(renderer.render.mock.calls[0][1]).toBe(data);
+    });
+
+    it('runs the sql path through MCP and parses rows', async () => {
+        const renderer = stubRenderer();
+        const mcpClient = { callTool: vi.fn(async () => '[{"country":"Brazil","pct":31},{"country":"Peru","pct":22}]') };
+        const tool = createRenderChartTool(renderer, mcpClient);
+        const result = JSON.parse(await tool.execute({ chart_type: 'bar', x: 'country', y: 'pct', sql: 'SELECT country, pct FROM t' }));
+        expect(result.success).toBe(true);
+        expect(result.points).toBe(2);
+        // SQL is wrapped to aggregate rows to a JSON array
+        expect(mcpClient.callTool.mock.calls[0][1].sql_query).toMatch(/to_json\(array_agg/);
+    });
+
+    it('errors when neither data nor sql is provided', async () => {
+        const tool = createRenderChartTool(stubRenderer(), null);
+        const result = JSON.parse(await tool.execute({ chart_type: 'bar', x: 'country', y: 'pct' }));
+        expect(result.success).toBe(false);
+        expect(result.error).toMatch(/No data/);
+    });
+
+    it('errors on the sql path when no MCP client is available', async () => {
+        const tool = createRenderChartTool(stubRenderer(), null);
+        const result = JSON.parse(await tool.execute({ chart_type: 'bar', x: 'c', y: 'v', sql: 'SELECT 1' }));
+        expect(result.success).toBe(false);
+        expect(result.error).toMatch(/MCP client not available/);
+    });
+
+    it('reports a render failure instead of throwing', async () => {
+        const renderer = { render: vi.fn(async () => { throw new Error('boom'); }) };
+        const tool = createRenderChartTool(renderer, null);
+        const result = JSON.parse(await tool.execute({ chart_type: 'bar', x: 'c', y: 'v', data: [{ c: 'a', v: 1 }] }));
+        expect(result.success).toBe(false);
+        expect(result.error).toMatch(/Could not render chart/);
+    });
+
+    it('rejects an invalid spec before running any SQL', async () => {
+        const renderer = stubRenderer();
+        const mcpClient = { callTool: vi.fn() };
+        const tool = createRenderChartTool(renderer, mcpClient);
+        // bar with no y → invalid; must not reach the MCP query
+        const result = JSON.parse(await tool.execute({ chart_type: 'bar', x: 'c', sql: 'SELECT 1' }));
+        expect(result.success).toBe(false);
+        expect(result.error).toMatch(/requires a y/);
+        expect(mcpClient.callTool).not.toHaveBeenCalled();
+    });
+
+    it('reports an empty SQL result as "no rows", not a parse error', async () => {
+        const renderer = stubRenderer();
+        // DuckDB array_agg over zero rows → NULL
+        const mcpClient = { callTool: vi.fn(async () => '| rows |\n|------|\n| NULL |') };
+        const tool = createRenderChartTool(renderer, mcpClient);
+        const result = JSON.parse(await tool.execute({ chart_type: 'bar', x: 'c', y: 'v', sql: 'SELECT c, v FROM t WHERE false' }));
+        expect(result.success).toBe(false);
+        expect(result.error).toMatch(/no rows/i);
+        expect(renderer.render).not.toHaveBeenCalled();
+    });
+
+    it('requires chart_type and x in its schema', () => {
+        const tool = createRenderChartTool(stubRenderer(), null);
+        expect(tool.inputSchema.required).toEqual(['chart_type', 'x']);
+        expect(tool.inputSchema.properties.chart_type.enum).toEqual(['bar', 'line', 'scatter', 'histogram']);
     });
 });
 
