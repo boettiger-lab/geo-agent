@@ -661,8 +661,9 @@ details.layer-group:not([open]) .layer-group-title::before {
     bottom: var(--chart-cascade, 12px);
     width: min(440px, 80vw);
     height: 320px;
-    /* Drag the bottom-right grip to resize; the chart re-plots to fit. */
-    resize: both;
+    /* Resize from the TOP-LEFT grip (.chart-panel-resize) — the panel is pinned
+       bottom-right, so that's the free corner. Native CSS `resize` only grips
+       the bottom-right, so it's not used here. */
     min-width: 260px;
     min-height: 200px;
     max-width: 96vw;
@@ -691,12 +692,39 @@ details.layer-group:not([open]) .layer-group-title::before {
     height: min(640px, 86vh);
 }
 
+/* Top-left resize grip. A small corner target with two diagonal ticks; the
+   drag itself is handled in chart-renderer.js (_wireResize). */
+.chart-panel-resize {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 18px;
+    height: 18px;
+    z-index: 4;
+    cursor: nwse-resize;
+    background:
+        linear-gradient(-45deg, transparent 0 4px, rgba(0, 0, 0, 0.28) 4px 5px, transparent 5px 8px, rgba(0, 0, 0, 0.28) 8px 9px, transparent 9px) top left / 12px 12px no-repeat;
+    border-top-left-radius: 8px;
+}
+
+.chart-panel-resize:hover {
+    background:
+        linear-gradient(-45deg, transparent 0 4px, rgba(0, 0, 0, 0.5) 4px 5px, transparent 5px 8px, rgba(0, 0, 0, 0.5) 8px 9px, transparent 9px) top left / 12px 12px no-repeat;
+}
+
+/* Popped-out is center-anchored via a transform, so the bottom-right pin the
+   grip's math assumes doesn't hold — hide it there. */
+.chart-panel--popped .chart-panel-resize {
+    display: none;
+}
+
 .chart-panel-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 8px;
-    padding: 8px 12px;
+    /* extra left padding clears the top-left resize grip */
+    padding: 8px 12px 8px 22px;
     border-bottom: 1px solid rgba(0, 0, 0, 0.08);
 }
 
