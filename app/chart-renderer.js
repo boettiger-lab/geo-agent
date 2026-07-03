@@ -25,6 +25,15 @@ const PLOT_JS_SRI = 'sha384-XzQ+KW4LBWHv6FLjiPA1vjDz//oGlY8We4XROgpir5jHgg2+Qvo/
 
 const CHART_TYPES = ['bar', 'line', 'scatter', 'histogram'];
 
+// Bold, readable defaults. Categorical range is the validated CVD-safe palette
+// (dataviz skill, light surface) — assigned in fixed order, never cycled. A
+// chart with no `series` uses one confident color instead of Plot's thin
+// default. Text stays ink; only marks carry the data color.
+const CATEGORICAL = ['#2a78d6', '#1baf7a', '#eda100', '#008300', '#4a3aa7', '#e34948', '#e87ba4', '#eb6834'];
+const SERIES_1 = '#2a78d6';   // default single-series color (bold blue)
+const INK = '#1a1a1a';        // axis / label text
+const CHART_FONT = "'Open Sans', system-ui, -apple-system, sans-serif";
+
 /** Load a JS script by URL with SRI; resolves when loaded. */
 function loadScript(url, integrity) {
     return new Promise((resolve, reject) => {
@@ -74,12 +83,30 @@ export function buildPlotOptions(Plot, spec, rows) {
     const type = spec.chart_type;
     const { x, y, series } = spec;
 
+    // A single confident color when there's no `series`; a real grouping paints
+    // marks from the categorical range. A string that is a valid CSS color is a
+    // constant fill/stroke in Plot; a column name is a channel — so `series`
+    // colors by category and `SERIES_1` is a flat bold color.
+    const paint = series || SERIES_1;
+
     let mark;
     switch (type) {
-        case 'bar':       mark = Plot.barY(rows, { x, y, fill: series, tip: true }); break;
-        case 'line':      mark = Plot.lineY(rows, { x, y, stroke: series, marker: 'circle', tip: true }); break;
-        case 'scatter':   mark = Plot.dot(rows, { x, y, stroke: series, tip: true }); break;
-        case 'histogram': mark = Plot.rectY(rows, Plot.binX({ y: 'count' }, { x, tip: true })); break;
+        case 'bar':
+            // Filled bars, a 2px surface gap between neighbors (never a stroke).
+            mark = Plot.barY(rows, { x, y, fill: paint, insetLeft: 1, insetRight: 1, tip: true });
+            break;
+        case 'line':
+            // A bold 2.5px line reads over the basemap; no per-point markers —
+            // those are chart-junk. The tooltip and endpoints carry the points.
+            mark = Plot.lineY(rows, { x, y, stroke: paint, strokeWidth: 2.5, strokeLinejoin: 'round', strokeLinecap: 'round', tip: true });
+            break;
+        case 'scatter':
+            // Big FILLED dots with a white surface ring — not small open circles.
+            mark = Plot.dot(rows, { x, y, fill: paint, r: 5, stroke: 'white', strokeWidth: 1.5, tip: true });
+            break;
+        case 'histogram':
+            mark = Plot.rectY(rows, Plot.binX({ y: 'count' }, { x, fill: SERIES_1, insetLeft: 1, insetRight: 1, tip: true }));
+            break;
     }
 
     const marks = [];
@@ -87,15 +114,44 @@ export function buildPlotOptions(Plot, spec, rows) {
     if (type !== 'scatter') marks.push(Plot.ruleY([0]));
     marks.push(mark);
 
+    // --- de-crowd the x axis ---------------------------------------------
+    // Categorical axes overcrowd and overprint the fastest. When there are many
+    // bands or long labels, rotate the ticks and reserve room instead of letting
+    // Plot stack them on top of each other; cap continuous ticks so numbers
+    // don't collide.
+    const xVals = rows.map(r => r && r[x]);
+    const numericX = xVals.every(v => v == null || typeof v === 'number');
+    const distinctX = new Set(xVals).size;
+    const longestX = xVals.reduce((m, v) => Math.max(m, String(v ?? '').length), 0);
+    const rotateX = !numericX && (distinctX > 6 || longestX > 8);
+
+    const xAxis = { label: spec.x_label ?? x ?? null };
+    let marginBottom = 48;
+    if (rotateX) {
+        xAxis.tickRotate = -35;
+        marginBottom = Math.min(120, 48 + Math.round(longestX * 4.5));
+    } else if (numericX) {
+        xAxis.ticks = 6;
+    }
+
+    // Short SI tick labels (1k, 2.5M) keep the y axis readable and let the left
+    // margin stay tight. Only when y is actually quantitative.
+    const yVals = type === 'histogram' ? [] : rows.map(r => r && r[y]);
+    const numericY = type === 'histogram' || yVals.every(v => v == null || typeof v === 'number');
+    const yAxis = { label: spec.y_label ?? (type === 'histogram' ? 'count' : y) ?? null, grid: true };
+    if (numericY) yAxis.tickFormat = '~s';
+
     return {
-        marginLeft: 60,
-        marginBottom: 44,
-        marginTop: 16,
-        grid: true,
-        x: { label: spec.x_label ?? x ?? null },
-        y: { label: spec.y_label ?? (type === 'histogram' ? 'count' : y) ?? null },
+        marginLeft: 56,
+        marginBottom,
+        marginTop: 18,
+        marginRight: 18,
+        // Bigger, bolder type; the whole figure inherits it (axes + legend).
+        style: { fontSize: '13px', fontFamily: CHART_FONT, color: INK, background: 'transparent' },
+        x: xAxis,
+        y: yAxis,
         // histogram bins ignore `series`, so a color legend there would be empty.
-        ...(series && type !== 'histogram' && { color: { legend: true } }),
+        ...(series && type !== 'histogram' && { color: { legend: true, range: CATEGORICAL } }),
         marks,
     };
 }
@@ -109,6 +165,7 @@ export class ChartRenderer {
         this.doc = opts.doc || (typeof document !== 'undefined' ? document : null);
         this._plot = null;
         this._seq = 0;
+        this._z = 3;                // top stacking order (matches .chart-panel z-index)
         this._panels = new Map();   // id → panel element
     }
 
@@ -181,8 +238,25 @@ export class ChartRenderer {
         const body = this.doc.createElement('div');
         body.className = 'chart-panel-body';
 
+        // Custom resize grip in the TOP-LEFT corner. The panel is anchored to
+        // its bottom-right, so the free corner to drag is the top-left; native
+        // CSS `resize` can only grip the bottom-right (which sits jammed in the
+        // screen corner here), so we drive width/height from a pointer drag and
+        // let the ResizeObserver re-plot. Min/max come from the CSS box.
+        const grip = this.doc.createElement('div');
+        grip.className = 'chart-panel-resize';
+        grip.title = 'Drag to resize';
+
+        panel.appendChild(grip);
         panel.appendChild(header);
         panel.appendChild(body);
+        this._wireResize(panel, grip);
+
+        // Clicking anywhere in a panel raises it above the others, so a chart
+        // buried under the cascade can be brought forward without closing the
+        // ones on top of it. New panels also open on top.
+        panel.addEventListener('pointerdown', () => this._bringToFront(panel));
+        this._bringToFront(panel);
 
         // Cascade panels up the bottom-right corner of the MAP area. Use the
         // monotonic sequence (not the live panel count) so closing a middle
@@ -209,6 +283,37 @@ export class ChartRenderer {
 
         this._panels.set(id, entry);
         return { id };
+    }
+
+    /** Raise a panel above every other chart panel. */
+    _bringToFront(panel) {
+        if (!panel) return;
+        panel.style.zIndex = String(++this._z);
+    }
+
+    /**
+     * Drive a top-left resize grip. Dragging up/left grows the panel; the box
+     * stays pinned at its bottom-right anchor. Clamping is left to the CSS
+     * min/max-width/height. Pointer capture keeps the drag alive off-grip.
+     */
+    _wireResize(panel, grip) {
+        if (!grip || !grip.addEventListener) return;
+        grip.addEventListener('pointerdown', (e) => {
+            e.preventDefault();
+            const rect = panel.getBoundingClientRect();
+            const startX = e.clientX, startY = e.clientY;
+            const startW = rect.width, startH = rect.height;
+            const move = (ev) => {
+                panel.style.width = (startW + (startX - ev.clientX)) + 'px';
+                panel.style.height = (startH + (startY - ev.clientY)) + 'px';
+            };
+            const up = () => {
+                this.doc.removeEventListener('pointermove', move);
+                this.doc.removeEventListener('pointerup', up);
+            };
+            this.doc.addEventListener('pointermove', move);
+            this.doc.addEventListener('pointerup', up);
+        });
     }
 
     /** (Re)render an entry's Plot figure sized to its current panel body. */

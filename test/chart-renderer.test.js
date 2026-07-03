@@ -22,13 +22,17 @@ describe('buildPlotOptions', () => {
         expect(bar.data).toBe(rows);
         expect(bar.opts).toMatchObject({ x: 'country', y: 'pct', fill: 'region' });
         expect(o.marks.some(m => m.mark === 'ruleY')).toBe(true);
-        expect(o.color).toEqual({ legend: true });   // series → legend
+        // series → legend, painted from the fixed categorical range
+        expect(o.color).toMatchObject({ legend: true });
+        expect(Array.isArray(o.color.range)).toBe(true);
     });
 
-    it('scatter → dot with no y=0 baseline', () => {
+    it('scatter → filled dots, no y=0 baseline, no legend without series', () => {
         const o = buildPlotOptions(fakePlot, { chart_type: 'scatter', x: 'carbon', y: 'biodiversity' }, rows);
         expect(o.marks.some(m => m.mark === 'ruleY')).toBe(false);
-        expect(o.marks[0].mark).toBe('dot');
+        const dot = o.marks.find(m => m.mark === 'dot');
+        expect(dot.opts.fill).toBe('#2a78d6');   // bold filled color, not an open circle
+        expect(dot.opts.r).toBeGreaterThanOrEqual(4);
         expect(o.color).toBeUndefined();   // no series → no legend
     });
 
