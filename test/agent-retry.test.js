@@ -226,6 +226,59 @@ describe('Agent.callLLM retry orchestration', () => {
         expect(global.fetch).toHaveBeenCalledTimes(2);
         expect(onRetry).toHaveBeenCalledOnce();
     });
+
+    it('retries a timeout with the full budget, not the tight 90s window', async () => {
+        // Spy the single-attempt call so we can read the timeoutMs it was
+        // handed on each attempt without dealing with real timers.
+        const spy = vi.spyOn(agent, '_attemptLLMCall')
+            .mockRejectedValueOnce(Object.assign(new Error('timed out'), { timedOut: true }))
+            .mockResolvedValueOnce({ role: 'assistant', content: 'ok' });
+        agent.config.llm_timeout_seconds = 480; // 8 min per-turn budget
+
+        const msg = await agent.callLLM('https://x/v1', { api_key: 'k' }, [], []);
+        expect(msg.content).toBe('ok');
+        // Both attempts get the full 480s — a timeout means slow, not dead.
+        expect(spy.mock.calls[0][3]).toBe(480000);
+        expect(spy.mock.calls[1][3]).toBe(480000);
+    });
+
+    it('retries a fast transient failure (5xx) with the tight 90s window', async () => {
+        const spy = vi.spyOn(agent, '_attemptLLMCall')
+            .mockRejectedValueOnce(Object.assign(new Error('boom'), { status: 503 }))
+            .mockResolvedValueOnce({ role: 'assistant', content: 'ok' });
+        agent.config.llm_timeout_seconds = 480;
+
+        await agent.callLLM('https://x/v1', { api_key: 'k' }, [], []);
+        expect(spy.mock.calls[0][3]).toBe(480000); // first attempt: full budget
+        expect(spy.mock.calls[1][3]).toBe(90000);  // retry: tight window
+    });
+});
+
+describe('Agent._llmTimeoutMs', () => {
+    const makeAgentWithConfig = (config) =>
+        new Agent({ llm_models: [{ value: 'm', endpoint: 'https://x/v1', api_key: 'k' }], ...config }, stubToolRegistry);
+
+    it('defaults to 600s when nothing is configured', () => {
+        expect(makeAgentWithConfig({})._llmTimeoutMs({})).toBe(600000);
+    });
+
+    it('reads llm_timeout_seconds from the per-model config', () => {
+        expect(makeAgentWithConfig({})._llmTimeoutMs({ llm_timeout_seconds: 900 })).toBe(900000);
+    });
+
+    it('falls back to global config when per-model is unset', () => {
+        expect(makeAgentWithConfig({ llm_timeout_seconds: 720 })._llmTimeoutMs({})).toBe(720000);
+    });
+
+    it('per-model value overrides the global default', () => {
+        expect(makeAgentWithConfig({ llm_timeout_seconds: 300 })._llmTimeoutMs({ llm_timeout_seconds: 1200 })).toBe(1200000);
+    });
+
+    it('ignores non-positive / non-finite values and uses the default', () => {
+        expect(makeAgentWithConfig({})._llmTimeoutMs({ llm_timeout_seconds: 0 })).toBe(600000);
+        expect(makeAgentWithConfig({})._llmTimeoutMs({ llm_timeout_seconds: -5 })).toBe(600000);
+        expect(makeAgentWithConfig({})._llmTimeoutMs({ llm_timeout_seconds: 'x' })).toBe(600000);
+    });
 });
 
 describe('Agent._samplingParams', () => {

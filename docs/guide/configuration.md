@@ -440,6 +440,7 @@ To change sampling, set any of `temperature`, `top_p`, or `seed`. Each is read *
 | `temperature` | per-model and/or top-level | `0` | Sampling temperature. `0` is the most deterministic; raise it for more varied/creative output. Set to `null` on a model to omit it entirely and inherit the endpoint's own default. |
 | `top_p` | per-model and/or top-level | unset | Nucleus-sampling cutoff. |
 | `seed` | per-model and/or top-level | unset | Fixed RNG seed, where the provider honors it. |
+| `llm_timeout_seconds` | per-model and/or top-level | `600` | Per-attempt client-side timeout for an LLM request. Resolved per-model first, then top-level. The default matches the upstream llm-proxy's own timeout; a shorter value aborts responses the proxy would still deliver, which makes slow-decode models (e.g. `glm-5.2`, or anything on the gb10) unusable. Raise it per-model for slow reasoning models when the whole request chain is configured to run longer. |
 
 > **Reproducibility caveat:** open-weights MoE inference (e.g. minimax-m2) is not bit-reproducible even at `temperature: 0`, so this is necessary-but-not-sufficient — pair it with a pinned methodology for headline numbers.
 
