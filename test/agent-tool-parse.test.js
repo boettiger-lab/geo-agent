@@ -1,0 +1,245 @@
+import { describe, it, expect, vi, afterEach } from 'vitest';
+import { Agent } from '../app/agent.js';
+
+// Regression tests for #288: the tool-call parser used to fail silently and
+// terminally on malformed calls, killing runs from otherwise-capable weaker
+// models. These cover the three observed failure modes plus the helpers.
+
+const stubRegistry = (overrides = {}) => ({
+    getToolsForLLM: () => [],
+    isLocal: () => true,
+    has: (name) => ['get_schema', 'query', 'set_filter'].includes(name),
+    execute: async () => ({ result: '' }),
+    ...overrides,
+});
+
+const baseConfig = (overrides = {}) => ({
+    llm_models: [{ value: 'm', endpoint: 'https://x/v1', api_key: 'k' }],
+    ...overrides,
+});
+
+const okText = (content) => ({
+    ok: true,
+    json: async () => ({ choices: [{ message: { role: 'assistant', content } }] }),
+});
+
+const agentFor = (registryOverrides = {}) =>
+    new Agent(baseConfig(), stubRegistry(registryOverrides));
+
+describe('parseEmbeddedToolCalls — tolerant extraction (#288)', () => {
+    it('parses a well-formed embedded call (baseline)', () => {
+        const a = agentFor();
+        const calls = a.parseEmbeddedToolCalls(
+            '<tool_call>{"name": "get_schema", "arguments": {"dataset_id": "ebsa"}}</tool_call>');
+        expect(calls).toEqual([{ name: 'get_schema', args: { dataset_id: 'ebsa' } }]);
+    });
+
+    it('recovers a mismatched closing tag (failure mode 1)', () => {
+        const a = agentFor();
+        // Wrong wrapper close tag: </parameter> instead of </tool_call>. The old
+        // regex required an exact </tool_call> and no interior '<' → zero matches.
+        const calls = a.parseEmbeddedToolCalls(
+            '<tool_call>{"name": "get_schema", "arguments": {"dataset_id":"ebsa"}} </parameter>');
+        expect(calls).toEqual([{ name: 'get_schema', args: { dataset_id: 'ebsa' } }]);
+    });
+
+    it('recovers a missing closing tag (EOF terminator)', () => {
+        const a = agentFor();
+        const calls = a.parseEmbeddedToolCalls(
+            'sure, calling it:\n<tool_call>{"name": "query", "arguments": {"sql": "select 1"}}');
+        expect(calls).toEqual([{ name: 'query', args: { sql: 'select 1' } }]);
+    });
+
+    it('recovers an inner JSON with a trailing extra brace (lenient parse)', () => {
+        const a = agentFor();
+        const calls = a.parseEmbeddedToolCalls(
+            '<tool_call>{"name": "get_schema", "arguments": {"dataset_id": "ebsa"}}}</tool_call>');
+        expect(calls).toEqual([{ name: 'get_schema', args: { dataset_id: 'ebsa' } }]);
+    });
+
+    it('does not break on interior "<" that is not a closing tag (filter operators)', () => {
+        const a = agentFor();
+        // A '<' comparison operator inside args must NOT terminate extraction —
+        // the old [^<]+ regex broke on this entirely.
+        const calls = a.parseEmbeddedToolCalls(
+            '<tool_call>{"name": "set_filter", "arguments": {"expr": ["<", 5]}}</tool_call>');
+        expect(calls).toEqual([{ name: 'set_filter', args: { expr: ['<', 5] } }]);
+    });
+
+    it('parses the function-call shape: name({...})', () => {
+        const a = agentFor();
+        const calls = a.parseEmbeddedToolCalls(
+            '<tool_call>get_schema({"dataset_id": "ebsa"})</tool_call>');
+        expect(calls).toEqual([{ name: 'get_schema', args: { dataset_id: 'ebsa' } }]);
+    });
+
+    it('parses a bare known tool name with no args', () => {
+        const a = agentFor();
+        const calls = a.parseEmbeddedToolCalls('<tool_call>query</tool_call>');
+        expect(calls).toEqual([{ name: 'query', args: {} }]);
+    });
+
+    it('parses multiple embedded calls in one message', () => {
+        const a = agentFor();
+        const calls = a.parseEmbeddedToolCalls(
+            '<tool_call>{"name":"get_schema","arguments":{"dataset_id":"a"}}</tool_call>'
+            + '<tool_call>{"name":"query","arguments":{"sql":"select 1"}}</tool_call>');
+        expect(calls).toEqual([
+            { name: 'get_schema', args: { dataset_id: 'a' } },
+            { name: 'query', args: { sql: 'select 1' } },
+        ]);
+    });
+
+    it('returns [] on structurally-invalid inner JSON (failure mode 3)', () => {
+        const a = agentFor();
+        // {"function:get_schema", ...} is not recoverable JSON, not a func-call
+        // shape, and not a bare name → 0 calls. Recovery is handled by the loop.
+        const calls = a.parseEmbeddedToolCalls(
+            '<tool_call>{"function:get_schema", "parameters":{"dataset_id":"ebsa"}}</tool_call>');
+        expect(calls).toEqual([]);
+    });
+
+    it('returns [] on empty/absent content', () => {
+        const a = agentFor();
+        expect(a.parseEmbeddedToolCalls('')).toEqual([]);
+        expect(a.parseEmbeddedToolCalls(null)).toEqual([]);
+        expect(a.parseEmbeddedToolCalls('just a normal answer')).toEqual([]);
+    });
+});
+
+describe('parseLenientJSON / _decodeFirstJSON (#288)', () => {
+    it('parses valid JSON strictly', () => {
+        const a = agentFor();
+        expect(a.parseLenientJSON('{"a": 1}')).toEqual({ a: 1 });
+    });
+
+    it('recovers a trailing extra brace', () => {
+        const a = agentFor();
+        expect(a.parseLenientJSON('{"dataset_id": "ebsa"}}')).toEqual({ dataset_id: 'ebsa' });
+    });
+
+    it('ignores trailing prose after a complete object', () => {
+        const a = agentFor();
+        expect(a.parseLenientJSON('{"a": 1} and then some words')).toEqual({ a: 1 });
+    });
+
+    it('does not confuse a brace inside a string for the closer', () => {
+        const a = agentFor();
+        expect(a.parseLenientJSON('{"a": "}"}}')).toEqual({ a: '}' });
+    });
+
+    it('returns undefined when nothing valid can be extracted', () => {
+        const a = agentFor();
+        expect(a.parseLenientJSON('not json at all')).toBeUndefined();
+        expect(a.parseLenientJSON('')).toBeUndefined();
+        expect(a.parseLenientJSON(null)).toBeUndefined();
+    });
+});
+
+describe('normalizeToolCallArguments (#288 failure mode 2)', () => {
+    it('repairs a trailing extra brace so history is valid JSON', () => {
+        const a = agentFor();
+        const message = {
+            role: 'assistant',
+            tool_calls: [{ id: 'c1', type: 'function',
+                function: { name: 'get_schema', arguments: '{"dataset_id": "ebsa"}}' } }],
+        };
+        a.normalizeToolCallArguments(message);
+        expect(message.tool_calls[0].function.arguments).toBe('{"dataset_id":"ebsa"}');
+        // and it must round-trip cleanly (the check that prevents the 400)
+        expect(() => JSON.parse(message.tool_calls[0].function.arguments)).not.toThrow();
+    });
+
+    it('replaces unrecoverable arguments with {}', () => {
+        const a = agentFor();
+        const message = {
+            role: 'assistant',
+            tool_calls: [{ id: 'c1', type: 'function',
+                function: { name: 'get_schema', arguments: 'total garbage' } }],
+        };
+        a.normalizeToolCallArguments(message);
+        expect(message.tool_calls[0].function.arguments).toBe('{}');
+    });
+
+    it('canonicalizes an object-typed arguments field to a string', () => {
+        const a = agentFor();
+        const message = {
+            role: 'assistant',
+            tool_calls: [{ id: 'c1', type: 'function',
+                function: { name: 'get_schema', arguments: { dataset_id: 'ebsa' } } }],
+        };
+        a.normalizeToolCallArguments(message);
+        expect(message.tool_calls[0].function.arguments).toBe('{"dataset_id":"ebsa"}');
+    });
+
+    it('is a no-op for messages without tool_calls', () => {
+        const a = agentFor();
+        const message = { role: 'assistant', content: 'hi' };
+        expect(() => a.normalizeToolCallArguments(message)).not.toThrow();
+        expect(message).toEqual({ role: 'assistant', content: 'hi' });
+    });
+});
+
+describe('looksLikeAttemptedToolCall (#288)', () => {
+    it('flags a stray <tool_call tag', () => {
+        expect(agentFor().looksLikeAttemptedToolCall('<tool_call>oops')).toBe(true);
+    });
+    it('flags JSON-shaped call keys', () => {
+        expect(agentFor().looksLikeAttemptedToolCall('{"function": "get_schema"}')).toBe(true);
+    });
+    it('flags a bare call against a known tool', () => {
+        expect(agentFor().looksLikeAttemptedToolCall('get_schema({"dataset_id": "ebsa"})')).toBe(true);
+    });
+    it('does not flag a call against an unknown name', () => {
+        expect(agentFor().looksLikeAttemptedToolCall('fibonacci({"n": 10})')).toBe(false);
+    });
+    it('does not flag a plain final answer', () => {
+        expect(agentFor().looksLikeAttemptedToolCall('The answer is 42 square kilometers.')).toBe(false);
+    });
+});
+
+describe('agent loop — malformed-call recovery (#288 failure mode 1/3)', () => {
+    afterEach(() => { vi.restoreAllMocks(); });
+
+    it('re-prompts on an unparseable call instead of terminating, then completes', async () => {
+        // Round 1: garbage that looks like a call but yields 0 parsed calls.
+        // Round 2 (after the corrective nudge): a clean final answer.
+        global.fetch = vi.fn()
+            .mockResolvedValueOnce(okText('<tool_call>{"function:get_schema", "parameters":{}}</tool_call>'))
+            .mockResolvedValueOnce(okText('The answer is 42.'));
+        const agent = agentFor();
+        agent.autoApprove = true;
+
+        const { response } = await agent.processMessage('how much?');
+
+        expect(response).toBe('The answer is 42.');
+        expect(global.fetch.mock.calls.length).toBe(2); // it recovered, didn't stop at round 1
+    });
+
+    it('stops re-prompting after the cap and falls through to the content', async () => {
+        // The model NEVER produces a parseable call — always garbage. The loop
+        // must bound the corrective retries (2) and then return the content
+        // rather than looping forever.
+        global.fetch = vi.fn().mockResolvedValue(
+            okText('<tool_call>{"function:get_schema", "parameters":{}}</tool_call>'));
+        const agent = agentFor();
+        agent.autoApprove = true;
+
+        const { response } = await agent.processMessage('how much?');
+
+        // 1 initial + 2 corrective retries = 3 calls, then falls through.
+        expect(global.fetch.mock.calls.length).toBe(3);
+        expect(response).toContain('<tool_call>');
+    });
+
+    it('does not re-prompt a genuine final answer', async () => {
+        global.fetch = vi.fn().mockResolvedValueOnce(okText('The area is 42 sq km.'));
+        const agent = agentFor();
+        agent.autoApprove = true;
+
+        const { response } = await agent.processMessage('how much?');
+
+        expect(response).toBe('The area is 42 sq km.');
+        expect(global.fetch.mock.calls.length).toBe(1);
+    });
+});
