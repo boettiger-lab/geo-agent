@@ -407,9 +407,33 @@ export class Agent {
     }
 
     /**
+     * Resolve the per-attempt LLM timeout in milliseconds. Mirrors
+     * `_samplingParams` resolution: per-model `llm_timeout_seconds` wins, then
+     * global config, then a built-in default.
+     *
+     * Default is 600s to match the upstream llm-proxy's own timeout — a
+     * shorter client cutoff (the old 300s) aborts responses the proxy would
+     * still deliver, which made slow-decode models (e.g. glm-5.2, or anything
+     * on the gb10) unusable. Slow reasoning models legitimately spend minutes
+     * decoding; the client must not be the premature limiter. Raise per-model
+     * (or globally) when the whole chain is configured to run longer.
+     */
+    _llmTimeoutMs(modelConfig) {
+        const s = ('llm_timeout_seconds' in (modelConfig ?? {}))
+            ? modelConfig.llm_timeout_seconds
+            : this.config?.llm_timeout_seconds;
+        return Number.isFinite(s) && s > 0 ? s * 1000 : 600000;
+    }
+
+    /**
      * Call the LLM API, with one auto-retry on transient errors (gateway 5xx,
-     * network blips, client-side timeout). The retry uses a tight 90s timeout
-     * so a still-dead model fails fast instead of burning another 5 minutes.
+     * network blips, client-side timeout).
+     *
+     * Retry timeout depends on the failure: a *timeout* means the model is
+     * slow, not dead, so the retry gets the full budget again (a short retry
+     * window a slow model is guaranteed to blow through just wastes a round).
+     * A fast transient failure (5xx / network blip) keeps a tight 90s retry so
+     * a genuinely-dead endpoint fails fast instead of burning the full budget.
      */
     async callLLM(endpoint, modelConfig, messages, tools) {
         const payload = {
@@ -421,16 +445,18 @@ export class Agent {
             ...this._samplingParams(modelConfig),
         };
 
+        const timeoutMs = this._llmTimeoutMs(modelConfig);
         try {
-            return await this._attemptLLMCall(endpoint, modelConfig, payload, 300000);
+            return await this._attemptLLMCall(endpoint, modelConfig, payload, timeoutMs);
         } catch (error) {
             if (!this._isTransientLLMError(error)) throw error;
             if (this.abortController?.signal.aborted) throw error; // user-Stop, don't retry
 
-            console.warn('[Agent] Transient LLM error, retrying with 90s timeout:', error.message);
+            const retryMs = error.timedOut ? timeoutMs : 90000;
+            console.warn(`[Agent] Transient LLM error, retrying with ${Math.round(retryMs / 1000)}s timeout:`, error.message);
             this.onRetry?.(error);
 
-            return await this._attemptLLMCall(endpoint, modelConfig, payload, 90000);
+            return await this._attemptLLMCall(endpoint, modelConfig, payload, retryMs);
         }
     }
 
