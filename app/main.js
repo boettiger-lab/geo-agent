@@ -9,7 +9,7 @@ import { MCPClient } from './mcp-client.js';
 import { DatasetCatalog } from './dataset-catalog.js';
 import { MapManager } from './map-manager.js';
 import { ToolRegistry } from './tool-registry.js';
-import { createMapTools } from './map-tools.js';
+import { createMapTools, createRenderChartTool } from './map-tools.js';
 import { createGeocoder } from './geocoder.js';
 import { Agent } from './agent.js';
 import { ChatUI } from './chat-ui.js';
@@ -263,6 +263,20 @@ async function main() {
                 });
             },
         });
+    }
+
+    // Opt-in charting primitive (#277). Off by default: the render_chart tool
+    // and the Observable Plot CDN load only exist when `charts.enabled` is set,
+    // so apps that don't want charts pay nothing.
+    if (appConfig.charts?.enabled) {
+        try {
+            const { ChartRenderer } = await import('./chart-renderer.js');
+            const chartRenderer = new ChartRenderer();
+            toolRegistry.registerLocal(createRenderChartTool(chartRenderer, mcp));
+            console.log('[main] Charting enabled (render_chart tool registered)');
+        } catch (err) {
+            console.warn('[main] Failed to enable charting:', err.message);
+        }
     }
 
     // Inline cached STAC content on LLM-issued direct calls to in-app data,
