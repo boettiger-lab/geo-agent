@@ -272,10 +272,12 @@ export class MapManager {
                 legendClasses: legendClasses || null,
                 legendRange: legendRange || null,
                 legendGradient: legendGradient || null,
+                control: null,   // filled in by _registerControl when config.control is set
                 // Version tracking
                 versions: versionStates,
                 activeVersionIndex: config.defaultVersionIndex,
             });
+            if (config.control) this._registerControl(layerId, config.control);
             this._showLegendIfVisible(layerId);
             return;
         }
@@ -371,7 +373,11 @@ export class MapManager {
             legendClasses: legendClasses || null,
             legendRange: legendRange || null,
             legendGradient: legendGradient || null,
+            control: null,   // filled in by _registerControl when config.control is set
         });
+
+        // Declarative reactive-parameter control (e.g. a temporal slider, #147).
+        if (config.control) this._registerControl(layerId, config.control);
 
         // Wire tooltip handler on every vector layer (even those without
         // declared fields) so set_tooltip can attach fields at runtime. The
@@ -436,6 +442,119 @@ export class MapManager {
         }
     }
 
+    /**
+     * Attach a reactive-parameter control (e.g. a temporal slider, #147) to an
+     * existing layer. The control owns its own DOM panel + (optional) autoplay
+     * loop and, on each change, calls back through _applyControlAction to
+     * rebind the layer — no LLM round-trip per tick. Replaces any prior control
+     * on the same layer. Async because the module is lazy-loaded.
+     *
+     * @param {string} layerId
+     * @param {Object} controlConfig — the `control` block (type/field/min/max/…)
+     * @returns {Promise<{success:boolean, error?:string}>}
+     */
+    async _registerControl(layerId, controlConfig) {
+        const state = this.layers.get(layerId);
+        if (!state) return { success: false, error: `Unknown layer: ${layerId}` };
+        try {
+            const { ReactiveControl } = await import('./reactive-control.js');
+            if (state.control) state.control.destroy();
+            // The slider rebinds the layer's filter; remember the layer's
+            // configured predicate so the slider composes with it rather than
+            // wiping it (a layer may ship a defaultFilter like severity=high).
+            state.controlBaseFilter = state.defaultFilter || null;
+            const ctrl = new ReactiveControl({
+                layerId,
+                displayName: state.displayName,
+                config: controlConfig,
+                apply: (action) => this._applyControlAction(layerId, action),
+            });
+            state.control = ctrl;
+            ctrl.setVisible(state.visible);
+            return { success: true };
+        } catch (err) {
+            console.error(`[Map] Failed to init reactive control for ${layerId}:`, err);
+            return { success: false, error: err.message };
+        }
+    }
+
+    /**
+     * Apply a ReactiveControl's filter directly to the layer. This runs on
+     * every slider input and up to ~60×/s during autoplay, so it deliberately
+     * bypasses the heavy setFilter() path (which calls queryRenderedFeatures +
+     * describeFilter to report a feature count). It also composes the slider
+     * predicate with the layer's base filter (`["all", base, sliderExpr]`) so a
+     * configured defaultFilter survives the slider.
+     */
+    _applyControlAction(layerId, action) {
+        if (!action || action.kind !== 'filter') return;
+        const state = this.layers.get(layerId);
+        if (!state || state.type !== 'vector' || !state.mapLayerId) return;
+        const base = state.controlBaseFilter;
+        const combined = base ? ['all', base, action.expr] : action.expr;
+        this.map.setFilter(state.mapLayerId, combined);
+        if (state.outlineLayerId) this.map.setFilter(state.outlineLayerId, combined);
+        state.filter = combined;
+    }
+
+    /**
+     * Create a slider that filters a vector layer by a numeric/temporal field,
+     * client-side, with no round-trip per step (#147). Used by the agent's
+     * `create_slider` tool. The slider is bound as a MapLibre filter:
+     * cumulative (`<=`) reveals everything up to the value; step (`==`) shows
+     * only the matching value.
+     *
+     * @param {Object} args
+     * @param {string} args.layer_id
+     * @param {string} args.field           — feature property to filter on
+     * @param {number} args.min
+     * @param {number} args.max
+     * @param {number} [args.step=1]
+     * @param {'cumulative'|'step'} [args.mode='cumulative']
+     * @param {string} [args.label]
+     * @param {boolean} [args.animate=false] — show a play button that sweeps the range
+     * @param {number} [args.default]
+     * @returns {Promise<Object>} result
+     */
+    async createSlider(args = {}) {
+        const { layer_id, field, min, max } = args;
+        const state = this.layers.get(layer_id);
+        if (!state) {
+            return { success: false, error: `Unknown layer: ${layer_id}. Available: ${this.getLayerIds().join(', ')}` };
+        }
+        if (state.type === 'raster') {
+            return { success: false, error: `Sliders bind to a vector layer's feature field; "${layer_id}" is a raster layer.` };
+        }
+        if (!field || min == null || max == null) {
+            return { success: false, error: 'create_slider requires field, min, and max.' };
+        }
+        const mode = args.mode === 'step' ? 'step' : 'cumulative';
+        const controlConfig = {
+            type: 'slider',
+            bind: 'filter',
+            field,
+            label: args.label || field,
+            min, max,
+            step: args.step ?? 1,
+            mode,
+            animate: !!args.animate,
+            ...(args.default != null && { default: args.default }),
+        };
+        // Await registration so a lazy-import or constructor failure is reported
+        // to the agent instead of being silently swallowed.
+        const reg = await this._registerControl(layer_id, controlConfig);
+        if (!reg.success) {
+            return { success: false, error: `Failed to create slider: ${reg.error}` };
+        }
+        return {
+            success: true,
+            layer: layer_id,
+            displayName: state.displayName,
+            field, min, max, mode,
+            animate: !!args.animate,
+        };
+    }
+
     // ---- Layer Visibility ----
 
     /**
@@ -454,6 +573,7 @@ export class MapManager {
         }
         this.map.setLayoutProperty(state.mapLayerId, 'visibility', 'visible');
         if (state.outlineLayerId) this.map.setLayoutProperty(state.outlineLayerId, 'visibility', 'visible');
+        if (state.control) state.control.setVisible(true);
         if (this._hasLegend(state)) this._showLegend(layerId);
         return { success: true, layer: layerId, displayName: state.displayName, visible: true };
     }
@@ -474,6 +594,7 @@ export class MapManager {
         }
         this.map.setLayoutProperty(state.mapLayerId, 'visibility', 'none');
         if (state.outlineLayerId) this.map.setLayoutProperty(state.outlineLayerId, 'visibility', 'none');
+        if (state.control) state.control.setVisible(false);
         if (this._hasLegend(state)) this._hideLegend(layerId);
         return { success: true, layer: layerId, displayName: state.displayName, visible: false };
     }

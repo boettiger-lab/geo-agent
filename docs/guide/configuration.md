@@ -206,7 +206,53 @@ For GeoJSON assets containing `LineString` features with a parallel timestamp ar
 }
 ```
 
-Only point-trajectory animation is supported today. Raster time-series playback and temporal filtering of static features are tracked as future work in [#144](https://github.com/boettiger-lab/geo-agent/issues/144).
+For *temporal filtering of static features* — stepping a year/date field on an ordinary vector layer rather than animating moving points — use a reactive-parameter control (below) instead. Raster time-series playback remains future work.
+
+## Reactive-parameter controls (sliders)
+
+A `control` block turns an asset into a layer with a slider that rebinds a map property as you drag it — entirely client-side, with no LLM round-trip per step. The headline use is a **temporal filter**: scrub a year/date field across its range, either cumulatively ("show everything up to year N") or one step at a time ([#147](https://github.com/boettiger-lab/geo-agent/issues/147)). The slider panel floats over the map (like the trajectory controls) and appears whenever the layer is visible.
+
+The same control is also available to the agent at runtime via the **`create_slider`** tool — e.g. "let me step through the fire years" attaches a year slider to the active layer without any config.
+
+The slider composes with the layer's configured `default_filter` (applied as `["all", default_filter, sliderPredicate]`), so a base predicate survives. While a slider is active it governs the layer's filter slot, so a separate `set_filter` on the same layer is superseded the next time the slider moves.
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `type` | string | `"slider"` | Control widget. Currently only `"slider"` is supported. |
+| `field` | string | — | **Required.** Feature property the slider filters on (must compare numerically). |
+| `min` | number | — | **Required.** Low end of the slider range. |
+| `max` | number | — | **Required.** High end of the slider range. |
+| `step` | number | `1` | Slider increment. |
+| `bind` | string | `"filter"` | What the slider drives. Currently `"filter"` (a MapLibre filter expression); `"style"` and `"query"` binds are reserved for future work. |
+| `mode` | string | `"cumulative"` | For `filter` bind: `"cumulative"` shows `field <= value`; `"step"` shows `field == value`. |
+| `label` | string | field name | Text shown on the slider panel. |
+| `default` | number | `max` (cumulative) / `min` (step) | Initial slider value. |
+| `animate` | boolean | `false` | Add a play/pause button that sweeps `min → max` automatically. |
+| `duration_seconds` | number | `20` | Real-time seconds for one autoplay sweep (when `animate` is set). |
+| `loop` | boolean | `true` | Restart at `min` after an autoplay sweep reaches `max`. |
+
+```json
+{
+  "collection_id": "calfire-perimeters",
+  "assets": [
+    {
+      "id": "firep-pmtiles",
+      "display_name": "CAL FIRE Wildfire Perimeters",
+      "control": {
+        "type": "slider",
+        "field": "YEAR_",
+        "label": "Year",
+        "min": 1835,
+        "max": 2024,
+        "step": 1,
+        "mode": "cumulative",
+        "animate": true,
+        "duration_seconds": 20
+      }
+    }
+  ]
+}
+```
 
 ## Collapsed groups
 

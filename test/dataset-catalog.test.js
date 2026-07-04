@@ -313,6 +313,21 @@ describe('DatasetCatalog.extractMapLayers', () => {
         expect(layers[0].sourceLayer).toBe('holdings_layer');
     });
 
+    it('threads a `control` block through to the vector layer record (#147)', () => {
+        const control = { type: 'slider', field: 'YEAR_', min: 1835, max: 2024, mode: 'cumulative' };
+        const layers = cat.extractMapLayers(collectionWithAssets({
+            fires: { type: 'application/vnd.pmtiles', href: 'https://x/fires.pmtiles' },
+        }), {}, [{ key: 'fires', assetId: 'fires', config: { control } }]);
+        expect(layers[0].control).toEqual(control);
+    });
+
+    it('leaves control null when no control block is configured', () => {
+        const layers = cat.extractMapLayers(collectionWithAssets({
+            fires: { type: 'application/vnd.pmtiles', href: 'https://x/fires.pmtiles' },
+        }), {}, [{ key: 'fires', assetId: 'fires', config: {} }]);
+        expect(layers[0].control).toBeNull();
+    });
+
     it('normalizes legend_classes ({label,color}) for a categorical vector layer (issue #118)', () => {
         const layers = cat.extractMapLayers(collectionWithAssets({
             geo: { type: 'application/vnd.pmtiles', href: 'https://x/geo.pmtiles' },

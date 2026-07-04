@@ -300,6 +300,38 @@ describe('set_tooltip / reset_tooltip', () => {
     });
 });
 
+describe('create_slider', () => {
+    const stubMapManager = () => ({
+        createSlider: vi.fn((args) => ({ success: true, layer: args.layer_id, field: args.field, min: args.min, max: args.max, mode: args.mode === 'step' ? 'step' : 'cumulative' })),
+        getLayerSummaries: () => [{ id: 'fires', displayName: 'Fires', type: 'vector' }],
+    });
+    const stubCatalog = { records: new Map() };
+
+    const getTool = () => {
+        const mapManager = stubMapManager();
+        const tool = createMapTools(mapManager, stubCatalog).find(t => t.name === 'create_slider');
+        return { tool, mapManager };
+    };
+
+    it('forwards args verbatim to mapManager.createSlider', async () => {
+        const { tool, mapManager } = getTool();
+        const args = { layer_id: 'fires', field: 'YEAR_', min: 1835, max: 2024, step: 1, mode: 'cumulative', animate: true };
+        const result = JSON.parse(await tool.execute(args));
+        expect(result.success).toBe(true);
+        expect(mapManager.createSlider).toHaveBeenCalledWith(args);
+    });
+
+    it('requires layer_id, field, min, and max in its schema', () => {
+        const { tool } = getTool();
+        expect(tool.inputSchema.required).toEqual(['layer_id', 'field', 'min', 'max']);
+    });
+
+    it('constrains mode to cumulative | step', () => {
+        const { tool } = getTool();
+        expect(tool.inputSchema.properties.mode.enum).toEqual(['cumulative', 'step']);
+    });
+});
+
 describe('geocode tool', () => {
     const stubMap = { getLayerSummaries: () => [] };
     const stubCatalog = { records: new Map() };
@@ -397,6 +429,7 @@ describe('createMapTools smoke test', () => {
         expect(names).toEqual([
             'add_hex_tile_layer',
             'clear_filter',
+            'create_slider',
             'fly_to',
             'get_map_state',
             'get_schema',
