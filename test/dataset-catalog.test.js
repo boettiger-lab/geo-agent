@@ -292,6 +292,64 @@ describe('DatasetCatalog.load (mocked fetch)', () => {
     });
 });
 
+describe('DatasetCatalog.fetchJson retry/backoff (issue #287)', () => {
+    let originalFetch, warnSpy;
+    beforeEach(() => {
+        originalFetch = global.fetch;
+        warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    });
+    afterEach(() => {
+        global.fetch = originalFetch;
+        warnSpy.mockRestore();
+    });
+
+    const okResponse = (body) => ({ ok: true, status: 200, json: async () => body });
+    const errResponse = (status) => ({ ok: false, status, json: async () => null });
+
+    it('retries a transient 5xx and succeeds on a later attempt', async () => {
+        const cat = new DatasetCatalog();
+        global.fetch = vi.fn()
+            .mockResolvedValueOnce(errResponse(503))
+            .mockResolvedValueOnce(errResponse(502))
+            .mockResolvedValueOnce(okResponse({ ok: 'data' }));
+
+        const result = await cat.fetchJson('https://x/catalog.json', { baseDelayMs: 0 });
+
+        expect(result).toEqual({ ok: 'data' });
+        expect(global.fetch).toHaveBeenCalledTimes(3);
+    });
+
+    it('retries a transient network TypeError then succeeds', async () => {
+        const cat = new DatasetCatalog();
+        global.fetch = vi.fn()
+            .mockRejectedValueOnce(new TypeError('Failed to fetch'))
+            .mockResolvedValueOnce(okResponse({ ok: 'data' }));
+
+        const result = await cat.fetchJson('https://x/catalog.json', { baseDelayMs: 0 });
+
+        expect(result).toEqual({ ok: 'data' });
+        expect(global.fetch).toHaveBeenCalledTimes(2);
+    });
+
+    it('gives up after the attempt budget and throws the last transient error', async () => {
+        const cat = new DatasetCatalog();
+        global.fetch = vi.fn().mockResolvedValue(errResponse(503));
+
+        await expect(cat.fetchJson('https://x/catalog.json', { attempts: 3, baseDelayMs: 0 }))
+            .rejects.toThrow('HTTP 503');
+        expect(global.fetch).toHaveBeenCalledTimes(3);
+    });
+
+    it('fails fast on a permanent 404 without retrying', async () => {
+        const cat = new DatasetCatalog();
+        global.fetch = vi.fn().mockResolvedValue(errResponse(404));
+
+        await expect(cat.fetchJson('https://x/missing.json', { baseDelayMs: 0 }))
+            .rejects.toThrow('HTTP 404');
+        expect(global.fetch).toHaveBeenCalledTimes(1);
+    });
+});
+
 describe('DatasetCatalog.extractMapLayers', () => {
     const cat = new DatasetCatalog();
 
