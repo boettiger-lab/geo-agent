@@ -154,6 +154,13 @@ export class Agent {
         // re-issuing a local tool — e.g. set_filter failing — would loop forever
         // with no checkpoint to stop it (#243). This counter bounds that.
         let localOnlyStreak = 0;
+        // Malformed-tool-call recovery attempts this turn (#288). When the model
+        // emits something that *looks* like a tool call but we can't parse it, we
+        // re-prompt it to re-emit a well-formed call instead of silently treating
+        // the garbage as a final answer. Bounded so a model that simply cannot
+        // produce a parseable call falls through to its text rather than looping.
+        let parseRetries = 0;
+        const MAX_PARSE_RETRIES = 2;
 
         try {
         while (true) {
@@ -184,6 +191,13 @@ export class Agent {
             // the message so it isn't re-sent on subsequent turns.
             const reasoning = this.extractReasoning(message);
             if (reasoning) this.onReasoning(reasoning, iterations);
+            // Canonicalize native tool-call arguments before they enter history
+            // (#288, failure mode 2): a malformed `arguments` string (e.g. an
+            // extra trailing brace) is parseable-for-execution below but, left
+            // verbatim in the assistant message, poisons the *next* upstream
+            // request (400 Extra data). Normalize once here so history is always
+            // valid JSON regardless of what the model emitted.
+            this.normalizeToolCallArguments(message);
             turnMessages.push(message);
 
             // Check for tool calls
@@ -191,6 +205,9 @@ export class Agent {
             const embeddedCalls = toolCalls.length === 0 ? this.parseEmbeddedToolCalls(message.content) : [];
 
             if (toolCalls.length > 0 || embeddedCalls.length > 0) {
+                // A parseable call ends any malformed-call streak — a single glitch
+                // over a long turn shouldn't accumulate toward the recovery cap.
+                parseRetries = 0;
                 const calls = toolCalls.length > 0 ? toolCalls : this.syntheticToolCalls(embeddedCalls);
 
                 // Classify: are all calls local (auto-approve) or mixed?
@@ -271,8 +288,28 @@ export class Agent {
                 continue;
             }
 
-            // No tool calls — final response
             const content = message.content || '';
+
+            // Malformed tool-call recovery (#288, failure modes 1 & 3): we got
+            // neither structured tool_calls nor a parseable embedded call, yet the
+            // content looks like the model *tried* to call a tool (wrong wrapper,
+            // mismatched close tag, or invalid inner JSON). Rather than silently
+            // returning the garbage as the final answer, nudge it to re-emit a
+            // well-formed call and continue the loop. Bounded by MAX_PARSE_RETRIES
+            // so a model that can't recover degrades to its text instead of looping.
+            if (parseRetries < MAX_PARSE_RETRIES && this.looksLikeAttemptedToolCall(content)) {
+                parseRetries++;
+                turnMessages.push({
+                    role: 'user',
+                    content: 'That looked like a tool call but could not be parsed. Re-emit it as a single '
+                        + 'well-formed call: <tool_call>{"name": "<tool_name>", "arguments": {…}}</tool_call> '
+                        + 'with valid JSON and a matching </tool_call> tag. If you already have your answer, '
+                        + 'reply in plain text instead.',
+                });
+                continue;
+            }
+
+            // No tool calls — final response
             if (!content.trim()) {
                 return {
                     response: 'I received your question but had trouble generating a response. Please try rephrasing.',
@@ -505,28 +542,34 @@ export class Agent {
     parseEmbeddedToolCalls(content) {
         if (!content) return [];
         const calls = [];
-        const pattern = /<tool_call>([^<]+)<\/tool_call>/gi;
+        // Tolerant extractor (#288, failure mode 1): capture from <tool_call> up to
+        // the *first* of a closing tag (</… — including a mismatched </parameter>),
+        // a new <tool_call>, or EOF, instead of requiring an exact </tool_call> with
+        // no interior '<'. The lookahead leaves the terminator unconsumed; each match
+        // still consumes the literal <tool_call>, so lastIndex always advances.
+        const pattern = /<tool_call>\s*([\s\S]*?)\s*(?=<\/|<tool_call>|$)/gi;
         let match;
 
         while ((match = pattern.exec(content)) !== null) {
             const inner = match[1].trim();
+            if (!inner) continue;
 
-            // Try JSON: {"name": "tool", "arguments": {...}}
-            try {
-                const parsed = JSON.parse(inner);
-                if (parsed.name) {
-                    calls.push({ name: parsed.name, args: parsed.arguments || {} });
-                    continue;
-                }
-            } catch { /* not JSON */ }
+            // Try JSON: {"name": "tool", "arguments": {...}} — lenient, so a trailing
+            // extra brace (failure mode 2's cousin) still yields a usable call.
+            const parsed = this.parseLenientJSON(inner);
+            if (parsed && parsed.name) {
+                calls.push({ name: parsed.name, args: parsed.arguments || {} });
+                continue;
+            }
 
             // Try function call: tool_name({"arg": "val"})
-            const funcMatch = inner.match(/^(\w+)\s*\((.+)\)$/s);
+            const funcMatch = inner.match(/^(\w+)\s*\(([\s\S]+)\)$/);
             if (funcMatch) {
-                try {
-                    calls.push({ name: funcMatch[1], args: JSON.parse(funcMatch[2]) });
+                const args = this.parseLenientJSON(funcMatch[2]);
+                if (args !== undefined) {
+                    calls.push({ name: funcMatch[1], args });
                     continue;
-                } catch { /* bad args */ }
+                }
             }
 
             // Simple name
@@ -536,6 +579,91 @@ export class Agent {
         }
 
         return calls;
+    }
+
+    /**
+     * Parse a JSON value leniently (#288, failure mode 2/3). Tries a strict parse
+     * first; on failure, falls back to a raw_decode-style scan that returns the
+     * first complete, balanced JSON object/array and ignores any trailing junk —
+     * recovering the common `{"k": "v"}}` extra-brace case. Returns the parsed
+     * value, or `undefined` if nothing valid could be extracted.
+     */
+    parseLenientJSON(str) {
+        if (typeof str !== 'string') return undefined;
+        const s = str.trim();
+        if (!s) return undefined;
+        try {
+            return JSON.parse(s);
+        } catch { /* fall through to raw_decode */ }
+        return this._decodeFirstJSON(s);
+    }
+
+    /**
+     * raw_decode helper: scan from the first '{' or '[' and return the first
+     * balanced, valid JSON value, respecting strings and escapes. Trailing text
+     * after the balanced value is ignored. Returns `undefined` on no match.
+     */
+    _decodeFirstJSON(s) {
+        const start = s.search(/[{[]/);
+        if (start === -1) return undefined;
+        const open = s[start];
+        const close = open === '{' ? '}' : ']';
+        let depth = 0, inStr = false, esc = false;
+        for (let i = start; i < s.length; i++) {
+            const c = s[i];
+            if (inStr) {
+                if (esc) esc = false;
+                else if (c === '\\') esc = true;
+                else if (c === '"') inStr = false;
+                continue;
+            }
+            if (c === '"') { inStr = true; continue; }
+            if (c === open) depth++;
+            else if (c === close && --depth === 0) {
+                try {
+                    return JSON.parse(s.slice(start, i + 1));
+                } catch {
+                    return undefined;
+                }
+            }
+        }
+        return undefined;
+    }
+
+    /**
+     * Canonicalize a message's native tool-call `arguments` to valid JSON strings
+     * (#288, failure mode 2). A malformed `arguments` string left verbatim in the
+     * assistant message poisons the next upstream request. We parse leniently and
+     * re-serialize; anything unrecoverable becomes `{}` so history stays valid.
+     * Mutates the message in place.
+     */
+    normalizeToolCallArguments(message) {
+        if (!Array.isArray(message?.tool_calls)) return;
+        for (const tc of message.tool_calls) {
+            if (!tc.function) continue;
+            const raw = tc.function.arguments;
+            if (typeof raw !== 'string') {
+                // Some backends hand back an object — canonicalize to a string.
+                tc.function.arguments = JSON.stringify(raw ?? {});
+                continue;
+            }
+            const parsed = this.parseLenientJSON(raw);
+            tc.function.arguments = JSON.stringify(parsed ?? {});
+        }
+    }
+
+    /**
+     * Heuristic (#288): does this content look like an *attempted* tool call that
+     * we failed to parse? Kept tight to avoid re-prompting genuine final answers.
+     */
+    looksLikeAttemptedToolCall(content) {
+        if (!content) return false;
+        if (/<tool_call/i.test(content)) return true;
+        if (/"(?:name|function|parameters|arguments)"\s*:/.test(content)) return true;
+        // Bare function-call shape against a known tool, e.g. get_schema({...}).
+        const m = content.match(/\b(\w+)\s*\(\s*[{[]/);
+        if (m && this.toolRegistry.has(m[1])) return true;
+        return false;
     }
 
     /**
