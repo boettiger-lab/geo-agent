@@ -48,6 +48,53 @@ describe('MapManager.setFilter empty-filter guard (#243)', () => {
     });
 });
 
+describe('MapManager._applyControlAction (reactive slider, #147)', () => {
+    const setup = (extra = {}) => {
+        const setFilterCalls = [];
+        const queryCalls = { n: 0 };
+        const mm = Object.create(MapManager.prototype);
+        mm.map = {
+            setFilter: (id, f) => setFilterCalls.push({ id, f }),
+            queryRenderedFeatures: () => { queryCalls.n++; return []; },
+        };
+        mm.layers = new Map([
+            ['vec', { type: 'vector', mapLayerId: 'layer-vec', outlineLayerId: 'layer-vec-outline', displayName: 'Vec', ...extra }],
+        ]);
+        mm._setFilterCalls = setFilterCalls;
+        mm._queryCalls = queryCalls;
+        return mm;
+    };
+
+    it('applies the slider expression to the layer and its outline', () => {
+        const mm = setup();
+        mm._applyControlAction('vec', { kind: 'filter', expr: ['<=', ['get', 'YEAR_'], 1990] });
+        expect(mm._setFilterCalls).toEqual([
+            { id: 'layer-vec', f: ['<=', ['get', 'YEAR_'], 1990] },
+            { id: 'layer-vec-outline', f: ['<=', ['get', 'YEAR_'], 1990] },
+        ]);
+    });
+
+    it('does NOT call queryRenderedFeatures (cheap per-frame path, unlike setFilter)', () => {
+        const mm = setup();
+        mm._applyControlAction('vec', { kind: 'filter', expr: ['<=', ['get', 'YEAR_'], 1990] });
+        expect(mm._queryCalls.n).toBe(0);
+    });
+
+    it('composes the slider predicate with the layer base filter so a defaultFilter survives', () => {
+        const base = ['==', ['get', 'severity'], 'high'];
+        const mm = setup({ controlBaseFilter: base });
+        mm._applyControlAction('vec', { kind: 'filter', expr: ['<=', ['get', 'YEAR_'], 1990] });
+        expect(mm._setFilterCalls[0].f).toEqual(['all', base, ['<=', ['get', 'YEAR_'], 1990]]);
+    });
+
+    it('ignores non-filter actions and unknown layers', () => {
+        const mm = setup();
+        mm._applyControlAction('vec', { kind: 'style', paint: {} });
+        mm._applyControlAction('missing', { kind: 'filter', expr: ['<=', ['get', 'x'], 1] });
+        expect(mm._setFilterCalls.length).toBe(0);
+    });
+});
+
 describe('MapManager.setFilter 0-features-in-view', () => {
     it('reports plain success with no failure signal when 0 features are in the viewport', () => {
         // queryRenderedFeatures is viewport-scoped: a valid filter whose matches are
