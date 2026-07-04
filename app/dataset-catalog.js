@@ -883,9 +883,38 @@ export class DatasetCatalog {
 
     // ---- Utilities ----
 
-    async fetchJson(url) {
-        const response = await fetch(url);
-        if (!response.ok) throw new Error(`HTTP ${response.status}: ${url}`);
-        return response.json();
+    async fetchJson(url, { attempts = 3, baseDelayMs = 300 } = {}) {
+        // The catalog fetch is on the boot critical path, so a single transient
+        // blip on the object store (a 5xx, a network drop) must not take the
+        // whole app down. Retry transient failures with exponential backoff;
+        // permanent failures (4xx, malformed JSON) still fail fast. Mirrors the
+        // transient-vs-permanent split in agent.js._isTransientLLMError.
+        for (let attempt = 1; ; attempt++) {
+            try {
+                const response = await fetch(url);
+                if (!response.ok) {
+                    const err = new Error(`HTTP ${response.status}: ${url}`);
+                    err.status = response.status;
+                    throw err;
+                }
+                return await response.json();
+            } catch (error) {
+                if (attempt >= attempts || !this._isTransientFetchError(error)) throw error;
+                const delayMs = baseDelayMs * 2 ** (attempt - 1);
+                console.warn(`[Catalog] Transient fetch error for ${url} (attempt ${attempt}/${attempts}), retrying in ${delayMs}ms: ${error.message}`);
+                await new Promise(resolve => setTimeout(resolve, delayMs));
+            }
+        }
+    }
+
+    /**
+     * Classify a fetch failure as transient (worth retrying) or permanent.
+     * Retry on: network errors (surface as TypeError), HTTP 5xx.
+     * Skip on: HTTP 4xx (bad/missing URL), JSON parse errors, anything else.
+     */
+    _isTransientFetchError(error) {
+        if (error.name === 'TypeError') return true;
+        if (typeof error.status === 'number' && error.status >= 500 && error.status < 600) return true;
+        return false;
     }
 }
