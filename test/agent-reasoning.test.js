@@ -173,9 +173,12 @@ describe('Agent reasoning-toggle resolution (#283)', () => {
         expect(a._thinkingParams(a.getModelConfig())).toEqual({ enable_thinking: false });
     });
 
-    it('_thinkingParams: toggle-capable but no default and no override → omit', () => {
+    it('_thinkingParams: toggle-capable, no default, no override → on (matches UI)', () => {
+        // The toggle renders as "on" in this state (chat-ui reasoningState()),
+        // so we must actually send enable_thinking:true — not omit and defer to
+        // the backend default, which could disagree with what the user sees.
         const a = makeConfiguredAgent({ reasoning_toggle: true });
-        expect(a._thinkingParams(a.getModelConfig())).toEqual({});
+        expect(a._thinkingParams(a.getModelConfig())).toEqual({ enable_thinking: true });
     });
 
     it('_thinkingParams: user override wins over the configured default', () => {

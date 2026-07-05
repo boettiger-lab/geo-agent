@@ -448,15 +448,19 @@ export class Agent {
      * model's own default is untouched (no behavior change by default).
      *
      * Value precedence: per-conversation user override (the UI toggle) wins,
-     * then the configured default. See #283.
+     * then the configured default, then — for a toggle-capable model — `true`.
+     * This mirrors chat-ui's `reasoningState()` exactly, so what the 🧠 toggle
+     * shows and what we send can never disagree. See #283.
      */
     _thinkingParams(modelConfig) {
+        const capable = this._reasoningCapable(modelConfig);
         const dflt = this._reasoningDefault(modelConfig);
         // Untouched unless the deployer opted this model in somehow.
-        if (!this._reasoningCapable(modelConfig) && dflt === undefined) return {};
-        const value = (typeof this.reasoningOverride === 'boolean')
-            ? this.reasoningOverride
-            : dflt;
+        if (!capable && dflt === undefined) return {};
+        let value;
+        if (typeof this.reasoningOverride === 'boolean') value = this.reasoningOverride;
+        else if (typeof dflt === 'boolean') value = dflt;
+        else value = capable ? true : undefined; // toggle shown → defaults on
         return typeof value === 'boolean' ? { enable_thinking: value } : {};
     }
 

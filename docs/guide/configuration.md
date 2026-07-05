@@ -536,7 +536,7 @@ The toggle emits a normalized `enable_thinking` flag that the [open-llm-proxy](h
 | Field | Where | Default | Description |
 |---|---|---|---|
 | `reasoning_toggle` | per-model and/or top-level | `false` | Show the 🧠 reasoning on/off toggle for this model. Only enable it for models whose backend supports the thinking knob **and** where reasoning-off is safe for tool use. Hidden when `false`/absent. |
-| `reasoning_default` | per-model and/or top-level | unset | Initial reasoning state (`true` = on). When unset and the toggle is shown, it starts *on*. When set on a model with **no** toggle, it applies a fixed reasoning state without a user control. Unset entirely → `enable_thinking` is omitted and the model's own default is used. |
+| `reasoning_default` | per-model and/or top-level | unset | Initial reasoning state (`true` = on). When unset **and the toggle is shown**, it starts *on* and `enable_thinking: true` is sent (so the toggle's displayed state matches what's sent). When set on a model with **no** toggle, it applies a fixed reasoning state without a user control. Unset **with no toggle** → `enable_thinking` is omitted and the model's own default is used. |
 
 Resolution mirrors the sampling params: per-model first, then top-level global. A per-conversation toggle click overrides the configured default until the model is switched (which resets to that model's default).
 
