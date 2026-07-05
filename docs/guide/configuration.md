@@ -516,6 +516,30 @@ To change sampling, set any of `temperature`, `top_p`, or `seed`. Each is read *
 
 > **Reproducibility caveat:** open-weights MoE inference (e.g. minimax-m2) is not bit-reproducible even at `temperature: 0`, so this is necessary-but-not-sufficient — pair it with a pinned methodology for headline numbers.
 
+### Reasoning toggle (optional)
+
+Reasoning ("thinking") models spend a large, sequential **decode** budget generating hidden reasoning before the answer. On easy tasks — a simple filter, a lookup, a single tool call — that's mostly latency for little gain, while on hard analytical/SQL questions it materially improves the answer. Because that tradeoff is **per question, not per app**, geo-agent can surface a 🧠 toggle in the chat footer so the user picks *fast* vs. *thorough* per conversation.
+
+The toggle emits a normalized `enable_thinking` flag that the [open-llm-proxy](https://github.com/boettiger-lab/open-llm-proxy) maps to the correct per-backend chat-template knob (e.g. `enable_thinking` for qwen3/glm, `thinking` for kimi). It is **off by default and opt-in per model** — when neither key below is set, geo-agent sends nothing and the model uses its own default (no behavior change).
+
+> **Only enable it where "off" is safe.** On weaker models, disabling reasoning can degrade tool-calling/SQL reliability. Enable the toggle only for models where measurement (see [open-llm-proxy#58](https://github.com/boettiger-lab/open-llm-proxy/issues/58)) shows reasoning-off doesn't hurt tool use.
+
+```json
+{
+  "llm_models": [
+    { "value": "qwen3", "endpoint": "…", "api_key": "…", "reasoning_toggle": true, "reasoning_default": true },
+    { "value": "minimax-m2", "endpoint": "…", "api_key": "…" }
+  ]
+}
+```
+
+| Field | Where | Default | Description |
+|---|---|---|---|
+| `reasoning_toggle` | per-model and/or top-level | `false` | Show the 🧠 reasoning on/off toggle for this model. Only enable it for models whose backend supports the thinking knob **and** where reasoning-off is safe for tool use. Hidden when `false`/absent. |
+| `reasoning_default` | per-model and/or top-level | unset | Initial reasoning state (`true` = on). When unset and the toggle is shown, it starts *on*. When set on a model with **no** toggle, it applies a fixed reasoning state without a user control. Unset entirely → `enable_thinking` is omitted and the model's own default is used. |
+
+Resolution mirrors the sampling params: per-model first, then top-level global. A per-conversation toggle click overrides the configured default until the model is switched (which resets to that model's default).
+
 ## Voice input (optional)
 
 Voice input is opt-in via a `transcription_model` entry in `config.json`. When present, a 🎤 button appears in the chat footer; when absent, the button stays hidden and the voice/transcription JS modules are never loaded (zero footprint).
