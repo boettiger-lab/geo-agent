@@ -23,6 +23,11 @@ export class Agent {
         this.systemPrompt = '';
         this.messages = [];
         this.selectedModel = config.llm_model || config.llm_models?.[0]?.value || 'default';
+        // Runtime override for model thinking/reasoning, set by the chat-ui toggle.
+        // null = no override (fall back to config default, else omit → model default);
+        // true/false = user asked for reasoning on/off for subsequent turns. Reset to
+        // null on model switch so each model starts from its own configured default.
+        this.reasoningOverride = null;
         // Checkpoint thresholds: how many *remote* tool-call rounds before the
         // agent pauses to report progress and ask to continue. Auto-approve uses
         // the tighter value (the checkpoint is the user's periodic gate); manual
@@ -62,6 +67,9 @@ export class Agent {
      */
     setModel(modelValue) {
         this.selectedModel = modelValue;
+        // Clear any per-conversation reasoning override so the newly-selected
+        // model resolves from its own configured default.
+        this.reasoningOverride = null;
     }
 
     /**
@@ -407,6 +415,56 @@ export class Agent {
     }
 
     /**
+     * Whether the reasoning on/off toggle should be *offered* for a model.
+     * Capability is opt-in per deployment: `reasoning_toggle: true` per-model,
+     * else the top-level global. Off (absent) by default — most models/apps
+     * don't expose it. Consumed by chat-ui.js to decide whether to render the
+     * toggle. Resolved per-model first, then global (mirrors `_samplingParams`).
+     */
+    _reasoningCapable(modelConfig) {
+        const v = ('reasoning_toggle' in (modelConfig ?? {}))
+            ? modelConfig.reasoning_toggle
+            : this.config?.reasoning_toggle;
+        return v === true;
+    }
+
+    /**
+     * The configured default reasoning state (per-model first, then global).
+     * Returns a boolean when set, or `undefined` when unconfigured — in which
+     * case we emit nothing and let the model/proxy use its own default.
+     */
+    _reasoningDefault(modelConfig) {
+        const v = ('reasoning_default' in (modelConfig ?? {}))
+            ? modelConfig.reasoning_default
+            : this.config?.reasoning_default;
+        return typeof v === 'boolean' ? v : undefined;
+    }
+
+    /**
+     * Resolve the thinking-control payload for a turn. Emits `enable_thinking`
+     * (a normalized flag the open-llm-proxy maps to the correct per-backend
+     * chat-template knob) only when this model participates — i.e. the deployer
+     * enabled the toggle or set a default. Otherwise the key is omitted so the
+     * model's own default is untouched (no behavior change by default).
+     *
+     * Value precedence: per-conversation user override (the UI toggle) wins,
+     * then the configured default, then — for a toggle-capable model — `true`.
+     * This mirrors chat-ui's `reasoningState()` exactly, so what the 🧠 toggle
+     * shows and what we send can never disagree. See #283.
+     */
+    _thinkingParams(modelConfig) {
+        const capable = this._reasoningCapable(modelConfig);
+        const dflt = this._reasoningDefault(modelConfig);
+        // Untouched unless the deployer opted this model in somehow.
+        if (!capable && dflt === undefined) return {};
+        let value;
+        if (typeof this.reasoningOverride === 'boolean') value = this.reasoningOverride;
+        else if (typeof dflt === 'boolean') value = dflt;
+        else value = capable ? true : undefined; // toggle shown → defaults on
+        return typeof value === 'boolean' ? { enable_thinking: value } : {};
+    }
+
+    /**
      * Resolve the per-attempt LLM timeout in milliseconds. Mirrors
      * `_samplingParams` resolution: per-model `llm_timeout_seconds` wins, then
      * global config, then a built-in default.
@@ -443,6 +501,7 @@ export class Agent {
             tool_choice: tools.length > 0 ? 'auto' : 'none',
             user: this.sessionId,
             ...this._samplingParams(modelConfig),
+            ...this._thinkingParams(modelConfig),
         };
 
         const timeoutMs = this._llmTimeoutMs(modelConfig);

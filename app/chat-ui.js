@@ -180,6 +180,9 @@ export class ChatUI {
         this.populateModelSelector();
         this.modelSelector?.addEventListener('change', () => {
             this.agent.setModel(this.modelSelector.value);
+            // setModel cleared any reasoning override; reflect the new model's
+            // capability + default in the toggle.
+            this.syncReasoningToggle();
         });
 
         // Voice input (only initialised when a transcription model is
@@ -198,6 +201,9 @@ export class ChatUI {
 
         // Auto-approve toggle (always shown)
         this.initAutoApproveToggle();
+
+        // Reasoning on/off toggle (shown only for reasoning-capable models)
+        this.initReasoningToggle();
 
         // Export-to-HTML button (always shown)
         this.initExportButton();
@@ -552,6 +558,53 @@ export class ChatUI {
         });
 
         footer.prepend(btn);
+    }
+
+    /* ------------------------------------------------------------------ */
+    /*  Reasoning on/off toggle                                            */
+    /* ------------------------------------------------------------------ */
+
+    /**
+     * The effective reasoning state shown by the toggle: a per-conversation
+     * user override if set, else the model's configured default, else `true`
+     * (reasoning-capable models think by default).
+     */
+    reasoningState() {
+        const mc = this.agent.getModelConfig();
+        if (typeof this.agent.reasoningOverride === 'boolean') return this.agent.reasoningOverride;
+        const dflt = this.agent._reasoningDefault(mc);
+        return typeof dflt === 'boolean' ? dflt : true;
+    }
+
+    /** Reflect capability (show/hide) and current state (active class + title). */
+    syncReasoningToggle() {
+        const btn = this.reasoningBtn;
+        if (!btn) return;
+        const capable = this.agent._reasoningCapable(this.agent.getModelConfig());
+        btn.style.display = capable ? '' : 'none';
+        if (!capable) return;
+        const on = this.reasoningState();
+        btn.classList.toggle('active', on);
+        btn.title = on
+            ? 'Reasoning on — the model thinks before answering (slower, better on hard questions). Click for faster answers.'
+            : 'Reasoning off — faster answers, may reduce quality on hard questions. Click to think first.';
+    }
+
+    initReasoningToggle() {
+        const footer = this.footerRightEl;
+        if (!footer) return;
+
+        const btn = document.createElement('button');
+        btn.id = 'reasoning-btn';
+        btn.textContent = '🧠';
+        btn.addEventListener('click', () => {
+            this.agent.reasoningOverride = !this.reasoningState();
+            this.syncReasoningToggle();
+        });
+
+        footer.prepend(btn);
+        this.reasoningBtn = btn;
+        this.syncReasoningToggle();
     }
 
     /* ------------------------------------------------------------------ */
