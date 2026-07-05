@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
 import { ChatUI } from '../app/chat-ui.js';
+import { Agent } from '../app/agent.js';
 
 /**
  * #255 — checkpoint resume folded into the chat input. These exercise the
@@ -107,5 +108,45 @@ describe('ChatUI.handleSend resume semantics (#255)', () => {
         ui.inputEl.value = 'use the viridis palette';
         await ui.handleSend();
         expect(sent).toEqual(['use the viridis palette']);
+    });
+});
+
+describe('ChatUI reasoning toggle (#283)', () => {
+    const stubRegistry = { getToolsForLLM: () => [], isLocal: () => true, execute: async () => ({}), has: () => false };
+
+    // Minimal ChatUI wired to a real Agent so the capability/state gating
+    // (which lives on the Agent) is exercised end-to-end.
+    function makeUI(models) {
+        const ui = Object.create(ChatUI.prototype);
+        ui.agent = new Agent({ llm_models: models }, stubRegistry);
+        ui.footerRightEl = document.createElement('div');
+        return ui;
+    }
+
+    it('hides the toggle for a non-capable model', () => {
+        const ui = makeUI([{ value: 'plain', endpoint: 'e', api_key: 'k' }]);
+        ui.initReasoningToggle();
+        expect(ui.reasoningBtn.style.display).toBe('none');
+    });
+
+    it('shows the toggle, defaulting to the configured state', () => {
+        const ui = makeUI([{ value: 'r', endpoint: 'e', api_key: 'k', reasoning_toggle: true, reasoning_default: true }]);
+        ui.initReasoningToggle();
+        expect(ui.reasoningBtn.style.display).toBe('');
+        expect(ui.reasoningBtn.classList.contains('active')).toBe(true);
+    });
+
+    it('click flips the effective state and the agent override', () => {
+        const ui = makeUI([{ value: 'r', endpoint: 'e', api_key: 'k', reasoning_toggle: true, reasoning_default: true }]);
+        ui.initReasoningToggle();
+        ui.reasoningBtn.click();
+        expect(ui.agent.reasoningOverride).toBe(false);
+        expect(ui.reasoningBtn.classList.contains('active')).toBe(false);
+    });
+
+    it('capable-but-undefined default displays as on', () => {
+        const ui = makeUI([{ value: 'r', endpoint: 'e', api_key: 'k', reasoning_toggle: true }]);
+        ui.initReasoningToggle();
+        expect(ui.reasoningState()).toBe(true);
     });
 });

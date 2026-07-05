@@ -125,3 +125,102 @@ describe('Agent reasoning extraction', () => {
         expect(lastAssistant.content).toBe('Answer.');
     });
 });
+
+// Build an agent whose config carries the given per-model + top-level keys.
+const makeConfiguredAgent = (modelExtra = {}, topLevel = {}) => new Agent(
+    {
+        llm_models: [{ value: 'm', endpoint: 'https://x/v1', api_key: 'k', ...modelExtra }],
+        ...topLevel,
+    },
+    stubToolRegistry,
+);
+
+describe('Agent reasoning-toggle resolution (#283)', () => {
+    it('_reasoningCapable is false by default (opt-in)', () => {
+        const a = makeConfiguredAgent();
+        expect(a._reasoningCapable(a.getModelConfig())).toBe(false);
+    });
+
+    it('_reasoningCapable reads per-model, then top-level, per-model wins', () => {
+        const perModel = makeConfiguredAgent({ reasoning_toggle: true });
+        expect(perModel._reasoningCapable(perModel.getModelConfig())).toBe(true);
+
+        const global = makeConfiguredAgent({}, { reasoning_toggle: true });
+        expect(global._reasoningCapable(global.getModelConfig())).toBe(true);
+
+        const perModelOff = makeConfiguredAgent({ reasoning_toggle: false }, { reasoning_toggle: true });
+        expect(perModelOff._reasoningCapable(perModelOff.getModelConfig())).toBe(false);
+    });
+
+    it('_reasoningDefault returns a boolean when set, else undefined', () => {
+        const none = makeConfiguredAgent();
+        expect(none._reasoningDefault(none.getModelConfig())).toBeUndefined();
+
+        const off = makeConfiguredAgent({ reasoning_default: false });
+        expect(off._reasoningDefault(off.getModelConfig())).toBe(false);
+
+        const globalOn = makeConfiguredAgent({}, { reasoning_default: true });
+        expect(globalOn._reasoningDefault(globalOn.getModelConfig())).toBe(true);
+    });
+
+    it('_thinkingParams emits nothing when the model does not participate', () => {
+        const a = makeConfiguredAgent();
+        expect(a._thinkingParams(a.getModelConfig())).toEqual({});
+    });
+
+    it('_thinkingParams emits a configured default even without a toggle', () => {
+        const a = makeConfiguredAgent({ reasoning_default: false });
+        expect(a._thinkingParams(a.getModelConfig())).toEqual({ enable_thinking: false });
+    });
+
+    it('_thinkingParams: toggle-capable, no default, no override → on (matches UI)', () => {
+        // The toggle renders as "on" in this state (chat-ui reasoningState()),
+        // so we must actually send enable_thinking:true — not omit and defer to
+        // the backend default, which could disagree with what the user sees.
+        const a = makeConfiguredAgent({ reasoning_toggle: true });
+        expect(a._thinkingParams(a.getModelConfig())).toEqual({ enable_thinking: true });
+    });
+
+    it('_thinkingParams: user override wins over the configured default', () => {
+        const a = makeConfiguredAgent({ reasoning_toggle: true, reasoning_default: true });
+        a.reasoningOverride = false;
+        expect(a._thinkingParams(a.getModelConfig())).toEqual({ enable_thinking: false });
+    });
+
+    it('setModel clears the reasoning override', () => {
+        const a = makeConfiguredAgent({ reasoning_toggle: true });
+        a.reasoningOverride = false;
+        a.setModel('m');
+        expect(a.reasoningOverride).toBeNull();
+    });
+});
+
+describe('Agent.callLLM enable_thinking in payload (#283)', () => {
+    let originalFetch;
+    beforeEach(() => { originalFetch = global.fetch; });
+    afterEach(() => { global.fetch = originalFetch; vi.restoreAllMocks(); });
+
+    const captureBodies = () => {
+        const bodies = [];
+        global.fetch = vi.fn(async (url, opts) => {
+            bodies.push(JSON.parse(opts.body));
+            return okResponse({ role: 'assistant', content: 'ok' });
+        });
+        return bodies;
+    };
+
+    it('omits enable_thinking for a non-participating model', async () => {
+        const a = makeConfiguredAgent();
+        const bodies = captureBodies();
+        await a.callLLM('https://x/v1', a.getModelConfig(), [], []);
+        expect('enable_thinking' in bodies[0]).toBe(false);
+    });
+
+    it('sends enable_thinking:false when the user turns reasoning off', async () => {
+        const a = makeConfiguredAgent({ reasoning_toggle: true, reasoning_default: true });
+        a.reasoningOverride = false;
+        const bodies = captureBodies();
+        await a.callLLM('https://x/v1', a.getModelConfig(), [], []);
+        expect(bodies[0].enable_thinking).toBe(false);
+    });
+});
