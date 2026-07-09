@@ -8,7 +8,8 @@ import { Agent } from '../app/agent.js';
 const stubRegistry = (overrides = {}) => ({
     getToolsForLLM: () => [],
     isLocal: () => true,
-    has: (name) => ['get_schema', 'query', 'set_filter'].includes(name),
+    has: (name) => ['get_schema', 'query', 'set_filter', 'clear_filter',
+        'list_datasets', 'show_layer'].includes(name),
     execute: async () => ({ result: '' }),
     ...overrides,
 });
@@ -107,6 +108,119 @@ describe('parseEmbeddedToolCalls — tolerant extraction (#288)', () => {
     });
 });
 
+describe('parseEmbeddedToolCalls — dialect tolerance (#295)', () => {
+    // The barred-owl / qwen-nimbus leaks: host returned these as content and the
+    // old parser only knew <tool_call>{name,arguments}, so they surfaced to the user.
+
+    it('recognizes the <tool_code> wrapper (Gemini-style) with parameters alias', () => {
+        const a = agentFor();
+        const calls = a.parseEmbeddedToolCalls(
+            '<tool_code>{"name": "clear_filter", "parameters": {"layer_id": "barred-owl/nso-ccap"}}</tool_code>');
+        expect(calls).toEqual([{ name: 'clear_filter', args: { layer_id: 'barred-owl/nso-ccap' } }]);
+    });
+
+    it('recovers a lone quoted name against a known tool: {"list_datasets"}', () => {
+        const a = agentFor();
+        const calls = a.parseEmbeddedToolCalls('<tool_call>{"list_datasets"}');
+        expect(calls).toEqual([{ name: 'list_datasets', args: {} }]);
+    });
+
+    it('yields nothing on truly-garbled content (recovery path handles it)', () => {
+        const a = agentFor();
+        expect(a.parseEmbeddedToolCalls('<tool_call>{"function_call> </function_call>')).toEqual([]);
+    });
+
+    it('parses bare (unwrapped), concatenated nested calls with parameters alias', () => {
+        const a = agentFor();
+        const calls = a.parseEmbeddedToolCalls(
+            '{"type": "function", "function": {"name": "query", "parameters": {"sql_query": "SELECT 1"}}}'
+            + '{"type": "function", "function": {"name": "query", "parameters": {"sql_query": "SELECT 2"}}}');
+        expect(calls).toEqual([
+            { name: 'query', args: { sql_query: 'SELECT 1' } },
+            { name: 'query', args: { sql_query: 'SELECT 2' } },
+        ]);
+    });
+
+    it('parses the nested OpenAI shape inside a <tool_call> wrapper', () => {
+        const a = agentFor();
+        const calls = a.parseEmbeddedToolCalls(
+            '<tool_call>{"type": "function", "function": {"name": "get_schema", '
+            + '"parameters": {"dataset_id": "barred-owl"}}}</tool_call>');
+        expect(calls).toEqual([{ name: 'get_schema', args: { dataset_id: 'barred-owl' } }]);
+    });
+
+    it('parses a nested call followed by concatenated query calls in one wrapper', () => {
+        const a = agentFor();
+        const calls = a.parseEmbeddedToolCalls(
+            '<tool_call>{"type": "function", "function": {"name": "show_layer", "parameters": {"layer_id": "x"}}}'
+            + '{"type": "function", "function": {"name": "query", "parameters": {"sql_query": "SELECT 1"}}}'
+            + '{"type": "function", "function": {"name": "query", "parameters": {"sql_query": "SELECT 2"}}}</tool_call>');
+        expect(calls).toEqual([
+            { name: 'show_layer', args: { layer_id: 'x' } },
+            { name: 'query', args: { sql_query: 'SELECT 1' } },
+            { name: 'query', args: { sql_query: 'SELECT 2' } },
+        ]);
+    });
+
+    it('parses the Hermes <function=NAME> dialect, incl. the corrupted live form', () => {
+        const a = agentFor();
+        // Verbatim from barred-owl/qwen proxy logs — the one dialect that still
+        // leaked under the #288 recovery net before this handler.
+        const calls = a.parseEmbeddedToolCalls(
+            '<tool_call>\n<function=query", "arguments": {"sql_query": "SELECT DISTINCT i.HEXID '
+            + "FROM read_parquet('s3://public-barred-owl/inputs/hex/h0=*/data_0.parquet') i "
+            + 'WHERE i.nso_ccap = 20"}}\n</tool_call>');
+        expect(calls).toEqual([{ name: 'query', args: {
+            sql_query: "SELECT DISTINCT i.HEXID FROM read_parquet('s3://public-barred-owl/inputs/hex/h0=*/data_0.parquet') i WHERE i.nso_ccap = 20",
+        } }]);
+    });
+
+    it('unwraps a lone arguments/parameters envelope in the <function=> dialect', () => {
+        const a = agentFor();
+        const calls = a.parseEmbeddedToolCalls(
+            '<tool_call><function=get_schema>\n{"parameters": {"dataset_id": "barred-owl"}}</function></tool_call>');
+        expect(calls).toEqual([{ name: 'get_schema', args: { dataset_id: 'barred-owl' } }]);
+    });
+
+    it('does NOT misread stray JSON in a plain final answer as a call', () => {
+        const a = agentFor();
+        // A style blob with no name / no args-key / unregistered → not a call.
+        expect(a.parseEmbeddedToolCalls(
+            'Here is the style you asked for: {"fill-color": "#ff0000", "fill-opacity": 0.5}')).toEqual([]);
+        // A flat object whose name is not a registered tool and carries no args key.
+        expect(a.parseEmbeddedToolCalls('{"name": "fibonacci"}')).toEqual([]);
+    });
+});
+
+describe('stripEmbeddedCalls — display cleanup (#295)', () => {
+    it('strips a <tool_code> wrapper from displayed content', () => {
+        const a = agentFor();
+        expect(a.stripEmbeddedCalls(
+            'Filtering now.\n<tool_code>{"name": "clear_filter", "parameters": {}}</tool_code>'))
+            .toBe('Filtering now.');
+    });
+
+    it('strips an unclosed wrapper through EOF', () => {
+        const a = agentFor();
+        expect(a.stripEmbeddedCalls(
+            'One moment.\n<tool_call>{"name": "query", "arguments": {"sql": "select 1"}}'))
+            .toBe('One moment.');
+    });
+
+    it('excises bare tool-call JSON so it does not echo to the user', () => {
+        const a = agentFor();
+        expect(a.stripEmbeddedCalls(
+            'Running the query. {"type": "function", "function": {"name": "query", "parameters": {"sql_query": "SELECT 1"}}}'))
+            .toBe('Running the query.');
+    });
+
+    it('leaves a genuine final answer (with incidental JSON) intact', () => {
+        const a = agentFor();
+        const text = 'The style is {"fill-color": "#ff0000"} — apply it in the panel.';
+        expect(a.stripEmbeddedCalls(text)).toBe(text);
+    });
+});
+
 describe('parseLenientJSON / _decodeFirstJSON (#288)', () => {
     it('parses valid JSON strictly', () => {
         const a = agentFor();
@@ -184,6 +298,9 @@ describe('looksLikeAttemptedToolCall (#288)', () => {
     it('flags a stray <tool_call tag', () => {
         expect(agentFor().looksLikeAttemptedToolCall('<tool_call>oops')).toBe(true);
     });
+    it('flags a stray <tool_code tag (#295)', () => {
+        expect(agentFor().looksLikeAttemptedToolCall('<tool_code>oops')).toBe(true);
+    });
     it('flags JSON-shaped call keys', () => {
         expect(agentFor().looksLikeAttemptedToolCall('{"function": "get_schema"}')).toBe(true);
     });
@@ -230,6 +347,26 @@ describe('agent loop — malformed-call recovery (#288 failure mode 1/3)', () =>
         // 1 initial + 2 corrective retries = 3 calls, then falls through.
         expect(global.fetch.mock.calls.length).toBe(3);
         expect(response).toContain('<tool_call>');
+    });
+
+    it('executes a leaked <tool_code> call instead of surfacing it as text (#295)', async () => {
+        // Round 1: host returns the call as content in a foreign dialect (no
+        // structured tool_calls). Round 2: the clean final answer after it ran.
+        global.fetch = vi.fn()
+            .mockResolvedValueOnce(okText(
+                '<tool_code>{"type": "function", "function": {"name": "query", '
+                + '"parameters": {"sql_query": "SELECT 1"}}}</tool_code>'))
+            .mockResolvedValueOnce(okText('Done — 1 row.'));
+        const executed = [];
+        const agent = agentFor({
+            execute: async (name, args) => { executed.push({ name, args }); return { result: 'ok' }; },
+        });
+        agent.autoApprove = true;
+
+        const { response } = await agent.processMessage('run it');
+
+        expect(executed).toEqual([{ name: 'query', args: { sql_query: 'SELECT 1' } }]);
+        expect(response).toBe('Done — 1 row.');
     });
 
     it('does not re-prompt a genuine final answer', async () => {
