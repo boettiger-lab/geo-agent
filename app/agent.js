@@ -232,9 +232,9 @@ export class Agent {
                     localOnlyStreak++;
                 }
 
-                // Strip embedded <tool_call> tags from content before displaying to user
+                // Strip recovered tool-call text from content before displaying to user
                 const displayContent = message.content
-                    ? message.content.replace(/<tool_call>[\s\S]*?<\/tool_call>/gi, '').trim()
+                    ? this.stripEmbeddedCalls(message.content)
                     : null;
 
                 let approved = true;
@@ -621,49 +621,145 @@ export class Agent {
     }
 
     /**
-     * Parse embedded tool calls from message content.
-     * Some models (e.g., GLM-4) emit <tool_call>...</tool_call> tags instead of structured tool_calls.
+     * Parse embedded tool calls from message content (#288, #295).
+     *
+     * Upstream hosts that stop emitting structured `tool_calls` fall back to a
+     * grab-bag of content dialects — we must be tolerant of all of them or the
+     * raw call leaks to the user as the final answer. Handled here:
+     *   - Wrappers: <tool_call>… (GLM-style) *and* <tool_code>… (Gemini-style),
+     *     with a missing / mismatched closing tag (#288, failure mode 1).
+     *   - Bare, unwrapped JSON tool-call objects, singly or concatenated (#295).
+     *   - Body shapes: flat {"name","arguments"} *and* nested OpenAI
+     *     {"type":"function","function":{"name","arguments"}} (#295).
+     *   - `parameters` as an alias for `arguments` (#295).
      */
     parseEmbeddedToolCalls(content) {
         if (!content) return [];
         const calls = [];
-        // Tolerant extractor (#288, failure mode 1): capture from <tool_call> up to
-        // the *first* of a closing tag (</… — including a mismatched </parameter>),
-        // a new <tool_call>, or EOF, instead of requiring an exact </tool_call> with
-        // no interior '<'. The lookahead leaves the terminator unconsumed; each match
-        // still consumes the literal <tool_call>, so lastIndex always advances.
-        const pattern = /<tool_call>\s*([\s\S]*?)\s*(?=<\/|<tool_call>|$)/gi;
+
+        // Wrapped calls: capture from a <tool_call>/<tool_code> open tag up to the
+        // *first* of a closing tag (</… — including a mismatched </parameter>), a new
+        // wrapper, or EOF, instead of requiring an exact close with no interior '<'.
+        // The lookahead leaves the terminator unconsumed; each match still consumes
+        // the literal open tag, so lastIndex always advances.
+        const pattern = /<tool_c(?:all|ode)>\s*([\s\S]*?)\s*(?=<\/|<tool_c(?:all|ode)>|$)/gi;
         let match;
-
+        let sawWrapper = false;
         while ((match = pattern.exec(content)) !== null) {
+            sawWrapper = true;
             const inner = match[1].trim();
-            if (!inner) continue;
+            if (inner) this._pushEmbeddedCall(inner, calls);
+        }
 
-            // Try JSON: {"name": "tool", "arguments": {...}} — lenient, so a trailing
-            // extra brace (failure mode 2's cousin) still yields a usable call.
-            const parsed = this.parseLenientJSON(inner);
-            if (parsed && parsed.name) {
-                calls.push({ name: parsed.name, args: parsed.arguments || {} });
-                continue;
-            }
-
-            // Try function call: tool_name({"arg": "val"})
-            const funcMatch = inner.match(/^(\w+)\s*\(([\s\S]+)\)$/);
-            if (funcMatch) {
-                const args = this.parseLenientJSON(funcMatch[2]);
-                if (args !== undefined) {
-                    calls.push({ name: funcMatch[1], args });
-                    continue;
-                }
-            }
-
-            // Simple name
-            if (/^\w+$/.test(inner) && this.toolRegistry.has(inner)) {
-                calls.push({ name: inner, args: {} });
+        // Bare (unwrapped) tool-call JSON — only when no wrapper was seen, to avoid
+        // double-extracting and to keep the scan off ordinary prose. `_normalizeCall`
+        // is signature-gated, so a final answer that merely contains JSON (e.g. a
+        // style blob) is not misread as a call.
+        if (!sawWrapper) {
+            for (const { value } of this._scanJSONObjects(content)) {
+                const call = this._normalizeCall(value);
+                if (call) calls.push(call);
             }
         }
 
         return calls;
+    }
+
+    /**
+     * Remove recovered tool-call text from content before it is shown to the user
+     * (#295). Strips both wrappers (closed, or unclosed to EOF), then excises any
+     * bare tool-call JSON objects the parser would have recognized. Spans are
+     * removed back-to-front so earlier indices stay valid.
+     */
+    stripEmbeddedCalls(content) {
+        if (!content) return content;
+        let out = content
+            .replace(/<tool_c(?:all|ode)>[\s\S]*?<\/tool_c(?:all|ode)>/gi, '')
+            .replace(/<tool_c(?:all|ode)>[\s\S]*$/gi, '');
+        const spans = this._scanJSONObjects(out).filter(o => this._normalizeCall(o.value));
+        for (let i = spans.length - 1; i >= 0; i--) {
+            out = out.slice(0, spans[i].start) + out.slice(spans[i].end + 1);
+        }
+        return out.trim();
+    }
+
+    /**
+     * Extract one or more calls from a single wrapper's inner blob (#295). Tries
+     * JSON objects first (one or several concatenated), then the non-JSON shapes.
+     */
+    _pushEmbeddedCall(inner, calls) {
+        // JSON object(s): flat or nested, lenient (a trailing extra brace still parses).
+        let found = false;
+        for (const { value } of this._scanJSONObjects(inner)) {
+            const call = this._normalizeCall(value);
+            if (call) { calls.push(call); found = true; }
+        }
+        if (found) return;
+
+        // Function-call shape: tool_name({"arg": "val"})
+        const funcMatch = inner.match(/^(\w+)\s*\(([\s\S]+)\)$/);
+        if (funcMatch) {
+            const args = this.parseLenientJSON(funcMatch[2]);
+            if (args !== undefined) { calls.push({ name: funcMatch[1], args }); return; }
+        }
+
+        // Hermes/pythonic `<function=NAME>…` dialect (#295), incl. the corrupted
+        // `<function=query", "arguments": {…}` form observed live on qwen/nimbus —
+        // the sole failure mode still leaking under the #288 net. Take the name
+        // from the tag, then the first JSON object after it as args, unwrapping a
+        // lone {"arguments"|"parameters": {…}} envelope.
+        const fnTag = inner.match(/<function=(\w+)/);
+        if (fnTag) {
+            const rest = inner.slice(fnTag.index + fnTag[0].length);
+            const objs = this._scanJSONObjects(rest);
+            let args = objs.length ? objs[0].value : {};
+            if (args && typeof args === 'object' && !Array.isArray(args)) {
+                const keys = Object.keys(args);
+                if (keys.length === 1 && (keys[0] === 'arguments' || keys[0] === 'parameters')
+                    && args[keys[0]] && typeof args[keys[0]] === 'object') {
+                    args = args[keys[0]];
+                }
+            } else {
+                args = {};
+            }
+            calls.push({ name: fnTag[1], args });
+            return;
+        }
+
+        // Lone quoted name against a known tool: {"list_datasets"}
+        const bareName = inner.match(/^\{\s*"(\w+)"\s*\}$/);
+        if (bareName && this.toolRegistry.has(bareName[1])) {
+            calls.push({ name: bareName[1], args: {} });
+            return;
+        }
+
+        // Simple name
+        if (/^\w+$/.test(inner) && this.toolRegistry.has(inner)) {
+            calls.push({ name: inner, args: {} });
+        }
+    }
+
+    /**
+     * Normalize a parsed JSON value into {name, args} if it is a tool call, else
+     * null (#295). Accepts both the flat shape and the nested OpenAI
+     * {"type":"function","function":{…}} shape, and `parameters` as an alias for
+     * `arguments`. Signature-gated for the bare-JSON path: a flat object with no
+     * args key and an unregistered name is rejected so stray JSON in a final answer
+     * is not swallowed as a call.
+     */
+    _normalizeCall(parsed) {
+        if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null;
+        const nested = parsed.type === 'function'
+            && parsed.function && typeof parsed.function === 'object';
+        const fn = nested ? parsed.function : parsed;
+        const name = fn.name;
+        if (typeof name !== 'string' || !name) return null;
+        const hasArgsKey = ('arguments' in fn) || ('parameters' in fn);
+        if (!nested && !hasArgsKey && !this.toolRegistry.has(name)) return null;
+        let args = fn.arguments ?? fn.parameters ?? {};
+        if (typeof args === 'string') args = this.parseLenientJSON(args) ?? {};
+        if (!args || typeof args !== 'object') args = {};
+        return { name, args };
     }
 
     /**
@@ -691,8 +787,24 @@ export class Agent {
     _decodeFirstJSON(s) {
         const start = s.search(/[{[]/);
         if (start === -1) return undefined;
+        const end = this._matchBalanced(s, start);
+        if (end === -1) return undefined;
+        try {
+            return JSON.parse(s.slice(start, end + 1));
+        } catch {
+            return undefined;
+        }
+    }
+
+    /**
+     * Index of the closer that balances the opening bracket at `start`, or -1 if
+     * none. Respects strings and escapes so a bracket inside a string literal is
+     * not mistaken for structure. Shared by _decodeFirstJSON and _scanJSONObjects.
+     */
+    _matchBalanced(s, start) {
         const open = s[start];
-        const close = open === '{' ? '}' : ']';
+        const close = open === '{' ? '}' : open === '[' ? ']' : null;
+        if (!close) return -1;
         let depth = 0, inStr = false, esc = false;
         for (let i = start; i < s.length; i++) {
             const c = s[i];
@@ -704,15 +816,34 @@ export class Agent {
             }
             if (c === '"') { inStr = true; continue; }
             if (c === open) depth++;
-            else if (c === close && --depth === 0) {
-                try {
-                    return JSON.parse(s.slice(start, i + 1));
-                } catch {
-                    return undefined;
-                }
-            }
+            else if (c === close && --depth === 0) return i;
         }
-        return undefined;
+        return -1;
+    }
+
+    /**
+     * Scan a string for all top-level balanced JSON objects/arrays and return the
+     * valid ones as {value, start, end} (end inclusive). Handles several calls
+     * concatenated in one blob (#295) and, because it carries positions, lets the
+     * display stripper excise recovered bare calls. Invalid/unbalanced regions and
+     * non-JSON prose between objects are skipped.
+     */
+    _scanJSONObjects(s) {
+        const results = [];
+        if (typeof s !== 'string') return results;
+        let i = 0;
+        while (i < s.length) {
+            const rel = s.slice(i).search(/[{[]/);
+            if (rel === -1) break;
+            const start = i + rel;
+            const end = this._matchBalanced(s, start);
+            if (end === -1) { i = start + 1; continue; }
+            try {
+                results.push({ value: JSON.parse(s.slice(start, end + 1)), start, end });
+            } catch { /* skip this region */ }
+            i = end + 1;
+        }
+        return results;
     }
 
     /**
@@ -743,7 +874,7 @@ export class Agent {
      */
     looksLikeAttemptedToolCall(content) {
         if (!content) return false;
-        if (/<tool_call/i.test(content)) return true;
+        if (/<tool_c(?:all|ode)/i.test(content)) return true;
         if (/"(?:name|function|parameters|arguments)"\s*:/.test(content)) return true;
         // Bare function-call shape against a known tool, e.g. get_schema({...}).
         const m = content.match(/\b(\w+)\s*\(\s*[{[]/);
