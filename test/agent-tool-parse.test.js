@@ -162,6 +162,26 @@ describe('parseEmbeddedToolCalls — dialect tolerance (#295)', () => {
         ]);
     });
 
+    it('parses the Hermes <function=NAME> dialect, incl. the corrupted live form', () => {
+        const a = agentFor();
+        // Verbatim from barred-owl/qwen proxy logs — the one dialect that still
+        // leaked under the #288 recovery net before this handler.
+        const calls = a.parseEmbeddedToolCalls(
+            '<tool_call>\n<function=query", "arguments": {"sql_query": "SELECT DISTINCT i.HEXID '
+            + "FROM read_parquet('s3://public-barred-owl/inputs/hex/h0=*/data_0.parquet') i "
+            + 'WHERE i.nso_ccap = 20"}}\n</tool_call>');
+        expect(calls).toEqual([{ name: 'query', args: {
+            sql_query: "SELECT DISTINCT i.HEXID FROM read_parquet('s3://public-barred-owl/inputs/hex/h0=*/data_0.parquet') i WHERE i.nso_ccap = 20",
+        } }]);
+    });
+
+    it('unwraps a lone arguments/parameters envelope in the <function=> dialect', () => {
+        const a = agentFor();
+        const calls = a.parseEmbeddedToolCalls(
+            '<tool_call><function=get_schema>\n{"parameters": {"dataset_id": "barred-owl"}}</function></tool_call>');
+        expect(calls).toEqual([{ name: 'get_schema', args: { dataset_id: 'barred-owl' } }]);
+    });
+
     it('does NOT misread stray JSON in a plain final answer as a call', () => {
         const a = agentFor();
         // A style blob with no name / no args-key / unregistered → not a call.
