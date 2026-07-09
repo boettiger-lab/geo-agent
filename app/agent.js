@@ -644,6 +644,29 @@ export class Agent {
             if (args !== undefined) { calls.push({ name: funcMatch[1], args }); return; }
         }
 
+        // Hermes/pythonic `<function=NAME>…` dialect (#295), incl. the corrupted
+        // `<function=query", "arguments": {…}` form observed live on qwen/nimbus —
+        // the sole failure mode still leaking under the #288 net. Take the name
+        // from the tag, then the first JSON object after it as args, unwrapping a
+        // lone {"arguments"|"parameters": {…}} envelope.
+        const fnTag = inner.match(/<function=(\w+)/);
+        if (fnTag) {
+            const rest = inner.slice(fnTag.index + fnTag[0].length);
+            const objs = this._scanJSONObjects(rest);
+            let args = objs.length ? objs[0].value : {};
+            if (args && typeof args === 'object' && !Array.isArray(args)) {
+                const keys = Object.keys(args);
+                if (keys.length === 1 && (keys[0] === 'arguments' || keys[0] === 'parameters')
+                    && args[keys[0]] && typeof args[keys[0]] === 'object') {
+                    args = args[keys[0]];
+                }
+            } else {
+                args = {};
+            }
+            calls.push({ name: fnTag[1], args });
+            return;
+        }
+
         // Lone quoted name against a known tool: {"list_datasets"}
         const bareName = inner.match(/^\{\s*"(\w+)"\s*\}$/);
         if (bareName && this.toolRegistry.has(bareName[1])) {
