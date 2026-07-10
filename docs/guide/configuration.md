@@ -19,6 +19,7 @@ Client apps configure GLEN via `layers-input.json`. All fields except `catalog` 
 | `max_tool_calls` | No | Remote queries in auto-approve mode before the agent pauses at a checkpoint. Default: `15`. |
 | `max_tool_calls_manual` | No | Remote queries in manual mode before a checkpoint. Default: `100`. |
 | `catalog_index_threshold` | No | Dataset count above which the front-loaded catalog switches to a compact index (id + title + one-line summary + layer ids) to shrink the cold prompt; full descriptions/paths then arrive on demand via `get_schema`. Default: `8`. Set very high (e.g. `9999`) to always front-load the full catalog. |
+| `client_header_hosts` | No | Host suffixes that receive the `X-Client: geo-agent/<ref>` attribution header (for proxy log analysis). Default: `["nrp-nautilus.io"]`. The header is **only** sent to these hosts — never to bring-your-own external endpoints, where a custom header could trip CORS and block requests. Override only if your proxy runs on a different host. |
 | `links` | No | Optional links shown in the chat UI — see below. |
 
 ## View
