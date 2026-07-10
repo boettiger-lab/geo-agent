@@ -220,6 +220,82 @@ describe('DatasetCatalog.generatePromptCatalog', () => {
     });
 });
 
+describe('DatasetCatalog.generatePromptCatalog compact index (#294)', () => {
+    // Register `n` realistic leaf datasets (long description, paths, a map layer).
+    const bigCatalog = (n) => {
+        const cat = new DatasetCatalog();
+        for (let i = 0; i < n; i++) {
+            cat.datasets.set(`ds${i}`, {
+                id: `ds${i}`,
+                title: `Dataset ${i}`,
+                description: `Land cover classification for region ${i}. Derived from Sentinel-2 imagery `
+                    + `at 10m resolution, updated annually. Includes forest, cropland, wetland, and urban `
+                    + `classes with per-pixel confidence scores and a detailed methodology appendix.`,
+                provider: `Provider ${i}`,
+                columns: [{ name: 'h3', type: 'string' }],
+                childIds: [],
+                mapLayers: [{ assetId: 'pmtiles', title: `Layer ${i}`, layerType: 'vector' }],
+                parquetAssets: [{ title: `Parquet ${i}`, s3Path: `s3://bucket/ds${i}/data.parquet` }],
+                aboutUrl: `https://example.org/ds${i}`,
+            });
+        }
+        return cat;
+    };
+
+    it('stays full at/below the threshold and switches to compact above it', () => {
+        expect(bigCatalog(8).generatePromptCatalog()).toContain('**Collection ID:**'); // full
+        expect(bigCatalog(9).generatePromptCatalog()).not.toContain('**Collection ID:**'); // compact
+    });
+
+    it('compact index keeps id/title/summary/layer but drops description, paths, provider, about-url', () => {
+        const out = bigCatalog(9).generatePromptCatalog();
+        expect(out).toContain('`ds0`');
+        expect(out).toContain('**Dataset 0**');
+        expect(out).toContain('Land cover classification for region 0.'); // one-line summary (first sentence)
+        expect(out).toContain('`ds0/pmtiles` (vector)');                   // layer id + type for map tools
+        expect(out).toContain('get_schema(dataset_id)');                   // preamble points to the deferred call
+        // Dropped — all available via get_schema:
+        expect(out).not.toContain('s3://bucket'); // the read_parquet path itself
+        expect(out).not.toContain('**Provider:**');
+        expect(out).not.toContain('per-pixel confidence scores'); // full description tail is gone
+        expect(out).not.toContain('https://example.org');
+    });
+
+    it('honors an explicit compactAbove override', () => {
+        expect(bigCatalog(4).generatePromptCatalog({ compactAbove: 3 })).not.toContain('**Collection ID:**');
+        expect(bigCatalog(40).generatePromptCatalog({ compactAbove: Infinity })).toContain('**Collection ID:**');
+    });
+
+    it('renders parent containers compactly (directory line, no full description)', () => {
+        const cat = bigCatalog(9);
+        cat.datasets.set('parent', {
+            id: 'parent', title: 'Watersheds', description: 'A very long container description that should not appear.',
+            provider: 'L', columns: [], childIds: ['a', 'b', 'c'], mapLayers: [], parquetAssets: [],
+        });
+        const out = cat.generatePromptCatalog();
+        expect(out).toContain('`parent` — **Watersheds** — container; sub-datasets: a, b, c');
+        expect(out).not.toContain('should not appear');
+    });
+
+    it('is dramatically smaller than the full front-load for the same catalog', () => {
+        const cat = bigCatalog(40);
+        const full = cat.generatePromptCatalog({ compactAbove: Infinity });
+        const compact = cat.generatePromptCatalog({ compactAbove: 8 });
+        // The whole point of #294: a large catalog's front-load shrinks by a lot.
+        expect(compact.length).toBeLessThan(full.length * 0.4);
+    });
+
+    it('_oneLine picks the first sentence and caps long single sentences', () => {
+        const cat = new DatasetCatalog();
+        expect(cat._oneLine('First sentence here. Second sentence.')).toBe('First sentence here.');
+        expect(cat._oneLine('')).toBe('');
+        const long = 'x'.repeat(300);
+        const out = cat._oneLine(long);
+        expect(out.length).toBeLessThanOrEqual(160);
+        expect(out.endsWith('…')).toBe(true);
+    });
+});
+
 describe('DatasetCatalog.load (mocked fetch)', () => {
     let originalFetch;
     beforeEach(() => {
