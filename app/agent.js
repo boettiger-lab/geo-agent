@@ -886,7 +886,10 @@ export class Agent {
         //   show_layer(layer_id="…")   and   <show_layer>{…}</show_layer>
         // Scan *all* matches, not just the first — the real tool tag is often
         // preceded by hallucinated reasoning tags (<antThinking>, </think>, …).
-        for (const m of content.matchAll(/\b(\w+)\s*\(/g)) {
+        // The `(` must be followed by something call-shaped — a quote, `{`/`[`, or
+        // a `kwarg=` — so a common tool word in prose ("the query (SQL) returned …",
+        // "set_filter (applied earlier)") is not misread as an attempted call.
+        for (const m of content.matchAll(/\b(\w+)\s*\(\s*(?:["'{[]|[\w-]+\s*=)/g)) {
             if (this.toolRegistry.has(m[1])) return true;
         }
         for (const m of content.matchAll(/<(\w+)[\s>]/g)) {

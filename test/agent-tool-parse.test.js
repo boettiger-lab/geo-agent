@@ -352,6 +352,14 @@ describe('looksLikeAttemptedToolCall — non-JSON dialect tail (#297)', () => {
         expect(a().looksLikeAttemptedToolCall('The query returned 5 rows; I can show_layer next if you like.')).toBe(false);
         expect(a().looksLikeAttemptedToolCall('I used get_schema earlier to inspect the columns.')).toBe(false);
     });
+    it('does not flag a tool word followed by a *parenthetical*, not a call', () => {
+        // `query` is both a registered tool and a common English word: a final
+        // answer that mentions it parenthetically must NOT trip the re-prompt.
+        // The `(` has to be followed by an arg-shaped token (quote / brace / kwarg=).
+        expect(a().looksLikeAttemptedToolCall('The query (running over the H3 parquet) returned 5 rows.')).toBe(false);
+        expect(a().looksLikeAttemptedToolCall('Here is the result of set_filter (applied earlier).')).toBe(false);
+        expect(a().looksLikeAttemptedToolCall('You can call query() and show_layer() next if you like.')).toBe(false);
+    });
 });
 
 describe('agent loop — malformed-call recovery (#288 failure mode 1/3)', () => {
