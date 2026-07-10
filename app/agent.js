@@ -12,6 +12,12 @@
  * Handles embedded tool calls (XML tags) from models that don't use structured tool_calls.
  */
 
+// The pinned ref the app was loaded from lives in the module URL itself
+// (…/geo-agent@v3.13.1/app/agent.js), so it identifies the exact build with no
+// build step. Falls back to 'dev' for local/headless runs (a file:// URL). Used
+// only for the X-Client log-attribution header (#254). See `_clientHeaders`.
+const APP_VERSION = import.meta.url.match(/geo-agent@([^/]+)/)?.[1] || 'dev';
+
 export class Agent {
     /**
      * @param {Object} config
@@ -532,6 +538,35 @@ export class Agent {
     }
 
     /**
+     * Whether the endpoint is a trusted proxy host that should receive the
+     * `X-Client` attribution header (#254). Gated because geo-agent runs in the
+     * browser: a custom request header extends the CORS preflight, and a
+     * bring-your-own endpoint whose `Access-Control-Allow-Headers` doesn't list
+     * `X-Client` would have the browser block *every* request to it. Our proxy
+     * allowlists it (and only our logs use it), so send it only there.
+     *
+     * Default allowlist is `nrp-nautilus.io` (our infra — the same origin the
+     * proxy's own CORS regex trusts); override per deployment with
+     * `client_header_hosts` (array of host suffixes).
+     */
+    _isTrustedProxyHost(endpoint) {
+        let host;
+        try { host = new URL(endpoint).hostname; } catch { return false; }
+        const suffixes = this.config?.client_header_hosts ?? ['nrp-nautilus.io'];
+        return suffixes.some(s => host === s || host.endsWith('.' + s));
+    }
+
+    /**
+     * The `X-Client` header for log attribution, or `{}` when the endpoint isn't
+     * a trusted proxy host (spread into the fetch headers). See #254.
+     */
+    _clientHeaders(endpoint) {
+        return this._isTrustedProxyHost(endpoint)
+            ? { 'X-Client': `geo-agent/${APP_VERSION}` }
+            : {};
+    }
+
+    /**
      * Call the LLM API, with one auto-retry on transient errors (gateway 5xx,
      * network blips, client-side timeout).
      *
@@ -595,6 +630,7 @@ export class Agent {
                 headers: {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${modelConfig.api_key}`,
+                    ...this._clientHeaders(endpoint),
                 },
                 body: JSON.stringify(payload),
                 signal: internal.signal,
