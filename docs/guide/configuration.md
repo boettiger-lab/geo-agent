@@ -18,6 +18,7 @@ Client apps configure GLEN via `layers-input.json`. All fields except `catalog` 
 | `auto_approve` | No | Start with remote tool calls auto-approved (no confirmation prompt). Default: `true`. |
 | `max_tool_calls` | No | Remote queries in auto-approve mode before the agent pauses at a checkpoint. Default: `15`. |
 | `max_tool_calls_manual` | No | Remote queries in manual mode before a checkpoint. Default: `100`. |
+| `catalog_index_threshold` | No | Dataset count above which the front-loaded catalog switches to a compact index (id + title + one-line summary + layer ids) to shrink the cold prompt; full descriptions/paths then arrive on demand via `get_schema`. Default: `8`. Set very high (e.g. `9999`) to always front-load the full catalog. |
 | `links` | No | Optional links shown in the chat UI — see below. |
 
 ## View
