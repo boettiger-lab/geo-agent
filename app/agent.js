@@ -465,6 +465,54 @@ export class Agent {
     }
 
     /**
+     * Whether to attach Anthropic-style `cache_control` breakpoints to the
+     * outgoing prompt for this model (#273). Off by default — resolved per-model
+     * first, then global (mirrors `_samplingParams`/`_thinkingParams`).
+     *
+     * This is a **Claude-specific** lever and should be enabled per-model on
+     * Anthropic-routed entries only. Two reasons it's opt-in, not fleet-wide:
+     *   1. Anthropic caching is opt-in — you get *nothing* without cache_control,
+     *      so this is the only way Claude turns benefit. Open backends (NRP vLLM,
+     *      some OpenRouter providers) already do automatic prefix caching for
+     *      free, so the breakpoints buy them nothing.
+     *   2. Enabling it reshapes the system message from a plain string into the
+     *      content-parts array form (below) so the breakpoint has a block to ride
+     *      on. That reshape — not the ignored `cache_control` key — is the only
+     *      cross-backend compatibility surface; keeping it per-model avoids
+     *      changing payload shape for models that gain nothing.
+     * The open-llm-proxy forwards the `messages` array verbatim, so a
+     * message-embedded breakpoint reaches the provider (unlike top-level cache
+     * params, which the proxy drops). See #273.
+     */
+    _promptCacheEnabled(modelConfig) {
+        const v = ('prompt_cache' in (modelConfig ?? {}))
+            ? modelConfig.prompt_cache
+            : this.config?.prompt_cache;
+        return v === true;
+    }
+
+    /**
+     * Return a copy of `messages` with a `cache_control` breakpoint on the
+     * system prompt when prompt caching is enabled for this model, else the
+     * array unchanged (byte-identical to today — the default path).
+     *
+     * The breakpoint goes on the system message because it carries the big,
+     * every-call-identical prefix (base prompt + injected dataset catalog,
+     * ~34k tokens per #294). On the Anthropic side the render order is
+     * tools → system → messages, so a breakpoint on the last system block
+     * caches the tool definitions too. Only string-content system messages are
+     * reshaped; anything already in content-parts form is passed through.
+     */
+    _applyPromptCache(messages, modelConfig) {
+        if (!this._promptCacheEnabled(modelConfig)) return messages;
+        return messages.map(m =>
+            m.role === 'system' && typeof m.content === 'string'
+                ? { ...m, content: [{ type: 'text', text: m.content, cache_control: { type: 'ephemeral' } }] }
+                : m
+        );
+    }
+
+    /**
      * Resolve the per-attempt LLM timeout in milliseconds. Mirrors
      * `_samplingParams` resolution: per-model `llm_timeout_seconds` wins, then
      * global config, then a built-in default.
@@ -496,7 +544,7 @@ export class Agent {
     async callLLM(endpoint, modelConfig, messages, tools) {
         const payload = {
             model: this.selectedModel,
-            messages,
+            messages: this._applyPromptCache(messages, modelConfig),
             tools: tools.length > 0 ? tools : undefined,
             tool_choice: tools.length > 0 ? 'auto' : 'none',
             user: this.sessionId,
