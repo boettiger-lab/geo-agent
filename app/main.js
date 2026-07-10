@@ -360,7 +360,9 @@ async function main() {
 
     /* ── 6. Build system prompt ────────────────────────────────────────── */
     const basePrompt = await basePromptP;   // fetch was kicked off at step 1c
-    const catalogText = catalog.generatePromptCatalog();
+    // Large catalogs (#294) switch to a compact index to shrink the cold prompt;
+    // tune or disable the threshold with `catalog_index_threshold` (Infinity = always full).
+    const catalogText = catalog.generatePromptCatalog({ compactAbove: appConfig.catalog_index_threshold ?? 8 });
     let systemPrompt = basePrompt + '\n\n' + catalogText;
 
     // Read server-provided prompt (if any)

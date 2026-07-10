@@ -635,10 +635,29 @@ export class DatasetCatalog {
     /**
      * Generate a text summary of all datasets for injection into the LLM system prompt.
      *
-     * Includes paths and map layer IDs — the "table of contents" for the app.
-     * Column schemas are NOT included here; the model calls get_schema for those.
+     * Two renderings (#294): a **full** front-load (title + Collection ID + full
+     * description + provider + `read_parquet` paths + map layers) for small apps,
+     * and a **compact index** (id + title + one-line summary + layer ids) above a
+     * dataset-count threshold. The compact form drops the description, paths,
+     * provider, and about-url — all of which arrive via `get_schema(dataset_id)`,
+     * a call the model already makes before every query — so a large catalog's
+     * ~34k-token cold prompt shrinks with zero added round-trips. Column schemas
+     * are never front-loaded in either mode (they come from get_schema).
+     *
+     * @param {Object} [options]
+     * @param {number} [options.compactAbove=8] - Use the compact index when the
+     *   catalog has more than this many datasets. Small apps stay on the full
+     *   front-load where the byte cost is negligible.
      */
-    generatePromptCatalog() {
+    generatePromptCatalog(options = {}) {
+        const compactAbove = options.compactAbove ?? 8;
+        return this.datasets.size > compactAbove
+            ? this._renderCompactCatalog()
+            : this._renderFullCatalog();
+    }
+
+    /** Full front-load: every dataset's description, paths, provider, map layers. @private */
+    _renderFullCatalog() {
         const preamble = 'The following datasets are pre-loaded for this app. Paths are shown below — use them directly in SQL. Call `get_schema(dataset_id)` before your first SQL query against a dataset to get column names and coded values.\n';
         const sections = [preamble];
 
@@ -692,6 +711,62 @@ export class DatasetCatalog {
         }
 
         return sections.join('\n---\n\n');
+    }
+
+    /**
+     * Compact index for large catalogs (#294): one line per dataset —
+     * `id — title — one-line summary` (+ map layer ids for map datasets). The
+     * full description, `read_parquet` paths, provider, and about-url are
+     * intentionally omitted; they arrive via `get_schema(dataset_id)`, which the
+     * model calls before querying. This reinforces the get-schema-first flow
+     * (AGENTS.md: never guess S3 paths) while cutting the cold-prompt bytes.
+     * @private
+     */
+    _renderCompactCatalog() {
+        const preamble = 'The datasets pre-loaded for this app are indexed below as `id` — title — summary. '
+            + 'Before querying a dataset, call `get_schema(dataset_id)`: it returns the `read_parquet()` path, '
+            + 'column names, types, coded values, and the full description. '
+            + 'Use `browse_stac_catalog` / `get_stac_details` only for datasets not in this list.\n';
+        const lines = [preamble];
+
+        for (const ds of this.datasets.values()) {
+            const isParentContainer = ds.columns.length === 0 && ds.childIds.length > 0;
+            if (isParentContainer) {
+                const listed = ds.childIds.slice(0, 20).join(', ');
+                const more = ds.childIds.length > 20
+                    ? ` (+${ds.childIds.length - 20} more via get_stac_details("${ds.id}"))`
+                    : '';
+                lines.push(`- \`${ds.id}\` — **${ds.title}** — container; sub-datasets: ${listed}${more}`);
+                continue;
+            }
+
+            const summary = this._oneLine(ds.description);
+            let line = `- \`${ds.id}\` — **${ds.title}**${summary ? ` — ${summary}` : ''}`;
+            if (ds.mapLayers.length > 0) {
+                const layers = ds.mapLayers
+                    .map(ml => `\`${ds.id}/${ml.assetId}\` (${ml.layerType})`)
+                    .join(', ');
+                line += `\n  map layers: ${layers}`;
+            }
+            lines.push(line);
+        }
+
+        return lines.join('\n');
+    }
+
+    /**
+     * A compact one-line stand-in for a dataset description: the first sentence
+     * if it's a reasonable length, else the collapsed text, capped. Full text is
+     * available via get_schema, so this only needs to help the model *select* a
+     * dataset. @private
+     */
+    _oneLine(text, cap = 160) {
+        if (!text) return '';
+        const collapsed = text.replace(/\s+/g, ' ').trim();
+        const sentence = collapsed.match(/^(.{12,}?[.!?])(\s|$)/);
+        let s = sentence ? sentence[1] : collapsed;
+        if (s.length > cap) s = s.slice(0, cap - 1).trimEnd() + '…';
+        return s;
     }
 
     /**
