@@ -298,3 +298,127 @@ describe('ToolRegistry registerLocal duplicate handling', () => {
         warnSpy.mockRestore();
     });
 });
+
+describe('ToolRegistry idempotent-read memoization (#281)', () => {
+    const remote = (name, callTool) =>
+        [[{ name, description: '', inputSchema: { type: 'object', properties: {} } }], { callTool }];
+
+    it('serves a repeated whitelisted call from cache (no second round-trip)', async () => {
+        const callTool = vi.fn(async () => 'stac-md');
+        const reg = new ToolRegistry();
+        reg.registerRemote(...remote('get_stac_details', callTool));
+
+        const first = await reg.execute('get_stac_details', { dataset_id: 'foo' });
+        const second = await reg.execute('get_stac_details', { dataset_id: 'foo' });
+
+        expect(callTool).toHaveBeenCalledTimes(1);
+        expect(second.result).toBe('stac-md');
+        expect(first.cached).toBeUndefined();
+        expect(second.cached).toBe(true);
+    });
+
+    it('keys on args — different args miss the cache', async () => {
+        const callTool = vi.fn(async () => 'x');
+        const reg = new ToolRegistry();
+        reg.registerRemote(...remote('get_collection', callTool));
+
+        await reg.execute('get_collection', { collection_id: 'a' });
+        await reg.execute('get_collection', { collection_id: 'b' });
+
+        expect(callTool).toHaveBeenCalledTimes(2);
+    });
+
+    it('argument key order does not matter', async () => {
+        const callTool = vi.fn(async () => 'x');
+        const reg = new ToolRegistry();
+        reg.registerRemote(...remote('get_stac_details', callTool));
+
+        await reg.execute('get_stac_details', { a: 1, b: 2 });
+        await reg.execute('get_stac_details', { b: 2, a: 1 });
+
+        expect(callTool).toHaveBeenCalledTimes(1);
+    });
+
+    it('caches whitelisted local tools too (keyed pre-execute)', async () => {
+        const execute = vi.fn(async () => 'schema-md');
+        const reg = new ToolRegistry();
+        reg.registerLocal({
+            name: 'get_schema', description: '', inputSchema: { type: 'object', properties: {} }, execute,
+        });
+
+        await reg.execute('get_schema', { dataset_id: 'foo' });
+        const second = await reg.execute('get_schema', { dataset_id: 'foo' });
+
+        expect(execute).toHaveBeenCalledTimes(1);
+        expect(second.cached).toBe(true);
+    });
+
+    it('does not memoize non-whitelisted tools', async () => {
+        const callTool = vi.fn(async () => 'sql-rows');
+        const reg = new ToolRegistry();
+        reg.registerRemote(...remote('query', callTool));
+
+        await reg.execute('query', { sql_query: 'SELECT 1' });
+        await reg.execute('query', { sql_query: 'SELECT 1' });
+
+        expect(callTool).toHaveBeenCalledTimes(2);
+    });
+
+    it('does not cache a transport failure (thrown → success:false)', async () => {
+        const callTool = vi.fn()
+            .mockRejectedValueOnce(new Error('mcp down'))
+            .mockResolvedValueOnce('recovered');
+        const reg = new ToolRegistry();
+        reg.registerRemote(...remote('get_stac_details', callTool));
+        const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+        const first = await reg.execute('get_stac_details', { dataset_id: 'foo' });
+        const second = await reg.execute('get_stac_details', { dataset_id: 'foo' });
+
+        expect(first.success).toBe(false);
+        expect(callTool).toHaveBeenCalledTimes(2);
+        expect(second.result).toBe('recovered');
+        errSpy.mockRestore();
+    });
+
+    it('does not cache a payload that reports failure inside its result string', async () => {
+        // get_schema on an unknown dataset returns a success:false JSON string
+        // while the ToolResult itself is a "successful" string return.
+        const execute = vi.fn()
+            .mockResolvedValueOnce(JSON.stringify({ success: false, error: 'not found' }))
+            .mockResolvedValueOnce('now-ok');
+        const reg = new ToolRegistry();
+        reg.registerLocal({
+            name: 'get_schema', description: '', inputSchema: { type: 'object', properties: {} }, execute,
+        });
+
+        await reg.execute('get_schema', { dataset_id: 'foo' });
+        const second = await reg.execute('get_schema', { dataset_id: 'foo' });
+
+        expect(execute).toHaveBeenCalledTimes(2);
+        expect(second.result).toBe('now-ok');
+    });
+
+    it('clearMemo forces a re-fetch', async () => {
+        const callTool = vi.fn(async () => 'x');
+        const reg = new ToolRegistry();
+        reg.registerRemote(...remote('browse_stac_catalog', callTool));
+
+        await reg.execute('browse_stac_catalog', {});
+        reg.clearMemo();
+        await reg.execute('browse_stac_catalog', {});
+
+        expect(callTool).toHaveBeenCalledTimes(2);
+    });
+
+    it('memoTools:[] disables memoization entirely', async () => {
+        const callTool = vi.fn(async () => 'x');
+        const reg = new ToolRegistry({ memoTools: [] });
+        reg.registerRemote(...remote('get_stac_details', callTool));
+
+        await reg.execute('get_stac_details', { dataset_id: 'foo' });
+        await reg.execute('get_stac_details', { dataset_id: 'foo' });
+
+        expect(callTool).toHaveBeenCalledTimes(2);
+    });
+});
