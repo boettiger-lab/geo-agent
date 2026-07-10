@@ -12,10 +12,53 @@
  *   - isLocalTool(name) → for auto-approve logic
  */
 
+// Idempotent read tools whose result is a pure function of their args for the
+// life of a session. Memoizing these (#281) skips duplicate round-trips *and*
+// keeps repeated calls from re-growing the message suffix with byte-identical
+// result blocks — which is exactly the non-cacheable tail that dominates
+// prefill cost (#273). Deliberately excludes `query`: SQL results are large,
+// arg-varied, and have different invalidation semantics.
+const DEFAULT_MEMO_TOOLS = ['get_stac_details', 'get_collection', 'browse_stac_catalog', 'get_schema'];
+
+/**
+ * Stable JSON key so `{a:1, b:2}` and `{b:2, a:1}` produce the same memo key.
+ * Recurses objects/arrays; scalars fall through to JSON.stringify.
+ */
+function canonicalize(value) {
+    if (value === null || typeof value !== 'object') return JSON.stringify(value);
+    if (Array.isArray(value)) return '[' + value.map(canonicalize).join(',') + ']';
+    return '{' + Object.keys(value).sort()
+        .map(k => JSON.stringify(k) + ':' + canonicalize(value[k]))
+        .join(',') + '}';
+}
+
+/**
+ * A local tool can succeed at the transport level (returns a string) while
+ * reporting failure *inside* that string as `{"success": false, ...}` — e.g.
+ * get_schema on an unknown dataset or an MCP outage. Don't memoize those, or a
+ * transient failure poisons the session. Cheap prefix check before parsing.
+ */
+function reportsFailure(resultStr) {
+    if (typeof resultStr !== 'string' || !resultStr.trimStart().startsWith('{')) return false;
+    try {
+        return JSON.parse(resultStr)?.success === false;
+    } catch {
+        return false;
+    }
+}
+
 export class ToolRegistry {
-    constructor() {
+    /**
+     * @param {Object} [options]
+     * @param {string[]} [options.memoTools] - Override the idempotent-read
+     *   whitelist. Pass `[]` to disable memoization entirely.
+     */
+    constructor(options = {}) {
         /** @type {Map<string, ToolEntry>} */
         this.tools = new Map();
+        /** Session-scoped memo cache for idempotent reads (#281). */
+        this.memoCache = new Map();
+        this.memoWhitelist = new Set(options.memoTools ?? DEFAULT_MEMO_TOOLS);
     }
 
     /**
@@ -145,23 +188,35 @@ export class ToolRegistry {
             };
         }
 
+        // Memoize idempotent reads on (name, canonical args) so a model that
+        // re-issues the same metadata call gets a byte-identical result with no
+        // MCP round-trip (#281). Keyed on the model-facing args (pre-rewriter),
+        // so the argsRewriter's inline-STAC injection is skipped on a hit too.
+        const memoKey = this.memoWhitelist.has(name)
+            ? `${name}:${canonicalize(args ?? {})}`
+            : null;
+        if (memoKey && this.memoCache.has(memoKey)) {
+            return { ...this.memoCache.get(memoKey), cached: true };
+        }
+
+        let result;
         try {
             if (tool.source === 'local') {
-                const result = await tool.execute(args);
-                return {
+                const raw = await tool.execute(args);
+                result = {
                     success: true,
                     name,
-                    result: typeof result === 'string' ? result : JSON.stringify(result),
+                    result: typeof raw === 'string' ? raw : JSON.stringify(raw),
                     source: 'local',
                 };
             } else {
                 // Remote MCP tool
                 const finalArgs = tool.argsRewriter ? tool.argsRewriter(tool.name, args) : args;
-                const result = await tool.mcpClient.callTool(tool.name, finalArgs);
-                return {
+                const raw = await tool.mcpClient.callTool(tool.name, finalArgs);
+                result = {
                     success: true,
                     name,
-                    result,
+                    result: raw,
                     source: 'remote',
                     sqlQuery: args.sql_query || args.query || null,
                 };
@@ -175,6 +230,21 @@ export class ToolRegistry {
                 source: 'error',
             };
         }
+
+        // Only cache genuine successes — never a result that reports failure
+        // inside its own payload, so a transient outage doesn't stick.
+        if (memoKey && result.success && !reportsFailure(result.result)) {
+            this.memoCache.set(memoKey, result);
+        }
+        return result;
+    }
+
+    /**
+     * Drop the idempotent-read memo cache. Called on conversation reset so a
+     * fresh session re-fetches metadata rather than serving a prior session's.
+     */
+    clearMemo() {
+        this.memoCache.clear();
     }
 
     /**

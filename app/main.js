@@ -187,7 +187,11 @@ async function main() {
     }
 
     /* ── 5. Build tool registry ───────────────────────────────────────── */
-    const toolRegistry = new ToolRegistry();
+    // Idempotent-read memoization (#281) is on by default; set `tool_memo: false`
+    // in config to disable it (e.g. for debugging duplicate MCP traffic).
+    const toolRegistry = new ToolRegistry(
+        appConfig.tool_memo === false ? { memoTools: [] } : {},
+    );
 
     // Geocoder backend, shared by two independently-toggled surfaces:
     //   • the `geocode` agent tool — ON by default (opt-out: geocoder.enabled=false)

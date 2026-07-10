@@ -913,9 +913,12 @@ export class Agent {
     }
 
     /**
-     * Clear conversation history.
+     * Clear conversation history. Also drops the registry's idempotent-read
+     * memo cache (#281) so a fresh conversation re-fetches metadata rather than
+     * serving results cached during the previous one.
      */
     clearHistory() {
         this.messages = [];
+        this.toolRegistry?.clearMemo?.();
     }
 }
