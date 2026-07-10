@@ -20,6 +20,12 @@ Core library for map-based applications with LLM-powered data analysis. Interact
 - `agent.js` — LLM orchestration loop (agentic tool-use cycle)
 - `chat-ui.js` — Chat UI with collapsible tool-call blocks
 
+## Design decisions
+
+Settled architectural calls are recorded in `docs/design/` so they aren't re-litigated. Read the relevant note before reopening one of these questions.
+
+- [`docs/design/tool-call-parsing.md`](docs/design/tool-call-parsing.md) — why tool-call dialect recovery (`parseEmbeddedToolCalls` / `looksLikeAttemptedToolCall` in `app/agent.js`) lives in the harness and is kept, not moved to the server/proxy or replaced by a library.
+
 ## Configuration
 - `app/layers-input.json` — Static config: STAC catalog URL, collection IDs, map view
 - `config.json` — Generated at deploy time by k8s (LLM models + API keys from secrets)
