@@ -876,9 +876,25 @@ export class Agent {
         if (!content) return false;
         if (/<tool_c(?:all|ode)/i.test(content)) return true;
         if (/"(?:name|function|parameters|arguments)"\s*:/.test(content)) return true;
-        // Bare function-call shape against a known tool, e.g. get_schema({...}).
-        const m = content.match(/\b(\w+)\s*\(\s*[{[]/);
-        if (m && this.toolRegistry.has(m[1])) return true;
+        // Non-JSON XML-ish tool-call markers no genuine prose emits (#297): the
+        // corrupted `<function=NAME>` tag, mangled `<parameter=…>` / `<parameter …>`,
+        // and Claude's `<invoke …>` / `<model_calls>` fn-call XML.
+        if (/<function=|<parameter[=\s]|<invoke\b|<model_calls>/i.test(content)) return true;
+        // Bare call or tool-name-as-tag against a *known* tool — gated on the
+        // registry so prose that merely names a tool doesn't trip a re-prompt (#297).
+        // Covers the whole leaking tail so the #288 recovery at least fires:
+        //   show_layer(layer_id="…")   and   <show_layer>{…}</show_layer>
+        // Scan *all* matches, not just the first — the real tool tag is often
+        // preceded by hallucinated reasoning tags (<antThinking>, </think>, …).
+        // The `(` must be followed by something call-shaped — a quote, `{`/`[`, or
+        // a `kwarg=` — so a common tool word in prose ("the query (SQL) returned …",
+        // "set_filter (applied earlier)") is not misread as an attempted call.
+        for (const m of content.matchAll(/\b(\w+)\s*\(\s*(?:["'{[]|[\w-]+\s*=)/g)) {
+            if (this.toolRegistry.has(m[1])) return true;
+        }
+        for (const m of content.matchAll(/<(\w+)[\s>]/g)) {
+            if (this.toolRegistry.has(m[1])) return true;
+        }
         return false;
     }
 
