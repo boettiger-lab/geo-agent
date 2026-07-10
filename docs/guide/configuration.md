@@ -540,6 +540,27 @@ The toggle emits a normalized `enable_thinking` flag that the [open-llm-proxy](h
 
 Resolution mirrors the sampling params: per-model first, then top-level global. A per-conversation toggle click overrides the configured default until the model is switched (which resets to that model's default).
 
+### Prompt caching (optional)
+
+The agentic tool-use loop is heavily prefill-dominated — every turn re-sends the system prompt, the tool definitions, and the running transcript, while outputs are tiny (roughly 43:1 prompt:completion tokens; see [#273](https://github.com/boettiger-lab/geo-agent/issues/273)). The biggest identical chunk re-sent on every call is the system prompt plus its injected dataset catalog (~34k tokens).
+
+`prompt_cache` attaches an Anthropic-style `cache_control: {"type": "ephemeral"}` breakpoint to the system prompt so that prefix bills at cache-read rates (~10%) on repeat calls instead of full price.
+
+```json
+{
+  "llm_models": [
+    { "value": "claude", "endpoint": "…", "api_key": "…", "prompt_cache": true },
+    { "value": "minimax-m2", "endpoint": "…", "api_key": "…" }
+  ]
+}
+```
+
+| Field | Where | Default | Description |
+|---|---|---|---|
+| `prompt_cache` | per-model and/or top-level | `false` | Attach a `cache_control` breakpoint to the system prompt. Resolved per-model first, then top-level. |
+
+> **Enable it per-model on Anthropic-routed models only.** This is a Claude-specific lever, for two reasons: (1) Anthropic caching is *opt-in* — a request with no `cache_control` gets no caching, so this is the only way Claude turns benefit; open backends (NRP vLLM, some OpenRouter providers) already do automatic prefix caching for free and gain nothing from the breakpoint. (2) Enabling it reshapes the system message from a plain string into the content-parts array form so the breakpoint has a block to ride on. That reshape (not the ignored `cache_control` key) is the only cross-backend compatibility surface — keeping it per-model avoids changing payload shape for models that don't benefit. The [open-llm-proxy](https://github.com/boettiger-lab/open-llm-proxy) forwards the `messages` array verbatim, so the message-embedded breakpoint reaches the provider (top-level cache params are dropped by the proxy). Off by default → payload is byte-identical to before.
+
 ## Voice input (optional)
 
 Voice input is opt-in via a `transcription_model` entry in `config.json`. When present, a 🎤 button appears in the chat footer; when absent, the button stays hidden and the voice/transcription JS modules are never loaded (zero footprint).
