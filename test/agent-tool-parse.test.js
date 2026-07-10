@@ -315,6 +315,45 @@ describe('looksLikeAttemptedToolCall (#288)', () => {
     });
 });
 
+describe('looksLikeAttemptedToolCall — non-JSON dialect tail (#297)', () => {
+    // Each row of #297: forms that leak with ZERO recovery today because neither
+    // the parser nor this heuristic recognized them. Flagging here at least fires
+    // the #288 re-prompt. All gated on the tool registry.
+    const a = () => agentFor();
+
+    it('flags a bare python-call, double quotes', () => {
+        expect(a().looksLikeAttemptedToolCall('show_layer(layer_id="barred-owl/bo-occ")')).toBe(true);
+    });
+    it('flags a bare python-call, single quotes', () => {
+        expect(a().looksLikeAttemptedToolCall("show_layer(layer_id='barred-owl/bo-occ')")).toBe(true);
+    });
+    it('flags a tool-name-as-tag with JSON body', () => {
+        expect(a().looksLikeAttemptedToolCall('<show_layer>{"layer_id":"barred-owl/bo-occ"}</show_layer>')).toBe(true);
+    });
+    it('flags a tool-name-as-tag with XML body', () => {
+        expect(a().looksLikeAttemptedToolCall('<show_layer><layer_id>barred-owl/bo-occ</layer_id></show_layer>')).toBe(true);
+    });
+    it('flags the mangled <parameter=…> form', () => {
+        expect(a().looksLikeAttemptedToolCall(
+            '<parameter=function>\nshow_layer\n</parameter>\n<parameter=layer_id>\nx\n</parameter>')).toBe(true);
+    });
+    it('flags Claude <model_calls>/<invoke name=…> XML', () => {
+        expect(a().looksLikeAttemptedToolCall(
+            '<model_calls>\n<invoke name="get_schema">\n<parameter name="dataset_id">barred-owl</parameter>\n</invoke>\n</model_calls>')).toBe(true);
+    });
+    it('flags a tool tag even when hallucinated reasoning tags precede it', () => {
+        // Real barred-owl leak: <antThinking>…</antThinking> then the actual
+        // <show_layer><layer_id>… tag. Must scan past the first <word>.
+        expect(a().looksLikeAttemptedToolCall(
+            "I'll display the layer.\n\n<antThinking>\nreasoning here\n</antThinking>\n\n"
+            + '<show_layer>\n<layer_id>\nbarred-owl/bo-occ\n</layer_id>\n</show_layer>')).toBe(true);
+    });
+    it('does not flag prose that merely names a tool without a call/tag', () => {
+        expect(a().looksLikeAttemptedToolCall('The query returned 5 rows; I can show_layer next if you like.')).toBe(false);
+        expect(a().looksLikeAttemptedToolCall('I used get_schema earlier to inspect the columns.')).toBe(false);
+    });
+});
+
 describe('agent loop — malformed-call recovery (#288 failure mode 1/3)', () => {
     afterEach(() => { vi.restoreAllMocks(); });
 
