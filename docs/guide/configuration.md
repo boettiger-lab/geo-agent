@@ -548,10 +548,19 @@ The agentic tool-use loop is heavily prefill-dominated — every turn re-sends t
 
 `prompt_cache` attaches an Anthropic-style `cache_control: {"type": "ephemeral"}` breakpoint to the system prompt so that prefix bills at cache-read rates (~10%) on repeat calls instead of full price.
 
+> **Route Claude through OpenRouter for this to do anything.** The flag only saves money when the request reaches a provider that honors `cache_control`, and that depends entirely on the **model string** you configure in `value`:
+>
+> | `value` | [open-llm-proxy](https://github.com/boettiger-lab/open-llm-proxy) route | `prompt_cache` effect |
+> |---|---|---|
+> | `anthropic/claude-haiku-4.5` (OpenRouter naming) | OpenRouter → Anthropic | ✅ **caches** — first call writes the prefix, repeat calls read it (~12× cheaper on that prefix, measured) |
+> | `claude-haiku-4-5` (bare) | Anthropic direct, via its OpenAI-compat endpoint | ❌ **no-op** — that endpoint ignores message-embedded `cache_control` (caching is native `/v1/messages`-only) |
+>
+> So: pin Claude entries to the `anthropic/…` OpenRouter model id **and** set `prompt_cache: true`. On the bare Anthropic-direct route the flag costs nothing but buys nothing.
+
 ```json
 {
   "llm_models": [
-    { "value": "claude", "endpoint": "…", "api_key": "…", "prompt_cache": true },
+    { "value": "anthropic/claude-haiku-4.5", "endpoint": "…", "api_key": "…", "prompt_cache": true },
     { "value": "minimax-m2", "endpoint": "…", "api_key": "…" }
   ]
 }
@@ -561,7 +570,7 @@ The agentic tool-use loop is heavily prefill-dominated — every turn re-sends t
 |---|---|---|---|
 | `prompt_cache` | per-model and/or top-level | `false` | Attach a `cache_control` breakpoint to the system prompt. Resolved per-model first, then top-level. |
 
-> **Enable it per-model on Anthropic-routed models only.** This is a Claude-specific lever, for two reasons: (1) Anthropic caching is *opt-in* — a request with no `cache_control` gets no caching, so this is the only way Claude turns benefit; open backends (NRP vLLM, some OpenRouter providers) already do automatic prefix caching for free and gain nothing from the breakpoint. (2) Enabling it reshapes the system message from a plain string into the content-parts array form so the breakpoint has a block to ride on. That reshape (not the ignored `cache_control` key) is the only cross-backend compatibility surface — keeping it per-model avoids changing payload shape for models that don't benefit. The [open-llm-proxy](https://github.com/boettiger-lab/open-llm-proxy) forwards the `messages` array verbatim, so the message-embedded breakpoint reaches the provider (top-level cache params are dropped by the proxy). Off by default → payload is byte-identical to before.
+> **Why per-model, not global.** This is a Claude-specific lever: Anthropic caching is *opt-in* (a request with no `cache_control` gets nothing), while open backends (NRP vLLM, most OpenRouter open-weight providers) already do automatic prefix caching for free and gain nothing from the breakpoint. Enabling it also reshapes the system message from a plain string into the content-parts array form so the breakpoint has a block to ride on — that reshape (not the ignored `cache_control` key) is the only cross-backend compatibility surface, so keeping it per-model avoids changing payload shape for models that don't benefit. The proxy forwards the `messages` array verbatim, so the message-embedded breakpoint reaches whichever upstream the model string routes to (top-level cache params are dropped by the proxy). Off by default → payload is byte-identical to before.
 
 ## Voice input (optional)
 
