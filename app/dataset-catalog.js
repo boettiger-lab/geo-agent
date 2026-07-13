@@ -551,18 +551,78 @@ export class DatasetCatalog {
     }
 
     /**
-     * Extract table:columns for schema info.
+     * Extract table:columns for schema info (feeds map tooltips, legends,
+     * layer `columns`, and `isParentContainer` detection).
+     *
+     * Reads the **per-asset** `table:columns` off the queryable parquet assets
+     * — the canonical location the catalog/publisher standard is standardizing
+     * on (#311) — then appends the collection-level `table:columns` as a
+     * lower-priority trailer. This mirrors the MCP `get_stac_details` renderer
+     * (the LLM's schema channel: per-asset columns + a collection-level trailer)
+     * so both channels read the same STAC fields.
+     *
+     * Columns are unioned, preferring the H3 **hex** asset (the primary query
+     * target per the MCP's query-optimization guidance), then the flat
+     * GeoParquet, then the collection-level trailer — so richer per-asset
+     * definitions win on name collisions while the trailer fills any gaps.
+     * Geometry columns are dropped; names are deduped.
+     *
+     * Why keep the collection-level trailer rather than reading per-asset only:
+     * the catalog is mid-migration (data-workflows #404/#369 backfill). Some
+     * collections are already per-asset-only (e.g. wdpa — no collection block,
+     * every asset carries columns → per-asset is the *only* source, and reading
+     * it here fixes what the old collection-only code silently dropped to `[]`).
+     * Others have not been backfilled yet: their flat-parquet asset carries no
+     * per-asset block and the hex asset lists only join keys, so the display
+     * columns still live only in the collection-level block. Unioning both means
+     * no dataset loses columns during the transition, and when the collection
+     * block is finally retired the per-asset union already carries everything —
+     * no consumer left behind.
      */
     extractColumns(collection) {
-        const columns = collection['table:columns'] || [];
-        return columns
-            .filter(col => !['geometry', 'geom'].includes(col.name?.toLowerCase()))
-            .map(col => ({
-                name: col.name,
+        const assets = collection.assets || {};
+
+        // Rank an asset for collision preference: hex (H3-aware, primary query
+        // target) > flat parquet (query target) > anything else.
+        const rank = (asset) => {
+            const href = asset.href || '';
+            const type = asset.type || '';
+            if (href.includes('/hex/') || Object.keys(asset).some(k => k.startsWith('h3:'))) return 0;
+            if (type.includes('parquet') || href.includes('.parquet')) return 1;
+            return 2;
+        };
+
+        // Per-asset blocks from the queryable parquet assets, hex first.
+        const queryable = Object.values(assets)
+            .filter(a => {
+                if (!Array.isArray(a['table:columns']) || a['table:columns'].length === 0) return false;
+                const type = a.type || '';
+                const href = a.href || '';
+                return type.includes('parquet') || href.includes('.parquet') || href.includes('/hex/');
+            })
+            .sort((a, b) => rank(a) - rank(b));
+
+        // Union: per-asset first (canonical), collection-level block as the trailer.
+        const raw = [
+            ...queryable.flatMap(a => a['table:columns']),
+            ...(collection['table:columns'] || []),
+        ];
+
+        const seen = new Set();
+        const columns = [];
+        for (const col of raw) {
+            const name = col.name;
+            if (!name || ['geometry', 'geom'].includes(name.toLowerCase())) continue;
+            if (seen.has(name)) continue;
+            seen.add(name);
+            columns.push({
+                name,
                 type: col.type || 'string',
                 description: col.description || '',
                 ...(col.values?.length ? { values: col.values } : {}),
-            }));
+            });
+        }
+        return columns;
     }
 
     extractProvider(collection) {
