@@ -114,6 +114,31 @@ describe('DatasetCatalog extractors', () => {
         expect(cols.map(c => c.name)).toEqual(['id']);
     });
 
+    it('extractColumns unions per-asset columns with the collection-level trailer (no regression while backfill is partial)', () => {
+        // Mirrors the mid-migration wwf-ecoregions / overture shape: the flat
+        // parquet asset carries no per-asset block, the hex asset lists only
+        // join keys, and the rich display columns still live only in the
+        // collection-level block. The union must keep the display columns.
+        const cols = cat.extractColumns({
+            id: 'wwf-like',
+            assets: {
+                parquet: { type: 'application/x-parquet', href: 's3://b/eco.parquet' },  // no table:columns yet
+                hex: {
+                    type: 'application/x-parquet',
+                    href: 's3://b/eco/hex/h0=*/data_0.parquet',
+                    'table:columns': [{ name: '_cng_fid', type: 'int64' }, { name: 'h0', type: 'int64' }],
+                },
+            },
+            'table:columns': [
+                { name: 'ECO_NAME', type: 'string', description: 'ecoregion name' },
+                { name: 'geometry', type: 'binary' },  // dropped
+                { name: 'h0', type: 'int64' },          // deduped (hex wins)
+            ],
+        });
+        // hex join keys first, then the collection-level display columns; geometry dropped, h0 deduped
+        expect(cols.map(c => c.name)).toEqual(['_cng_fid', 'h0', 'ECO_NAME']);
+    });
+
     it('extractProvider picks the first provider with role "producer"', () => {
         expect(cat.extractProvider({
             providers: [
