@@ -52,6 +52,68 @@ describe('DatasetCatalog extractors', () => {
         expect(cols).toEqual([]);
     });
 
+    it('extractColumns reads per-asset table:columns, hex preferred, unioning the flat parquet', () => {
+        const cols = cat.extractColumns({
+            id: 'y',
+            assets: {
+                flat: {
+                    type: 'application/x-parquet',
+                    href: 's3://b/data.parquet',
+                    'table:columns': [
+                        { name: 'id', type: 'int64', description: 'flat desc' },
+                        { name: 'geom', type: 'binary' },       // dropped
+                        { name: 'only_flat', type: 'string' },  // fills gap from flat
+                    ],
+                },
+                hex: {
+                    type: 'application/x-parquet',
+                    href: 's3://b/data/hex/h0=*/data_0.parquet',
+                    'table:columns': [
+                        { name: 'id', type: 'int64', description: 'hex desc' },  // wins on collision
+                        { name: 'h0', type: 'int64' },
+                    ],
+                },
+            },
+        });
+        // hex first, then the flat's gap-fill; geom dropped; id deduped
+        expect(cols.map(c => c.name)).toEqual(['id', 'h0', 'only_flat']);
+        // hex definition wins the collision
+        expect(cols.find(c => c.name === 'id').description).toBe('hex desc');
+    });
+
+    it('extractColumns ignores non-parquet assets (e.g. pmtiles) when a parquet asset exists', () => {
+        const cols = cat.extractColumns({
+            id: 'z',
+            assets: {
+                pmtiles: {
+                    type: 'application/vnd.pmtiles',
+                    href: 's3://b/data.pmtiles',
+                    'table:columns': [{ name: 'from_pmtiles', type: 'string' }],
+                },
+                flat: {
+                    type: 'application/x-parquet',
+                    href: 's3://b/data.parquet',
+                    'table:columns': [{ name: 'from_parquet', type: 'string' }],
+                },
+            },
+        });
+        expect(cols.map(c => c.name)).toEqual(['from_parquet']);
+    });
+
+    it('extractColumns falls back to the legacy collection-level block when no per-asset schema', () => {
+        const cols = cat.extractColumns({
+            id: 'legacy',
+            assets: {
+                pmtiles: { type: 'application/vnd.pmtiles', href: 's3://b/x.pmtiles' },
+            },
+            'table:columns': [
+                { name: 'id', type: 'string' },
+                { name: 'geometry', type: 'binary' },  // dropped
+            ],
+        });
+        expect(cols.map(c => c.name)).toEqual(['id']);
+    });
+
     it('extractProvider picks the first provider with role "producer"', () => {
         expect(cat.extractProvider({
             providers: [

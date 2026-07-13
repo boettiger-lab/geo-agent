@@ -551,18 +551,60 @@ export class DatasetCatalog {
     }
 
     /**
-     * Extract table:columns for schema info.
+     * Extract table:columns for schema info (feeds map tooltips, legends,
+     * layer `columns`, and `isParentContainer` detection).
+     *
+     * Reads the **per-asset** `table:columns` off the queryable parquet assets
+     * — the canonical location the catalog/publisher standard is standardizing
+     * on, and the same location the MCP `get_stac_details` renderer (the LLM's
+     * schema channel) reads (#311). Columns are unioned across the queryable
+     * assets, preferring the H3 **hex** asset (the primary query target per the
+     * MCP's query-optimization guidance) so its richer, H3-aware column
+     * definitions win on name collisions; the flat GeoParquet fills in anything
+     * the hex lacks. Geometry columns are dropped.
+     *
+     * Falls back to the legacy collection-level `table:columns` block when no
+     * per-asset schema is present, so catalogs mid-migration keep working.
      */
     extractColumns(collection) {
-        const columns = collection['table:columns'] || [];
-        return columns
-            .filter(col => !['geometry', 'geom'].includes(col.name?.toLowerCase()))
-            .map(col => ({
-                name: col.name,
+        const assets = collection.assets || {};
+
+        // Collect per-asset table:columns from queryable parquet assets, hex first.
+        const queryable = [];
+        for (const asset of Object.values(assets)) {
+            const cols = asset['table:columns'];
+            if (!Array.isArray(cols) || cols.length === 0) continue;
+
+            const type = asset.type || '';
+            const href = asset.href || '';
+            const isParquet = type.includes('parquet') || href.includes('.parquet') || href.includes('/hex/');
+            if (!isParquet) continue;
+
+            const isHex = href.includes('/hex/') || Object.keys(asset).some(k => k.startsWith('h3:'));
+            queryable.push({ isHex, cols });
+        }
+        // Hex first so its column defs win on collision; flat parquet fills gaps.
+        queryable.sort((a, b) => (b.isHex ? 1 : 0) - (a.isHex ? 1 : 0));
+
+        // Fallback to the legacy collection-level block during the per-asset migration.
+        let raw = queryable.flatMap(q => q.cols);
+        if (raw.length === 0) raw = collection['table:columns'] || [];
+
+        const seen = new Set();
+        const columns = [];
+        for (const col of raw) {
+            const name = col.name;
+            if (!name || ['geometry', 'geom'].includes(name.toLowerCase())) continue;
+            if (seen.has(name)) continue;
+            seen.add(name);
+            columns.push({
+                name,
                 type: col.type || 'string',
                 description: col.description || '',
                 ...(col.values?.length ? { values: col.values } : {}),
-            }));
+            });
+        }
+        return columns;
     }
 
     extractProvider(collection) {
