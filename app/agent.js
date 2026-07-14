@@ -175,6 +175,14 @@ export class Agent {
         // produce a parseable call falls through to its text rather than looping.
         let parseRetries = 0;
         const MAX_PARSE_RETRIES = 2;
+        // Repeated-failure short-circuit (#313). A model re-issuing the
+        // byte-identical tool call(s) that just failed is not making progress.
+        // We nudge it once, then checkpoint — rather than burning the whole
+        // localOnlyStreak cap on ~15 identical failures (observed live: glm-5.2
+        // looping a corrupted add_hex_tile_layer call). Tracks the signature of
+        // the last all-failed round and how many times it has repeated since.
+        let repeatedFailureStreak = 0;
+        let lastFailedRoundSig = null;
 
         try {
         while (true) {
@@ -297,6 +305,31 @@ export class Agent {
 
                 // Show results
                 this.onToolResults(results, iterations);
+
+                // Repeated-failure short-circuit (#313): if this round re-issued
+                // the identical call(s) that just failed, and every call failed
+                // again, the model is stuck. Steer it once; if it still repeats,
+                // checkpoint instead of looping to the localOnlyStreak cap.
+                const roundSig = JSON.stringify(calls.map(c => [c.function?.name, c.function?.arguments]));
+                const roundFailed = results.length > 0 && results.every(r => this._isFailedResult(r));
+                repeatedFailureStreak = (roundFailed && roundSig === lastFailedRoundSig)
+                    ? repeatedFailureStreak + 1
+                    : 0;
+                lastFailedRoundSig = roundFailed ? roundSig : null;
+                if (repeatedFailureStreak === 1) {
+                    const errText = (results.find(r => this._isFailedResult(r))?.result || '').slice(0, 300);
+                    turnMessages.push({
+                        role: 'user',
+                        content: 'That tool call just failed with the same error as the previous attempt'
+                            + (errText ? `:\n${errText}\n` : '. ')
+                            + 'Repeating the identical call will not help. Call it differently, use a '
+                            + 'different tool, or reply to the user in plain text explaining the problem.',
+                    });
+                    continue;
+                }
+                if (repeatedFailureStreak >= 2) {
+                    return await this._checkpoint(endpoint, modelConfig, turnMessages, sqlQueries, iterations);
+                }
 
                 // Continue loop — LLM will see the results
                 continue;
@@ -935,6 +968,7 @@ export class Agent {
      * (#288, failure mode 2). A malformed `arguments` string left verbatim in the
      * assistant message poisons the next upstream request. We parse leniently and
      * re-serialize; anything unrecoverable becomes `{}` so history stays valid.
+     * Also recovers per-argument dialect leaks (#313, see scrubArgDialectLeaks).
      * Mutates the message in place.
      */
     normalizeToolCallArguments(message) {
@@ -942,14 +976,66 @@ export class Agent {
         for (const tc of message.tool_calls) {
             if (!tc.function) continue;
             const raw = tc.function.arguments;
-            if (typeof raw !== 'string') {
-                // Some backends hand back an object — canonicalize to a string.
-                tc.function.arguments = JSON.stringify(raw ?? {});
+            // A string is parsed leniently (recovers the #288 extra-brace case);
+            // some backends hand back an object directly. Anything unrecoverable
+            // becomes {}. Scrub arg-dialect leaks out of the parsed object before
+            // re-serializing, so both history and execution see the real values.
+            const parsed = typeof raw === 'string'
+                ? (this.parseLenientJSON(raw) ?? {})
+                : (raw ?? {});
+            tc.function.arguments = JSON.stringify(this.scrubArgDialectLeaks(parsed));
+        }
+    }
+
+    /**
+     * Recover a per-argument tool-call dialect leak (#313). Some backends
+     * (observed live on `z-ai/glm-5.2`) serialize a structured argument's *value*
+     * in an XML arg dialect — `<arg_key>NAME</arg_key> <arg_value>{…}</arg_value>`
+     * (or `<parameter=NAME>…</parameter>`) — which arrives as a JSON *string*
+     * rather than the parsed object. The outer `arguments` blob is otherwise valid
+     * JSON, so the parse in normalizeToolCallArguments succeeds and the leak reaches
+     * the tool as a string that fails its schema (e.g. add_hex_tile_layer rejecting
+     * a `value_stats` string). The real payload is intact inside the wrapper — this
+     * unwraps it. Defense-in-depth: the durable fix normalizes the dialect at the
+     * server/proxy (see docs/design/tool-call-parsing.md and open-llm-proxy#85).
+     *
+     * Only string values carrying an `<arg_value>` / `<parameter …>` marker are
+     * touched: the payload after the marker is parsed as JSON when it's an
+     * object/array, else taken as a plain scalar (trailing close tag stripped).
+     * A missing/mismatched close tag is tolerated, matching parseEmbeddedToolCalls.
+     * Values with no marker are left byte-for-byte unchanged. Mutates and returns.
+     */
+    scrubArgDialectLeaks(args) {
+        if (!args || typeof args !== 'object' || Array.isArray(args)) return args;
+        for (const key of Object.keys(args)) {
+            const v = args[key];
+            if (typeof v !== 'string') continue;
+            const marker = v.match(/<(?:arg_value|parameter\b[^>]*)>/i);
+            if (!marker) continue;
+            const after = v.slice(marker.index + marker[0].length);
+            const parsed = this.parseLenientJSON(after);
+            if (parsed && typeof parsed === 'object') {
+                args[key] = parsed;
                 continue;
             }
-            const parsed = this.parseLenientJSON(raw);
-            tc.function.arguments = JSON.stringify(parsed ?? {});
+            const scalar = after.replace(/<\/(?:arg_value|parameter)>\s*$/i, '').trim();
+            if (scalar) args[key] = scalar;
         }
+        return args;
+    }
+
+    /**
+     * Whether a tool-execution result represents a failure (#313). Covers a
+     * registry-level error / unknown tool (`source: 'error'`), a local tool's
+     * logical-failure envelope (`{"success": false, …}` — note the registry marks
+     * `success: true` whenever the tool didn't *throw*, so the flag alone is not
+     * enough), and the invalid-JSON sentinel pushed for an unparseable args blob.
+     */
+    _isFailedResult(r) {
+        if (!r) return false;
+        if (r.source === 'error') return true;
+        const s = typeof r.result === 'string' ? r.result : '';
+        return /^\s*Error\b/.test(s) || /"success"\s*:\s*false/.test(s);
     }
 
     /**

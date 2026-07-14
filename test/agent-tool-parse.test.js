@@ -427,3 +427,161 @@ describe('agent loop — malformed-call recovery (#288 failure mode 1/3)', () =>
         expect(global.fetch.mock.calls.length).toBe(1);
     });
 });
+
+// #313: a per-argument dialect leak — the model emits a *well-formed* native
+// tool call whose one nested-object argument value is wrapped in its XML arg
+// dialect. Observed live on z-ai/glm-5.2 (ca-30x30, 2026-07-14): value_stats
+// arrived as "<arg_key>value_stats</arg_key> <arg_value>{…}</arg_value>", the
+// data intact inside the wrapper, and add_hex_tile_layer rejected the string.
+const GLM_LEAK = '<arg_key>value_stats</arg_key> <arg_value>{"by_res": {"2": {"min": 0.46, "max": 9.45}}}';
+
+describe('scrubArgDialectLeaks (#313)', () => {
+    it('unwraps an <arg_value>-wrapped object back into structured JSON', () => {
+        const out = agentFor().scrubArgDialectLeaks({ value_column: 'x', value_stats: GLM_LEAK });
+        expect(out.value_stats).toEqual({ by_res: { '2': { min: 0.46, max: 9.45 } } });
+        expect(out.value_column).toBe('x'); // sibling scalar untouched
+    });
+
+    it('tolerates a present closing </arg_value> tag', () => {
+        const out = agentFor().scrubArgDialectLeaks({ v: `<arg_value>{"a":1}</arg_value>` });
+        expect(out.v).toEqual({ a: 1 });
+    });
+
+    it('unwraps a <parameter=NAME> scalar payload, stripping the close tag', () => {
+        const out = agentFor().scrubArgDialectLeaks({ sql: '<parameter=sql>SELECT 1</parameter>' });
+        expect(out.sql).toBe('SELECT 1');
+    });
+
+    it('leaves marker-free values byte-for-byte unchanged (incl. the empty string)', () => {
+        const obj = { value_stats: '', palette: 'viridis', n: 3, arr: [1, 2] };
+        expect(agentFor().scrubArgDialectLeaks(obj)).toEqual(
+            { value_stats: '', palette: 'viridis', n: 3, arr: [1, 2] });
+    });
+
+    it('is a no-op on non-objects', () => {
+        const a = agentFor();
+        expect(a.scrubArgDialectLeaks(null)).toBe(null);
+        expect(a.scrubArgDialectLeaks('str')).toBe('str');
+    });
+
+    it('recovers the leak end-to-end through normalizeToolCallArguments', () => {
+        const a = agentFor();
+        const argsStr = JSON.stringify({
+            tile_url: 'https://h/tiles/hex/abc/{z}/{x}/{y}.pbf',
+            value_column: 'conserved_hw_frac',
+            value_stats: GLM_LEAK,
+        });
+        const message = { role: 'assistant', tool_calls: [
+            { id: 'c1', type: 'function', function: { name: 'add_hex_tile_layer', arguments: argsStr } }] };
+        a.normalizeToolCallArguments(message);
+        const parsed = JSON.parse(message.tool_calls[0].function.arguments);
+        expect(parsed.value_stats).toEqual({ by_res: { '2': { min: 0.46, max: 9.45 } } });
+        expect(parsed.value_column).toBe('conserved_hw_frac');
+    });
+});
+
+describe('_isFailedResult (#313)', () => {
+    const a = agentFor();
+    it('flags registry-level errors and unknown tools', () => {
+        expect(a._isFailedResult({ source: 'error', result: 'Unknown tool: x' })).toBe(true);
+    });
+    it('flags a local tool logical-failure envelope', () => {
+        expect(a._isFailedResult({ source: 'local', result: '{"success":false,"error":"boom"}' })).toBe(true);
+    });
+    it('flags an "Error:" result string', () => {
+        expect(a._isFailedResult({ source: 'remote', result: 'Error: bad SQL' })).toBe(true);
+    });
+    it('does not flag a successful result', () => {
+        expect(a._isFailedResult({ source: 'local', result: '{"success":true,"layer_id":"hex-abc"}' })).toBe(false);
+    });
+    it('does not flag null / empty', () => {
+        expect(a._isFailedResult(null)).toBe(false);
+        expect(a._isFailedResult({ source: 'local', result: '' })).toBe(false);
+    });
+});
+
+describe('agent loop — dialect-leak recovery + repeated-failure short-circuit (#313)', () => {
+    afterEach(() => { vi.restoreAllMocks(); });
+
+    const okToolCall = (name, argsStr) => ({
+        ok: true,
+        json: async () => ({ choices: [{ message: {
+            role: 'assistant', content: null,
+            tool_calls: [{ id: 'c1', type: 'function', function: { name, arguments: argsStr } }],
+        } }] }),
+    });
+
+    it('recovers a leaked value_stats so the tool executes with a real object', async () => {
+        const argsStr = JSON.stringify({
+            tile_url: 'https://h/tiles/hex/abc/{z}/{x}/{y}.pbf',
+            value_column: 'conserved_hw_frac',
+            value_stats: GLM_LEAK,
+        });
+        global.fetch = vi.fn()
+            .mockResolvedValueOnce(okToolCall('add_hex_tile_layer', argsStr))
+            .mockResolvedValueOnce(okText('Added the hex layer.'));
+        const captured = [];
+        const agent = agentFor({
+            isLocal: () => true, has: () => true,
+            execute: async (name, args) => {
+                captured.push(args);
+                return { success: true, name, result: '{"success":true,"layer_id":"hex-abc"}', source: 'local' };
+            },
+        });
+        agent.autoApprove = true;
+
+        const { response } = await agent.processMessage('map protected hardwood');
+
+        expect(captured).toHaveLength(1);
+        expect(captured[0].value_stats).toEqual({ by_res: { '2': { min: 0.46, max: 9.45 } } });
+        expect(response).toBe('Added the hex layer.');
+    });
+
+    it('nudges once then checkpoints when a failing call is repeated identically', async () => {
+        const argsStr = JSON.stringify({ tile_url: 'https://h/tiles/hex/abc/{z}/{x}/{y}.pbf', value_stats: '' });
+        // Model emits the identical failing call every round (glm-5.2's value_stats:"" flail).
+        global.fetch = vi.fn()
+            .mockResolvedValueOnce(okToolCall('add_hex_tile_layer', argsStr)) // round 1: fail, record sig
+            .mockResolvedValueOnce(okToolCall('add_hex_tile_layer', argsStr)) // round 2: repeat → nudge
+            .mockResolvedValueOnce(okToolCall('add_hex_tile_layer', argsStr)) // round 3: repeat → checkpoint
+            .mockResolvedValueOnce(okText('Checkpoint: the hex call keeps failing.')); // _checkpoint summary
+        const agent = agentFor({
+            isLocal: () => true, has: () => true,
+            execute: async (name) => ({
+                success: true, name, source: 'local',
+                result: '{"success":false,"error":"value_stats.by_res must contain at least one resolution"}',
+            }),
+        });
+        agent.autoApprove = true;
+
+        const result = await agent.processMessage('map it');
+
+        // 3 identical failing rounds + 1 checkpoint-summary call — NOT the 15 the
+        // blunt localOnlyStreak cap would have allowed.
+        expect(global.fetch.mock.calls.length).toBe(4);
+        expect(result.checkpoint).toBe(true);
+        expect(result.response).toBe('Checkpoint: the hex call keeps failing.');
+    });
+
+    it('does not short-circuit when the model recovers after the nudge', async () => {
+        const failArgs = JSON.stringify({ tile_url: 'https://h/tiles/hex/abc/{z}/{x}/{y}.pbf', value_stats: '' });
+        global.fetch = vi.fn()
+            .mockResolvedValueOnce(okToolCall('add_hex_tile_layer', failArgs)) // round 1: fail
+            .mockResolvedValueOnce(okToolCall('add_hex_tile_layer', failArgs)) // round 2: repeat → nudge
+            .mockResolvedValueOnce(okText('OK, I cannot build that layer — here is the number instead: 12%.'));
+        const agent = agentFor({
+            isLocal: () => true, has: () => true,
+            execute: async (name) => ({
+                success: true, name, source: 'local',
+                result: '{"success":false,"error":"value_stats.by_res must contain at least one resolution"}',
+            }),
+        });
+        agent.autoApprove = true;
+
+        const result = await agent.processMessage('map it');
+
+        expect(result.checkpoint).toBeFalsy();
+        expect(result.response).toContain('12%');
+        expect(global.fetch.mock.calls.length).toBe(3);
+    });
+});
