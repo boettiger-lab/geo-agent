@@ -230,6 +230,40 @@ details.layer-group:not([open]) .layer-group-title::before {
     margin-bottom: 0;
 }
 
+/* Layers with a remove button lay the toggle + button out in a row. */
+.layer-item.has-remove {
+    display: flex;
+    align-items: center;
+}
+
+.layer-item.has-remove .layer-toggle {
+    flex: 1;
+    min-width: 0;
+}
+
+.layer-remove-btn {
+    flex: 0 0 auto;
+    margin-left: 6px;
+    padding: 0;
+    width: 18px;
+    height: 18px;
+    line-height: 16px;
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: none;
+    border-radius: 3px;
+    color: #808080;
+    cursor: pointer;
+}
+
+.layer-remove-btn:hover {
+    background: rgba(0, 0, 0, 0.08);
+    color: #c0392b;
+}
+
 .layer-toggle {
     display: flex;
     align-items: center;
