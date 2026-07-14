@@ -1,4 +1,70 @@
 import { validateChartSpec } from './chart-renderer.js';
+import { metadataUrlFromTileUrl } from './hex-layer-helpers.js';
+
+/**
+ * Whether a value_stats object is usable for building a hex color ramp (#276):
+ * an object with a non-empty `by_res` map.
+ */
+function isUsableStats(vs) {
+    return !!(vs && typeof vs === 'object' && vs.by_res && Object.keys(vs.by_res).length > 0);
+}
+
+/**
+ * Resolve a hex layer's color-scale metadata (value_column, value_stats, bounds,
+ * layer_name) for add_hex_tile_layer (#276).
+ *
+ * The server already computed these and serves them by content hash, so the LLM
+ * should not have to transcribe the large value_stats blob into tool args (where
+ * weak models corrupt it — the failure that reopened #276). This prefers usable
+ * values the caller supplied, otherwise fetches the sidecar
+ * (metadataUrlFromTileUrl) and fills the gaps. If the fetch fails it uses
+ * whatever the caller did supply, and returns `{ error }` only when neither
+ * source yields the fields the renderer needs — never a silent blank layer.
+ */
+async function resolveHexMetadata(args) {
+    let valueColumn = args.value_column;
+    let valueStats = args.value_stats;
+    let bounds = (Array.isArray(args.bounds) && args.bounds.length === 4) ? args.bounds : undefined;
+    let layerName = args.layer_name;
+
+    // Fast path: the caller already supplied everything the renderer needs — no
+    // network round-trip, and back-compat for manual/programmatic callers.
+    if (isUsableStats(valueStats) && bounds && valueColumn) {
+        return { valueColumn, valueStats, bounds, layerName };
+    }
+
+    const metaUrl = metadataUrlFromTileUrl(args.tile_url);
+    if (metaUrl && typeof fetch === 'function') {
+        try {
+            const resp = await fetch(metaUrl);
+            if (resp.ok) {
+                const meta = await resp.json();
+                valueColumn = valueColumn || meta.value_columns?.[0];
+                if (!isUsableStats(valueStats)) valueStats = meta.value_stats?.[valueColumn];
+                if (!bounds) {
+                    bounds = (Array.isArray(meta.bounds) && meta.bounds.length === 4) ? meta.bounds : undefined;
+                }
+                layerName = layerName || meta.layer_name;
+            }
+        } catch { /* fall through to whatever the caller supplied */ }
+    }
+
+    // One clear error covering any remaining gap — never a silent blank layer.
+    // All three gaps share a root cause: the by-hash fetch didn't deliver and
+    // nothing usable was passed explicitly.
+    if (!valueColumn || !isUsableStats(valueStats) || !bounds) {
+        const missing = [
+            !valueColumn && 'value_column',
+            !isUsableStats(valueStats) && 'value_stats',
+            !bounds && 'bounds',
+        ].filter(Boolean).join(', ');
+        return { error: `add_hex_tile_layer: could not resolve color-scale metadata (${missing}). `
+            + `These are normally fetched from ${metaUrl || 'the tile host'} by content hash; that fetch `
+            + `returned nothing usable (ensure the tile host serves metadata.json — mcp-data-server >= v0.8.6), `
+            + `and no usable values were passed explicitly.` };
+    }
+    return { valueColumn, valueStats, bounds, layerName };
+}
 
 /**
  * Map Tools - Local tool definitions for the LLM agent
@@ -399,18 +465,20 @@ Common use cases:
 
 Flow:
   1. Call \`register_hex_tiles\` (MCP) with SQL that returns (h3_index [, value1, ...]).
-  2. Pass its return fields directly into this tool — no extra min/max query needed; the server already computed \`value_stats\` per H3 resolution.
+  2. Pass the returned \`tile_url\` to this tool. That is the ONLY required field.
+     The color-scale metadata (value_stats, bounds, value_column, layer_name) is
+     fetched automatically from the tile host by content hash — do NOT copy the
+     \`value_stats\` blob or \`bounds\` array into this call. Transcribing that large
+     nested object is error-prone and unnecessary; the server already has it.
 
-Pass the following fields straight through from the register_hex_tiles return value:
-  - tile_url              ← tile_url_template
-  - value_column          ← one of value_columns (for agg="COUNT" this is "count")
-  - value_stats           ← value_stats[value_column]  (has { by_res: { "<res>": { min, max } } })
-  - bounds                ← bounds
-  - layer_name            ← layer_name (when present; defaults to "layer" otherwise)
+Optional inputs:
+  - value_column          which value_columns entry to color by (default: first; "count" for agg=COUNT)
+  - palette / opacity / display_name / fit_bounds    styling (see below)
+  - value_stats / bounds / layer_name    accepted as explicit overrides, but normally OMIT — they are fetched
   - format                ← format ("geojson" or "vector"; defaults to "vector")
   - geojson_url           ← geojson_url (REQUIRED when format="geojson"; ignored otherwise)
 
-ALWAYS pass \`format\` and (when present) \`geojson_url\` through. The server auto-selects GeoJSON for small/single-resolution tilesets and vector tiles otherwise; for GeoJSON the \`.pbf\` tile_url 404s, so the layer renders blank unless you also pass format="geojson" + geojson_url.
+For GeoJSON tilesets you MUST still pass format="geojson" + geojson_url from the register_hex_tiles return — those two are NOT in the fetched sidecar. The server auto-selects GeoJSON for small/single-resolution tilesets and vector tiles otherwise; for GeoJSON the \`.pbf\` tile_url 404s, so the layer renders blank unless you also pass format="geojson" + geojson_url.
 
 Hexes get finer as the user zooms in: the tile server's pyramid serves the appropriate H3 resolution for each zoom level automatically (vector format only). If the user wants a coarser overall view, re-run \`register_hex_tiles\` with the SQL projected to a coarser resolution by wrapping the first column in \`h3_cell_to_parent(<h3_col>, <target_res>)\` — the server auto-detects the H3 resolution from that column.
 
@@ -420,18 +488,18 @@ The returned layer_id can be used with show_layer / hide_layer / set_style / set
             inputSchema: {
                 type: 'object',
                 properties: {
-                    tile_url: { type: 'string', description: 'tile_url_template from register_hex_tiles' },
-                    value_column: { type: 'string', description: 'Which column from register_hex_tiles.value_columns to style by (e.g. "count" for agg=COUNT)' },
+                    tile_url: { type: 'string', description: 'tile_url_template from register_hex_tiles — the ONLY required field' },
+                    value_column: { type: 'string', description: 'Optional: which column from value_columns to style by (default: first; "count" for agg=COUNT)' },
                     value_stats: {
                         type: 'object',
-                        description: 'Per-resolution stats for value_column — pass register_hex_tiles.value_stats[value_column] directly. Shape: { by_res: { "<res>": { min, max } } }.'
+                        description: 'Optional override — normally OMIT. Fetched automatically by content hash. Shape if passed: { by_res: { "<res>": { min, max } } }.'
                     },
                     bounds: {
                         type: 'array',
                         items: { type: 'number' },
-                        description: '[w, s, e, n] from register_hex_tiles.bounds'
+                        description: 'Optional override — normally OMIT. Fetched automatically. [w, s, e, n].'
                     },
-                    layer_name: { type: 'string', description: 'MVT source-layer name from register_hex_tiles.layer_name (defaults to "layer" when omitted; ignored for format="geojson")' },
+                    layer_name: { type: 'string', description: 'Optional override — normally OMIT. Fetched automatically (defaults to "layer"; ignored for format="geojson").' },
                     format: {
                         type: 'string',
                         enum: ['vector', 'geojson'],
@@ -447,20 +515,22 @@ The returned layer_id can be used with show_layer / hide_layer / set_style / set
                     opacity: { type: 'number', description: 'Fill opacity 0..1 (default 0.7)' },
                     fit_bounds: { type: 'boolean', description: 'Fly the camera to fit bounds (default true)' },
                 },
-                required: ['tile_url', 'value_column', 'value_stats', 'bounds'],
+                required: ['tile_url'],
             },
-            execute: (args) => {
-                const displayName = args.display_name || `Hex: ${args.value_column}`;
+            execute: async (args) => {
+                const meta = await resolveHexMetadata(args);
+                if (meta.error) return JSON.stringify({ success: false, error: meta.error });
+                const displayName = args.display_name || `Hex: ${meta.valueColumn}`;
                 const result = mapManager.addHexTileLayer({
                     tileUrl: args.tile_url,
-                    valueColumn: args.value_column,
-                    valueStats: args.value_stats,
-                    bounds: args.bounds,
+                    valueColumn: meta.valueColumn,
+                    valueStats: meta.valueStats,
+                    bounds: meta.bounds,
                     palette: args.palette || 'viridis',
                     opacity: args.opacity ?? 0.7,
                     displayName,
                     fitBounds: args.fit_bounds !== false,
-                    layerName: args.layer_name,
+                    layerName: meta.layerName,
                     format: args.format,
                     geojsonUrl: args.geojson_url,
                 });

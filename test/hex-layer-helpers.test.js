@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { extractHashFromUrl, rewriteValueColumn } from '../app/hex-layer-helpers.js';
+import { extractHashFromUrl, rewriteValueColumn, metadataUrlFromTileUrl } from '../app/hex-layer-helpers.js';
 
 describe('extractHashFromUrl', () => {
   it('extracts hash from a valid MCP tile URL template', () => {
@@ -189,5 +189,24 @@ describe('rewriteValueColumn', () => {
     const { value, replaced } = rewriteValueColumn(expr, 'val');
     expect(value).toEqual(expr);
     expect(replaced).toEqual([]);
+  });
+});
+
+describe('metadataUrlFromTileUrl (#276)', () => {
+  it('swaps the /{z}/{x}/{y}.pbf suffix for metadata.json', () => {
+    expect(metadataUrlFromTileUrl(
+      'https://duckdb-mcp.nrp-nautilus.io/tiles/hex/abc123/{z}/{x}/{y}.pbf'))
+      .toBe('https://duckdb-mcp.nrp-nautilus.io/tiles/hex/abc123/metadata.json');
+  });
+
+  it('returns null for a non-hex-template URL', () => {
+    expect(metadataUrlFromTileUrl('https://h/tiles/hex/abc/6/10/24.pbf')).toBeNull();
+    expect(metadataUrlFromTileUrl('https://h/other/abc/{z}/{x}/{y}.pbf')).toBeNull();
+    expect(metadataUrlFromTileUrl('not a url')).toBeNull();
+  });
+
+  it('returns null for non-string input', () => {
+    expect(metadataUrlFromTileUrl(null)).toBeNull();
+    expect(metadataUrlFromTileUrl(undefined)).toBeNull();
   });
 });

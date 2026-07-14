@@ -18,6 +18,27 @@ export function extractHashFromUrl(url) {
 }
 
 /**
+ * Derive a hex tileset's `metadata.json` URL from its tile-URL template (#276).
+ *
+ * The MCP tile host serves the color-scale sidecar (value_stats, bounds,
+ * value_columns, layer_name, …) at the same path as the tiles, with the
+ * `/{z}/{x}/{y}.pbf` suffix swapped for `metadata.json`
+ * (mcp-data-server#316 `serve_metadata`). Fetching it by content hash means
+ * those inputs never have to be transcribed through the LLM's tool-call
+ * arguments, where large value_stats blobs get corrupted (see add_hex_tile_layer
+ * and the GLM-5.2 incident that reopened #276).
+ *
+ * @param {string} url - a `.../tiles/hex/<hash>/{z}/{x}/{y}.pbf` template.
+ * @returns {string|null} the `.../tiles/hex/<hash>/metadata.json` URL, or null
+ *   if the input isn't a recognized hex tile template.
+ */
+export function metadataUrlFromTileUrl(url) {
+    if (typeof url !== 'string') return null;
+    const m = url.match(/^(.*\/tiles\/hex\/[^/]+\/)\{z\}\/\{x\}\/\{y\}\.pbf$/);
+    return m ? `${m[1]}metadata.json` : null;
+}
+
+/**
  * Named 3-stop color palettes for hex-layer fill-color ramps.
  *   viridis — sequential, perceptually uniform (default)
  *   ylorrd  — sequential, warm
