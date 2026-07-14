@@ -12,7 +12,7 @@
  * No knowledge of LLMs, tools, or chat — pure map operations.
  */
 
-import { extractHashFromUrl, buildFillColorExpression, buildFlatFillColorExpression, rewriteValueColumn, PALETTES } from './hex-layer-helpers.js';
+import { extractHashFromUrl, buildFillColorExpression, buildFlatFillColorExpression, rewriteValueColumn, PALETTES, buildHeightExpression, buildFlatHeightExpression, defaultExtrusionMaxHeight } from './hex-layer-helpers.js';
 import { deriveContinuousLegend } from './legend-helpers.js';
 
 const BASEMAPS = {
@@ -631,8 +631,9 @@ export class MapManager {
      * @returns {{success: boolean, layer_id?: string, error?: string}}
      */
     addHexTileLayer(opts) {
-        const { tileUrl, valueColumn, valueStats, bounds, palette, opacity, displayName, fitBounds, layerName, resolution, format, geojsonUrl } = opts;
+        const { tileUrl, valueColumn, valueStats, bounds, palette, opacity, displayName, fitBounds, layerName, resolution, format, geojsonUrl, extrude, extrudeMaxHeight } = opts;
         const isGeoJson = format === 'geojson';
+        const is3D = extrude === true;
         const sourceLayer = isGeoJson ? null : (layerName || 'layer');
 
         // The hash always comes from tile_url_template (returned by
@@ -669,7 +670,14 @@ export class MapManager {
             return { success: false, error: `resolution ${resolution} not in value_stats.by_res — available: ${availableRes.join(', ')}` };
         }
 
+        const maxHeight = is3D
+            ? (typeof extrudeMaxHeight === 'number' && extrudeMaxHeight > 0
+                ? extrudeMaxHeight
+                : defaultExtrusionMaxHeight(bounds))
+            : null;
+
         let fillColor;
+        let heightExpr;
         try {
             if (isGeoJson) {
                 // Single-resolution: GeoJSON features carry no `res`, so the
@@ -677,18 +685,29 @@ export class MapManager {
                 // flat ramp over the finest (largest) resolution's stats.
                 const finestRes = availableRes[availableRes.length - 1];
                 fillColor = buildFlatFillColorExpression(valueColumn, valueStats.by_res[finestRes], palette);
+                if (is3D) heightExpr = buildFlatHeightExpression(valueColumn, valueStats.by_res[finestRes], maxHeight);
             } else {
                 fillColor = buildFillColorExpression(valueColumn, valueStats, palette);
+                if (is3D) heightExpr = buildHeightExpression(valueColumn, valueStats, maxHeight);
             }
         } catch (err) {
             return { success: false, error: err.message };
         }
 
-        const paint = {
-            'fill-color': fillColor,
-            'fill-opacity': opacity,
-            'fill-outline-color': 'rgba(0,0,0,0.15)',
-        };
+        // 3D opt-in (#317): encode value as extrusion height as well as colour,
+        // over the same per-res domain. fill-extrusion has no outline property.
+        const paint = is3D
+            ? {
+                'fill-extrusion-color': fillColor,
+                'fill-extrusion-opacity': opacity,
+                'fill-extrusion-height': heightExpr,
+                'fill-extrusion-base': 0,
+            }
+            : {
+                'fill-color': fillColor,
+                'fill-opacity': opacity,
+                'fill-outline-color': 'rgba(0,0,0,0.15)',
+            };
 
         // No filter on `res`: the server pyramid serves one resolution per
         // tile keyed off zoom (target_res = clamp(z + zoom_offset, min_res,
@@ -704,7 +723,7 @@ export class MapManager {
         }
         this.map.addLayer({
             id: layerId,
-            type: 'fill',
+            type: is3D ? 'fill-extrusion' : 'fill',
             source: layerId,
             // GeoJSON sources have no source-layer; omit it for that branch.
             ...(isGeoJson ? {} : { 'source-layer': sourceLayer }),
@@ -742,6 +761,7 @@ export class MapManager {
             hexValueStats: valueStats,
             hexPalette: palette,
             hexCurrentRes: null,
+            extruded: is3D,
         });
 
         this._wireTooltip(layerId, layerId);
@@ -759,6 +779,10 @@ export class MapManager {
             const [w, s, e, n] = bounds;
             this.map.fitBounds([[w, s], [e, n]], { padding: 40, duration: 800 });
         }
+
+        // Tilt the camera so the extrusion reads as 3D. Only when the map is
+        // still flat, so we don't fight a pitch the user already set (#317).
+        if (is3D) this.tiltForExtrusion();
 
         return {
             success: true,
@@ -989,6 +1013,36 @@ export class MapManager {
         if (zoom !== undefined) options.zoom = zoom;
         this.map.flyTo(options);
         return { success: true, center, zoom: zoom ?? this.map.getZoom() };
+    }
+
+    /**
+     * Tilt the camera to a pitch (degrees), clamped to the map's maxPitch.
+     * @param {number} pitch
+     * @param {{animate?: boolean}} [opts]
+     * @returns {number} the applied pitch
+     */
+    setPitch(pitch, { animate = true } = {}) {
+        const maxPitch = (typeof this.map.getMaxPitch === 'function' ? this.map.getMaxPitch() : 75);
+        const p = Math.max(0, Math.min(Number(pitch) || 0, maxPitch));
+        if (animate && typeof this.map.easeTo === 'function') {
+            this.map.easeTo({ pitch: p, duration: 600 });
+        } else if (typeof this.map.setPitch === 'function') {
+            this.map.setPitch(p);
+        } else if (typeof this.map.jumpTo === 'function') {
+            this.map.jumpTo({ pitch: p });
+        }
+        return p;
+    }
+
+    /**
+     * Tilt to a 3D-friendly pitch when adding an extruded layer — but only if
+     * the map is still (near) flat, so a pitch the user already dialed in is
+     * left alone. Default 45°.
+     */
+    tiltForExtrusion(pitch = 45) {
+        const current = (typeof this.map.getPitch === 'function') ? this.map.getPitch() : 0;
+        if (current > 1) return current;
+        return this.setPitch(pitch);
     }
 
     getMapState() {

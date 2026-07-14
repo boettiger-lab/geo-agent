@@ -35,10 +35,16 @@ function createMockMap() {
         on() {},
         off() {},
         fitBounds(bounds, options) { fitBoundsCalls.push({ bounds, options }); },
+        // Camera (pitch) — records tilts for extrusion assertions
+        getPitch() { return this._pitch; },
+        getMaxPitch() { return 75; },
+        easeTo(opts) { this._easeToCalls.push(opts); if (opts.pitch != null) this._pitch = opts.pitch; },
         // Introspection helpers (not real MapLibre API)
         _sources: sources,
         _layers: layers,
         _fitBoundsCalls: fitBoundsCalls,
+        _pitch: 0,
+        _easeToCalls: [],
     };
 }
 
@@ -91,6 +97,81 @@ describe('MapManager.addHexTileLayer', () => {
         expect(mm.layers.get('hex-abc123').displayName).toBe('Density');
         expect(mm.layers.get('hex-abc123').type).toBe('vector');
         expect(mm.layers.get('hex-abc123').sourceLayer).toBe('layer');
+    });
+
+    it('renders a fill-extrusion layer and tilts the camera when extrude=true (#317)', () => {
+        const result = mm.addHexTileLayer({
+            tileUrl: 'https://example.com/tiles/hex/e3d/{z}/{x}/{y}.pbf',
+            valueColumn: 'count',
+            valueStats: { by_res: { '6': { min: 0, max: 100 } } },
+            bounds: [-125, 31, -102, 49],
+            palette: 'viridis',
+            opacity: 0.7,
+            displayName: '3D',
+            fitBounds: false,
+            extrude: true,
+        });
+        expect(result.success).toBe(true);
+
+        const layer = mm.map._layers.get('hex-e3d');
+        expect(layer.type).toBe('fill-extrusion');
+        expect(layer.paint['fill-extrusion-color']).toBeDefined();
+        expect(layer.paint['fill-extrusion-height']).toBeDefined();
+        expect(layer.paint['fill-extrusion-base']).toBe(0);
+        expect(layer.paint['fill-color']).toBeUndefined();
+
+        expect(mm.layers.get('hex-e3d').extruded).toBe(true);
+        // Camera tilted off flat
+        expect(mm.map._easeToCalls.length).toBe(1);
+        expect(mm.map._easeToCalls[0].pitch).toBe(45);
+    });
+
+    it('honors an explicit extrude_max_height at the top of the ramp (#317)', () => {
+        mm.addHexTileLayer({
+            tileUrl: 'https://example.com/tiles/hex/eh/{z}/{x}/{y}.pbf',
+            valueColumn: 'count',
+            valueStats: { by_res: { '6': { min: 0, max: 100 } } },
+            bounds: [0, 0, 1, 1],
+            palette: 'viridis',
+            opacity: 0.7,
+            displayName: '3D',
+            fitBounds: false,
+            extrude: true,
+            extrudeMaxHeight: 2500,
+        });
+        const height = mm.map._layers.get('hex-eh').paint['fill-extrusion-height'];
+        // case → match → res 6 branch → interpolate ... max stop → 2500
+        const branch = height[3][3];
+        expect(branch[branch.length - 1]).toBe(2500);
+    });
+
+    it('leaves an already-tilted camera alone when adding an extruded layer (#317)', () => {
+        mm.map._pitch = 30; // user already tilted
+        mm.addHexTileLayer({
+            tileUrl: 'https://example.com/tiles/hex/tilted/{z}/{x}/{y}.pbf',
+            valueColumn: 'count',
+            valueStats: { by_res: { '6': { min: 0, max: 100 } } },
+            bounds: [0, 0, 1, 1],
+            palette: 'viridis', opacity: 0.7, displayName: '3D', fitBounds: false,
+            extrude: true,
+        });
+        expect(mm.map._easeToCalls.length).toBe(0);
+    });
+
+    it('does not tilt or extrude by default', () => {
+        mm.addHexTileLayer({
+            tileUrl: 'https://example.com/tiles/hex/flat/{z}/{x}/{y}.pbf',
+            valueColumn: 'count',
+            valueStats: { by_res: { '6': { min: 0, max: 100 } } },
+            bounds: [0, 0, 1, 1],
+            palette: 'viridis',
+            opacity: 0.7,
+            displayName: 'flat',
+            fitBounds: false,
+        });
+        expect(mm.map._layers.get('hex-flat').type).toBe('fill');
+        expect(mm.layers.get('hex-flat').extruded).toBe(false);
+        expect(mm.map._easeToCalls.length).toBe(0);
     });
 
     it('defaults source-layer to "layer" when layerName is omitted', () => {
