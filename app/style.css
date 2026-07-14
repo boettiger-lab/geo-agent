@@ -412,6 +412,13 @@ details.layer-group:not([open]) .layer-group-title::before {
     margin-bottom: 4px;
 }
 
+/* Hex legend: which H3 resolution the shown value range applies to. */
+.legend-hex-res {
+    font-size: 10px;
+    color: #999;
+    font-style: italic;
+}
+
 .legend-item {
     display: flex;
     align-items: center;
