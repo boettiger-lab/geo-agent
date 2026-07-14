@@ -738,6 +738,10 @@ export class MapManager {
 
         this._wireTooltip(layerId, layerId);
 
+        // Surface the layer in the panel with a visibility toggle + remove
+        // button, so users can manage it without an LLM round-trip (#318).
+        this._addLayerControl(layerId);
+
         if (fitBounds && Array.isArray(bounds) && bounds.length === 4) {
             const [w, s, e, n] = bounds;
             this.map.fitBounds([[w, s], [e, n]], { padding: 40, duration: 800 });
@@ -773,6 +777,15 @@ export class MapManager {
         this.map.removeLayer(layerId);
         this.map.removeSource(layerId);
         this.layers.delete(layerId);
+
+        // Drop its panel row (added by _addLayerControl). Guarded so a
+        // headless/no-DOM caller doesn't throw.
+        if (this._controlsContainerEl) {
+            const item = this._controlsContainerEl.querySelector(`#layer-item-${layerId.replace(/\//g, '-')}`);
+            if (item) item.remove();
+            this._refreshCycleBtnState();
+        }
+
         return { success: true, layer_id: layerId };
     }
 
@@ -1263,6 +1276,9 @@ export class MapManager {
             container = document.getElementById(container);
         }
         if (!container) return;
+        // Remember the resolved element so runtime-added layers (hex tiles)
+        // can append their own control without a full re-render.
+        this._controlsContainerEl = container;
         container.innerHTML = '';
 
         // Group layers by their group name (null → ungrouped)
@@ -1293,50 +1309,100 @@ export class MapManager {
             }
 
             for (const [layerId, state] of entries) {
-                const wrapper = document.createElement('div');
-                wrapper.className = 'layer-item';
-
-                const label = document.createElement('label');
-                label.className = 'layer-toggle';
-
-                const checkbox = document.createElement('input');
-                checkbox.type = 'checkbox';
-                checkbox.id = `toggle-${layerId.replace(/\//g, '-')}`;
-                checkbox.checked = state.visible;
-                checkbox.addEventListener('change', () => {
-                    if (checkbox.checked) this.showLayer(layerId);
-                    else this.hideLayer(layerId);
-                    this._refreshCycleBtnState();
-                });
-
-                const span = document.createElement('span');
-                span.textContent = state.displayName;
-
-                label.appendChild(checkbox);
-                label.appendChild(span);
-                wrapper.appendChild(label);
-
-                // Version selector dropdown for versioned layers
-                if (state.versions && state.versions.length > 1) {
-                    const select = document.createElement('select');
-                    select.className = 'version-select';
-                    select.id = `version-${layerId.replace(/\//g, '-')}`;
-                    for (let i = 0; i < state.versions.length; i++) {
-                        const opt = document.createElement('option');
-                        opt.value = i;
-                        opt.textContent = state.versions[i].label;
-                        if (i === state.activeVersionIndex) opt.selected = true;
-                        select.appendChild(opt);
-                    }
-                    select.addEventListener('change', () => {
-                        this.switchVersion(layerId, parseInt(select.value, 10));
-                    });
-                    wrapper.appendChild(select);
-                }
-
-                itemContainer.appendChild(wrapper);
+                itemContainer.appendChild(this._createLayerItem(layerId, state));
             }
         }
+    }
+
+    /**
+     * Build one layer-panel row (checkbox + optional version dropdown +
+     * optional remove button). Shared by generateControls (boot) and
+     * _addLayerControl (runtime hex layers).
+     * @param {string} layerId
+     * @param {Object} state - entry from this.layers
+     * @returns {HTMLElement} the `.layer-item` wrapper
+     */
+    _createLayerItem(layerId, state) {
+        const safeId = layerId.replace(/\//g, '-');
+        const wrapper = document.createElement('div');
+        wrapper.className = 'layer-item';
+        wrapper.id = `layer-item-${safeId}`;
+
+        const label = document.createElement('label');
+        label.className = 'layer-toggle';
+
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.id = `toggle-${safeId}`;
+        checkbox.checked = state.visible;
+        checkbox.addEventListener('change', () => {
+            if (checkbox.checked) this.showLayer(layerId);
+            else this.hideLayer(layerId);
+            this._refreshCycleBtnState();
+        });
+
+        const span = document.createElement('span');
+        span.textContent = state.displayName;
+
+        label.appendChild(checkbox);
+        label.appendChild(span);
+        wrapper.appendChild(label);
+
+        // Version selector dropdown for versioned layers
+        if (state.versions && state.versions.length > 1) {
+            const select = document.createElement('select');
+            select.className = 'version-select';
+            select.id = `version-${safeId}`;
+            for (let i = 0; i < state.versions.length; i++) {
+                const opt = document.createElement('option');
+                opt.value = i;
+                opt.textContent = state.versions[i].label;
+                if (i === state.activeVersionIndex) opt.selected = true;
+                select.appendChild(opt);
+            }
+            select.addEventListener('change', () => {
+                this.switchVersion(layerId, parseInt(select.value, 10));
+            });
+            wrapper.appendChild(select);
+        }
+
+        // Remove button — only for dynamically-added hex layers, which have a
+        // backing removeHexTileLayer(). Curated layers can't be removed (only
+        // hidden), so they get no button.
+        if (layerId.startsWith('hex-')) {
+            wrapper.classList.add('has-remove');
+            const removeBtn = document.createElement('button');
+            removeBtn.className = 'layer-remove-btn';
+            removeBtn.type = 'button';
+            removeBtn.title = 'Remove this layer';
+            removeBtn.setAttribute('aria-label', `Remove ${state.displayName}`);
+            removeBtn.textContent = '×';
+            removeBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                this.removeHexTileLayer(layerId);
+            });
+            wrapper.appendChild(removeBtn);
+        }
+
+        return wrapper;
+    }
+
+    /**
+     * Append a control row for a single runtime-added layer to the panel,
+     * without rebuilding the whole panel (which would reset user-toggled
+     * group collapse state). No-op if the panel hasn't been built yet or the
+     * row already exists.
+     * @param {string} layerId
+     */
+    _addLayerControl(layerId) {
+        const container = this._controlsContainerEl;
+        if (!container) return;
+        const safeId = layerId.replace(/\//g, '-');
+        if (container.querySelector(`#layer-item-${safeId}`)) return;
+        const state = this.layers.get(layerId);
+        if (!state) return;
+        container.appendChild(this._createLayerItem(layerId, state));
+        this._refreshCycleBtnState();
     }
 
     /**
