@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { extractHashFromUrl, rewriteValueColumn, metadataUrlFromTileUrl } from '../app/hex-layer-helpers.js';
+import { extractHashFromUrl, rewriteValueColumn, metadataUrlFromTileUrl, buildHeightExpression, buildFlatHeightExpression, defaultExtrusionMaxHeight } from '../app/hex-layer-helpers.js';
 
 describe('extractHashFromUrl', () => {
   it('extracts hash from a valid MCP tile URL template', () => {
@@ -208,5 +208,69 @@ describe('metadataUrlFromTileUrl (#276)', () => {
   it('returns null for non-string input', () => {
     expect(metadataUrlFromTileUrl(null)).toBeNull();
     expect(metadataUrlFromTileUrl(undefined)).toBeNull();
+  });
+});
+
+describe('buildHeightExpression (#317)', () => {
+  it('mirrors the color match: per-res interpolate onto [0, maxHeight]', () => {
+    const stats = { by_res: { '3': { min: 1, max: 100 }, '4': { min: 1, max: 20 } } };
+    const expr = buildHeightExpression('count', stats, 1000);
+
+    expect(expr[0]).toBe('case');
+    expect(expr[1]).toEqual(['==', ['get', 'count'], null]);
+    expect(expr[2]).toBe(0); // null value → zero height
+
+    const match = expr[3];
+    expect(match[0]).toBe('match');
+    expect(match[1]).toEqual(['get', 'res']);
+    expect(match[2]).toBe(3);
+    expect(match[3]).toEqual(['interpolate', ['linear'], ['get', 'count'], 1, 0, 100, 1000]);
+    expect(match[4]).toBe(4);
+    expect(match[5]).toEqual(['interpolate', ['linear'], ['get', 'count'], 1, 0, 20, 1000]);
+    expect(match).toHaveLength(7);
+    expect(match[6]).toBe(0); // unknown res → zero height
+  });
+
+  it('collapses a min == max resolution to half height', () => {
+    const stats = { by_res: { '5': { min: 1, max: 1 } } };
+    const match = buildHeightExpression('count', stats, 1000)[3];
+    expect(match[3]).toBe(500);
+  });
+
+  it('throws when by_res is empty', () => {
+    expect(() => buildHeightExpression('count', { by_res: {} }, 1000)).toThrow();
+  });
+});
+
+describe('buildFlatHeightExpression (#317)', () => {
+  it('interpolates a single domain onto [0, maxHeight]', () => {
+    const expr = buildFlatHeightExpression('count', { min: 0, max: 50 }, 800);
+    expect(expr[0]).toBe('case');
+    expect(expr[2]).toBe(0);
+    expect(expr[3]).toEqual(['interpolate', ['linear'], ['get', 'count'], 0, 0, 50, 800]);
+  });
+
+  it('collapses min == max to half height', () => {
+    const expr = buildFlatHeightExpression('count', { min: 5, max: 5 }, 800);
+    expect(expr[3]).toBe(400);
+  });
+});
+
+describe('defaultExtrusionMaxHeight (#317)', () => {
+  it('scales to ~8% of the smaller ground span', () => {
+    // ~1° lat ≈ 110.54 km; a 1°×1° box near the equator → span ~110 km → ~8.8 km.
+    const h = defaultExtrusionMaxHeight([0, 0, 1, 1]);
+    expect(h).toBeGreaterThan(8000);
+    expect(h).toBeLessThan(10000);
+  });
+
+  it('falls back to a fixed height for unusable bounds', () => {
+    expect(defaultExtrusionMaxHeight(null)).toBe(50000);
+    expect(defaultExtrusionMaxHeight([0, 0, 1])).toBe(50000);
+    expect(defaultExtrusionMaxHeight([0, 0, 'x', 1])).toBe(50000);
+  });
+
+  it('never returns below the 1 km floor for a tiny extent', () => {
+    expect(defaultExtrusionMaxHeight([0, 0, 0.0001, 0.0001])).toBe(1000);
   });
 });

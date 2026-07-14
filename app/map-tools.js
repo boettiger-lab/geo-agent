@@ -474,6 +474,7 @@ Flow:
 Optional inputs:
   - value_column          which value_columns entry to color by (default: first; "count" for agg=COUNT)
   - palette / opacity / display_name / fit_bounds    styling (see below)
+  - extrude               true → 3D extruded hexes (value → height + color) and a tilted camera (default false)
   - value_stats / bounds / layer_name    accepted as explicit overrides, but normally OMIT — they are fetched
   - format                ← format ("geojson" or "vector"; defaults to "vector")
   - geojson_url           ← geojson_url (REQUIRED when format="geojson"; ignored otherwise)
@@ -514,6 +515,8 @@ The returned layer_id can be used with show_layer / hide_layer / set_style / set
                     },
                     opacity: { type: 'number', description: 'Fill opacity 0..1 (default 0.7)' },
                     fit_bounds: { type: 'boolean', description: 'Fly the camera to fit bounds (default true)' },
+                    extrude: { type: 'boolean', description: 'Render as 3D extruded hexes — value encoded as height as well as color — and tilt the camera. Default false (flat 2D fill). Use when the user asks for a 3D / extruded / "height" view.' },
+                    extrude_max_height: { type: 'number', description: 'Optional height (metres) of the tallest hex when extrude=true. Omit for an auto default scaled to the data extent.' },
                 },
                 required: ['tile_url'],
             },
@@ -533,6 +536,8 @@ The returned layer_id can be used with show_layer / hide_layer / set_style / set
                     layerName: meta.layerName,
                     format: args.format,
                     geojsonUrl: args.geojson_url,
+                    extrude: args.extrude === true,
+                    extrudeMaxHeight: args.extrude_max_height,
                 });
                 return JSON.stringify(result);
             },
