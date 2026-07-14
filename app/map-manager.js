@@ -12,7 +12,7 @@
  * No knowledge of LLMs, tools, or chat — pure map operations.
  */
 
-import { extractHashFromUrl, buildFillColorExpression, buildFlatFillColorExpression, rewriteValueColumn } from './hex-layer-helpers.js';
+import { extractHashFromUrl, buildFillColorExpression, buildFlatFillColorExpression, rewriteValueColumn, PALETTES } from './hex-layer-helpers.js';
 import { deriveContinuousLegend } from './legend-helpers.js';
 
 const BASEMAPS = {
@@ -62,6 +62,8 @@ export class MapManager {
         this._legendContent = null;
         this._legendItems = new Map();   // layerId → DOM element
         this._colormapCache = new Map(); // colormap name → CSS gradient string
+        this._hexLegendRefs = new Map(); // layerId → { minSpan, maxSpan, resNote } for zoom-reactive relabeling
+        this._hexLegendReactive = false; // moveend handler registered lazily on first hex legend
         this.titilerUrl = options.titilerUrl || 'https://titiler.nrp-nautilus.io';
         this._maptilerKey = options.maptilerKey || '';
         this._currentBasemap = 'natgeo';
@@ -732,8 +734,14 @@ export class MapManager {
             colormap: null,
             rescale: null,
             legendLabel: null,
-            legendType: null,
+            legendType: 'hex',
             legendClasses: null,
+            // Legend inputs (#316): the per-res value domain + the fixed 3-stop
+            // palette drive a zoom-reactive colorbar. `hexCurrentRes` caches
+            // the resolution last rendered so relabeling has a fallback.
+            hexValueStats: valueStats,
+            hexPalette: palette,
+            hexCurrentRes: null,
         });
 
         this._wireTooltip(layerId, layerId);
@@ -741,6 +749,11 @@ export class MapManager {
         // Surface the layer in the panel with a visibility toggle + remove
         // button, so users can manage it without an LLM round-trip (#318).
         this._addLayerControl(layerId);
+
+        // Show a color legend mirroring the map ramp for the visible
+        // resolution (#316). registerLayer does this for curated layers; hex
+        // layers bypass registerLayer, so trigger it here.
+        this._showLegendIfVisible(layerId);
 
         if (fitBounds && Array.isArray(bounds) && bounds.length === 4) {
             const [w, s, e, n] = bounds;
@@ -784,6 +797,20 @@ export class MapManager {
             const item = this._controlsContainerEl.querySelector(`#layer-item-${layerId.replace(/\//g, '-')}`);
             if (item) item.remove();
             this._refreshCycleBtnState();
+        }
+
+        // Drop its legend entry (#316) and hide the panel if nothing's left.
+        if (this._legendItems) {
+            const legendItem = this._legendItems.get(layerId);
+            if (legendItem) {
+                legendItem.remove();
+                this._legendItems.delete(layerId);
+            }
+            this._hexLegendRefs?.delete(layerId);
+            if (this._legendEl) {
+                const anyVisible = [...this._legendItems.values()].some(el => el.style.display !== 'none');
+                this._legendEl.style.display = anyVisible ? '' : 'none';
+            }
         }
 
         return { success: true, layer_id: layerId };
@@ -1486,7 +1513,75 @@ export class MapManager {
     _hasLegend(state) {
         return state.type === 'raster'
             || (state.legendType === 'categorical' && state.legendClasses?.length > 0)
-            || (state.legendType === 'continuous' && !!this._continuousVectorLegend(state));
+            || (state.legendType === 'continuous' && !!this._continuousVectorLegend(state))
+            || (state.legendType === 'hex' && !!this._hexLegend(state));
+    }
+
+    /**
+     * Determine which H3 resolution a hex layer is currently rendering, so its
+     * legend can show the matching value domain. The server pyramid serves one
+     * resolution per tile keyed off zoom, so we sample the rendered features'
+     * `res` property rather than trying to reproduce the server's zoom→res
+     * formula client-side. Falls back to the cached value, then the finest
+     * resolution, when nothing is rendered yet (e.g. right after add, or for
+     * GeoJSON layers whose features carry no `res`).
+     *
+     * @returns {number|null}
+     */
+    _currentHexRes(state) {
+        const byRes = state.hexValueStats?.by_res || {};
+        const available = Object.keys(byRes).map(Number).sort((a, b) => a - b);
+        if (available.length === 0) return null;
+        if (available.length === 1) return available[0];
+
+        let res = null;
+        try {
+            const feats = this.map.queryRenderedFeatures({ layers: [state.mapLayerId] });
+            const counts = new Map();
+            for (const f of feats) {
+                const r = f?.properties?.res;
+                if (r == null) continue;
+                counts.set(Number(r), (counts.get(Number(r)) || 0) + 1);
+            }
+            let best = -Infinity;
+            for (const [r, c] of counts) {
+                if (c > best) { best = c; res = r; }
+            }
+        } catch {
+            // map not ready / layer not queryable — fall through to fallback
+        }
+
+        if (res == null || byRes[res] == null) {
+            res = (state.hexCurrentRes != null && byRes[state.hexCurrentRes] != null)
+                ? state.hexCurrentRes
+                : available[available.length - 1];
+        }
+        return res;
+    }
+
+    /**
+     * Resolve a hex layer's colorbar for the resolution currently on screen:
+     * the fixed 3-stop palette (min→max) plus that resolution's value domain
+     * from `hexValueStats.by_res`. Mirrors the map's `buildFillColorExpression`
+     * ramp. Returns null only when no resolution stats exist.
+     *
+     * @returns {{ colors: string[], range: [number, number], res: number } | null}
+     */
+    _hexLegend(state) {
+        const byRes = state.hexValueStats?.by_res || {};
+        const res = this._currentHexRes(state);
+        if (res == null) return null;
+        const stats = byRes[res];
+        if (!stats || typeof stats.min !== 'number' || typeof stats.max !== 'number') return null;
+        const colors = PALETTES[state.hexPalette] || PALETTES.viridis;
+        return { colors, range: [stats.min, stats.max], res };
+    }
+
+    /** Format a legend value: grouped integers, floats to 3 significant digits. */
+    _fmtLegendValue(v) {
+        if (typeof v !== 'number' || !isFinite(v)) return String(v);
+        if (Number.isInteger(v)) return v.toLocaleString('en-US');
+        return v.toLocaleString('en-US', { maximumSignificantDigits: 3 });
     }
 
     /**
@@ -1617,6 +1712,36 @@ export class MapManager {
             }
             item.appendChild(bar);
             item.appendChild(labels);
+        } else if (state.legendType === 'hex') {
+            // Hex choropleth (#316): fixed 3-stop palette, min→max, over the
+            // value domain of the resolution currently on screen. Labels update
+            // on zoom via _updateHexLegends (per-res scaling ~7×/step).
+            const hex = this._hexLegend(state);
+            const safe = (hex?.colors || []).map(c => this._safeColorHint(c)).filter(Boolean);
+            const gradient = safe.length >= 2
+                ? `linear-gradient(to right, ${safe.join(', ')})`
+                : 'linear-gradient(to right, #eee, #333)';
+            const unit = state.legendLabel ? ` ${state.legendLabel}` : '';
+            const bar = document.createElement('div');
+            bar.className = 'legend-colorbar';
+            bar.style.background = gradient;
+            const labels = document.createElement('div');
+            labels.className = 'legend-labels';
+            const minSpan = document.createElement('span');
+            const maxSpan = document.createElement('span');
+            minSpan.textContent = `${this._fmtLegendValue(hex?.range[0])}${unit}`;
+            maxSpan.textContent = `${this._fmtLegendValue(hex?.range[1])}${unit}`;
+            labels.appendChild(minSpan);
+            labels.appendChild(maxSpan);
+            const resNote = document.createElement('div');
+            resNote.className = 'legend-hex-res';
+            if (hex) resNote.textContent = `H3 resolution ${hex.res}`;
+            item.appendChild(bar);
+            item.appendChild(labels);
+            item.appendChild(resNote);
+            if (hex) state.hexCurrentRes = hex.res;
+            this._hexLegendRefs.set(layerId, { minSpan, maxSpan, resNote });
+            this._ensureHexLegendReactivity();
         } else {
             const gradient = await this._getColormapGradient(state.colormap || 'reds');
             const [minVal, maxVal] = (state.rescale || '0,1').split(',');
@@ -1646,6 +1771,34 @@ export class MapManager {
         if (this._legendEl) {
             const anyVisible = [...this._legendItems.values()].some(el => el.style.display !== 'none');
             this._legendEl.style.display = anyVisible ? '' : 'none';
+        }
+    }
+
+    /**
+     * Register a single moveend handler that relabels visible hex legends to
+     * the value domain of the resolution now on screen. Lazy — only wired once
+     * a hex legend actually exists.
+     */
+    _ensureHexLegendReactivity() {
+        if (this._hexLegendReactive) return;
+        this._hexLegendReactive = true;
+        this.map.on('moveend', () => this._updateHexLegends());
+    }
+
+    /** Relabel each visible hex legend for the resolution currently rendered. */
+    _updateHexLegends() {
+        for (const [layerId, refs] of this._hexLegendRefs) {
+            const state = this.layers.get(layerId);
+            if (!state || !state.visible) continue;
+            const item = this._legendItems.get(layerId);
+            if (!item || item.style.display === 'none') continue;
+            const hex = this._hexLegend(state);
+            if (!hex) continue;
+            state.hexCurrentRes = hex.res;
+            const unit = state.legendLabel ? ` ${state.legendLabel}` : '';
+            refs.minSpan.textContent = `${this._fmtLegendValue(hex.range[0])}${unit}`;
+            refs.maxSpan.textContent = `${this._fmtLegendValue(hex.range[1])}${unit}`;
+            if (refs.resNote) refs.resNote.textContent = `H3 resolution ${hex.res}`;
         }
     }
 
