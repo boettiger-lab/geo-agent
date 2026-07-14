@@ -564,3 +564,92 @@ describe('createMapTools smoke test', () => {
         expect(setFilter.inputSchema.properties.filter.items).toBeDefined();
     });
 });
+
+describe('add_hex_tile_layer — fetch color-scale metadata by hash (#276)', () => {
+    afterEach(() => { vi.restoreAllMocks(); delete global.fetch; });
+
+    const META = {
+        finest_res: 8, min_res: 2, agg: 'AVG', zoom_offset: 2,
+        value_columns: ['conserved_hw_frac'],
+        value_stats: { conserved_hw_frac: {
+            by_res: { '2': { min: 0.46, max: 9.45 }, '8': { min: 0, max: 49 } },
+            suggested_scale: 'linear',
+        } },
+        layer_name: 'layer',
+        bounds: [-124.4, 32.5, -114.3, 42.1],
+        feature_count_finest: 216305,
+    };
+    const TILE_URL = 'https://duckdb-mcp.nrp-nautilus.io/tiles/hex/abc123/{z}/{x}/{y}.pbf';
+
+    const getTool = () => {
+        const mapManager = { addHexTileLayer: vi.fn(() => ({ success: true, layer_id: 'hex-abc123' })) };
+        const tool = createMapTools(mapManager, { records: new Map() }).find(t => t.name === 'add_hex_tile_layer');
+        return { tool, mapManager };
+    };
+
+    it('requires only tile_url', () => {
+        const { tool } = getTool();
+        expect(tool.inputSchema.required).toEqual(['tile_url']);
+    });
+
+    it('fetches metadata.json by hash and forwards the resolved fields', async () => {
+        global.fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => META });
+        const { tool, mapManager } = getTool();
+
+        const out = JSON.parse(await tool.execute({ tile_url: TILE_URL }));
+
+        expect(global.fetch).toHaveBeenCalledWith('https://duckdb-mcp.nrp-nautilus.io/tiles/hex/abc123/metadata.json');
+        expect(mapManager.addHexTileLayer).toHaveBeenCalledWith(expect.objectContaining({
+            tileUrl: TILE_URL,
+            valueColumn: 'conserved_hw_frac',
+            valueStats: META.value_stats.conserved_hw_frac,
+            bounds: META.bounds,
+            layerName: 'layer',
+        }));
+        expect(out.success).toBe(true);
+    });
+
+    it('honors a value_column override while still fetching stats for it', async () => {
+        const meta = { ...META, value_columns: ['count', 'conserved_hw_frac'],
+            value_stats: { ...META.value_stats, count: { by_res: { '8': { min: 1, max: 99 } } } } };
+        global.fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => meta });
+        const { tool, mapManager } = getTool();
+
+        await tool.execute({ tile_url: TILE_URL, value_column: 'count' });
+
+        expect(mapManager.addHexTileLayer).toHaveBeenCalledWith(expect.objectContaining({
+            valueColumn: 'count',
+            valueStats: meta.value_stats.count,
+        }));
+    });
+
+    it('uses caller-supplied values without fetching (fast path / back-compat)', async () => {
+        global.fetch = vi.fn();
+        const { tool, mapManager } = getTool();
+        const stats = { by_res: { '8': { min: 0, max: 49 } } };
+
+        await tool.execute({ tile_url: TILE_URL, value_column: 'count', value_stats: stats, bounds: [1, 2, 3, 4] });
+
+        expect(global.fetch).not.toHaveBeenCalled();
+        expect(mapManager.addHexTileLayer).toHaveBeenCalledWith(expect.objectContaining({
+            valueColumn: 'count', valueStats: stats, bounds: [1, 2, 3, 4],
+        }));
+    });
+
+    it('errors clearly (no silent blank layer) when the fetch fails and nothing was provided', async () => {
+        global.fetch = vi.fn().mockResolvedValue({ ok: false, status: 404, json: async () => ({}) });
+        const { tool, mapManager } = getTool();
+
+        const out = JSON.parse(await tool.execute({ tile_url: TILE_URL }));
+
+        expect(out.success).toBe(false);
+        expect(out.error).toMatch(/value_stats/);
+        expect(mapManager.addHexTileLayer).not.toHaveBeenCalled();
+    });
+
+    it('does not force the model to transcribe value_stats in its description', () => {
+        const { tool } = getTool();
+        expect(tool.description).toMatch(/fetched automatically/i);
+        expect(tool.description).toMatch(/do NOT copy/i);
+    });
+});
