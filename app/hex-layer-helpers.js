@@ -181,3 +181,93 @@ export function buildFlatFillColorExpression(valueColumn, stats, palette) {
         branch,
     ];
 }
+
+/**
+ * Pick a sensible default max extrusion height (metres) for a hex layer from
+ * its bounding box: ~8% of the smaller ground span, so full-value hexes read
+ * as visible towers without dwarfing a regional map or vanishing on a global
+ * one. Falls back to a fixed value when bounds are unusable.
+ *
+ * @param {number[]} bounds - [w, s, e, n] in degrees.
+ * @returns {number} metres.
+ */
+export function defaultExtrusionMaxHeight(bounds) {
+    const FALLBACK = 50000;
+    if (!Array.isArray(bounds) || bounds.length !== 4) return FALLBACK;
+    const [w, s, e, n] = bounds;
+    if (![w, s, e, n].every(v => typeof v === 'number' && isFinite(v))) return FALLBACK;
+    const midLatRad = ((s + n) / 2) * Math.PI / 180;
+    const widthM = Math.abs(e - w) * 111320 * Math.cos(midLatRad);
+    const heightM = Math.abs(n - s) * 110540;
+    const span = Math.min(widthM, heightM);
+    if (!(span > 0)) return FALLBACK;
+    return Math.max(1000, span * 0.08);
+}
+
+/**
+ * Build a MapLibre `fill-extrusion-height` expression mirroring
+ * {@link buildFillColorExpression}: a per-`res` `match` whose branches
+ * interpolate each resolution's value domain onto [0, maxHeight]. This encodes
+ * the same value as height that the fill-color encodes as hue, over the same
+ * domain, so colour and height stay in lockstep.
+ *
+ * Null values → height 0; a collapsed range (min == max) → half height;
+ * unknown resolutions → 0.
+ *
+ * @param {string} valueColumn - MVT feature property to encode.
+ * @param {{by_res: Object<string, {min: number, max: number}>}} valueStats
+ * @param {number} maxHeight - metres at the top of each resolution's domain.
+ * @returns {Array} MapLibre expression.
+ */
+export function buildHeightExpression(valueColumn, valueStats, maxHeight) {
+    const byRes = valueStats && valueStats.by_res;
+    if (!byRes || Object.keys(byRes).length === 0) {
+        throw new Error('value_stats.by_res must contain at least one resolution');
+    }
+    const resKeys = Object.keys(byRes).sort((a, b) => Number(a) - Number(b));
+
+    const branches = [];
+    for (const resStr of resKeys) {
+        const { min, max } = byRes[resStr];
+        const res = Number(resStr);
+        const branch = (min < max)
+            ? ['interpolate', ['linear'], ['get', valueColumn], min, 0, max, maxHeight]
+            : maxHeight / 2;
+        branches.push(res, branch);
+    }
+
+    return [
+        'case',
+        ['==', ['get', valueColumn], null],
+        0,
+        ['match', ['get', 'res'], ...branches, 0],
+    ];
+}
+
+/**
+ * Flat single-resolution `fill-extrusion-height` expression — the GeoJSON
+ * analogue of {@link buildHeightExpression}, matching
+ * {@link buildFlatFillColorExpression}. Features carry no `res`, so interpolate
+ * directly over one `{min, max}`.
+ *
+ * @param {string} valueColumn - Feature property to encode.
+ * @param {{min: number, max: number}} stats - Single-resolution value range.
+ * @param {number} maxHeight - metres at the top of the domain.
+ * @returns {Array} MapLibre expression.
+ */
+export function buildFlatHeightExpression(valueColumn, stats, maxHeight) {
+    if (!stats || stats.min == null || stats.max == null) {
+        throw new Error('stats must contain numeric min and max');
+    }
+    const { min, max } = stats;
+    const branch = (min < max)
+        ? ['interpolate', ['linear'], ['get', valueColumn], min, 0, max, maxHeight]
+        : maxHeight / 2;
+
+    return [
+        'case',
+        ['==', ['get', valueColumn], null],
+        0,
+        branch,
+    ];
+}
