@@ -67,6 +67,88 @@ export function scrubCredentials(text) {
  */
 export const REDACTED_KEYS = ['s3_key', 's3_secret', 's3_endpoint', 's3_scope', 'catalog_token'];
 
+/*
+ * CDN builds used to re-hydrate the map in an exported transcript. Pinned to
+ * match what the app itself loads (see app/index.html and
+ * docs/guide/quickstart.md) so the embedded style renders under the same
+ * MapLibre/PMTiles version that produced it. Bump alongside the app's pins.
+ */
+export const EXPORT_MAP_MAPLIBRE_VERSION = '5.22.0';
+export const EXPORT_MAP_PMTILES_VERSION = '3.0.7';
+
+/**
+ * Build a self-rendering, interactive MapLibre map from a captured map state,
+ * as HTML for embedding in the exported transcript. The map re-hydrates from
+ * the embedded style + camera in the recipient's browser — it is live
+ * (pan/zoom), not a raster snapshot, so it needs network access to the same
+ * public tile sources that produced it.
+ *
+ * The serialized state is credential-scrubbed: AWS signatures / bearer tokens
+ * (via {@link scrubCredentials}) and MapTiler `key=` params must never ride
+ * along into a shared file. `<` is escaped to `<` so a source name or URL
+ * containing `</script>` can't break out of the embedded JSON block.
+ *
+ * @param {object|null} state - from MapManager.getExportState(); null/empty → no map
+ * @returns {{ headTags: string, body: string }} empty strings when there is no map
+ */
+export function buildMapEmbedHtml(state) {
+    if (!state || !state.style) return { headTags: '', body: '' };
+
+    let stateJson = JSON.stringify(state);
+    stateJson = scrubCredentials(stateJson);
+    // Redact MapTiler-style API keys in any surviving source URL.
+    stateJson = stateJson.replace(/([?&]key=)[^&"'\\]+/g, '$1[REDACTED]');
+    // Neutralize a </script> breakout hiding in the embedded JSON.
+    const safeJson = stateJson.replace(/</g, '\\u003c');
+
+    const ml = EXPORT_MAP_MAPLIBRE_VERSION;
+    const pm = EXPORT_MAP_PMTILES_VERSION;
+
+    const headTags =
+`<link href="https://unpkg.com/maplibre-gl@${ml}/dist/maplibre-gl.css" rel="stylesheet" crossorigin="anonymous">
+<script src="https://unpkg.com/maplibre-gl@${ml}/dist/maplibre-gl.js" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/pmtiles@${pm}/dist/pmtiles.js" crossorigin="anonymous"></script>`;
+
+    const body =
+`<section class="export-map-section">
+  <h2 class="export-map-title">Map at time of export</h2>
+  <div id="export-map" class="export-map"></div>
+  <p class="export-map-note">Interactive map re-rendered from the saved state. Needs a network
+     connection to the original public tile sources; private or signed layers may not appear.</p>
+  <script type="application/json" id="export-map-state">${safeJson}</script>
+  <script>
+  (function () {
+    var el = document.getElementById('export-map');
+    try {
+      if (typeof maplibregl === 'undefined') throw new Error('MapLibre GL JS did not load');
+      var state = JSON.parse(document.getElementById('export-map-state').textContent);
+      if (window.pmtiles && maplibregl.addProtocol) {
+        maplibregl.addProtocol('pmtiles', new pmtiles.Protocol().tile);
+      }
+      var map = new maplibregl.Map({
+        container: 'export-map',
+        style: state.style,
+        center: state.center,
+        zoom: state.zoom,
+        bearing: state.bearing,
+        pitch: state.pitch,
+        renderWorldCopies: false,
+      });
+      map.addControl(new maplibregl.NavigationControl(), 'top-left');
+      if (state.projection === 'globe') {
+        map.on('load', function () { map.setProjection({ type: 'globe' }); });
+      }
+    } catch (e) {
+      if (el) el.innerHTML = '<p class="export-map-error">Could not render the saved map: ' +
+        (e && e.message ? e.message : e) + '</p>';
+    }
+  })();
+  </script>
+</section>`;
+
+    return { headTags, body };
+}
+
 /**
  * Render LLM-derived text to HTML for innerHTML insertion. The model can be
  * steered by anything it reads (dataset values, STAC descriptions), so its
@@ -104,10 +186,14 @@ export class ChatUI {
      *   {
      *     container, messages, input, send, mic, header, footer, footerRight,
      *   }
+     * @param {import('./map-manager.js').MapManager} [mapManager] - used by the
+     *   HTML export to embed the final map state; optional so tests and
+     *   headless harnesses can construct a ChatUI without a live map.
      */
-    constructor(agent, config, mount) {
+    constructor(agent, config, mount, mapManager = null) {
         this.agent = agent;
         this.config = config;
+        this.mapManager = mapManager;
         this.busy = false;
 
         // Cache DOM refs from layout-manager (no getElementById here).
@@ -1087,6 +1173,16 @@ export class ChatUI {
         const appTitle = document.title || 'GLEN';
         const exportedAt = new Date().toLocaleString();
 
+        // Capture the final map state (one map per saved log). Guarded so a
+        // ChatUI built without a map still exports the transcript.
+        let mapState = null;
+        try {
+            mapState = this.mapManager?.getExportState?.() ?? null;
+        } catch (err) {
+            console.warn('[ChatUI] map capture for export failed:', err);
+        }
+        const mapEmbed = buildMapEmbedHtml(mapState);
+
         const html =
 `<!doctype html>
 <html lang="en">
@@ -1094,6 +1190,7 @@ export class ChatUI {
 <meta charset="utf-8">
 <title>${this.escapeHtml(title)}</title>
 <style>${css}</style>
+${mapEmbed.headTags}
 </head>
 <body>
 <header class="export-header">
@@ -1103,6 +1200,7 @@ export class ChatUI {
      (<code>https://s3-west.nrp-nautilus.io/</code>) so they can be re-run from any DuckDB
      with the <code>httpfs</code> extension loaded.</p>
 </header>
+${mapEmbed.body}
 <main id="chat-messages">${clone.innerHTML}</main>
 </body>
 </html>`;
@@ -1233,6 +1331,11 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-
 .welcome-message { background: #f9fafb; padding: 8px 10px; border-radius: 6px;
                    font-size: 13px; color: #6b7280; }
 .welcome-examples { display: none; }
+.export-map-section { margin: 0 0 1rem; }
+.export-map-title { font-size: 1rem; margin: 0 0 0.5rem; }
+.export-map { width: 100%; height: 480px; border: 1px solid #ddd; border-radius: 6px; }
+.export-map-note { font-size: 12px; color: #6b7280; margin: 6px 0 0; }
+.export-map-error { padding: 1rem; color: #991b1b; font-size: 13px; }
 `;
     }
 
