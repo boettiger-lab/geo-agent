@@ -158,6 +158,26 @@ async function main() {
         }
     }
 
+    /* ── 3c-bis. GeoJSON upload (optional — requires upload_enabled) ─── */
+    // Off by default. `upload_enabled: true` uses defaults; an object customizes
+    // the bucket/prefix/caps/ingest link (see upload-manager.js). The upload
+    // goes browser → S3 directly; only the resulting URL reaches the agent, via
+    // the get_uploaded_dataset tool below (geo-agent#325).
+    let uploadManager = null;
+    if (appConfig.upload_enabled) {
+        try {
+            const { UploadManager } = await import('./upload-manager.js');
+            const uploadCfg = (appConfig.upload_enabled && typeof appConfig.upload_enabled === 'object')
+                ? appConfig.upload_enabled
+                : (appConfig.upload || {});
+            uploadManager = new UploadManager(mapManager, uploadCfg);
+            uploadManager.init();
+            console.log('[main] Upload tool ready');
+        } catch (err) {
+            console.warn('[main] Failed to load upload module:', err.message);
+        }
+    }
+
     /* ── 3d. Geolocation (optional — "where am I?") ──────────────────── */
     // Two independently opt-in surfaces, both off by default:
     //   • locate-me button (UI)        — geolocate.button
@@ -264,6 +284,47 @@ async function main() {
                     hint: 'To filter by this region, UNNEST h3_polygon_wkt_to_cells(wkt, resolution) and JOIN on the dataset H3 column. ' +
                           'Example: FROM UNNEST(h3_polygon_wkt_to_cells(\'<wkt>\', <res>)) AS t(cell) JOIN data ON data.h3_col = t.cell. ' +
                           'suggested_h3_resolution is a ceiling — pick the dataset H3 column closest to but not exceeding it.',
+                });
+            },
+        });
+    }
+
+    // Register uploaded-dataset tool (if upload is enabled and loaded). Returns
+    // only the S3 URL(s) of user-uploaded boundaries — the geometry itself never
+    // enters the model's context. The agent reads the file server-side via the
+    // spatial `query` tool and uses it as a mask (geo-agent#325).
+    if (uploadManager) {
+        toolRegistry.registerLocal({
+            name: 'get_uploaded_dataset',
+            description:
+                'Get the polygon boundary/boundaries the user uploaded to the map, as public GeoJSON URL(s). ' +
+                'The agent does NOT receive the geometry — read it server-side in the query tool with ' +
+                'ST_Read(url) and use it as an area-of-interest mask. ' +
+                'Call this when the user refers to "the uploaded file", "my boundary", "the shape I added", ' +
+                '"this area", or asks a spatial question about an uploaded region. Returns success:false if nothing is uploaded.',
+            inputSchema: { type: 'object', properties: {} },
+            execute: () => {
+                const uploads = uploadManager.getUploads();
+                if (!uploads.length) {
+                    return JSON.stringify({ success: false, error: 'No uploaded dataset. Ask the user to upload a polygon GeoJSON first.' });
+                }
+                return JSON.stringify({
+                    success: true,
+                    datasets: uploads.map(u => ({
+                        url: u.url,
+                        display_name: u.displayName,
+                        geometry_type: u.geometryType,
+                        feature_count: u.featureCount,
+                        property_keys: u.propertyKeys,
+                    })),
+                    hint:
+                        "Read a boundary server-side, never inline its geometry. For a spatial mask: " +
+                        "WITH aoi AS (SELECT ST_Union_Agg(geom) AS g FROM ST_Read('<url>')) " +
+                        "SELECT ... FROM data, aoi WHERE ST_Within(data.geom, aoi.g). " +
+                        "For an H3-indexed dataset, convert once to cells and JOIN: " +
+                        "WITH aoi AS (SELECT ST_AsText(ST_Union_Agg(geom)) AS wkt FROM ST_Read('<url>')) " +
+                        "SELECT d.* FROM aoi, UNNEST(h3_polygon_wkt_to_cells(aoi.wkt, <res>)) AS t(cell) JOIN data d ON d.<h3_col> = t.cell. " +
+                        "Pick <res> to keep cell counts reasonable (coarser for large areas).",
                 });
             },
         });
@@ -417,6 +478,23 @@ async function main() {
             replaceDrawMessage(
                 '[The user has cleared the drawn region from the map.]',
             );
+        });
+    }
+
+    // Upload event → chat notification + a nudge so the agent knows an
+    // uploaded boundary is available (it fetches the URL via get_uploaded_dataset).
+    if (uploadManager) {
+        window.addEventListener('geojson-uploaded', (e) => {
+            const name = e.detail?.displayName || 'a boundary';
+            ui.addMessage('system', `Uploaded "${name}" to the map. Ask me anything about this area.`);
+            agent.messages.push({
+                role: 'user',
+                content: '[The user has uploaded a polygon boundary to the map. ' +
+                    'Use the get_uploaded_dataset tool to retrieve its URL when answering spatial queries about this area.]',
+            });
+        });
+        window.addEventListener('geojson-upload-error', (e) => {
+            ui.addMessage('system', `Upload failed: ${e.detail?.message || 'unknown error'}`);
         });
     }
 
