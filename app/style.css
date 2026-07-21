@@ -272,6 +272,46 @@ details.layer-group:not([open]) .layer-group-title::before {
     cursor: pointer;
 }
 
+/* Uploaded-GeoJSON control (opt-in — see upload-manager.js) */
+.upload-btn {
+    display: block;
+    width: 100%;
+    margin: 4px 0 6px;
+    padding: 5px 8px;
+    font-size: 12px;
+    color: #404040;
+    background: rgba(0, 0, 0, 0.03);
+    border: 1px dashed rgba(0, 0, 0, 0.25);
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.upload-btn:hover {
+    background: rgba(0, 0, 0, 0.06);
+    border-color: rgba(0, 0, 0, 0.4);
+}
+
+.upload-status {
+    font-size: 11px;
+    color: #606060;
+    margin: 0 0 6px;
+    min-height: 0;
+    line-height: 1.35;
+}
+
+.upload-status:empty {
+    display: none;
+}
+
+.upload-status.is-error {
+    color: #c0392b;
+}
+
+.upload-dragover {
+    outline: 3px dashed rgba(59, 130, 246, 0.7);
+    outline-offset: -3px;
+}
+
 .layer-toggle input[type="checkbox"] {
     margin: 0 6px 0 0;
     cursor: pointer;

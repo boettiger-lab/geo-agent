@@ -601,6 +601,130 @@ export class MapManager {
         return { success: true, layer: layerId, displayName: state.displayName, visible: false };
     }
 
+    // ---- Uploaded Layers (client-side GeoJSON, opt-in — see upload-manager.js) ----
+
+    /**
+     * Add a user-uploaded GeoJSON polygon layer from an in-memory FeatureCollection.
+     *
+     * Unlike catalog and hex layers, the geometry lives inline in the map's
+     * `geojson` source (no tiles, no remote fetch on render) — the file was
+     * already parsed client-side. The parallel copy in S3 is what the agent
+     * queries; this method only draws it. Idempotent by id.
+     *
+     * @param {Object} opts
+     * @param {string} opts.id - stable id (content hash); layerId becomes `upload-<id>`
+     * @param {Object} opts.geojson - parsed GeoJSON FeatureCollection/Feature (inline data)
+     * @param {string} opts.displayName
+     * @param {string} [opts.fillColor='#3b82f6']
+     * @param {string} [opts.outlineColor='#1e3a8a']
+     * @param {number} [opts.opacity=0.35]
+     * @param {string[]} [opts.tooltipFields] - feature property keys to show on hover
+     * @param {[number,number,number,number]} [opts.bounds] - [w,s,e,n] for fitBounds
+     * @param {boolean} [opts.fitBounds=true]
+     * @returns {{success: boolean, layer_id?: string, already_exists?: boolean, error?: string}}
+     */
+    addUploadedLayer(opts) {
+        const {
+            id, geojson, displayName,
+            fillColor = '#3b82f6', outlineColor = '#1e3a8a', opacity = 0.35,
+            tooltipFields = null, bounds, fitBounds = true,
+        } = opts;
+
+        if (!id) return { success: false, error: 'addUploadedLayer requires an id' };
+        if (!geojson || typeof geojson !== 'object') {
+            return { success: false, error: 'addUploadedLayer requires a parsed geojson object' };
+        }
+        const layerId = `upload-${id}`;
+        const outlineLayerId = `${layerId}-outline`;
+
+        // Idempotency: same content hash → same layer → no re-add.
+        if (this.layers.has(layerId)) {
+            const state = this.layers.get(layerId);
+            return { success: true, layer_id: layerId, display_name: state.displayName, already_exists: true };
+        }
+
+        this.map.addSource(layerId, { type: 'geojson', data: geojson });
+        this.map.addLayer({
+            id: layerId,
+            type: 'fill',
+            source: layerId,
+            layout: { visibility: 'visible' },
+            paint: { 'fill-color': fillColor, 'fill-opacity': opacity },
+        });
+        this.map.addLayer({
+            id: outlineLayerId,
+            type: 'line',
+            source: layerId,
+            layout: { visibility: 'visible' },
+            paint: { 'line-color': outlineColor, 'line-width': 1.5 },
+        });
+
+        this.layers.set(layerId, {
+            layerId,
+            mapLayerId: layerId,
+            outlineLayerId,
+            sourceId: layerId,
+            datasetId: null,
+            group: null,
+            groupCollapsed: false,
+            displayName,
+            type: 'vector',
+            sourceLayer: null,
+            columns: [],
+            visible: true,
+            filter: null,
+            defaultFilter: null,
+            defaultPaint: { 'fill-color': fillColor, 'fill-opacity': opacity },
+            tooltipFields,
+            defaultTooltipFields: tooltipFields,
+            colormap: null,
+            rescale: null,
+            legendLabel: null,
+            legendType: null,
+            legendClasses: null,
+        });
+
+        this._wireTooltip(layerId, layerId);
+        this._addLayerControl(layerId);
+
+        if (fitBounds && Array.isArray(bounds) && bounds.length === 4) {
+            const [w, s, e, n] = bounds;
+            this.map.fitBounds([[w, s], [e, n]], { padding: 40, duration: 800 });
+        }
+
+        return { success: true, layer_id: layerId, display_name: displayName, already_exists: false };
+    }
+
+    /**
+     * Remove a user-uploaded layer previously added via addUploadedLayer.
+     * Refuses any layer_id not starting with `upload-` so curated/hex layers
+     * can't be destroyed through this path. Mirrors removeHexTileLayer.
+     *
+     * @param {string} layerId - e.g. "upload-abc123"
+     * @returns {{success: boolean, layer_id?: string, error?: string}}
+     */
+    removeUploadedLayer(layerId) {
+        if (typeof layerId !== 'string' || !layerId.startsWith('upload-')) {
+            return { success: false, error: `layer_id '${layerId}' is not an uploaded layer (must start with 'upload-')` };
+        }
+        const state = this.layers.get(layerId);
+        if (!state) {
+            const uploads = [...this.layers.keys()].filter(id => id.startsWith('upload-'));
+            return { success: false, error: `Unknown uploaded layer '${layerId}'. Registered: [${uploads.join(', ')}]` };
+        }
+        if (state.outlineLayerId && this.map.getLayer(state.outlineLayerId)) this.map.removeLayer(state.outlineLayerId);
+        if (this.map.getLayer(layerId)) this.map.removeLayer(layerId);
+        if (this.map.getSource(layerId)) this.map.removeSource(layerId);
+        this.layers.delete(layerId);
+
+        if (this._controlsContainerEl) {
+            const item = this._controlsContainerEl.querySelector(`#layer-item-${layerId.replace(/\//g, '-')}`);
+            if (item) item.remove();
+            this._refreshCycleBtnState();
+        }
+        return { success: true, layer_id: layerId };
+    }
+
     // ---- Hex Tile Layers (dynamic MVT from MCP register_hex_tiles) ----
 
     /**
@@ -1447,10 +1571,13 @@ export class MapManager {
             wrapper.appendChild(select);
         }
 
-        // Remove button — only for dynamically-added hex layers, which have a
-        // backing removeHexTileLayer(). Curated layers can't be removed (only
-        // hidden), so they get no button.
-        if (layerId.startsWith('hex-')) {
+        // Remove button — only for dynamically-added layers that have a backing
+        // remove method: hex layers (removeHexTileLayer) and uploaded layers
+        // (removeUploadedLayer). Curated layers can't be removed (only hidden),
+        // so they get no button.
+        const isHex = layerId.startsWith('hex-');
+        const isUpload = layerId.startsWith('upload-');
+        if (isHex || isUpload) {
             wrapper.classList.add('has-remove');
             const removeBtn = document.createElement('button');
             removeBtn.className = 'layer-remove-btn';
@@ -1460,7 +1587,8 @@ export class MapManager {
             removeBtn.textContent = '×';
             removeBtn.addEventListener('click', (e) => {
                 e.preventDefault();
-                this.removeHexTileLayer(layerId);
+                if (isHex) this.removeHexTileLayer(layerId);
+                else this.removeUploadedLayer(layerId);
             });
             wrapper.appendChild(removeBtn);
         }
