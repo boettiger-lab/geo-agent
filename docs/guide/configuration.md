@@ -719,12 +719,21 @@ The checkpoint is the only per-turn cap on tool use. Setting a value to `0` remo
 
 A 💾 save button in the chat footer saves the current conversation as a self-contained HTML document you can share or print. The button is disabled until the first user message and enables automatically after. No configuration — it's always present.
 
-The saved file mirrors what the user sees in the live chat: user prompts, assistant prose, and tool-call rows with collapsible SQL and result blocks. Everything is in a single `.html` with inlined CSS — no external assets, no JavaScript required to view it.
+The saved file mirrors what the user sees in the live chat: user prompts, assistant prose, and tool-call rows with collapsible SQL and result blocks, plus the **map as it stood when Save was clicked** (see below).
 
 Two guarantees apply to the export:
 
 - **Reproducible SQL.** Every `s3://bucket/...` URL inside a SQL block is rewritten to `https://s3-west.nrp-nautilus.io/bucket/...`. Pasting the SQL into any DuckDB with `INSTALL httpfs; LOAD httpfs;` will run it against the public endpoint without secret configuration (public buckets only).
-- **Credential scrubbing.** On top of the live-chat redaction described in the agent-loop docs, the export pass replaces credential-shaped tokens with `[REDACTED]` — DuckDB `CREATE SECRET` key/value pairs, AWS access keys (`aws_access_key_id`, `aws_secret_access_key`), `Authorization: Bearer …` tokens, and pre-signed-URL `X-Amz-Signature` / `X-Amz-Credential` / `X-Amz-Security-Token` query parameters.
+- **Credential scrubbing.** On top of the live-chat redaction described in the agent-loop docs, the export pass replaces credential-shaped tokens with `[REDACTED]` — DuckDB `CREATE SECRET` key/value pairs, AWS access keys (`aws_access_key_id`, `aws_secret_access_key`), `Authorization: Bearer …` tokens, and pre-signed-URL `X-Amz-Signature` / `X-Amz-Credential` / `X-Amz-Security-Token` query parameters. This scrubbing also covers the embedded map state (below).
+
+### Embedded map
+
+The export captures the final map state — one map per saved log — as an **interactive MapLibre map**, not a static image. It serializes `map.getStyle()` (all sources, layers, and their current paint / filter / visibility) plus the camera (center, zoom, bearing, pitch, and globe-vs-mercator projection), embeds it in the HTML, and re-renders a live, pannable map when the file is opened. Because it's the real style rather than a screenshot, the recipient sees exactly the layers and styling that were on screen and can zoom and inspect them.
+
+Trade-offs, by design:
+
+- **Not fully offline.** The embedded map loads MapLibre GL JS and PMTiles from the same pinned CDN builds the app uses (`maplibre-gl@5.22.0`, `pmtiles@3.0.7`) and fetches tiles from the original public sources at view time. Without a network connection, the map area shows an error message; the rest of the transcript still renders.
+- **Public layers only.** Terrain (whose DEM source is keyed to a private MapTiler token) is stripped, and any signed or private tile URL is redacted by the credential scrub — so such layers may not appear for a recipient. The transcript text remains complete.
 
 ## Finding STAC asset IDs
 
