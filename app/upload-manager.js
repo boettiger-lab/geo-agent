@@ -156,10 +156,9 @@ export class UploadManager {
         this._status = document.createElement('div');
         this._status.className = 'upload-status';
 
-        // Sit just above the layer list, inside the Overlays section.
-        controls.parentNode.insertBefore(btn, controls);
-        controls.parentNode.insertBefore(input, controls);
-        controls.parentNode.insertBefore(this._status, controls);
+        // Sit at the bottom of the Overlays section, below the layer list
+        // (uploaded rows append into the list above, so the button stays last).
+        controls.after(btn, input, this._status);
 
         this._wireDragDrop();
         console.log('[upload] ready');
