@@ -115,3 +115,84 @@ describe('scrubCredentials', () => {
         expect(scrubCredentials(null)).toBe(null);
     });
 });
+
+import {
+    buildMapEmbedHtml,
+    EXPORT_MAP_MAPLIBRE_VERSION,
+    EXPORT_MAP_PMTILES_VERSION,
+} from '../app/chat-ui.js';
+
+describe('buildMapEmbedHtml', () => {
+    const sampleState = () => ({
+        center: [-119.4, 36.8],
+        zoom: 6.5,
+        bearing: 0,
+        pitch: 0,
+        projection: 'mercator',
+        style: {
+            version: 8,
+            sources: { natgeo: { type: 'raster', tiles: ['https://example/{z}/{x}/{y}.png'] } },
+            layers: [{ id: 'natgeo-base', type: 'raster', source: 'natgeo' }],
+        },
+    });
+
+    // Pull the JSON out of the <script type="application/json"> block and
+    // reverse the < escaping so it can be JSON.parsed back.
+    const extractState = (body) => {
+        const m = body.match(
+            /<script type="application\/json" id="export-map-state">([\s\S]*?)<\/script>/
+        );
+        expect(m).toBeTruthy();
+        return JSON.parse(m[1].replace(/\\u003c/g, '<'));
+    };
+
+    it('returns empty strings when there is no map state', () => {
+        expect(buildMapEmbedHtml(null)).toEqual({ headTags: '', body: '' });
+        expect(buildMapEmbedHtml(undefined)).toEqual({ headTags: '', body: '' });
+        expect(buildMapEmbedHtml({})).toEqual({ headTags: '', body: '' });
+    });
+
+    it('pins the CDN builds to the versions the app loads', () => {
+        const { headTags } = buildMapEmbedHtml(sampleState());
+        expect(headTags).toContain(`maplibre-gl@${EXPORT_MAP_MAPLIBRE_VERSION}/dist/maplibre-gl.js`);
+        expect(headTags).toContain(`maplibre-gl@${EXPORT_MAP_MAPLIBRE_VERSION}/dist/maplibre-gl.css`);
+        expect(headTags).toContain(`pmtiles@${EXPORT_MAP_PMTILES_VERSION}/dist/pmtiles.js`);
+    });
+
+    it('embeds a parseable state and a container the init script targets', () => {
+        const { body } = buildMapEmbedHtml(sampleState());
+        expect(body).toContain('id="export-map"');
+        expect(body).toContain("maplibregl.addProtocol('pmtiles'");
+        const parsed = extractState(body);
+        expect(parsed.center).toEqual([-119.4, 36.8]);
+        expect(parsed.zoom).toBe(6.5);
+        expect(parsed.style.layers[0].id).toBe('natgeo-base');
+    });
+
+    it('scrubs AWS signatures and MapTiler keys from source URLs', () => {
+        const state = sampleState();
+        state.style.sources.natgeo.tiles = [
+            'https://api.maptiler.com/tiles/x/{z}/{x}/{y}.png?key=SECRETKEY123',
+        ];
+        state.style.sources.signed = {
+            type: 'raster',
+            tiles: ['https://s3-west.nrp-nautilus.io/b/x?X-Amz-Signature=abc123def456'],
+        };
+        const { body } = buildMapEmbedHtml(state);
+        expect(body).not.toContain('SECRETKEY123');
+        expect(body).not.toContain('abc123def456');
+        // Still valid JSON after scrubbing.
+        expect(() => extractState(body)).not.toThrow();
+    });
+
+    it('neutralizes a </script> breakout hidden in the state', () => {
+        const state = sampleState();
+        state.style.name = 'evil</script><script>alert(1)</script>';
+        const { body } = buildMapEmbedHtml(state);
+        // The only real closing tags are the two we emit; the injected one is escaped.
+        expect(body).not.toContain('<script>alert(1)');
+        expect(body).toContain('\\u003c/script');
+        // And it still round-trips.
+        expect(extractState(body).style.name).toBe('evil</script><script>alert(1)</script>');
+    });
+});

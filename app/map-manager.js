@@ -148,6 +148,36 @@ export class MapManager {
     }
 
     /**
+     * Snapshot the current map for embedding in an exported chat transcript.
+     * Returns a plain, JSON-serializable object: the full MapLibre style
+     * (sources + layers, with current paint / filter / visibility baked in)
+     * plus the camera. A consumer can re-hydrate a live map from this alone.
+     *
+     * Terrain is stripped: its DEM source is keyed to a private MapTiler
+     * token that must not leak into a shared export, and a flat map is fine
+     * for a transcript. Remaining credential scrubbing happens at embed time.
+     *
+     * @returns {{center:[number,number], zoom:number, bearing:number,
+     *            pitch:number, projection:string, style:object}}
+     */
+    getExportState() {
+        const style = this.map.getStyle();
+        if (style.terrain) delete style.terrain;
+        if (style.sources && style.sources['terrain-dem']) {
+            delete style.sources['terrain-dem'];
+        }
+        const c = this.map.getCenter();
+        return {
+            center: [c.lng, c.lat],
+            zoom: this.map.getZoom(),
+            bearing: this.map.getBearing(),
+            pitch: this.map.getPitch(),
+            projection: this._globeEnabled ? 'globe' : 'mercator',
+            style,
+        };
+    }
+
+    /**
      * Register and add layers to the map from catalog configs.
      * @param {Array} layerConfigs - From DatasetCatalog.getMapLayerConfigs()
      */
