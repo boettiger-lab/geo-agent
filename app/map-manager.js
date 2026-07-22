@@ -61,6 +61,7 @@ export class MapManager {
         this._legendEl = null;
         this._legendContent = null;
         this._legendItems = new Map();   // layerId → DOM element
+        this._legendGroups = new Map();  // groupName → group wrapper element (grouped legend sections)
         this._colormapCache = new Map(); // colormap name → CSS gradient string
         this._hexLegendRefs = new Map(); // layerId → { minSpan, maxSpan, resNote } for zoom-reactive relabeling
         this._hexLegendReactive = false; // moveend handler registered lazily on first hex legend
@@ -1867,6 +1868,34 @@ export class MapManager {
         }
     }
 
+    /**
+     * Resolve the element a layer's legend section should append into, mirroring
+     * the layer panel's grouping (`generateControls`). Layers with a `group` are
+     * clustered under one lazily-created `.legend-group` wrapper (heading = group
+     * name); ungrouped layers append straight into `#legend-content` (flat,
+     * backward compatible). Also un-hides the wrapper so a re-shown member brings
+     * its group heading back.
+     * @param {Object} state - entry from this.layers
+     * @returns {HTMLElement}
+     */
+    _legendParentFor(state) {
+        if (!state.group) return this._legendContent;
+        let wrapper = this._legendGroups.get(state.group);
+        if (!wrapper) {
+            wrapper = document.createElement('div');
+            wrapper.className = 'legend-group';
+            // Group name comes from config (untrusted) — textContent, never HTML.
+            const title = document.createElement('h4');
+            title.className = 'legend-group-title';
+            title.textContent = state.group;
+            wrapper.appendChild(title);
+            this._legendGroups.set(state.group, wrapper);
+            this._legendContent.appendChild(wrapper);
+        }
+        wrapper.style.display = '';
+        return wrapper;
+    }
+
     async _showLegend(layerId) {
         const state = this.layers.get(layerId);
         if (!state) return;
@@ -1876,18 +1905,28 @@ export class MapManager {
 
         if (this._legendItems.has(layerId)) {
             this._legendItems.get(layerId).style.display = '';
+            if (state.group) this._legendParentFor(state); // re-show group wrapper
             return;
         }
 
         const item = document.createElement('div');
         item.className = 'legend-section';
 
+        // A single-class categorical layer would render a redundant heading plus
+        // one identically-labelled swatch row (the class label usually restates
+        // the display name). Drop the per-layer heading in that case — the lone
+        // swatch row (and, when grouped, the group heading) already labels it (#328).
+        const singleCategorical = state.legendType === 'categorical'
+            && state.legendClasses?.length === 1;
+
         // Display name, class names, and color hints come from STAC metadata
         // (untrusted) — build the legend via textContent and validate colors
         // before they reach a style attribute.
-        const heading = document.createElement('h4');
-        heading.textContent = state.displayName;
-        item.appendChild(heading);
+        if (!singleCategorical) {
+            const heading = document.createElement('h4');
+            heading.textContent = state.displayName;
+            item.appendChild(heading);
+        }
 
         const continuousVector = state.legendType === 'continuous'
             ? this._continuousVectorLegend(state)
@@ -1972,13 +2011,23 @@ export class MapManager {
             item.appendChild(labels);
         }
 
-        this._legendContent.appendChild(item);
+        this._legendParentFor(state).appendChild(item);
         this._legendItems.set(layerId, item);
     }
 
     _hideLegend(layerId) {
         const item = this._legendItems.get(layerId);
         if (item) item.style.display = 'none';
+        // Hide a group wrapper once all its member sections are hidden
+        const state = this.layers.get(layerId);
+        if (state?.group) {
+            const wrapper = this._legendGroups.get(state.group);
+            if (wrapper) {
+                const anyMemberVisible = [...wrapper.querySelectorAll('.legend-section')]
+                    .some(el => el.style.display !== 'none');
+                wrapper.style.display = anyMemberVisible ? '' : 'none';
+            }
+        }
         // Hide the whole panel when nothing is visible
         if (this._legendEl) {
             const anyVisible = [...this._legendItems.values()].some(el => el.style.display !== 'none');
