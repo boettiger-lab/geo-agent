@@ -1754,12 +1754,21 @@ export class MapManager {
         const item = document.createElement('div');
         item.className = 'legend-section';
 
+        // A single-class categorical layer would render a redundant heading plus
+        // one identically-labelled swatch row (the class label usually restates
+        // the display name). Drop the per-layer heading in that case — the lone
+        // swatch row (and, when grouped, the group heading) already labels it (#328).
+        const singleCategorical = state.legendType === 'categorical'
+            && state.legendClasses?.length === 1;
+
         // Display name, class names, and color hints come from STAC metadata
         // (untrusted) — build the legend via textContent and validate colors
         // before they reach a style attribute.
-        const heading = document.createElement('h4');
-        heading.textContent = state.displayName;
-        item.appendChild(heading);
+        if (!singleCategorical) {
+            const heading = document.createElement('h4');
+            heading.textContent = state.displayName;
+            item.appendChild(heading);
+        }
 
         const continuousVector = state.legendType === 'continuous'
             ? this._continuousVectorLegend(state)

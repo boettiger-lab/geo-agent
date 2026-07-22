@@ -88,10 +88,15 @@ describe('MapManager raster legend (SEC-3)', () => {
     });
 
     it('renders HTML in the display name as inert text (both branches)', async () => {
+        // Multi-class categorical keeps the per-layer <h4> heading (a single-class
+        // categorical drops it — #328), so this still exercises heading escaping.
         const mm = createLegendManager({
             displayName: '<script>alert(1)</script>Cover',
             legendType: 'categorical',
-            legendClasses: [{ name: 'Forest', 'color-hint': '00ff00' }],
+            legendClasses: [
+                { name: 'Forest', 'color-hint': '00ff00' },
+                { name: 'Water', 'color-hint': '0000ff' },
+            ],
         });
         await mm._showLegend('A');
         expect(mm._legendContent.querySelector('script')).toBeNull();

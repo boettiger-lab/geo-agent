@@ -20,12 +20,14 @@ function createLegendManager(states) {
     return mm;
 }
 
+// Mirrors the utah-public-lands per-era boundary layers: a single-class
+// categorical whose class label restates the display name.
 const categorical = (displayName, group) => ({
     displayName,
     group,
     visible: true,
     legendType: 'categorical',
-    legendClasses: [{ name: 'Boundary', 'color-hint': 'ff0000' }],
+    legendClasses: [{ name: displayName, 'color-hint': 'ff0000' }],
 });
 
 describe('MapManager legend grouping (#328)', () => {
@@ -49,6 +51,20 @@ describe('MapManager legend grouping (#328)', () => {
         const flatSections = [...mm._legendContent.children].filter(el => el.classList.contains('legend-section'));
         expect(flatSections).toHaveLength(1);
         expect(flatSections[0].textContent).toContain('Statewide layer');
+    });
+
+    it('collapses a single-class categorical to one row, no redundant heading (#328)', async () => {
+        const mm = createLegendManager({
+            A: categorical('2021 restored', 'Bears Ears'),
+        });
+        await mm._showLegend('A');
+        const section = mm._legendContent.querySelector('.legend-section');
+        // No per-layer <h4> heading (it would duplicate the sole class label)...
+        expect(section.querySelector('h4')).toBeNull();
+        // ...just one swatch row, labelled once.
+        const rows = section.querySelectorAll('.legend-item');
+        expect(rows).toHaveLength(1);
+        expect(section.textContent.match(/2021 restored/g)).toHaveLength(1);
     });
 
     it('renders separate wrappers for distinct groups', async () => {
