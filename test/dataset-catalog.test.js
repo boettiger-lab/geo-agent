@@ -605,6 +605,71 @@ describe('DatasetCatalog.extractMapLayers', () => {
         expect(layers[0].colormap).toBe('viridis');
     });
 
+    it('extracts bounds/minzoom/maxzoom onto a raster layer record (issue #331)', () => {
+        const layers = cat.extractMapLayers(collectionWithAssets({
+            cog: { type: 'image/tiff; application=geotiff', href: 'https://x/cog.tif' },
+        }), {}, [{
+            key: 'cog',
+            assetId: 'cog',
+            config: { bounds: [-114.05, 36.99, -109.04, 42.0], minzoom: 0, maxzoom: 12 },
+        }]);
+
+        expect(layers[0].bounds).toEqual([-114.05, 36.99, -109.04, 42.0]);
+        expect(layers[0].minzoom).toBe(0);   // 0 is meaningful — must not be coerced to null
+        expect(layers[0].maxzoom).toBe(12);
+    });
+
+    it('leaves bounds/minzoom/maxzoom null on a raster layer when unconfigured', () => {
+        const layers = cat.extractMapLayers(collectionWithAssets({
+            cog: { type: 'image/tiff; application=geotiff', href: 'https://x/cog.tif' },
+        }), {}, [{ key: 'cog', assetId: 'cog', config: {} }]);
+
+        expect(layers[0].bounds).toBeNull();
+        expect(layers[0].minzoom).toBeNull();
+        expect(layers[0].maxzoom).toBeNull();
+    });
+
+    it.each([
+        ['too few entries', [-114.05, 36.99, -109.04]],
+        ['non-numeric entries', [-114.05, 36.99, -109.04, 'north']],
+        ['south above north', [-114.05, 42.0, -109.04, 36.99]],
+        ['latitude out of range', [-114.05, -95, -109.04, 42.0]],
+        ['not an array', { west: -114.05 }],
+    ])('drops invalid raster bounds (%s) with a warning', (_label, bad) => {
+        const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        const layers = cat.extractMapLayers(collectionWithAssets({
+            cog: { type: 'image/tiff; application=geotiff', href: 'https://x/cog.tif' },
+        }), {}, [{ key: 'cog', assetId: 'cog', config: { bounds: bad } }]);
+
+        expect(layers[0].bounds).toBeNull();
+        expect(warn).toHaveBeenCalledWith(expect.stringContaining('cog'), bad);
+        warn.mockRestore();
+    });
+
+    it('extracts bounds/minzoom/maxzoom onto a versioned raster layer record', () => {
+        const layers = cat.extractMapLayers(collectionWithAssets({
+            y2020: { type: 'image/tiff; application=geotiff', href: 'https://x/2020.tif' },
+            y2021: { type: 'image/tiff; application=geotiff', href: 'https://x/2021.tif' },
+        }), {}, [{
+            key: 'lc',
+            assetId: 'lc',
+            config: {
+                bounds: [-114.05, 36.99, -109.04, 42.0],
+                minzoom: 5,
+                maxzoom: 12,
+                versions: [
+                    { label: '2020', asset_id: 'y2020' },
+                    { label: '2021', asset_id: 'y2021' },
+                ],
+            },
+        }]);
+
+        expect(layers[0].versions).toHaveLength(2);
+        expect(layers[0].bounds).toEqual([-114.05, 36.99, -109.04, 42.0]);
+        expect(layers[0].minzoom).toBe(5);
+        expect(layers[0].maxzoom).toBe(12);
+    });
+
     it('extracts a versioned asset producing a single layer with versions[]', () => {
         const layers = cat.extractMapLayers(collectionWithAssets({
             l3: { type: 'application/vnd.pmtiles', href: 'https://x/l3.pmtiles' },
@@ -861,6 +926,96 @@ describe('DatasetCatalog.getMapLayerConfigs', () => {
         const [c] = cat.getMapLayerConfigs();
         expect(c.versions[0].type).toBe('raster');
         expect(c.versions[0].source.tiles[0]).toContain('colormap_name=viridis');
+    });
+
+    it('passes bounds/minzoom/maxzoom onto the raster source so MapLibre culls tiles (issue #331)', () => {
+        cat.titilerUrl = 'https://titiler.example';
+        cat.datasets.set('cogds', {
+            id: 'cogds', title: 'C', columns: [],
+            mapLayers: [{
+                assetId: 'cog', layerType: 'raster', title: 'C',
+                cogUrl: 'https://x/cog.tif',
+                colormap: 'viridis',
+                bounds: [-114.05, 36.99, -109.04, 42.0],
+                minzoom: 5,
+                maxzoom: 12,
+            }],
+        });
+        const [c] = cat.getMapLayerConfigs();
+        expect(c.source).toMatchObject({
+            type: 'raster',
+            tileSize: 256,
+            bounds: [-114.05, 36.99, -109.04, 42.0],
+            minzoom: 5,
+            maxzoom: 12,
+        });
+    });
+
+    it('keeps minzoom: 0 on the raster source (falsy but meaningful)', () => {
+        cat.titilerUrl = 'https://titiler.example';
+        cat.datasets.set('cogds', {
+            id: 'cogds', title: 'C', columns: [],
+            mapLayers: [{
+                assetId: 'cog', layerType: 'raster', title: 'C',
+                cogUrl: 'https://x/cog.tif', colormap: 'viridis', minzoom: 0,
+            }],
+        });
+        const [c] = cat.getMapLayerConfigs();
+        expect(c.source.minzoom).toBe(0);
+    });
+
+    it('omits bounds/minzoom/maxzoom from the raster source when unconfigured', () => {
+        cat.titilerUrl = 'https://titiler.example';
+        cat.datasets.set('cogds', {
+            id: 'cogds', title: 'C', columns: [],
+            mapLayers: [{
+                assetId: 'cog', layerType: 'raster', title: 'C',
+                cogUrl: 'https://x/cog.tif', colormap: 'viridis',
+            }],
+        });
+        const [c] = cat.getMapLayerConfigs();
+        expect(c.source).toEqual({ type: 'raster', tiles: [c.source.tiles[0]], tileSize: 256 });
+    });
+
+    it('passes bounds/minzoom/maxzoom onto every version of a versioned raster layer', () => {
+        cat.titilerUrl = 'https://titiler.example';
+        cat.datasets.set('vr', {
+            id: 'vr', title: 'V', columns: [],
+            mapLayers: [{
+                assetId: 'lc', layerType: 'raster', title: 'Landcover',
+                colormap: 'viridis',
+                bounds: [-114.05, 36.99, -109.04, 42.0],
+                minzoom: 5,
+                maxzoom: 12,
+                versions: [
+                    { label: '2020', assetId: 'v2020', layerType: 'raster', cogUrl: 'https://x/2020.tif' },
+                    { label: '2021', assetId: 'v2021', layerType: 'raster', cogUrl: 'https://x/2021.tif' },
+                ],
+                defaultVersionIndex: 0,
+            }],
+        });
+        const [c] = cat.getMapLayerConfigs();
+        for (const v of c.versions) {
+            expect(v.source).toMatchObject({
+                bounds: [-114.05, 36.99, -109.04, 42.0],
+                minzoom: 5,
+                maxzoom: 12,
+            });
+        }
+    });
+
+    it('leaves vector sources untouched when a sibling raster uses bounds', () => {
+        cat.titilerUrl = 'https://titiler.example';
+        cat.datasets.set('mixed', {
+            id: 'mixed', title: 'M', columns: [],
+            mapLayers: [
+                { assetId: 'pm', layerType: 'vector', title: 'V', url: 'https://x/x.pmtiles', sourceLayer: 'x', bounds: [-1, -1, 1, 1] },
+                { assetId: 'cog', layerType: 'raster', title: 'R', cogUrl: 'https://x/cog.tif', colormap: 'viridis', bounds: [-1, -1, 1, 1] },
+            ],
+        });
+        const [vec, ras] = cat.getMapLayerConfigs();
+        expect(vec.source).toEqual({ type: 'vector', url: 'pmtiles://https://x/x.pmtiles' });
+        expect(ras.source.bounds).toEqual([-1, -1, 1, 1]);
     });
 
     it('passes legendType/legendClasses through to a vector layer config (issue #118)', () => {

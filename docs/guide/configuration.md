@@ -138,6 +138,37 @@ Use `legend_range` and/or `legend_gradient` only to override the derived values 
 | `nodata` | number\|string | Pixel value to render transparent (e.g., `0` to mask ocean/no-data). If unset, falls back to the STAC `raster:bands[0].nodata` value; omit both to leave all pixels opaque. |
 | `legend_label` | string | Label shown next to the color legend. |
 | `legend_type` | string | `"categorical"` to use STAC `classification:classes` color codes for a discrete legend. |
+| `paint` | object | MapLibre [raster paint properties](https://maplibre.org/maplibre-style-spec/layers/#raster) (e.g. `{"raster-opacity": 0.7}`). Zoom expressions are allowed. |
+| `bounds` | `[w, s, e, n]` | Restrict tile requests to this box, in degrees. See below. |
+| `minzoom` | number | Hide the layer below this zoom level. |
+| `maxzoom` | number | Highest zoom level with real tiles. Above it MapLibre overzooms the coarser tiles rather than dropping the layer. |
+
+### Scoping a raster to a region
+
+Vector layers narrow their extent with `default_filter`, but that is an attribute expression and a
+raster has no attributes — so a national COG paints the whole country even in an app scoped to one
+state. `bounds` and `minzoom` are passed straight through to the MapLibre raster **source**, which
+culls tile requests outside the box and below the zoom, with no clipped copy of the data:
+
+```json
+{
+  "id": "species-richness-all-cog",
+  "display_name": "Imperiled species richness · NatureServe 2023",
+  "colormap": "viridis",
+  "rescale": "0,10",
+  "bounds": [-114.05, 36.99, -109.04, 42.00],
+  "minzoom": 5
+}
+```
+
+`bounds` culls whole **tiles**, not pixels, so a fringe of neighbouring territory survives along the
+edge — and at very low zoom a single tile can span several states, so `bounds` alone still spills.
+Pairing it with `minzoom` is what makes the scoping tight. Malformed `bounds` (anything that isn't
+four finite degrees with `south < north`) is ignored with a console warning rather than silently
+falling back to the whole world.
+
+These keys also work on [versioned assets](#versioned-assets), where they apply uniformly to every
+version.
 
 ## Asset config — GeoJSON
 
