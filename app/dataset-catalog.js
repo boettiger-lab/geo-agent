@@ -30,6 +30,43 @@ function normalizeLegendClasses(raw) {
     }));
 }
 
+/**
+ * Validate an asset's `bounds` config into a MapLibre source `bounds` array.
+ * MapLibre silently falls back to the whole world for anything that isn't
+ * [west, south, east, north] in degrees, which looks identical to the
+ * unscoped raster the author was trying to clip — so warn instead.
+ * @param {*} raw
+ * @param {string} assetKey - asset key, for the warning message
+ * @returns {Array<number>|null}
+ */
+function normalizeBounds(raw, assetKey) {
+    if (raw == null) return null;
+    const ok = Array.isArray(raw) && raw.length === 4 && raw.every(n => Number.isFinite(n))
+        && raw[1] >= -90 && raw[3] <= 90 && raw[1] < raw[3];
+    if (!ok) {
+        console.warn(`[dataset-catalog] Ignoring invalid "bounds" for asset "${assetKey}" — expected [west, south, east, north] in degrees, got:`, raw);
+        return null;
+    }
+    return raw;
+}
+
+/**
+ * Optional MapLibre source-level culling keys, read off a map-layer record.
+ * Omitted entirely when unset so sources that don't use them keep their
+ * current shape. `bounds` culls whole tiles (not pixels), so a fringe of
+ * neighbouring territory survives along the edge — pair it with `minzoom`,
+ * since at low zoom a single tile can span several states.
+ * @param {Object} ml - map-layer record from extractMapLayers()
+ * @returns {Object}
+ */
+function sourceCulling(ml) {
+    return {
+        ...(ml.bounds != null ? { bounds: ml.bounds } : {}),
+        ...(ml.minzoom != null ? { minzoom: ml.minzoom } : {}),
+        ...(ml.maxzoom != null ? { maxzoom: ml.maxzoom } : {}),
+    };
+}
+
 export class DatasetCatalog {
     constructor() {
         /** @type {Map<string, DatasetEntry>} keyed by collection ID */
@@ -363,6 +400,9 @@ export class DatasetCatalog {
                         colormap: config.colormap || options.colormap || 'reds',
                         rescale: config.rescale || options.rescale || null,
                         paint: config.paint || null,
+                        bounds: normalizeBounds(config.bounds, key),
+                        minzoom: config.minzoom ?? null,
+                        maxzoom: config.maxzoom ?? null,
                         legendLabel: config.legend_label || null,
                         legendType: config.legend_type || null,
                         legendClasses: normalizeLegendClasses(config.legend_classes),
@@ -416,6 +456,9 @@ export class DatasetCatalog {
                         colormap: config.colormap || options.colormap || 'reds',
                         rescale: config.rescale || options.rescale || null,
                         paint: config.paint || null,
+                        bounds: normalizeBounds(config.bounds, key),
+                        minzoom: config.minzoom ?? null,
+                        maxzoom: config.maxzoom ?? null,
                         legendLabel: config.legend_label || null,
                         legendType: config.legend_type || null,
                         legendClasses: band0?.['classification:classes'] || null,
@@ -902,7 +945,7 @@ export class DatasetCatalog {
                                 label: v.label,
                                 type: 'raster',
                                 sourceId: `src-${ds.id.replace(/[^a-zA-Z0-9]/g, '-')}-${v.assetId.replace(/[^a-zA-Z0-9]/g, '-')}`,
-                                source: { type: 'raster', tiles: [tilesUrl], tileSize: 256 },
+                                source: { type: 'raster', tiles: [tilesUrl], tileSize: 256, ...sourceCulling(ml) },
                             };
                         }
                     });
@@ -1010,6 +1053,7 @@ export class DatasetCatalog {
                             type: 'raster',
                             tiles: [tilesUrl],
                             tileSize: 256,
+                            ...sourceCulling(ml),
                         },
                         paint: ml.paint || { 'raster-opacity': 0.7 },
                         columns: [], // rasters don't have filterable columns
