@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { deriveContinuousLegend } from '../app/legend-helpers.js';
+import { deriveContinuousLegend, primaryColorValue } from '../app/legend-helpers.js';
 
 describe('deriveContinuousLegend', () => {
     it('derives gradient + range from an interpolate fill-color expression', () => {
@@ -68,5 +68,32 @@ describe('deriveContinuousLegend', () => {
     it('returns null when fewer than two color stops are present', () => {
         const paint = { 'fill-color': ['interpolate', ['linear'], ['get', 'v'], 0, '#000'] };
         expect(deriveContinuousLegend(paint)).toBeNull();
+    });
+
+    it('reads fill-extrusion-color, so 3D hex layers can derive a legend', () => {
+        const paint = {
+            'fill-extrusion-color': ['interpolate', ['linear'], ['get', 'v'], 0, '#000', 30, '#fff'],
+        };
+        expect(deriveContinuousLegend(paint)).toEqual({
+            gradient: ['#000', '#fff'],
+            range: [0, 30],
+        });
+    });
+});
+
+describe('primaryColorValue', () => {
+    it('returns the color value whether it is an expression or a literal', () => {
+        expect(primaryColorValue({ 'fill-color': '#2E7D32' })).toBe('#2E7D32');
+        expect(primaryColorValue({ 'circle-color': ['get', 'c'] })).toEqual(['get', 'c']);
+    });
+
+    it('prefers fill-color over other color keys', () => {
+        const paint = { 'line-color': '#111', 'fill-color': '#222' };
+        expect(primaryColorValue(paint)).toBe('#222');
+    });
+
+    it('returns undefined for paint with no color key', () => {
+        expect(primaryColorValue({ 'fill-opacity': 0.5 })).toBeUndefined();
+        expect(primaryColorValue(null)).toBeUndefined();
     });
 });
