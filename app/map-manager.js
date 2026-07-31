@@ -13,7 +13,7 @@
  */
 
 import { extractHashFromUrl, buildFillColorExpression, buildFlatFillColorExpression, rewriteValueColumn, PALETTES, buildHeightExpression, buildFlatHeightExpression, defaultExtrusionMaxHeight } from './hex-layer-helpers.js';
-import { deriveContinuousLegend } from './legend-helpers.js';
+import { deriveContinuousLegend, primaryColorValue } from './legend-helpers.js';
 
 const BASEMAPS = {
     natgeo: {
@@ -979,18 +979,7 @@ export class MapManager {
         }
 
         // Drop its legend entry (#316) and hide the panel if nothing's left.
-        if (this._legendItems) {
-            const legendItem = this._legendItems.get(layerId);
-            if (legendItem) {
-                legendItem.remove();
-                this._legendItems.delete(layerId);
-            }
-            this._hexLegendRefs?.delete(layerId);
-            if (this._legendEl) {
-                const anyVisible = [...this._legendItems.values()].some(el => el.style.display !== 'none');
-                this._legendEl.style.display = anyVisible ? '' : 'none';
-            }
-        }
+        this._dropLegendItem(layerId);
 
         return { success: true, layer_id: layerId };
     }
@@ -1103,11 +1092,15 @@ export class MapManager {
 
     /**
      * Apply paint properties to a layer.
-     * @param {string} layerId 
+     * @param {string} layerId
      * @param {Object} paintProps - e.g. { 'fill-color': 'red', 'fill-opacity': 0.5 }
+     * @param {Object} [opts]
+     * @param {boolean} [opts.promoteLegend=true] - Whether a restyle may give an
+     *   otherwise legend-less vector layer a derived colorbar (#333). resetStyle
+     *   passes false so a reset can't conjure a legend boot never showed.
      * @returns {Object} Result
      */
-    setStyle(layerId, paintProps) {
+    setStyle(layerId, paintProps, opts = {}) {
         const state = this.layers.get(layerId);
         if (!state) return { success: false, error: `Unknown layer: ${layerId}` };
 
@@ -1118,6 +1111,7 @@ export class MapManager {
         // value-bearing `get` to the layer's real column before applying.
         const corrected = new Set();
         const results = [];
+        const applied = {};
         for (const [prop, rawValue] of Object.entries(paintProps)) {
             let value = rawValue;
             if (state.valueColumn) {
@@ -1127,10 +1121,20 @@ export class MapManager {
             }
             try {
                 this.map.setPaintProperty(state.mapLayerId, prop, value);
+                applied[prop] = value;
                 results.push({ property: prop, success: true });
             } catch (error) {
                 results.push({ property: prop, success: false, error: error.message });
             }
+        }
+
+        // Record what's actually on the map, then re-render the legend from it:
+        // legends derive from paint, so without this they keep describing the
+        // ramp the layer was registered with (#333).
+        if (Object.keys(applied).length > 0) {
+            state.currentPaint = { ...this._effectivePaint(state), ...applied };
+            if (opts.promoteLegend !== false) this._promoteLegendType(state);
+            this._refreshLegend(layerId);
         }
 
         const failed = results.filter(r => !r.success).map(r => r.property);
@@ -1155,7 +1159,17 @@ export class MapManager {
     resetStyle(layerId) {
         const state = this.layers.get(layerId);
         if (!state) return { success: false, error: `Unknown layer: ${layerId}` };
-        return this.setStyle(layerId, state.defaultPaint);
+
+        // Drop any legend a restyle promoted into existence before re-applying,
+        // so reset lands back on exactly what boot rendered (#333).
+        if (state.legendTypeAuto) {
+            state.legendType = null;
+            state.legendTypeAuto = false;
+        }
+        const result = this.setStyle(layerId, state.defaultPaint, { promoteLegend: false });
+        state.currentPaint = null;
+        this._refreshLegend(layerId);
+        return result;
     }
 
     // ---- Query ----
@@ -1705,17 +1719,104 @@ export class MapManager {
         state.sourceId = newV.sourceId;
         state.sourceLayer = newV.sourceLayer;
 
-        // Refresh raster legend if visible (tile URL changed)
-        if (state.type === 'raster' && state.visible) {
-            this._hideLegend(layerId);
-            this._legendItems.delete(layerId);   // force re-creation with new source
-            this._showLegend(layerId);
-        }
+        // The version now on screen is a separate MapLibre layer carrying the
+        // registered paint, so any set_style override no longer applies (#333).
+        state.currentPaint = null;
+        this._promoteLegendType(state);
+
+        // Rebuild the legend: raster colorbars are tied to the tile URL, and a
+        // vector layer may have just shed a restyle-derived colorbar. Hidden
+        // layers get theirs dropped too, so re-showing can't resurrect a stale
+        // section built against the old version.
+        this._refreshLegend(layerId);
 
         return { success: true, layer: layerId, version: newV.label };
     }
 
     // ---- Legend ----
+
+    /**
+     * The paint currently on the map for a layer: the registered `defaultPaint`
+     * until a `set_style` overrides it, then the merged result. Legends read
+     * this so they describe what's rendered, not what was registered (#333).
+     */
+    _effectivePaint(state) {
+        return state.currentPaint || state.defaultPaint;
+    }
+
+    /**
+     * Whether a restyle replaced the layer's primary color — the only paint
+     * change a legend can be wrong about. An opacity-only `set_style` leaves the
+     * color expression (and so the legend) intact, and must not be mistaken for
+     * a recolor: doing so would drop hex legends on a `fill-opacity` tweak.
+     */
+    _colorPaintChanged(state) {
+        if (!state.currentPaint) return false;
+        const now = primaryColorValue(state.currentPaint);
+        const before = primaryColorValue(state.defaultPaint);
+        return JSON.stringify(now ?? null) !== JSON.stringify(before ?? null);
+    }
+
+    /**
+     * Give a vector layer restyled into a graduated choropleth a colorbar even
+     * when its config never declared `legend_type` — the agent can build such a
+     * ramp with `set_style` on any layer, and without this it renders with
+     * nothing explaining it (#333). Flagged `legendTypeAuto` so resetStyle and
+     * switchVersion can undo it; layers whose config *does* declare a legend
+     * type are left alone, as are hex layers (`legendType: 'hex'`).
+     */
+    _promoteLegendType(state) {
+        if (state.type !== 'vector') return;
+        if (state.legendType && !state.legendTypeAuto) return;
+        const derivable = this._colorPaintChanged(state)
+            && !!deriveContinuousLegend(this._effectivePaint(state));
+        if (derivable) {
+            state.legendType = 'continuous';
+            state.legendTypeAuto = true;
+        } else if (state.legendTypeAuto) {
+            state.legendType = null;
+            state.legendTypeAuto = false;
+        }
+    }
+
+    /**
+     * Tear down a layer's legend section so the next `_showLegend` rebuilds it
+     * from current state, re-hiding the group wrapper and the panel if that
+     * left nothing visible.
+     */
+    _dropLegendItem(layerId) {
+        if (!this._legendItems) return;
+        const item = this._legendItems.get(layerId);
+        if (item) item.remove();
+        this._legendItems.delete(layerId);
+        this._hexLegendRefs?.delete(layerId);
+
+        const state = this.layers.get(layerId);
+        if (state?.group) {
+            const wrapper = this._legendGroups?.get(state.group);
+            if (wrapper) {
+                const anyMemberVisible = [...wrapper.querySelectorAll('.legend-section')]
+                    .some(el => el.style.display !== 'none');
+                wrapper.style.display = anyMemberVisible ? '' : 'none';
+            }
+        }
+        if (this._legendEl) {
+            const anyVisible = [...this._legendItems.values()].some(el => el.style.display !== 'none');
+            this._legendEl.style.display = anyVisible ? '' : 'none';
+        }
+    }
+
+    /**
+     * Rebuild a layer's legend after something changed what it should say — a
+     * restyle (#333) or a version switch. Sections are built once and cached, so
+     * the stale one has to go before `_showLegend` will re-render. A layer
+     * restyled past what we can describe simply loses its legend rather than
+     * advertising a ramp that's no longer on the map.
+     */
+    _refreshLegend(layerId) {
+        this._dropLegendItem(layerId);
+        this._showLegendIfVisible(layerId);
+    }
 
     /**
      * Whether a layer contributes a legend entry: continuous rasters (colorbar),
@@ -1781,6 +1882,18 @@ export class MapManager {
      * @returns {{ colors: string[], range: [number, number], res: number } | null}
      */
     _hexLegend(state) {
+        // A restyle replaces the per-res `case`/`match` expression this legend
+        // mirrors, so neither the registered palette nor the per-res domain
+        // describes the map any more (#333). Mirror the new expression when it's
+        // a parseable ramp — its stops are now the whole value axis, at every
+        // zoom — and contribute nothing when it isn't (flat color, `match`, …),
+        // rather than showing the palette the layer was added with.
+        if (this._colorPaintChanged(state)) {
+            const derived = deriveContinuousLegend(this._effectivePaint(state));
+            if (!derived) return null;
+            return { colors: derived.gradient, range: derived.range, res: this._currentHexRes(state) };
+        }
+
         const byRes = state.hexValueStats?.by_res || {};
         const res = this._currentHexRes(state);
         if (res == null) return null;
@@ -1803,15 +1916,20 @@ export class MapManager {
      * `interpolate`/`step` color expression. Returns null when neither is
      * available (so the layer simply contributes no legend).
      *
+     * Once a restyle has replaced the color expression, the derived values win
+     * instead: the config gradient/range described the paint the layer shipped
+     * with, and keeping it would caption the new ramp with the old numbers (#333).
+     *
      * @returns {{ colors: string[], range: [number, number] } | null}
      */
     _continuousVectorLegend(state) {
         if (state.type !== 'vector') return null;
-        const derived = deriveContinuousLegend(state.defaultPaint);
-        const colors = (Array.isArray(state.legendGradient) && state.legendGradient.length >= 2)
+        const derived = deriveContinuousLegend(this._effectivePaint(state));
+        const configWins = !this._colorPaintChanged(state);
+        const colors = (configWins && Array.isArray(state.legendGradient) && state.legendGradient.length >= 2)
             ? state.legendGradient
             : derived?.gradient;
-        const range = (Array.isArray(state.legendRange) && state.legendRange.length === 2)
+        const range = (configWins && Array.isArray(state.legendRange) && state.legendRange.length === 2)
             ? state.legendRange
             : derived?.range;
         if (!colors || colors.length < 2 || !range) return null;
@@ -1986,11 +2104,13 @@ export class MapManager {
             labels.appendChild(maxSpan);
             const resNote = document.createElement('div');
             resNote.className = 'legend-hex-res';
-            if (hex) resNote.textContent = `H3 resolution ${hex.res}`;
+            // A restyled hex layer can report a legend with no resolution (its
+            // ramp is now fixed rather than per-res) — leave the note blank.
+            if (hex?.res != null) resNote.textContent = `H3 resolution ${hex.res}`;
             item.appendChild(bar);
             item.appendChild(labels);
             item.appendChild(resNote);
-            if (hex) state.hexCurrentRes = hex.res;
+            if (hex?.res != null) state.hexCurrentRes = hex.res;
             this._hexLegendRefs.set(layerId, { minSpan, maxSpan, resNote });
             this._ensureHexLegendReactivity();
         } else {
@@ -2055,11 +2175,11 @@ export class MapManager {
             if (!item || item.style.display === 'none') continue;
             const hex = this._hexLegend(state);
             if (!hex) continue;
-            state.hexCurrentRes = hex.res;
+            if (hex.res != null) state.hexCurrentRes = hex.res;
             const unit = state.legendLabel ? ` ${state.legendLabel}` : '';
             refs.minSpan.textContent = `${this._fmtLegendValue(hex.range[0])}${unit}`;
             refs.maxSpan.textContent = `${this._fmtLegendValue(hex.range[1])}${unit}`;
-            if (refs.resNote) refs.resNote.textContent = `H3 resolution ${hex.res}`;
+            if (refs.resNote) refs.resNote.textContent = hex.res != null ? `H3 resolution ${hex.res}` : '';
         }
     }
 

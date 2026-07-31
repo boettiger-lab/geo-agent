@@ -7,10 +7,29 @@
 
 /**
  * The paint keys that carry a layer's primary data-driven color, in priority
- * order. A fill layer colors via `fill-color`, a line via `line-color`, a
+ * order. A fill layer colors via `fill-color`, an extruded fill via
+ * `fill-extrusion-color` (3D hex layers, #317), a line via `line-color`, a
  * circle via `circle-color`.
  */
-const COLOR_PAINT_KEYS = ['fill-color', 'line-color', 'circle-color'];
+export const COLOR_PAINT_KEYS = ['fill-color', 'fill-extrusion-color', 'line-color', 'circle-color'];
+
+/**
+ * The paint object's primary color value — expression *or* literal — so callers
+ * can tell whether a restyle replaced the color a legend was derived from
+ * (#333). Unlike {@link deriveContinuousLegend} this doesn't skip past a flat
+ * color to find an expression: "the color this layer paints with" is the first
+ * color key present, whatever its form.
+ *
+ * @param {Object} paint - A MapLibre paint object.
+ * @returns {*} The color value, or undefined when the paint carries none.
+ */
+export function primaryColorValue(paint) {
+    if (!paint || typeof paint !== 'object') return undefined;
+    for (const key of COLOR_PAINT_KEYS) {
+        if (paint[key] !== undefined) return paint[key];
+    }
+    return undefined;
+}
 
 /**
  * Derive a continuous legend (gradient + value range) from a vector layer's
