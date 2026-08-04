@@ -138,6 +138,8 @@ A layer with no `legend_type` at all gains a legend when the agent recolors it i
 
 Swatches derived from a `match` are labelled with the matched value itself (`1`, `2`, …), because the vector tiles carry only the code — what the code *means* usually lives in the SQL that produced the layer. Author-supplied `legend_classes` labels are used whenever the layer has not been recolored past them.
 
+The agent closes that last gap with `set_legend`, which names the classes (`{"1": "Amphibians"}`), retitles the layer, adds a colorbar unit, or hides the section. It cannot set colors or value ranges — those stay derived from the paint, so a legend can't be made to contradict the map. `reset_legend` restores the labels configured here. Nothing in this file needs to change to allow it; `set_legend` overrides `legend_label` and `legend_classes` names for the session only.
+
 ## Asset config — raster (COG)
 
 | Field | Type | Description |
