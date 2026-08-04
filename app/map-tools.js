@@ -306,6 +306,63 @@ ${pickLayerNudge}`,
         },
 
         {
+            name: 'set_legend',
+            description: `Label a layer's legend. Use after you build a map whose meaning isn't visible from the tiles — above all after styling a layer with a \`match\` expression over codes you invented in SQL.
+
+The legend already mirrors the map's colors automatically: a \`match\` recolor renders one swatch per category, a gradient recolor renders a colorbar. What it cannot know is what your codes MEAN. If your SQL emitted \`CASE WHEN ... THEN 1\` for amphibians, the legend shows a swatch labelled "1" until you name it here.
+
+So: whenever you post a color key in chat, call this instead — that key belongs on the map.
+
+  set_legend { "layer_id": "hex-1a66…",
+               "labels": { "1": "Amphibians", "2": "Reptiles", "3": "Birds", "4": "Mammals", "5": "Plants" } }
+
+Fields (all optional except layer_id):
+  labels    class value → name, for a categorical/swatch legend. Keys are the values in
+            your \`match\` expression, as strings. Merged with labels already set.
+  title     heading for the layer, in both the legend and the layer panel.
+  units     unit shown after a colorbar's end values (e.g. "observations", "kg/ha").
+  visible   false hides this layer's legend section; true brings it back.
+
+Colors and value ranges are NOT settable — they are read from the layer's paint, so the legend can never disagree with the map. To change the colors, call set_style; the legend follows.
+
+Call get_map_state to see what a legend currently says (its \`legend.type\`, and \`legend.classes\` with the label each class shows now). Use reset_legend to return to the app's own labels.`,
+            inputSchema: {
+                type: 'object',
+                properties: {
+                    layer_id: { type: 'string', description: 'Layer ID whose legend to label' },
+                    labels: {
+                        type: 'object',
+                        description: 'Class value → display name, e.g. {"1": "Amphibians", "2": "Reptiles"}. Keys are the values from the layer\'s `match` expression, as strings.',
+                        additionalProperties: { type: 'string' },
+                    },
+                    title: { type: 'string', description: 'Heading for this layer in the legend and layer panel' },
+                    units: { type: 'string', description: 'Unit suffix for a colorbar\'s end values, e.g. "species"' },
+                    visible: { type: 'boolean', description: 'false hides this layer\'s legend section' },
+                },
+                required: ['layer_id'],
+            },
+            execute: (args) => JSON.stringify(mapManager.setLegend(args.layer_id, {
+                labels: args.labels,
+                title: args.title,
+                units: args.units,
+                visible: args.visible,
+            })),
+        },
+
+        {
+            name: 'reset_legend',
+            description: `Discard legend labels, title, units, and hiding you set with set_legend, returning the layer to the app's own legend. Does not change the map's colors — a legend derived from a restyle stays derived. Use when the user asks to "reset the legend" or "put the labels back".`,
+            inputSchema: {
+                type: 'object',
+                properties: {
+                    layer_id: { type: 'string', description: 'Layer ID whose legend to reset' },
+                },
+                required: ['layer_id'],
+            },
+            execute: (args) => JSON.stringify(mapManager.resetLegend(args.layer_id)),
+        },
+
+        {
             name: 'set_style',
             description: `Update a layer's paint/style properties. Provide MapLibre paint properties — every property name carries a layer-type prefix (\`fill-\`, \`line-\`, \`circle-\`, \`raster-\`).
 
@@ -322,6 +379,8 @@ Examples:
   Data-driven categorical: { "fill-color": ["match", ["get", "PROP"], "val1", "#c1", "val2", "#c2", "#default"] }
   Data-driven gradient: { "fill-color": ["interpolate", ["linear"], ["get", "PROP"], 0, "#low", 100, "#high"] }
   Stepped: { "fill-color": ["step", ["get", "PROP"], "#c1", 10, "#c2", 50, "#c3"] }
+
+After a \`match\` recolor over codes you defined in SQL, the legend shows one swatch per code labelled with the bare number — call set_legend with \`labels\` to name them, rather than writing the color key out in chat.
 
 For dynamic hex layers (\`hex-…\` ids from add_hex_tile_layer), \`PROP\` is the layer's value column (the \`value_column\` you passed to add_hex_tile_layer, e.g. "species_richness") — NOT "count" unless that is literally the column. If unsure, call get_map_state to read the layer's \`valueColumn\`.
 

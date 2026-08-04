@@ -1088,6 +1088,131 @@ export class MapManager {
         return { success: true, layer: layerId, displayName: state.displayName, tooltipFields: state.tooltipFields };
     }
 
+    // ---- Legend ----
+
+    /**
+     * Set the parts of a legend that cannot be derived from the map: what the
+     * classes are called, what the layer is called, the unit on a colorbar's end
+     * values, and whether the section shows at all (#334).
+     *
+     * Colors and value ranges are deliberately not settable — those come from
+     * the paint, so a legend cannot be made to disagree with what's rendered
+     * (the staleness #333 removed). What the agent supplies is the semantics it
+     * alone knows: it wrote the SQL that turned "Amphibians" into the integer 1,
+     * and nothing on the client can recover that mapping from the tiles.
+     *
+     * @param {string} layerId
+     * @param {Object} opts
+     * @param {Object<string,string>} [opts.labels] - value → class name, for
+     *   categorical legends. Merged with any labels already set.
+     * @param {string} [opts.title] - Layer heading, in the legend and the layer panel.
+     * @param {string} [opts.units] - Unit suffix on colorbar end values.
+     * @param {boolean} [opts.visible] - false suppresses the section.
+     * @returns {Object} Result, including the legend as it now reads.
+     */
+    setLegend(layerId, opts = {}) {
+        const state = this.layers.get(layerId);
+        if (!state) return { success: false, error: `Unknown layer: ${layerId}` };
+
+        const { labels, title, units, visible } = opts;
+
+        if (labels !== undefined) {
+            if (labels === null || typeof labels !== 'object' || Array.isArray(labels)) {
+                return { success: false, error: 'labels must be an object mapping class values to names' };
+            }
+            const bad = Object.entries(labels).find(([, v]) => typeof v !== 'string');
+            if (bad) return { success: false, error: `label for "${bad[0]}" must be a string` };
+            // Merge: labelling classes one call at a time shouldn't drop earlier names.
+            state.legendLabels = { ...(state.legendLabels || {}), ...labels };
+        }
+
+        if (title !== undefined) {
+            if (typeof title !== 'string' || !title.trim()) {
+                return { success: false, error: 'title must be a non-empty string' };
+            }
+            // Capture once, so reset lands on the name boot rendered rather than
+            // on whatever an earlier setLegend left behind.
+            if (state.defaultDisplayName === undefined) state.defaultDisplayName = state.displayName;
+            state.displayName = title;
+            this._renameLayerControl(layerId, title);
+        }
+
+        if (units !== undefined) {
+            if (units !== null && typeof units !== 'string') {
+                return { success: false, error: 'units must be a string (or null to clear)' };
+            }
+            if (state.defaultLegendLabel === undefined) state.defaultLegendLabel = state.legendLabel ?? null;
+            state.legendLabel = units || null;
+        }
+
+        if (visible !== undefined) {
+            if (typeof visible !== 'boolean') return { success: false, error: 'visible must be a boolean' };
+            state.legendHidden = !visible;
+        }
+
+        this._refreshLegend(layerId);
+        return { success: true, layer: layerId, ...this.describeLegend(layerId) };
+    }
+
+    /**
+     * Drop agent-supplied legend labels, title, units, and suppression, leaving
+     * the legend as config declared it. Mirrors resetStyle / resetTooltip; does
+     * not touch paint, so a legend derived from a restyle stays derived.
+     */
+    resetLegend(layerId) {
+        const state = this.layers.get(layerId);
+        if (!state) return { success: false, error: `Unknown layer: ${layerId}` };
+
+        state.legendLabels = null;
+        state.legendHidden = false;
+        if (state.defaultDisplayName !== undefined) {
+            state.displayName = state.defaultDisplayName;
+            this._renameLayerControl(layerId, state.displayName);
+        }
+        if (state.defaultLegendLabel !== undefined) state.legendLabel = state.defaultLegendLabel;
+
+        this._refreshLegend(layerId);
+        return { success: true, layer: layerId, ...this.describeLegend(layerId) };
+    }
+
+    /**
+     * How a layer's legend currently reads — the resolved type, whether it's on
+     * screen, and for a categorical legend the class values with their labels,
+     * so the agent can see which are still bare codes.
+     */
+    describeLegend(layerId) {
+        const state = this.layers.get(layerId);
+        if (!state) return { error: `Unknown layer: ${layerId}` };
+
+        const type = this._resolvedLegendType(state);
+        const categorical = type === 'categorical' ? this._categoricalLegend(state) : null;
+        return {
+            displayName: state.displayName,
+            legend: {
+                type,
+                rendered: !!type && state.visible && !state.legendHidden,
+                ...(state.legendLabel && { units: state.legendLabel }),
+                ...(categorical && {
+                    classes: categorical.classes.map(c => ({
+                        ...(c.value !== undefined && { value: c.value }),
+                        label: c.name ?? `Class ${c.value}`,
+                    })),
+                }),
+            },
+        };
+    }
+
+    /** Update a layer's row in the layer panel after a rename. */
+    _renameLayerControl(layerId, name) {
+        const safeId = layerId.replace(/\//g, '-');
+        const row = document.getElementById(`layer-item-${safeId}`);
+        if (!row) return;
+        const span = row.querySelector('label span');
+        if (span) span.textContent = name;
+        const removeBtn = row.querySelector('.layer-remove-btn');
+        if (removeBtn) removeBtn.setAttribute('aria-label', `Remove ${name}`);
+    }
+
     // ---- Styling ----
 
     /**
@@ -1228,6 +1353,10 @@ export class MapManager {
                 // Hex layers color by a single dynamic column; expose it so the
                 // agent styles against the real property, not a guess (#259).
                 ...(state.valueColumn && { valueColumn: state.valueColumn }),
+                // What the legend currently says. Without this the agent is
+                // blind to the one part of the map it can't see, and reads a
+                // "the colors are wrong" complaint as a paint bug (#334).
+                legend: this.describeLegend(id).legend,
             };
         }
         return { success: true, layers };
@@ -1840,10 +1969,26 @@ export class MapManager {
      * declared `continuous` or which is a hex layer.
      */
     _hasLegend(state) {
-        return state.type === 'raster'
-            || !!this._categoricalLegend(state)
-            || (state.legendType === 'continuous' && !!this._continuousVectorLegend(state))
-            || (state.legendType === 'hex' && !!this._hexLegend(state));
+        return !state.legendHidden && !!this._resolvedLegendType(state);
+    }
+
+    /**
+     * What a layer's legend actually renders as *now* — as opposed to
+     * `state.legendType`, which is what config declared. They diverge whenever a
+     * restyle has recolored the layer past its declared type (a hex layer
+     * recolored with `match` resolves 'categorical'), and `get_map_state`
+     * reports this one so the agent can see the legend it's being asked about
+     * (#334).
+     *
+     * @returns {'raster'|'categorical'|'continuous'|'hex'|null} null when the
+     *   layer contributes no legend.
+     */
+    _resolvedLegendType(state) {
+        if (state.type === 'raster') return 'raster';
+        if (this._categoricalLegend(state)) return 'categorical';
+        if (state.legendType === 'continuous' && this._continuousVectorLegend(state)) return 'continuous';
+        if (state.legendType === 'hex' && this._hexLegend(state)) return 'hex';
+        return null;
     }
 
     /**
@@ -1868,20 +2013,37 @@ export class MapManager {
             if (!derived) return null;
             const classes = derived.classes.map(c => ({
                 value: c.value,
-                // No name exists to show: the tiles carry the code, and what it
-                // means lives in the SQL that produced it. Label with the value
-                // itself — honest and discrete, and `set_legend` can name it.
-                name: Array.isArray(c.value)
-                    ? c.value.map(v => this._fmtLegendValue(v)).join(', ')
-                    : this._fmtLegendValue(c.value),
+                // Nothing on the client knows what the code means — the tiles
+                // carry the code, and its meaning lives in the SQL that produced
+                // it. Fall back to the value itself, which `set_legend` labels.
+                name: this._legendClassLabel(state, c.value)
+                    ?? (Array.isArray(c.value)
+                        ? c.value.map(v => this._fmtLegendValue(v)).join(', ')
+                        : this._fmtLegendValue(c.value)),
                 'color-hint': c.color,
             }));
             return { classes, derived: true };
         }
 
-        return (state.legendType === 'categorical' && state.legendClasses?.length > 0)
-            ? { classes: state.legendClasses, derived: false }
-            : null;
+        if (!(state.legendType === 'categorical' && state.legendClasses?.length > 0)) return null;
+        // Author-declared classes, with any agent-supplied label taking priority
+        // (the agent is renaming what the user is looking at right now).
+        const classes = state.legendClasses.map(cls => {
+            const label = this._legendClassLabel(state, cls.value);
+            return label == null ? cls : { ...cls, name: label };
+        });
+        return { classes, derived: false };
+    }
+
+    /**
+     * An agent-supplied label for one legend class, or null. Values arrive from
+     * the model as strings even when the paint matches numbers, so compare
+     * stringified (and join array-valued match arms the way they render).
+     */
+    _legendClassLabel(state, value) {
+        if (!state.legendLabels) return null;
+        const key = Array.isArray(value) ? value.join(',') : String(value);
+        return state.legendLabels[key] ?? null;
     }
 
     /**

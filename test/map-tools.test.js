@@ -245,6 +245,67 @@ describe('get_schema MCP delegate', () => {
     });
 });
 
+describe('set_legend / reset_legend', () => {
+    const stubMapManager = () => ({
+        setLegend: vi.fn((layerId, opts) => ({ success: true, layer: layerId, opts })),
+        resetLegend: vi.fn((layerId) => ({ success: true, layer: layerId })),
+        getLayerSummaries: () => [{ id: 'hex-abc', displayName: 'Taxa', type: 'vector' }],
+    });
+    const stubCatalog = { records: new Map() };
+    const getTool = (name) => {
+        const mapManager = stubMapManager();
+        const tools = createMapTools(mapManager, stubCatalog);
+        return { tool: tools.find(t => t.name === name), mapManager };
+    };
+
+    it('forwards labels / title / units / visible as an options object', () => {
+        const { tool, mapManager } = getTool('set_legend');
+        const result = JSON.parse(tool.execute({
+            layer_id: 'hex-abc',
+            labels: { 1: 'Amphibians', 2: 'Reptiles' },
+            title: 'Dominant taxon',
+            units: 'species',
+            visible: true,
+        }));
+        expect(result.success).toBe(true);
+        expect(mapManager.setLegend).toHaveBeenCalledWith('hex-abc', {
+            labels: { 1: 'Amphibians', 2: 'Reptiles' },
+            title: 'Dominant taxon',
+            units: 'species',
+            visible: true,
+        });
+    });
+
+    it('leaves omitted fields undefined so they are not cleared', () => {
+        const { tool, mapManager } = getTool('set_legend');
+        tool.execute({ layer_id: 'hex-abc', labels: { 1: 'Amphibians' } });
+        const opts = mapManager.setLegend.mock.calls[0][1];
+        expect(opts.title).toBeUndefined();
+        expect(opts.units).toBeUndefined();
+        expect(opts.visible).toBeUndefined();
+    });
+
+    it('reset_legend forwards layer_id', () => {
+        const { tool, mapManager } = getTool('reset_legend');
+        expect(JSON.parse(tool.execute({ layer_id: 'hex-abc' })).success).toBe(true);
+        expect(mapManager.resetLegend).toHaveBeenCalledWith('hex-abc');
+    });
+
+    it('declares a typed labels schema so grammar-constrained servers can fill it (#243)', () => {
+        // An under-specified object/array param is what made set_filter emit `[]`
+        // once servers began constraining tool args to the schema.
+        const { tool } = getTool('set_legend');
+        expect(tool.inputSchema.properties.labels.type).toBe('object');
+        expect(tool.inputSchema.properties.labels.additionalProperties).toEqual({ type: 'string' });
+        expect(tool.inputSchema.required).toEqual(['layer_id']);
+    });
+
+    it('steers away from posting the color key in chat', () => {
+        const { tool } = getTool('set_legend');
+        expect(tool.description).toMatch(/color key in chat/i);
+    });
+});
+
 describe('set_tooltip / reset_tooltip', () => {
     const stubMapManager = () => ({
         setTooltip: vi.fn((layerId, fields) => ({ success: true, layer: layerId, tooltipFields: fields })),
@@ -517,9 +578,11 @@ describe('createMapTools smoke test', () => {
             'list_datasets',
             'remove_hex_tile_layer',
             'reset_filter',
+            'reset_legend',
             'reset_style',
             'reset_tooltip',
             'set_filter',
+            'set_legend',
             'set_projection',
             'set_style',
             'set_tooltip',

@@ -14,7 +14,7 @@ Core library for map-based applications with LLM-powered data analysis. Interact
 - `main.js` — Bootstrap: loads config, initializes catalog → map → tools → agent → UI
 - `dataset-catalog.js` — Fetches STAC collections, builds unified records
 - `map-manager.js` — Creates MapLibre map, manages layers/filters/styles
-- `map-tools.js` — 9 local tools the LLM agent can call
+- `map-tools.js` — the local tools the LLM agent can call (map control, styling, legends, geocoding)
 - `tool-registry.js` — Unified dispatch for local + remote (MCP) tools
 - `mcp-client.js` — MCP transport wrapper (connect once, lazy reconnect)
 - `agent.js` — LLM orchestration loop (agentic tool-use cycle)
