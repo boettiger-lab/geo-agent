@@ -13,7 +13,7 @@
  */
 
 import { extractHashFromUrl, buildFillColorExpression, buildFlatFillColorExpression, rewriteValueColumn, PALETTES, buildHeightExpression, buildFlatHeightExpression, defaultExtrusionMaxHeight } from './hex-layer-helpers.js';
-import { deriveContinuousLegend, primaryColorValue } from './legend-helpers.js';
+import { deriveCategoricalLegend, deriveContinuousLegend, primaryColorValue } from './legend-helpers.js';
 
 const BASEMAPS = {
     natgeo: {
@@ -1758,20 +1758,30 @@ export class MapManager {
     }
 
     /**
-     * Give a vector layer restyled into a graduated choropleth a colorbar even
-     * when its config never declared `legend_type` — the agent can build such a
-     * ramp with `set_style` on any layer, and without this it renders with
-     * nothing explaining it (#333). Flagged `legendTypeAuto` so resetStyle and
-     * switchVersion can undo it; layers whose config *does* declare a legend
-     * type are left alone, as are hex layers (`legendType: 'hex'`).
+     * Give a vector layer restyled into a choropleth a legend even when its
+     * config never declared `legend_type` — the agent can build one with
+     * `set_style` on any layer, and without this it renders with nothing
+     * explaining it (#333). A `match` recolor yields discrete swatches, a
+     * graduated ramp a colorbar (#334). Flagged `legendTypeAuto` so resetStyle
+     * and switchVersion can undo it; layers whose config *does* declare a
+     * legend type are left alone, as are hex layers (`legendType: 'hex'`) —
+     * for those the legend still follows the paint, via `_categoricalLegend`
+     * and `_hexLegend`, without the declared type being rewritten.
      */
     _promoteLegendType(state) {
         if (state.type !== 'vector') return;
         if (state.legendType && !state.legendTypeAuto) return;
-        const derivable = this._colorPaintChanged(state)
-            && !!deriveContinuousLegend(this._effectivePaint(state));
-        if (derivable) {
-            state.legendType = 'continuous';
+
+        let promoted = null;
+        if (this._colorPaintChanged(state)) {
+            const paint = this._effectivePaint(state);
+            // Mutually exclusive by operator; categorical first as the narrower match.
+            if (deriveCategoricalLegend(paint)) promoted = 'categorical';
+            else if (deriveContinuousLegend(paint)) promoted = 'continuous';
+        }
+
+        if (promoted) {
+            state.legendType = promoted;
             state.legendTypeAuto = true;
         } else if (state.legendTypeAuto) {
             state.legendType = null;
@@ -1820,15 +1830,58 @@ export class MapManager {
 
     /**
      * Whether a layer contributes a legend entry: continuous rasters (colorbar),
-     * any layer with a categorical class list, and continuous vector layers
-     * (graduated choropleths) whose colorbar can be sourced from config or
-     * derived from their paint expression (#258).
+     * any layer resolving to a categorical class list (config or derived from a
+     * `match` recolor, #334), and continuous vector layers (graduated
+     * choropleths) whose colorbar can be sourced from config or derived from
+     * their paint expression (#258).
+     *
+     * The categorical check runs before the type-gated ones because a `match`
+     * restyle can turn *any* vector layer discrete — including one whose config
+     * declared `continuous` or which is a hex layer.
      */
     _hasLegend(state) {
         return state.type === 'raster'
-            || (state.legendType === 'categorical' && state.legendClasses?.length > 0)
+            || !!this._categoricalLegend(state)
             || (state.legendType === 'continuous' && !!this._continuousVectorLegend(state))
             || (state.legendType === 'hex' && !!this._hexLegend(state));
+    }
+
+    /**
+     * Resolve a layer's discrete swatch rows, or null when it isn't a
+     * categorical legend.
+     *
+     * Once a restyle has replaced the color expression, a `match` in the new
+     * paint is the only truthful source: config `legend_classes` described the
+     * colors the layer shipped with, and a restyle that recolors past them
+     * leaves them describing nothing on screen (#334). So a changed paint means
+     * derived-or-nothing — config classes are never shown over a recolor.
+     *
+     * @returns {{ classes: Array<Object>, derived: boolean } | null} `classes`
+     *   are in the shape `_showLegend` renders (`name` + `color-hint`).
+     */
+    _categoricalLegend(state) {
+        // Derivation is vector-only — a raster's colors come from its TiTiler
+        // colormap, never a paint expression — so a categorical raster always
+        // takes the config path below (STAC `classification:classes`).
+        if (state.type === 'vector' && this._colorPaintChanged(state)) {
+            const derived = deriveCategoricalLegend(this._effectivePaint(state));
+            if (!derived) return null;
+            const classes = derived.classes.map(c => ({
+                value: c.value,
+                // No name exists to show: the tiles carry the code, and what it
+                // means lives in the SQL that produced it. Label with the value
+                // itself — honest and discrete, and `set_legend` can name it.
+                name: Array.isArray(c.value)
+                    ? c.value.map(v => this._fmtLegendValue(v)).join(', ')
+                    : this._fmtLegendValue(c.value),
+                'color-hint': c.color,
+            }));
+            return { classes, derived: true };
+        }
+
+        return (state.legendType === 'categorical' && state.legendClasses?.length > 0)
+            ? { classes: state.legendClasses, derived: false }
+            : null;
     }
 
     /**
@@ -2030,12 +2083,16 @@ export class MapManager {
         const item = document.createElement('div');
         item.className = 'legend-section';
 
+        const categorical = this._categoricalLegend(state);
+
         // A single-class categorical layer would render a redundant heading plus
         // one identically-labelled swatch row (the class label usually restates
         // the display name). Drop the per-layer heading in that case — the lone
         // swatch row (and, when grouped, the group heading) already labels it (#328).
-        const singleCategorical = state.legendType === 'categorical'
-            && state.legendClasses?.length === 1;
+        // Only for config classes: a derived row is labelled with a bare value,
+        // which restates nothing, so its layer still needs its heading (#334).
+        const singleCategorical = categorical && !categorical.derived
+            && categorical.classes.length === 1;
 
         // Display name, class names, and color hints come from STAC metadata
         // (untrusted) — build the legend via textContent and validate colors
@@ -2050,8 +2107,8 @@ export class MapManager {
             ? this._continuousVectorLegend(state)
             : null;
 
-        if (state.legendType === 'categorical' && state.legendClasses?.length) {
-            for (const cls of state.legendClasses) {
+        if (categorical) {
+            for (const cls of categorical.classes) {
                 const row = document.createElement('div');
                 row.className = 'legend-item';
                 const swatch = document.createElement('span');
