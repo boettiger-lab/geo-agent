@@ -126,6 +126,18 @@ A vector layer styled with a graduated `default_style` — an `interpolate` or `
 
 Use `legend_range` and/or `legend_gradient` only to override the derived values (e.g. when the paint expression doesn't cleanly map to the labels you want, or the color stops aren't plain hex). If neither config nor a parseable color expression is present, the layer shows no legend.
 
+### Legends follow runtime restyles
+
+The config above describes the layer as it loads. The agent can recolor any layer at runtime with `set_style`, and the legend follows the paint that is actually on the map rather than the paint the layer was registered with:
+
+- An `interpolate` or `step` recolor renders a **colorbar** over the new stops. This overrides `legend_range` / `legend_gradient`, which described the original ramp.
+- A `match` recolor renders **discrete swatches**, one per match arm, using the colors from the expression. This applies even to a layer configured as `continuous` or to a dynamic hex layer, and it overrides `legend_classes`.
+- A recolor with no describable structure (a flat color, a `case` expression) removes the legend rather than leaving a stale one behind.
+
+A layer with no `legend_type` at all gains a legend when the agent recolors it into a choropleth, and `reset_style` removes it again along with the restyle.
+
+Swatches derived from a `match` are labelled with the matched value itself (`1`, `2`, …), because the vector tiles carry only the code — what the code *means* usually lives in the SQL that produced the layer. Author-supplied `legend_classes` labels are used whenever the layer has not been recolored past them.
+
 ## Asset config — raster (COG)
 
 | Field | Type | Description |

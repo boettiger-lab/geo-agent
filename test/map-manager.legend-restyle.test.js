@@ -77,6 +77,20 @@ const bar = (mm, id) =>
     mm._legendItems.get(id).querySelector('.legend-colorbar').style.background;
 const resNote = (mm, id) =>
     mm._legendItems.get(id).querySelector('.legend-hex-res').textContent;
+/**
+ * Swatch rows as [label, color] pairs, in render order. jsdom normalizes an
+ * inline hex background to `rgb(r, g, b)`, so fold it back to 6-digit hex to
+ * keep expectations readable.
+ */
+const swatches = (mm, id) =>
+    [...mm._legendItems.get(id).querySelectorAll('.legend-item')].map((row) => {
+        const bg = row.querySelector('span').style.background;
+        const m = bg.match(/^rgb\((\d+),\s*(\d+),\s*(\d+)\)$/);
+        const hex = m
+            ? '#' + m.slice(1).map(n => Number(n).toString(16).padStart(2, '0')).join('')
+            : bg;
+        return [row.textContent, hex];
+    });
 
 describe('legend follows set_style — continuous vector (#333)', () => {
     it('relabels the colorbar to the new ramp instead of keeping the registered one', () => {
@@ -148,11 +162,24 @@ describe('legend appears for an agent-built choropleth (#333)', () => {
         const state = vectorState({ legendType: null, defaultPaint: { 'fill-color': '#2E7D32' } });
         const { mm } = createManager([state]);
         mm.setStyle('A', { 'fill-color': ramp(5, 42) });
-        mm.setStyle('A', { 'fill-color': ['match', ['get', 'gap'], '1', '#c1', '#999'] });
+        mm.setStyle('A', { 'fill-color': '#ff0000' });
 
         expect(state.legendType).toBeNull();
         expect(state.legendTypeAuto).toBe(false);
         expect(mm._legendItems.has('A')).toBe(false);
+    });
+
+    it('switches a continuous legend to swatches when restyled categorically', () => {
+        const state = vectorState({ legendType: null, defaultPaint: { 'fill-color': '#2E7D32' } });
+        const { mm } = createManager([state]);
+        mm.setStyle('A', { 'fill-color': ramp(5, 42) });
+        expect(state.legendType).toBe('continuous');
+
+        mm.setStyle('A', { 'fill-color': ['match', ['get', 'gap'], '1', '#cc1111', '#999999'] });
+
+        expect(state.legendType).toBe('categorical');
+        expect(state.legendTypeAuto).toBe(true);
+        expect(swatches(mm, 'A')).toEqual([['1', '#cc1111']]);
     });
 
     it('does not promote a raster layer', () => {
@@ -240,17 +267,112 @@ describe('legend follows set_style — hex layers (#333)', () => {
         expect(resNote(mm, 'hex-abc')).toBe('');
     });
 
-    it('drops the legend when recolored categorically', () => {
+    it('replaces the colorbar with swatches when recolored categorically', () => {
         const state = hexState();
         const { mm } = createManager([state]);
         mm._showLegendIfVisible('hex-abc');
+        expect(labels(mm, 'hex-abc')).toEqual(['0', '700']);
 
+        mm.setStyle('hex-abc', {
+            'fill-color': ['match', ['get', 'population'], 1, '#111111', 2, '#222222', '#999999'],
+        });
+
+        // Swatches, not a colorbar: no gradient bar and no zoom-reactive refs,
+        // since a `match` has no per-resolution value domain to relabel (#334).
+        expect(swatches(mm, 'hex-abc')).toEqual([['1', '#111111'], ['2', '#222222']]);
+        expect(mm._legendItems.get('hex-abc').querySelector('.legend-colorbar')).toBeNull();
+        expect(mm._hexLegendRefs.has('hex-abc')).toBe(false);
+        // The declared type is untouched, so resetStyle still restores the colorbar.
+        expect(state.legendType).toBe('hex');
+    });
+
+    it('resetStyle restores the per-res colorbar after a categorical restyle', () => {
+        const state = hexState();
+        const { mm } = createManager([state]);
+        mm._showLegendIfVisible('hex-abc');
         mm.setStyle('hex-abc', {
             'fill-color': ['match', ['get', 'population'], 1, '#111111', '#999999'],
         });
 
+        mm.resetStyle('hex-abc');
+
+        expect(labels(mm, 'hex-abc')).toEqual(['0', '700']);
+        expect(resNote(mm, 'hex-abc')).toBe('H3 resolution 6');
+    });
+
+    it('still drops the legend when recolored past anything describable', () => {
+        const state = hexState();
+        const { mm } = createManager([state]);
+        mm._showLegendIfVisible('hex-abc');
+
+        mm.setStyle('hex-abc', { 'fill-color': '#888888' });
+
         expect(mm._legendItems.has('hex-abc')).toBe(false);
         expect(mm._hexLegendRefs.has('hex-abc')).toBe(false);
+    });
+});
+
+describe('categorical legends follow set_style (#334)', () => {
+    it('drops stale config classes when recolored to a ramp it cannot describe', () => {
+        const state = vectorState({
+            legendType: 'categorical',
+            legendClasses: [{ name: 'GAP 1', 'color-hint': '#123456' }],
+            defaultPaint: { 'fill-color': ['match', ['get', 'gap'], '1', '#123456', '#999'] },
+        });
+        const { mm } = createManager([state]);
+        mm._showLegendIfVisible('A');
+        expect(swatches(mm, 'A')).toEqual([['GAP 1', '#123456']]);
+
+        mm.setStyle('A', { 'fill-color': '#ff0000' });
+
+        expect(mm._legendItems.has('A')).toBe(false);
+    });
+
+    it('shows the new classes, not the config ones, after a categorical restyle', () => {
+        const state = vectorState({
+            legendType: 'categorical',
+            legendClasses: [{ name: 'GAP 1', 'color-hint': '#123456' }],
+            defaultPaint: { 'fill-color': ['match', ['get', 'gap'], '1', '#123456', '#999'] },
+        });
+        const { mm } = createManager([state]);
+        mm._showLegendIfVisible('A');
+
+        mm.setStyle('A', { 'fill-color': ['match', ['get', 'taxon'], 3, '#2ca02c', 4, '#9467bd', '#ccc'] });
+
+        expect(swatches(mm, 'A')).toEqual([['3', '#2ca02c'], ['4', '#9467bd']]);
+    });
+
+    it('keeps the per-layer heading on a single derived class', () => {
+        // #328 drops the heading for a lone *config* class whose name restates
+        // the display name; a bare derived value restates nothing.
+        const state = vectorState({ legendType: null, defaultPaint: { 'fill-color': '#2E7D32' } });
+        const { mm } = createManager([state]);
+
+        mm.setStyle('A', { 'fill-color': ['match', ['get', 'gap'], 1, '#111111', '#999999'] });
+
+        expect(mm._legendItems.get('A').querySelector('h4').textContent).toBe('Parcels');
+    });
+
+    it('groups multi-value match arms into one swatch', () => {
+        const state = vectorState({ legendType: null, defaultPaint: { 'fill-color': '#2E7D32' } });
+        const { mm } = createManager([state]);
+
+        mm.setStyle('A', { 'fill-color': ['match', ['get', 'gap'], [1, 2], '#111', [3, 4], '#222', '#999'] });
+
+        expect(swatches(mm, 'A')).toEqual([['1, 2', '#111111'], ['3, 4', '#222222']]);
+    });
+
+    it('leaves an opacity-only restyle on a categorical layer alone', () => {
+        const state = vectorState({
+            legendType: 'categorical',
+            legendClasses: [{ name: 'GAP 1', 'color-hint': '#123456' }, { name: 'GAP 2', 'color-hint': '#654321' }],
+        });
+        const { mm } = createManager([state]);
+        mm._showLegendIfVisible('A');
+
+        mm.setStyle('A', { 'fill-opacity': 0.3 });
+
+        expect(swatches(mm, 'A')).toEqual([['GAP 1', '#123456'], ['GAP 2', '#654321']]);
     });
 });
 
