@@ -10,8 +10,10 @@
 # The 502 is a per-*tag* version-metadata failure, not per-file: once any one
 # asset under the tag resolves 200, the version is ingested and every other
 # file under that tag (incl. the modules main.js dynamically imports) resolves
-# too. We warm the four files the browser fetches first so the gate matches
-# what a real first deploy hits.
+# too. We warm the five files the browser fetches first so the gate matches
+# what a real first deploy hits — including app/vendor/mcp-sdk.js, which since
+# #345 is both on the boot path and by far the largest asset (218 kB), so it is
+# the one most worth having hot in the edge cache before any pin moves.
 #
 # This both WARMS the tag and GATES it: if jsDelivr can't serve the release,
 # this job goes red so we find out before geo-agent-ops bumps any app pin.
@@ -53,7 +55,7 @@ jobs:
           fi
           echo "Warming jsDelivr for $REPO@$TAG"
 
-          files="app/main.js app/style.css app/chat.css app/sidebar.css"
+          files="app/main.js app/vendor/mcp-sdk.js app/style.css app/chat.css app/sidebar.css"
           fail=0
           for f in $files; do
             url="https://cdn.jsdelivr.net/gh/${REPO}@${TAG}/$f"
