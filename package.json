@@ -6,13 +6,16 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage --coverage.reporter=text --coverage.include='app/**'",
+    "build:vendor": "esbuild scripts/mcp-sdk-entry.js --bundle --format=esm --platform=browser --minify --legal-comments=eof --outfile=app/vendor/mcp-sdk.js",
     "docs:dev": "vitepress dev docs",
     "docs:build": "vitepress build docs",
     "docs:preview": "vitepress preview docs"
   },
   "devDependencies": {
+    "@modelcontextprotocol/sdk": "1.12.0",
     "@vitest/coverage-v8": "^2.1.9",
     "dompurify": "3.4.8",
+    "esbuild": "0.28.2",
     "jsdom": "26.1.0",
     "marked": "18.0.5",
     "vitepress": "^1.6.3",
