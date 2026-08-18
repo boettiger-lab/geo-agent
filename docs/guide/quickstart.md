@@ -27,7 +27,7 @@ No JavaScript to write. The core library (map, chat, agent, tools) loads from CD
 
 ## index.html
 
-The HTML shell loads two kinds of code: a set of **pinned third-party libraries** (MapLibre, PMTiles, marked, DOMPurify, highlight.js) as page-global `<script>` tags, and the **GLEN core** (JS + CSS) from the CDN. The `<body>` only needs two placeholder `<div>`s — the layout manager builds the rest (chat panel, controls, etc.) dynamically.
+The HTML shell loads two kinds of code: a set of **pinned third-party libraries** (MapLibre, PMTiles, marked, DOMPurify, highlight.js) as page-global `<script>` tags, and the **GLEN core** (JS + CSS) from the CDN. There is no import map — the MCP SDK ships pre-bundled inside the core, so the only hosts your page contacts are the CDNs listed below. The `<body>` only needs two placeholder `<div>`s — the layout manager builds the rest (chat panel, controls, etc.) dynamically.
 
 ::: warning Copy this file from the template — don't hand-author it
 The canonical `index.html` lives in [boettiger-lab/geo-agent-template](https://github.com/boettiger-lab/geo-agent-template). **Copy it verbatim** rather than retyping the script tags below. In particular, never hand-edit the `integrity="sha384-…"` hashes — see [Subresource Integrity](#about-the-integrity-hashes) for why. The block below is reproduced for reference and matches the template at the pinned release.
@@ -40,16 +40,6 @@ The canonical `index.html` lives in [boettiger-lab/geo-agent-template](https://g
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>My Map App</title>
-
-  <!-- MCP SDK import map -->
-  <script type="importmap">
-  {
-    "imports": {
-      "@modelcontextprotocol/sdk/client/index.js": "https://esm.sh/@modelcontextprotocol/sdk@1.12.0/client/index",
-      "@modelcontextprotocol/sdk/client/streamableHttp.js": "https://esm.sh/@modelcontextprotocol/sdk@1.12.0/client/streamableHttp"
-    }
-  }
-  </script>
 
   <!-- MapLibre GL JS -->
   <script src="https://unpkg.com/maplibre-gl@5.22.0/dist/maplibre-gl.js"

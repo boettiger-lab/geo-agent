@@ -144,7 +144,7 @@ The `app/` directory includes its own `index.html`, `layers-input.json`, and `sy
 1. Push to `main` — staging apps (using `@main`) pick up changes on next load
 2. Test on staging
 3. Tag a release: `git tag v1.1.0 && git push --tags`
-4. Update production apps' importmap to `@v1.1.0`
+4. Update production apps' CDN pin to `@v1.1.0`
 
 ## Deployment
 
