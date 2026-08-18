@@ -37,15 +37,28 @@ export class DatasetCatalog {
         this.catalogUrl = null;
         this.catalogToken = null;
         this.titilerUrl = null;
+        /**
+         * True when the root catalog was configured but unreachable, so the
+         * catalog loaded without it. Boot continues either way (#335); this is
+         * for callers that want to surface or log the degraded state.
+         */
+        this.degraded = false;
     }
 
     /**
      * Load and process STAC collections specified in the app config.
-     * 
+     *
+     * Never rejects on catalog-fetch failure: after `fetchJson` exhausts its
+     * retries the load degrades to whatever resolved (often nothing) and sets
+     * `this.degraded`, leaving the agent to reach data through the MCP STAC
+     * tools. The root document is fetched only when some collection actually
+     * needs traversing to resolve.
+     *
      * @param {Object} appConfig - Parsed layers-input.json
-     * @param {string} appConfig.catalog - STAC catalog URL
+     * @param {string} [appConfig.catalog] - STAC catalog URL (only required
+     *     when a collection must be resolved by walking the root)
      * @param {string} [appConfig.titiler_url] - TiTiler base URL for COGs
-     * @param {Array<Object>} appConfig.collections - Collection specs
+     * @param {Array<Object>} [appConfig.collections] - Collection specs
      */
     async load(appConfig) {
         this.appConfig = appConfig;
@@ -53,31 +66,57 @@ export class DatasetCatalog {
         this.catalogToken = appConfig.catalog_token || null;
         this.titilerUrl = appConfig.titiler_url || 'https://titiler.nrp-nautilus.io';
 
-        console.log('[Catalog] Loading STAC catalog:', this.catalogUrl);
+        const collections = appConfig.collections || [];
+        this.degraded = false;
 
-        // Fetch the root catalog to get child links
-        const catalog = await this.fetchJson(this.catalogUrl);
-        const childLinks = (catalog.links || []).filter(l => l.rel === 'child');
-
-        // Build a map of collection URLs by fetching each child
         // We'll match against the requested collection IDs
-        const requestedIds = new Set(appConfig.collections.map(c =>
+        const requestedIds = new Set(collections.map(c =>
             typeof c === 'string' ? c : c.collection_id
         ));
 
         // Build options map from collection specs
         const optionsMap = new Map();
-        for (const c of appConfig.collections) {
+        for (const c of collections) {
             if (typeof c === 'object') {
                 optionsMap.set(c.collection_id, c);
             }
         }
 
+        // Collections with explicit collection_url are fetched directly — no catalog traversal needed
+        const directEntries = collections.filter(c => typeof c === 'object' && c.collection_url);
+        const directIds = new Set(directEntries.map(c => c.collection_id));
+        const catalogIds = new Set([...requestedIds].filter(id => !directIds.has(id)));
+
         console.log(`[Catalog] Looking for ${requestedIds.size} collections: ${[...requestedIds].join(', ')}`);
 
-        // Collections with explicit collection_url are fetched directly — no catalog traversal needed
-        const directFetches = appConfig.collections
-            .filter(c => typeof c === 'object' && c.collection_url)
+        // Fetch the root catalog only when something actually needs traversing.
+        // `collections: []` and configs where every entry carries its own
+        // `collection_url` resolve without the root, so an app that declared it
+        // needs nothing from that document shouldn't boot-fail when it's down.
+        let childLinks = [];
+        if (catalogIds.size === 0) {
+            console.log('[Catalog] No collections require catalog traversal — skipping root fetch');
+        } else if (!this.catalogUrl) {
+            this.degraded = true;
+            console.warn(`[Catalog] No catalog URL configured; ${catalogIds.size} collection(s) cannot be resolved. Continuing with a degraded catalog.`);
+        } else {
+            console.log('[Catalog] Loading STAC catalog:', this.catalogUrl);
+            try {
+                const catalog = await this.fetchJson(this.catalogUrl);
+                childLinks = (catalog.links || []).filter(l => l.rel === 'child');
+            } catch (error) {
+                // Degrade rather than throw. fetchJson has already exhausted its
+                // retry budget, so this is a sustained outage, not a blip — but
+                // the agent can still reach data through the MCP server's own
+                // STAC tools (browse_stac_catalog / get_stac_details), which is
+                // a working answer path. A degraded app beats a blank page, so
+                // callers get an empty catalog instead of a rejected promise.
+                this.degraded = true;
+                console.warn(`[Catalog] Root catalog unavailable after retries: ${error.message}. Continuing with a degraded catalog — map layers from this catalog will be missing; the agent can still reach data via the MCP STAC tools.`);
+            }
+        }
+
+        const directFetches = directEntries
             .map(async (c) => {
                 try {
                     const collection = await this.fetchJson(c.collection_url);
@@ -89,12 +128,8 @@ export class DatasetCatalog {
                 return null;
             });
 
-        // Remaining collections are resolved by scanning the root catalog's child links
-        const directIds = new Set(appConfig.collections
-            .filter(c => typeof c === 'object' && c.collection_url)
-            .map(c => c.collection_id));
-        const catalogIds = new Set([...requestedIds].filter(id => !directIds.has(id)));
-
+        // Remaining collections are resolved by scanning the root catalog's child
+        // links (empty when the root was skipped or unavailable, above).
         // When child links carry an `id` field (see boettiger-lab/data-workflows#105),
         // filter before fetching so we only request the collections we need.
         // Falls back to fetching all children for catalogs without IDs.

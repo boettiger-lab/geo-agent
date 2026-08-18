@@ -440,6 +440,97 @@ describe('DatasetCatalog.load (mocked fetch)', () => {
         expect(cat.get('direct').title).toBe('Direct');
     });
 
+    it('skips the root fetch entirely when collections is empty (#335)', async () => {
+        global.fetch = mockFetchJson(new Map());
+        const cat = new DatasetCatalog();
+
+        await cat.load({ catalog: 'https://dead.example/catalog.json', collections: [] });
+
+        // The app declared it needs nothing from the root, so we never ask for it.
+        expect(global.fetch).not.toHaveBeenCalled();
+        expect(cat.degraded).toBe(false);
+        expect(cat.getIds()).toEqual([]);
+    });
+
+    it('skips the root fetch when every entry carries collection_url (#335)', async () => {
+        const direct = stacCollection({ id: 'direct', title: 'Direct' });
+        global.fetch = mockFetchJson(new Map([
+            ['https://other.example/private/direct.json', direct],
+        ]));
+
+        const cat = new DatasetCatalog();
+        await cat.load({
+            catalog: 'https://dead.example/catalog.json',
+            collections: [{ collection_id: 'direct', collection_url: 'https://other.example/private/direct.json' }],
+        });
+
+        const calledUrls = global.fetch.mock.calls.map(c => c[0]);
+        expect(calledUrls).not.toContain('https://dead.example/catalog.json');
+        expect(cat.get('direct')).toBeTruthy();
+        expect(cat.degraded).toBe(false);
+    });
+
+    it('degrades instead of throwing when the root catalog fails after retries (#335)', async () => {
+        const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        // Permanent 404 → fetchJson fails fast, no retry delay in the test.
+        global.fetch = mockFetchJson(new Map());
+
+        const cat = new DatasetCatalog();
+        await expect(cat.load({
+            catalog: 'https://dead.example/catalog.json',
+            collections: ['wanted'],
+        })).resolves.toBeUndefined();
+
+        expect(cat.degraded).toBe(true);
+        expect(cat.getIds()).toEqual([]);
+        expect(warnSpy.mock.calls.some(c => c.join(' ').includes('Continuing with a degraded catalog'))).toBe(true);
+        warnSpy.mockRestore();
+    });
+
+    it('still loads reachable collection_url entries when the root catalog is down (#335)', async () => {
+        const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        const direct = stacCollection({ id: 'direct', title: 'Direct' });
+        // Root is missing from the map (404); the direct collection is reachable.
+        global.fetch = mockFetchJson(new Map([
+            ['https://other.example/private/direct.json', direct],
+        ]));
+
+        const cat = new DatasetCatalog();
+        await cat.load({
+            catalog: 'https://dead.example/catalog.json',
+            collections: [
+                'walked',  // needs the root → unresolvable
+                { collection_id: 'direct', collection_url: 'https://other.example/private/direct.json' },
+            ],
+        });
+
+        expect(cat.degraded).toBe(true);
+        expect(cat.get('direct')).toBeTruthy();   // partial success survives
+        expect(cat.get('walked')).toBeNull();
+        warnSpy.mockRestore();
+    });
+
+    it('degrades when a collection needs the root but no catalog URL is configured (#335)', async () => {
+        const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        global.fetch = mockFetchJson(new Map());
+
+        const cat = new DatasetCatalog();
+        await cat.load({ collections: ['wanted'] });
+
+        expect(global.fetch).not.toHaveBeenCalled();
+        expect(cat.degraded).toBe(true);
+        warnSpy.mockRestore();
+    });
+
+    it('tolerates a config with no collections key at all (#335)', async () => {
+        global.fetch = mockFetchJson(new Map());
+        const cat = new DatasetCatalog();
+
+        await expect(cat.load({ catalog: 'https://dead.example/catalog.json' })).resolves.toBeUndefined();
+        expect(global.fetch).not.toHaveBeenCalled();
+        expect(cat.getIds()).toEqual([]);
+    });
+
     it('warns when a requested collection is not found', async () => {
         const root = { id: 'root', links: [] };
         global.fetch = mockFetchJson(new Map([['https://x/c.json', root]]));
