@@ -7,8 +7,11 @@
  * No knowledge of SQL, LLMs, or the DOM — pure transport.
  */
 
-import { Client } from '@modelcontextprotocol/sdk/client/index.js';
-import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
+// Vendored, pre-bundled SDK (see app/vendor/README.md). Imported by relative
+// path on purpose: the app is served straight from jsDelivr with no bundler, so
+// a bare specifier would need an importmap pointing at a third-party ESM host —
+// and a static import of an unreachable host white-screens the whole app (#343).
+import { Client, StreamableHTTPClientTransport } from './vendor/mcp-sdk.js';
 
 export class MCPClient {
     constructor(serverUrl, headers = {}) {

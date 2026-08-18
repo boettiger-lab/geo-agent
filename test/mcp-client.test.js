@@ -13,16 +13,16 @@ const buildClientInstance = () => ({
     getPrompt: vi.fn(async () => ({ messages: [{ content: { text: 'hi' } }, { content: { text: 'there' } }] })),
 });
 
-vi.mock('@modelcontextprotocol/sdk/client/index.js', () => ({
+// Mock the vendored bundle, not the npm specifier — app/mcp-client.js imports
+// './vendor/mcp-sdk.js' by relative path (#343). Both symbols come from the one
+// module now, so a single mock factory covers them.
+vi.mock('../app/vendor/mcp-sdk.js', () => ({
     Client: vi.fn(),
-}));
-
-vi.mock('@modelcontextprotocol/sdk/client/streamableHttp.js', () => ({
     StreamableHTTPClientTransport: vi.fn(),
 }));
 
 const { MCPClient } = await import('../app/mcp-client.js');
-const { Client } = await import('@modelcontextprotocol/sdk/client/index.js');
+const { Client } = await import('../app/vendor/mcp-sdk.js');
 
 const lastClient = () => clientInstances[clientInstances.length - 1];
 
