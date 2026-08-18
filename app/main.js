@@ -5,7 +5,6 @@
  *   config → catalog → map → tools → agent → UI
  */
 
-import { MCPClient } from './mcp-client.js';
 import { DatasetCatalog } from './dataset-catalog.js';
 import { MapManager } from './map-manager.js';
 import { ToolRegistry } from './tool-registry.js';
@@ -67,9 +66,29 @@ async function main() {
         mcpHeaders['Authorization'] = `Bearer ${appConfig.mcp_auth_token}`;
     }
     console.log('[main] MCP URL:', mcpUrl, 'auth token present:', !!appConfig.mcp_auth_token);
-    const mcp = new MCPClient(mcpUrl, mcpHeaders);
-    // Connect eagerly but don't block boot — overlaps catalog + map load below.
-    mcp.connect().catch(err => console.warn('[main] Initial MCP connect failed (will retry):', err.message));
+
+    // Loaded with dynamic import(), not a static one. A static import puts the
+    // transport (and everything it imports) in the boot module graph, which the
+    // browser fetches in full before executing any of it — so one unreachable
+    // module blanks the entire app, map included. That is exactly what #343 was:
+    // a network that couldn't resolve the SDK's CDN host got no map at all.
+    // Vendoring removed that trigger; this removes the failure *mode*, so a
+    // future unloadable dependency costs the assistant, not the whole page.
+    // Still fired here rather than at step 7 so the connect keeps overlapping
+    // the catalog walk and map style load (#265).
+    let mcp = null;
+    let mcpLoadError = null;
+    try {
+        const { MCPClient } = await import('./mcp-client.js');
+        mcp = new MCPClient(mcpUrl, mcpHeaders);
+        // Connect eagerly but don't block boot — overlaps catalog + map load below.
+        mcp.connect().catch(err => console.warn('[main] Initial MCP connect failed (will retry):', err.message));
+    } catch (err) {
+        // Module *load* failure (blocked host, 404, syntax error) — distinct from
+        // a connect failure, which the .catch above already tolerates.
+        mcpLoadError = err;
+        console.error('[main] MCP transport failed to load — the map will work, the assistant will not:', err);
+    }
     // Static system-prompt fetch (awaited at step 6) — independent of everything.
     const basePromptP = fetchText('system-prompt.md');
 
@@ -389,13 +408,16 @@ async function main() {
         throw lastErr;
     };
 
-    mcp.setOnReconnect((tools) => {
+    if (mcp) mcp.setOnReconnect((tools) => {
         toolRegistry.clearRemote();
         toolRegistry.registerRemote(tools, mcp, injectInlineStac);
         console.log(`[main] Refreshed MCP tools after reconnect: ${tools.length} tools`);
     });
 
-    try {
+    // Skipped wholesale when the transport never loaded: with no client there is
+    // nothing for even the hardcoded fallback `query` tool to call. Boot stops at
+    // step 6b below with a chat-panel notice instead.
+    if (mcp) try {
         const mcpTools = await listMcpToolsWithRetry();
         toolRegistry.registerRemote(mcpTools, mcp, injectInlineStac);
         console.log(`[main] ${mcpTools.length} MCP tools registered`);
@@ -428,7 +450,7 @@ async function main() {
 
     // Read server-provided prompt (if any)
     try {
-        const prompts = await mcp.listPrompts();
+        const prompts = mcp ? await mcp.listPrompts() : null;
         const analyst = prompts?.find(p => p.name === 'geospatial-analyst');
         if (analyst) {
             const content = await mcp.getPrompt(analyst.name);
@@ -439,6 +461,13 @@ async function main() {
         }
     } catch (e) {
         console.warn('[main] No MCP prompts available:', e.message);
+    }
+
+    /* ── 6b. No transport → stop here, with the map fully usable ───────── */
+    if (!mcp) {
+        showAssistantUnavailable(layoutRefs.chatMount, mcpLoadError);
+        console.warn('[main] Degraded boot: map and layers ready, assistant unavailable');
+        return;
     }
 
     /* ── 7. Create agent ──────────────────────────────────────────────── */
@@ -502,6 +531,44 @@ async function main() {
 }
 
 /* ── Helpers ────────────────────────────────────────────────────────────── */
+
+/**
+ * Degraded-mode notice for the chat panel when the MCP transport module could
+ * not be loaded at all. The map, layers, and menu are already live at this
+ * point — only the assistant is missing — so the panel says which half works
+ * rather than leaving an inert empty box that reads as a hang.
+ *
+ * Names the host the failed module was being fetched from: in the field this
+ * turns "the page is broken" into a report that already identifies the blocked
+ * domain, which is what made #343 slow to diagnose remotely.
+ *
+ * @param {Object} mount - layoutRefs.chatMount (DOM refs from layout-manager)
+ * @param {Error|null} error - the import failure, for the console-facing detail
+ */
+function showAssistantUnavailable(mount, error) {
+    if (!mount) return;
+    let host = 'the module host';
+    try {
+        host = new URL('./mcp-client.js', import.meta.url).host || host;
+    } catch { /* non-URL module context — keep the generic wording */ }
+
+    if (mount.messages) {
+        const div = document.createElement('div');
+        div.className = 'chat-message error';
+        div.textContent =
+            `Assistant unavailable — the map and layers are still usable. `
+            + `A required module could not be loaded from ${host}; if that host is `
+            + `blocked on this network, allowing it restores the assistant. `
+            + `Details: ${error?.message || 'unknown load error'}`;
+        mount.messages.replaceChildren(div);
+    }
+    if (mount.input) {
+        mount.input.disabled = true;
+        mount.input.placeholder = 'Assistant unavailable';
+    }
+    if (mount.send) mount.send.disabled = true;
+    if (mount.mic) mount.mic.disabled = true;
+}
 
 const STORAGE_KEY_API = 'geo-agent-api-key';
 const STORAGE_KEY_ENDPOINT = 'geo-agent-endpoint';
