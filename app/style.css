@@ -702,7 +702,8 @@ details.layer-group:not([open]) .layer-group-title::before {
     color: #555;
 }
 
-.anim-controls .anim-speed {
+.anim-controls .anim-speed,
+.anim-controls .anim-mode {
     border: 1px solid rgba(0, 0, 0, 0.2);
     border-radius: 4px;
     padding: 2px 4px;
