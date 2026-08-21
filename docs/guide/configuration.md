@@ -180,7 +180,7 @@ GeoJSON loads the entire file into the browser at once, so it works best for sma
 
 ## Animated trajectory layers
 
-For GeoJSON assets containing `LineString` features with a parallel timestamp array, set `animation` on the asset config to turn it into an animated point-along-line layer. The framework adds a play/pause controller, renders a faint static track line, and emits colored dots that interpolate linearly between waypoints. The layer appears in the layer menu like any other layer; the LLM agent's `show_layer` / `hide_layer` / `set_filter` tools work on it directly.
+For GeoJSON assets containing `LineString` features with a parallel timestamp array, set `animation` on the asset config to turn it into an animated point-along-line layer. The framework adds a play/pause controller and emits colored dots that move along each trajectory. The layer appears in the layer menu like any other layer; the LLM agent's `show_layer` / `hide_layer` / `set_filter` tools work on it directly.
 
 | Field | Type | Default | Description |
 |---|---|---|---|
@@ -194,8 +194,23 @@ For GeoJSON assets containing `LineString` features with a parallel timestamp ar
 | `track_line_opacity` | number | `0.35` | Opacity of the static track line. |
 | `show_labels` | boolean | `true` | Render each dot's `id_field` value as a text label. |
 | `static_positions_asset` | string | — | STAC asset key (in the same collection) for a GeoJSON of static positions. Entities present only in this dataset render as non-moving dots. |
+| `mode` | string | `"smooth"` | Playback mode — `"smooth"` interpolates between waypoints, `"stepped"` shows only the observations themselves (see below). |
+| `mode_toggle` | boolean | `false` | Offer a mode switch in the playback panel so the user can compare the two. |
+| `end_timestamp_field` | string | — | Feature property holding a parallel array of ISO timestamps — the last time each waypoint's position was still being reported. Used by `stepped` mode; ignored if its length doesn't match `timestamp_field`. |
+| `hold_hours` | number | `0` with `end_timestamp_field`, else `6` | How long a stepped observation stays on screen past the time it was last seen. |
+| `hex_resolution` | number | — | H3 resolution of the observations, when they are grid cells rather than points. In `stepped` mode the cell footprint is drawn in place of the dot. Requires `h3-js` on the page. |
+| `hex_opacity` | number | `0.55` | Fill opacity of those cell footprints. |
 
-`default_style` on the asset supplies paint overrides — `line-color` and `circle-color` are the common cases, and MapLibre `match` expressions against `id_field` let you color-code per entity.
+### Smooth vs. stepped
+
+The two modes make different claims about the data, so pick the one that matches what was actually measured:
+
+- **`smooth`** interpolates each entity's position linearly between waypoints and (with `show_track_line`) draws the full trajectory underneath. It reads as continuous tracking. Use it when the fixes are dense enough that the path between them is a fair approximation — or when the animation is explicitly an illustration of a sequence.
+- **`stepped`** never interpolates. An entity appears at a waypoint for the window it was reported (its timestamp through `end_timestamp_field`, plus `hold_hours`) and then vanishes until its next observation, and no track line is drawn in this mode. Gaps on screen are gaps in the data. Use it for sparse or irregular fixes, where a smooth path would invent movement that was never observed.
+
+Set `hex_resolution` when each observation is a grid cell — a wildlife tracker that publishes ~6 km hexbins rather than GPS points, say. Stepped mode then draws the cell itself, so the mark on the map is the size of the datum instead of a point-sized dot implying point-sized precision. With `mode_toggle`, users can flip between the honest reading and the legible one.
+
+`default_style` on the asset supplies paint overrides — `line-color` and `circle-color` are the common cases (plus `fill-color` / `fill-outline-color` for cell footprints). MapLibre `match` expressions let you color-code per entity against `id_field` or any other scalar property on the trajectory features.
 
 ```json
 {
@@ -209,13 +224,19 @@ For GeoJSON assets containing `LineString` features with a parallel timestamp ar
       "animation": {
         "type": "trajectory",
         "timestamp_field": "timestamps",
+        "end_timestamp_field": "end_timestamps",
         "id_field": "pack",
         "duration_seconds": 30,
-        "static_positions_asset": "bins-latest"
+        "static_positions_asset": "bins-latest",
+        "mode": "stepped",
+        "mode_toggle": true,
+        "hex_resolution": 6,
+        "show_track_line": false
       },
       "default_style": {
-        "line-color":   ["match", ["get", "pack"], "Whaleback 1", "#E65100", "Harvey 1", "#1565C0", "#888"],
-        "circle-color": ["match", ["get", "pack"], "Whaleback 1", "#E65100", "Harvey 1", "#1565C0", "#888"]
+        "line-color":   ["match", ["get", "pack_origin"], "Whaleback", "#E65100", "Harvey", "#1565C0", "#888"],
+        "circle-color": ["match", ["get", "pack_origin"], "Whaleback", "#E65100", "Harvey", "#1565C0", "#888"],
+        "fill-color":   ["match", ["get", "pack_origin"], "Whaleback", "#E65100", "Harvey", "#1565C0", "#888"]
       }
     }
   ]

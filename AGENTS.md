@@ -157,7 +157,8 @@ When a PR touches a covered module, expect tests to change too. When it touches 
 | `app/dataset-catalog.js` | 89% | `test/dataset-catalog.test.js` — STAC parsing, layer config shape, prompt rendering |
 | `app/agent.js` | 48% | `test/agent-retry.test.js` — retry / abort / timeout. The conversation loop is uncovered (tested manually). |
 | `app/main.js` | 0% | Bootstrap — verify by loading the app locally. |
-| `app/chat-ui.js`, `app/map-manager.js`, `app/layout-manager.js`, `app/map-draw.js`, `app/h3geo.js`, `app/animation-manager.js`, `app/voice-input.js` | 0% | Browser-bound (DOM, MapLibre, MediaRecorder). Verify visually in a deployed app — no harness yet. |
+| `app/animation-manager.js` | partial | `test/animation-manager.test.js` — the pure sampling helpers (`sampleTrack`, `cellBoundary`). MapLibre sublayers and the controls panel are browser-bound; verify visually. |
+| `app/chat-ui.js`, `app/map-manager.js`, `app/layout-manager.js`, `app/map-draw.js`, `app/h3geo.js`, `app/voice-input.js` | 0% | Browser-bound (DOM, MapLibre, MediaRecorder). Verify visually in a deployed app — no harness yet. |
 
 Overall line coverage is reported on each PR via the coverage workflow.
 
