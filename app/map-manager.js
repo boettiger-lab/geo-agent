@@ -36,13 +36,26 @@ const BASEMAPS = {
         },
         terrain: true
     },
+    // Esri Light Gray Canvas. CARTO's anonymous basemap tiles now come back
+    // stamped "API KEY REQUIRED" at moderate zoom, so `plain` is served from
+    // the same keyless ArcGIS endpoint as natgeo/satellite. Esri splits this
+    // basemap in two: the base carries geometry (and street labels once you're
+    // zoomed in), while place labels live in a separate Reference overlay —
+    // hence the `overlay` source, drawn above the base and toggled with it.
     plain: {
         source: {
             type: 'raster',
-            tiles: ['https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png'],
+            tiles: ['https://services.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}'],
             tileSize: 256,
-            maxzoom: 19,
-            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/">CARTO</a>'
+            maxzoom: 16,
+            attribution: 'Tiles &copy; Esri &mdash; Esri, HERE, Garmin, &copy; OpenStreetMap contributors, and the GIS user community'
+        },
+        overlay: {
+            type: 'raster',
+            tiles: ['https://services.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Reference/MapServer/tile/{z}/{y}/{x}'],
+            tileSize: 256,
+            maxzoom: 16,
+            attribution: ''
         },
         terrain: false
     }
@@ -88,21 +101,23 @@ export class MapManager {
         const protocol = new pmtiles.Protocol();
         maplibregl.addProtocol('pmtiles', protocol.tile);
 
-        // Create map with all three basemap sources; natgeo visible by default
+        // Create map with all basemap sources; natgeo visible by default
         this.map = new maplibregl.Map({
             container: containerId,
             style: {
                 version: 8,
                 glyphs: 'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf',
                 sources: {
-                    natgeo:    this._basemaps.natgeo.source,
-                    satellite: this._basemaps.satellite.source,
-                    plain:     this._basemaps.plain.source,
+                    natgeo:        this._basemaps.natgeo.source,
+                    satellite:     this._basemaps.satellite.source,
+                    plain:         this._basemaps.plain.source,
+                    'plain-labels': this._basemaps.plain.overlay,
                 },
                 layers: [
-                    { id: 'natgeo-base',    type: 'raster', source: 'natgeo',    layout: { visibility: 'visible' } },
-                    { id: 'satellite-base', type: 'raster', source: 'satellite', layout: { visibility: 'none' } },
-                    { id: 'plain-base',     type: 'raster', source: 'plain',     layout: { visibility: 'none' } },
+                    { id: 'natgeo-base',       type: 'raster', source: 'natgeo',         layout: { visibility: 'visible' } },
+                    { id: 'satellite-base',    type: 'raster', source: 'satellite',      layout: { visibility: 'none' } },
+                    { id: 'plain-base',        type: 'raster', source: 'plain',          layout: { visibility: 'none' } },
+                    { id: 'plain-overlay',     type: 'raster', source: 'plain-labels',   layout: { visibility: 'none' } },
                 ],
             },
             center: options.center || [-119.4, 36.8],
@@ -1520,6 +1535,10 @@ export class MapManager {
             const vis = key === name ? 'visible' : 'none';
             if (this.map.getLayer(key + '-base')) {
                 this.map.setLayoutProperty(key + '-base', 'visibility', vis);
+            }
+            // Label overlays (Esri Reference tiles) follow their base layer.
+            if (this.map.getLayer(key + '-overlay')) {
+                this.map.setLayoutProperty(key + '-overlay', 'visibility', vis);
             }
         });
         if (this._maptilerKey && this.map.getSource('terrain-dem')) {
