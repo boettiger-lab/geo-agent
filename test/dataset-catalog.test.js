@@ -1029,3 +1029,124 @@ describe('DatasetCatalog.processCollection one-level child expansion', () => {
         expect(entry.columns.length).toBeGreaterThan(0);
     });
 });
+
+describe('DatasetCatalog `sidebar` panel-membership flag (#352)', () => {
+    let cat;
+    beforeEach(() => { cat = new DatasetCatalog(); });
+
+    const collectionWithAssets = (assets) => stacCollection({ id: 'demo', title: 'Demo', assets });
+
+    const pmtiles = { type: 'application/vnd.pmtiles', href: 'https://x/a.pmtiles' };
+    const cog = { type: 'image/tiff; application=geotiff', href: 'https://x/a.tif' };
+    const geojson = { type: 'application/geo+json', href: 'https://x/a.geojson' };
+
+    it('processCollection defaults the collection-level sidebar to true', async () => {
+        const entry = await cat.processCollection(stacCollection({ id: 'demo' }));
+        expect(entry.sidebar).toBe(true);
+    });
+
+    it('processCollection reads a collection-level "sidebar": false', async () => {
+        const entry = await cat.processCollection(stacCollection({ id: 'demo' }), { sidebar: false });
+        expect(entry.sidebar).toBe(false);
+    });
+
+    it('extractMapLayers leaves sidebar null (inherit) when the asset does not set it', () => {
+        const layers = cat.extractMapLayers(
+            collectionWithAssets({ a: pmtiles }), {},
+            [{ key: 'a', assetId: 'a', config: {} }],
+        );
+        expect(layers[0].sidebar).toBeNull();
+    });
+
+    it('extractMapLayers threads a per-asset sidebar through all four asset branches', () => {
+        const branches = [
+            ['pmtiles', { a: pmtiles }, { sidebar: false }],
+            ['raster', { a: cog }, { sidebar: false }],
+            ['geojson', { a: geojson }, { sidebar: false }],
+            ['versioned', { l3: pmtiles, l4: pmtiles }, {
+                sidebar: false,
+                versions: [{ label: 'L3', asset_id: 'l3' }, { label: 'L4', asset_id: 'l4' }],
+            }],
+        ];
+        for (const [name, assets, config] of branches) {
+            const layers = cat.extractMapLayers(
+                collectionWithAssets(assets), {},
+                [{ key: 'a', assetId: 'a', config }],
+            );
+            expect(layers, name).toHaveLength(1);
+            expect(layers[0].sidebar, name).toBe(false);
+        }
+    });
+
+    it('extractMapLayers keeps an explicit per-asset "sidebar": true distinct from unset', () => {
+        const [layer] = cat.extractMapLayers(
+            collectionWithAssets({ a: pmtiles }), {},
+            [{ key: 'a', assetId: 'a', config: { sidebar: true } }],
+        );
+        expect(layer.sidebar).toBe(true);
+    });
+
+    it('getMapLayerConfigs defaults sidebar to true when neither level sets it', () => {
+        cat.datasets.set('demo', {
+            id: 'demo', title: 'Demo', columns: [],
+            mapLayers: [{ assetId: 'a', layerType: 'vector', title: 'A', url: 'https://x/a.pmtiles', sourceLayer: 'a' }],
+        });
+        expect(cat.getMapLayerConfigs()[0].sidebar).toBe(true);
+    });
+
+    it('getMapLayerConfigs inherits the collection-level sidebar', () => {
+        cat.datasets.set('demo', {
+            id: 'demo', title: 'Demo', columns: [], sidebar: false,
+            mapLayers: [
+                { assetId: 'a', layerType: 'vector', title: 'A', url: 'https://x/a.pmtiles', sourceLayer: 'a', sidebar: null },
+                { assetId: 'b', layerType: 'raster', title: 'B', cogUrl: 'https://x/b.tif', sidebar: null },
+            ],
+        });
+        expect(cat.getMapLayerConfigs().map(c => c.sidebar)).toEqual([false, false]);
+    });
+
+    it('getMapLayerConfigs lets a per-asset sidebar override the collection level, both ways', () => {
+        cat.datasets.set('demo', {
+            id: 'demo', title: 'Demo', columns: [], sidebar: false,
+            mapLayers: [{ assetId: 'a', layerType: 'vector', title: 'A', url: 'https://x/a.pmtiles', sourceLayer: 'a', sidebar: true }],
+        });
+        cat.datasets.set('other', {
+            id: 'other', title: 'Other', columns: [], sidebar: true,
+            mapLayers: [{ assetId: 'b', layerType: 'vector', title: 'B', url: 'https://x/b.pmtiles', sourceLayer: 'b', sidebar: false }],
+        });
+        const bySidebar = Object.fromEntries(cat.getMapLayerConfigs().map(c => [c.layerId, c.sidebar]));
+        expect(bySidebar).toEqual({ 'demo/a': true, 'other/b': false });
+    });
+
+    it('getMapLayerConfigs carries sidebar onto a versioned layer config', () => {
+        cat.datasets.set('vd', {
+            id: 'vd', title: 'V', columns: [],
+            mapLayers: [{
+                assetId: 'basins', layerType: 'vector', title: 'Watersheds', sidebar: false,
+                versions: [
+                    { label: 'L3', assetId: 'l3', layerType: 'vector', url: 'https://x/l3.pmtiles', sourceLayer: 'l3' },
+                ],
+                defaultVersionIndex: 0,
+            }],
+        });
+        expect(cat.getMapLayerConfigs()[0].sidebar).toBe(false);
+    });
+
+    it('warns — but does not error — when "sidebar": false is paired with "visible": true', () => {
+        const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        cat.datasets.set('demo', {
+            id: 'demo', title: 'Demo', columns: [], sidebar: false,
+            mapLayers: [
+                { assetId: 'a', layerType: 'vector', title: 'A', url: 'https://x/a.pmtiles', sourceLayer: 'a', defaultVisible: true },
+                { assetId: 'b', layerType: 'vector', title: 'B', url: 'https://x/b.pmtiles', sourceLayer: 'b', defaultVisible: false },
+            ],
+        });
+        const configs = cat.getMapLayerConfigs();
+        expect(configs).toHaveLength(2);
+        expect(configs[0].defaultVisible).toBe(true);
+        const messages = warn.mock.calls.map(c => c[0]);
+        expect(messages.filter(m => m.includes('demo/a'))).toHaveLength(1);
+        expect(messages.filter(m => m.includes('demo/b'))).toHaveLength(0);
+        warn.mockRestore();
+    });
+});

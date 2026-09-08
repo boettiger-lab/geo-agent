@@ -59,6 +59,7 @@ Each entry in `collections` is either a **bare string** (loads all visual assets
 | `collection_id` | string | STAC collection ID to load. |
 | `collection_url` | string | Direct URL to the STAC collection JSON. **Required** for any collection that is not a direct child of the root catalog — see [Nested collections](#nested-collections). Also needed for private or external catalogs, and recommended even for top-level collections since it skips the (slow) catalog walk. |
 | `group` | string or object | Group label shown in the layer toggle panel. Use an object `{ "name": "...", "collapsed": true }` to start the group folded — see [Collapsed groups](#collapsed-groups). |
+| `sidebar` | boolean | Whether this collection's layers get rows in the layer panel. Default: `true`. Set `false` to keep the layers configured and agent-addressable but out of the panel — see [Layers outside the panel](#layers-outside-the-panel). |
 | `assets` | array | Asset selector — see below. Omit to load all visual assets. |
 | `display_name` | string | Override the collection title shown in the UI. |
 | `preload` | boolean | Inject the full column schema into the LLM system prompt — see [Preloaded schemas](#preloaded-schemas). Default: `false`. |
@@ -100,6 +101,7 @@ Each entry in `assets` may be a **bare string** (the STAC asset key, loaded with
 | `default_filter` | array | MapLibre filter expression applied at load time. |
 | `tooltip_fields` | array | Feature property names shown in the hover tooltip. |
 | `group` | string | Overrides the collection-level `group` for this specific layer. |
+| `sidebar` | boolean | Overrides the collection-level `sidebar` for this specific layer. Default: inherited, which is `true` unless the collection sets otherwise — see [Layers outside the panel](#layers-outside-the-panel). |
 | `legend_type` | string | `"categorical"` for a discrete swatch legend (see `legend_classes`), or `"continuous"` for a graduated colorbar (see below). |
 | `legend_classes` | array | `{ label, color }` entries describing the discrete legend swatches. Required when `legend_type` is `"categorical"` on a vector layer — vectors have no STAC `classification:classes` to derive from. |
 | `legend_label` | string | Unit/axis label shown next to the colorbar end values (e.g. `"species"`). Applies to `"continuous"` legends. |
@@ -152,12 +154,14 @@ The agent closes that last gap with `set_legend`, which names the classes (`{"1"
 | `nodata` | number\|string | Pixel value to render transparent (e.g., `0` to mask ocean/no-data). If unset, falls back to the STAC `raster:bands[0].nodata` value; omit both to leave all pixels opaque. |
 | `legend_label` | string | Label shown next to the color legend. |
 | `legend_type` | string | `"categorical"` to use STAC `classification:classes` color codes for a discrete legend. |
+| `group` | string | Overrides the collection-level `group` for this specific layer. |
+| `sidebar` | boolean | Overrides the collection-level `sidebar` for this specific layer — see [Layers outside the panel](#layers-outside-the-panel). |
 
 ## Asset config — GeoJSON
 
 STAC assets with MIME type `application/geo+json` (or an `.geojson` href) are loaded as MapLibre GeoJSON sources. This is the simplest path for small vector datasets — no PMTiles build step required, just host a `.geojson` file alongside the STAC collection.
 
-GeoJSON assets accept the same config fields as PMTiles vectors (`display_name`, `visible`, `default_style`, `outline_style`, `layer_type`, `default_filter`, `tooltip_fields`, `group`). They also work with [versioned assets](#versioned-assets) and [animated trajectories](#animated-trajectory-layers).
+GeoJSON assets accept the same config fields as PMTiles vectors (`display_name`, `visible`, `default_style`, `outline_style`, `layer_type`, `default_filter`, `tooltip_fields`, `group`, `sidebar`). They also work with [versioned assets](#versioned-assets) and [animated trajectories](#animated-trajectory-layers).
 
 ```json
 {
@@ -333,6 +337,50 @@ By default, layer groups in the panel start expanded. To start a group folded (u
 ```
 
 The string form (`"group": "Fishing Effort"`) still works and defaults to expanded. The per-asset `group` field (used to reassign a layer to a different group) is always a plain string.
+
+## Layers outside the panel
+
+`collapsed` only folds a group — every heading and row is still rendered. When an app has
+dozens of reference layers that a user would rarely hunt for, but that the assistant should
+still be able to draw on request, set `"sidebar": false`:
+
+```json
+{
+  "collection_id": "woa23-salinity",
+  "group": "Ocean reference",
+  "sidebar": false,
+  "assets": ["woa23-salinity-cog"]
+}
+```
+
+The layer is registered exactly as usual. It stays in the map's layer registry, so the agent can
+`show_layer` it, restyle it, filter it, and report it in `get_map_state`; when shown it gets its
+legend entry (and its group heading) like any other layer. The **only** thing `sidebar: false`
+removes is its row in the layer panel. A group whose members are all hidden this way renders no
+heading at all.
+
+Set it per asset to exempt individual layers, in either direction:
+
+```json
+{
+  "collection_id": "bio-oracle",
+  "sidebar": false,
+  "assets": [
+    "bio-oracle-nitrate-cog",
+    "bio-oracle-phosphate-cog",
+    { "id": "bio-oracle-temperature-cog", "sidebar": true }
+  ]
+}
+```
+
+The per-asset value wins where both are set; where neither is, the default is `true`.
+
+> **`sidebar: false` with `visible: true`** is legal but leaves a layer drawn on load with no
+> checkbox to turn it off — the assistant becomes the only off-switch. The framework logs a
+> `console.warn` when it sees that pair; it is not an error.
+
+**This is not access control.** A `sidebar: false` layer's URL, style and data are as reachable
+as any other layer's. It is a navigation aid for a crowded panel, nothing more.
 
 ## Preloaded schemas
 
