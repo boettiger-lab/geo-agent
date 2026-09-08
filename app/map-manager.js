@@ -208,7 +208,7 @@ export class MapManager {
      * Register a single layer on the map.
      */
     registerLayer(config) {
-        const { layerId, datasetId, group, groupCollapsed, displayName, type, paint, outlinePaint, renderType, columns, tooltipFields, defaultVisible, defaultFilter, colormap, rescale, legendLabel, legendType, legendClasses, legendRange, legendGradient } = config;
+        const { layerId, datasetId, group, groupCollapsed, sidebar, displayName, type, paint, outlinePaint, renderType, columns, tooltipFields, defaultVisible, defaultFilter, colormap, rescale, legendLabel, legendType, legendClasses, legendRange, legendGradient } = config;
 
         // ── Animated layer: delegate to TrajectoryAnimation ──
         if (config.animation && config.animation.type === 'trajectory') {
@@ -303,6 +303,7 @@ export class MapManager {
                 datasetId,
                 group: group || null,
                 groupCollapsed: groupCollapsed || false,
+                sidebar: sidebar !== false,
                 displayName,
                 type,
                 sourceLayer: versionStates[config.defaultVersionIndex].sourceLayer,
@@ -404,6 +405,7 @@ export class MapManager {
             datasetId,
             group: group || null,
             groupCollapsed: groupCollapsed || false,
+            sidebar: sidebar !== false,
             displayName,
             type,
             sourceLayer: sourceLayer || null,
@@ -444,7 +446,7 @@ export class MapManager {
      * showLayer / hideLayer / setFilter.
      */
     async _registerTrajectoryLayer(config) {
-        const { layerId, datasetId, group, groupCollapsed, displayName, animation, defaultVisible, defaultFilter, tracksUrl, paint } = config;
+        const { layerId, datasetId, group, groupCollapsed, sidebar, displayName, animation, defaultVisible, defaultFilter, tracksUrl, paint } = config;
 
         // Store the state synchronously so generateControls can find it even
         // while the module + GeoJSON are still loading.
@@ -456,6 +458,7 @@ export class MapManager {
             datasetId,
             group: group || null,
             groupCollapsed: groupCollapsed || false,
+            sidebar: sidebar !== false,
             displayName,
             type: 'animation',
             sourceLayer: null,
@@ -713,6 +716,7 @@ export class MapManager {
             datasetId: null,
             group: null,
             groupCollapsed: false,
+            sidebar: true,
             displayName,
             type: 'vector',
             sourceLayer: null,
@@ -909,6 +913,7 @@ export class MapManager {
             datasetId: null,
             group: null,
             groupCollapsed: false,
+            sidebar: true,
             displayName,
             type: 'vector',
             sourceLayer,
@@ -1679,9 +1684,16 @@ export class MapManager {
         this._controlsContainerEl = container;
         container.innerHTML = '';
 
-        // Group layers by their group name (null → ungrouped)
+        // Group layers by their group name (null → ungrouped).
+        // `sidebar: false` layers are skipped here and nowhere else (#352):
+        // they stay in this.layers, so the agent can still show, style and
+        // filter them — they just get no panel row. Filtering before the
+        // grouping means a group whose members are all panel-hidden never
+        // gets a key, so no empty <details> heading is rendered, and
+        // `entries[0]` below is always a surviving entry.
         const groups = new Map();
         for (const [layerId, state] of this.layers) {
+            if (state.sidebar === false) continue;
             const key = state.group || '';
             if (!groups.has(key)) groups.set(key, []);
             groups.get(key).push([layerId, state]);
@@ -1792,8 +1804,8 @@ export class MapManager {
     /**
      * Append a control row for a single runtime-added layer to the panel,
      * without rebuilding the whole panel (which would reset user-toggled
-     * group collapse state). No-op if the panel hasn't been built yet or the
-     * row already exists.
+     * group collapse state). No-op if the panel hasn't been built yet, the
+     * row already exists, or the layer is configured `sidebar: false`.
      * @param {string} layerId
      */
     _addLayerControl(layerId) {
@@ -1803,6 +1815,7 @@ export class MapManager {
         if (container.querySelector(`#layer-item-${safeId}`)) return;
         const state = this.layers.get(layerId);
         if (!state) return;
+        if (state.sidebar === false) return;   // configured out of the panel (#352)
         container.appendChild(this._createLayerItem(layerId, state));
         this._refreshCycleBtnState();
     }

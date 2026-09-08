@@ -228,10 +228,17 @@ export class DatasetCatalog {
         const groupName = rawGroup && typeof rawGroup === 'object' ? rawGroup.name : rawGroup;
         const groupCollapsed = rawGroup && typeof rawGroup === 'object' ? rawGroup.collapsed === true : false;
 
+        // Collection-level layer-panel membership (#352). Default true; a
+        // per-asset `sidebar` overrides it either way. This is panel membership
+        // only — a `sidebar: false` layer is still registered and still
+        // addressable by the agent (show_layer, set_style, get_map_state).
+        const sidebar = options.sidebar !== false;
+
         const entry = {
             id: collection.id,
             group: groupName,
             groupCollapsed,
+            sidebar,
             title: options.display_name || collection.title || collection.id,
             description: collection.description || '',
             license: collection.license || 'N/A',
@@ -333,6 +340,10 @@ export class DatasetCatalog {
                 const assetGroup = rawAssetGroup && typeof rawAssetGroup === 'object'
                     ? rawAssetGroup.name : rawAssetGroup;
 
+                // Per-asset layer-panel membership (#352). Tri-state: a boolean
+                // overrides the collection-level `sidebar`; null inherits it.
+                const assetSidebar = typeof config.sidebar === 'boolean' ? config.sidebar : null;
+
                 // ── Versioned asset: multiple STAC assets behind one logical layer ──
                 if (config.versions && Array.isArray(config.versions)) {
                     const versions = [];
@@ -387,6 +398,7 @@ export class DatasetCatalog {
                         assetId: key,
                         layerType,
                         group: assetGroup,
+                        sidebar: assetSidebar,
                         title: config.display_name || collection.title || key,
                         description: versions[defaultIndex].description || '',
                         defaultStyle: config.default_style || null,
@@ -423,6 +435,7 @@ export class DatasetCatalog {
                         sourceAssetId: assetId,  // original STAC key — used to share one MapLibre source across aliases
                         layerType: 'vector',
                         group: assetGroup,
+                        sidebar: assetSidebar,
                         title: config.display_name || asset.title || assetId,
                         url: asset.href,
                         sourceLayer: asset['vector:layers']?.[0] || asset['pmtiles:layer'] || assetId,
@@ -446,6 +459,7 @@ export class DatasetCatalog {
                         assetId: key,
                         layerType: 'raster',
                         group: assetGroup,
+                        sidebar: assetSidebar,
                         title: config.display_name || asset.title || assetId,
                         cogUrl: asset.href,
                         colormap: config.colormap || options.colormap || 'reds',
@@ -477,6 +491,7 @@ export class DatasetCatalog {
                         layerType: 'vector',
                         sourceType: 'geojson',
                         group: assetGroup,
+                        sidebar: assetSidebar,
                         title: config.display_name || asset.title || assetId,
                         url: asset.href,
                         description: asset.description || '',
@@ -899,6 +914,18 @@ export class DatasetCatalog {
             for (const ml of ds.mapLayers) {
                 const layerId = `${ds.id}/${ml.assetId}`;
 
+                // Panel membership (#352): asset-level `sidebar` wins, else the
+                // collection's, else true. Only the panel row is suppressed —
+                // the layer is registered and stays agent-addressable.
+                const sidebar = ml.sidebar ?? ds.sidebar ?? true;
+                if (!sidebar && ml.defaultVisible) {
+                    console.warn(
+                        `[Catalog] Layer "${layerId}" is configured "sidebar": false with ` +
+                        `"visible": true — it draws on load but has no panel checkbox, ` +
+                        `so only the assistant can turn it off.`
+                    );
+                }
+
                 // ── Versioned layer: build per-version configs for MapManager ──
                 if (ml.versions && ml.versions.length > 0) {
                     const versionConfigs = ml.versions.map(v => {
@@ -947,6 +974,7 @@ export class DatasetCatalog {
                         datasetId: ds.id,
                         group: ml.group || ds.group,
                         groupCollapsed: ds.groupCollapsed || false,
+                        sidebar,
                         displayName: ml.title,
                         type: ml.layerType,
                         paint: ml.defaultStyle || (ml.layerType === 'raster'
@@ -985,6 +1013,7 @@ export class DatasetCatalog {
                         datasetId: ds.id,
                         group: ml.group || ds.group,
                         groupCollapsed: ds.groupCollapsed || false,
+                        sidebar,
                         displayName: ml.title,
                         type: 'vector',
                         sourceId: sharedSourceId,
@@ -1033,6 +1062,7 @@ export class DatasetCatalog {
                         datasetId: ds.id,
                         group: ml.group || ds.group,
                         groupCollapsed: ds.groupCollapsed || false,
+                        sidebar,
                         displayName: ml.title,
                         type: 'raster',
                         defaultVisible: ml.defaultVisible || false,
