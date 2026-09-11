@@ -34,6 +34,16 @@ export class DatasetCatalog {
     constructor() {
         /** @type {Map<string, DatasetEntry>} keyed by collection ID */
         this.datasets = new Map();
+        /**
+         * Raw STAC of one-level sub-collections, keyed by *child* ID. Children
+         * are not datasets (they stay out of `datasets`, the layer panel and
+         * `list_datasets`), but the prompt tells the model to call
+         * `get_stac_details` with a child ID — so `toStacDict` must resolve
+         * them too, or the call forwards no inline content and MCP falls back
+         * to its own default catalog (a #187-class miss, scoped to children).
+         * @type {Map<string, Object>}
+         */
+        this.childCollections = new Map();
         this.catalogUrl = null;
         this.catalogToken = null;
         this.titilerUrl = null;
@@ -212,7 +222,10 @@ export class DatasetCatalog {
                 if (r.status !== 'fulfilled' || !r.value) continue;
                 const child = r.value;
                 rawChildren.push(child);
-                if (child.id) childIds.push(child.id);
+                if (child.id) {
+                    childIds.push(child.id);
+                    this.childCollections.set(child.id, child);
+                }
                 const childParquet = this.extractParquetAssets(child);
                 if (childParquet.length > 0) {
                     parquetAssets = parquetAssets.concat(childParquet);
@@ -726,15 +739,18 @@ export class DatasetCatalog {
      *
      * Returns the raw STAC JSON received during load(), with one level of
      * resolved sub-collections embedded as `children: [...]` per the contract
-     * in mcp-data-server PR #107. Returns null if the dataset isn't in the
-     * catalog.
+     * in mcp-data-server PR #107.
      *
-     * @param {string} id - Collection ID
+     * Also resolves a *child* ID to that sub-collection's own STAC, since the
+     * prompt directs the model at child IDs (see `childCollections`). Returns
+     * null if the ID is neither a configured dataset nor one of their children.
+     *
+     * @param {string} id - Collection ID, or the ID of a resolved sub-collection
      * @returns {Object|null}
      */
     toStacDict(id) {
         const ds = this.datasets.get(id);
-        if (!ds || !ds._rawStac) return null;
+        if (!ds || !ds._rawStac) return this.childCollections.get(id) || null;
         const out = { ...ds._rawStac };
         if (ds._rawChildren && ds._rawChildren.length > 0) {
             out.children = ds._rawChildren;
