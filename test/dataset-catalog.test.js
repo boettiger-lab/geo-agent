@@ -366,6 +366,28 @@ describe('DatasetCatalog.generatePromptCatalog compact index (#294)', () => {
         expect(bigCatalog(40).generatePromptCatalog({ compactAbove: Infinity })).toContain('**Collection ID:**');
     });
 
+    // #354: the preamble must never advertise a discovery tool the model
+    // doesn't have, and must name the closed door when there isn't one.
+    describe('discovery flag', () => {
+        it('advertises browse_stac_catalog by default (back-compat)', () => {
+            expect(bigCatalog(9).generatePromptCatalog()).toContain('browse_stac_catalog');
+            expect(bigCatalog(2).generatePromptCatalog()).not.toContain('no dataset-discovery tools');
+        });
+
+        it('names the closed door instead when discovery is off — compact', () => {
+            const out = bigCatalog(9).generatePromptCatalog({ discovery: false });
+            expect(out).not.toContain('browse_stac_catalog');
+            expect(out).toContain('no dataset-discovery tools');
+        });
+
+        it('names the closed door instead when discovery is off — full', () => {
+            const out = bigCatalog(2).generatePromptCatalog({ discovery: false });
+            expect(out).not.toContain('browse_stac_catalog');
+            expect(out).toContain('no dataset-discovery tools');
+            expect(out).toContain('**Collection ID:**');  // still the full renderer
+        });
+    });
+
     it('renders parent containers compactly (directory line, no full description)', () => {
         const cat = bigCatalog(9);
         cat.datasets.set('parent', {

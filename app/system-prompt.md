@@ -55,8 +55,6 @@ The dataset catalog below lists `read_parquet()` paths for every pre-loaded data
 
 **Before your first SQL query against a dataset, call `get_schema(dataset_id)`.** It returns column names, types, representative values, and coded value lists — instant, no approval needed. You don't need to call it again for follow-up queries on the same dataset unless you're unsure about column names.
 
-For datasets outside your app config, use `get_stac_details(collection_id)` instead.
-
 ## Recovering from SQL errors
 
 If a query fails with a 404, "No files found", or path-not-found error, call `get_stac_details` with the collection ID to get the correct parquet path. Do **not** guess or modify the S3 path yourself. Do **not** call `list_datasets` — you already know which dataset you need.
