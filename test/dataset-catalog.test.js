@@ -231,6 +231,19 @@ describe('DatasetCatalog public getters and toStacDict', () => {
         expect(cat.toStacDict('missing')).toBeNull();
         expect(cat.toStacDict('c')).toBeNull();
     });
+
+    it('toStacDict resolves a child ID to that sub-collection', () => {
+        // The prompt points the model at child IDs, which are not datasets.
+        // Without this the call forwards no inline STAC and MCP falls back to
+        // its own default catalog.
+        cat.childCollections.set('b-child-1', { id: 'b-child-1', stac_version: '1.0.0' });
+        expect(cat.toStacDict('b-child-1')).toEqual({ id: 'b-child-1', stac_version: '1.0.0' });
+    });
+
+    it('toStacDict prefers a dataset over a same-named child', () => {
+        cat.childCollections.set('a', { id: 'a', from: 'child' });
+        expect(cat.toStacDict('a')).toEqual({ id: 'a', stac_version: '1.0.0' });
+    });
 });
 
 describe('DatasetCatalog.generatePromptCatalog', () => {
@@ -1027,6 +1040,12 @@ describe('DatasetCatalog.processCollection one-level child expansion', () => {
         expect(entry._rawChildren.map(c => c.id).sort()).toEqual(['c1', 'c2']);
         // Parent has no columns of its own → first non-empty child columns are used
         expect(entry.columns.length).toBeGreaterThan(0);
+
+        // Children are indexed for inline forwarding, but are not datasets:
+        // they stay out of the layer panel and list_datasets.
+        expect(cat.toStacDict('c1').id).toBe('c1');
+        expect(cat.toStacDict('c2').id).toBe('c2');
+        expect(cat.get('c1')).toBeNull();
     });
 });
 
