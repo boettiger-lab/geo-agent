@@ -45,7 +45,6 @@ export class DatasetCatalog {
          */
         this.childCollections = new Map();
         this.catalogUrl = null;
-        this.catalogToken = null;
         this.titilerUrl = null;
         /**
          * True when the root catalog was configured but unreachable, so the
@@ -73,7 +72,6 @@ export class DatasetCatalog {
     async load(appConfig) {
         this.appConfig = appConfig;
         this.catalogUrl = appConfig.catalog;
-        this.catalogToken = appConfig.catalog_token || null;
         this.titilerUrl = appConfig.titiler_url || 'https://titiler.nrp-nautilus.io';
 
         const collections = appConfig.collections || [];
@@ -774,17 +772,38 @@ export class DatasetCatalog {
      * @param {number} [options.compactAbove=8] - Use the compact index when the
      *   catalog has more than this many datasets. Small apps stay on the full
      *   front-load where the byte cost is negligible.
+     * @param {boolean} [options.discovery=true] - Whether a dataset-discovery
+     *   tool (`browse_stac_catalog`) is actually registered. Pass the registry's
+     *   answer, not a config flag, so the prompt can never advertise a tool the
+     *   model doesn't have — or stay silent about one it does (#354).
      */
     generatePromptCatalog(options = {}) {
         const compactAbove = options.compactAbove ?? 8;
+        const discovery = options.discovery !== false;
         return this.datasets.size > compactAbove
-            ? this._renderCompactCatalog()
-            : this._renderFullCatalog();
+            ? this._renderCompactCatalog(discovery)
+            : this._renderFullCatalog(discovery);
+    }
+
+    /**
+     * Closing line about data *outside* the configured set. With no discovery
+     * tool registered, naming the closed door is what stops the model burning
+     * turns on a tool that isn't there — the MCP server's own `query`
+     * description still opens with "call `browse_stac_catalog` first", and we
+     * can't edit that from here.
+     * @private
+     */
+    _discoveryNote(discovery) {
+        return discovery
+            ? 'Use `browse_stac_catalog` / `get_stac_details` only for datasets not in this list.\n'
+            : 'This app has no dataset-discovery tools, and this list is all the data it can reach. '
+              + 'If asked about anything outside it, say so plainly rather than searching for it.\n';
     }
 
     /** Full front-load: every dataset's description, paths, provider, map layers. @private */
-    _renderFullCatalog() {
-        const preamble = 'The following datasets are pre-loaded for this app. Paths are shown below — use them directly in SQL. Call `get_schema(dataset_id)` before your first SQL query against a dataset to get column names and coded values.\n';
+    _renderFullCatalog(discovery = true) {
+        const preamble = 'The following datasets are pre-loaded for this app. Paths are shown below — use them directly in SQL. Call `get_schema(dataset_id)` before your first SQL query against a dataset to get column names and coded values.\n'
+            + (discovery ? '' : this._discoveryNote(false));
         const sections = [preamble];
 
         for (const ds of this.datasets.values()) {
@@ -848,11 +867,11 @@ export class DatasetCatalog {
      * (AGENTS.md: never guess S3 paths) while cutting the cold-prompt bytes.
      * @private
      */
-    _renderCompactCatalog() {
+    _renderCompactCatalog(discovery = true) {
         const preamble = 'The datasets pre-loaded for this app are indexed below as `id` — title — summary. '
             + 'Before querying a dataset, call `get_schema(dataset_id)`: it returns the `read_parquet()` path, '
             + 'column names, types, coded values, and the full description. '
-            + 'Use `browse_stac_catalog` / `get_stac_details` only for datasets not in this list.\n';
+            + this._discoveryNote(discovery);
         const lines = [preamble];
 
         for (const ds of this.datasets.values()) {

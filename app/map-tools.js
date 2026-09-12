@@ -697,7 +697,7 @@ ${pickLayerNudge}`,
         // ---- Dataset Knowledge Tools ----
         {
             name: 'get_schema',
-            description: 'Get column names, types, sample values, and coded value lists for a dataset — formatted like SELECT * LIMIT 1 output. Also includes the read_parquet() path. **Call this before your first SQL query against a dataset.** For datasets outside your app, use `get_stac_details` instead.',
+            description: 'Get column names, types, sample values, and coded value lists for a dataset — formatted like SELECT * LIMIT 1 output. Also includes the read_parquet() path. **Call this before your first SQL query against a dataset.**',
             inputSchema: {
                 type: 'object',
                 properties: {
@@ -709,7 +709,7 @@ ${pickLayerNudge}`,
                 if (!catalog.get(args.dataset_id)) {
                     return JSON.stringify({
                         success: false,
-                        error: `Dataset not found: ${args.dataset_id}. Available: ${catalog.getIds().join(', ')}. For datasets outside this app, use get_stac_details.`
+                        error: `Dataset not found: ${args.dataset_id}. Available: ${catalog.getIds().join(', ')}.`
                     });
                 }
                 if (!mcpClient) {
@@ -737,7 +737,7 @@ ${pickLayerNudge}`,
 
         {
             name: 'list_datasets',
-            description: 'List all dataset IDs and titles pre-loaded for this app. Paths are in your system prompt; call `get_schema` for column details. To discover datasets outside your app, use `browse_stac_catalog` instead.',
+            description: 'List all dataset IDs and titles pre-loaded for this app. Paths are in your system prompt; call `get_schema` for column details.',
             inputSchema: {
                 type: 'object',
                 properties: {},

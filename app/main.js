@@ -32,7 +32,6 @@ async function main() {
         if (runtimeConfig.transcription_model) appConfig.transcription_model = runtimeConfig.transcription_model;
         if (runtimeConfig.mcp_server_url) appConfig.mcp_url = runtimeConfig.mcp_server_url;
         if (runtimeConfig.mcp_auth_token) appConfig.mcp_auth_token = runtimeConfig.mcp_auth_token;
-        if (runtimeConfig.catalog_token) appConfig.catalog_token = runtimeConfig.catalog_token;
         if (runtimeConfig.draw_enabled != null) appConfig.draw_enabled = runtimeConfig.draw_enabled;
         if (runtimeConfig.geolocate != null) appConfig.geolocate = runtimeConfig.geolocate;
         // != null (not truthiness) so 0 — which disables the checkpoint — survives.
@@ -365,10 +364,15 @@ async function main() {
 
     // Inline cached STAC content on LLM-issued direct calls to in-app data,
     // mirroring what the local get_schema delegate does (see #192). Skips an
-    // upstream fetch on the MCP side. Foreign-catalog calls pass through.
+    // upstream fetch on the MCP side.
+    //
+    // No longer short-circuits on a model-supplied `catalog_url` (#354): for an
+    // ID we hold, our cached STAC is the answer whatever catalog the model
+    // names, and inline wins MCP's resolution order anyway. An ID we don't hold
+    // still passes through — closing that is mcp-data-server#420's job, not a
+    // client-side guard's.
     const injectInlineStac = (toolName, args) => {
         if (!args) return args;
-        if (args.catalog_url && args.catalog_url !== catalog.catalogUrl) return args;
         let id = null;
         if (toolName === 'get_stac_details') id = args.dataset_id;
         else if (toolName === 'get_collection') id = args.collection_id;
@@ -445,7 +449,13 @@ async function main() {
     const basePrompt = await basePromptP;   // fetch was kicked off at step 1c
     // Large catalogs (#294) switch to a compact index to shrink the cold prompt;
     // tune or disable the threshold with `catalog_index_threshold` (Infinity = always full).
-    const catalogText = catalog.generatePromptCatalog({ compactAbove: appConfig.catalog_index_threshold ?? 8 });
+    // `discovery` is read off the live registry rather than config: remote tools
+    // were registered at step 5, so this reflects what the model actually has,
+    // and it stays correct on its own if a deployment drops the discovery tool.
+    const catalogText = catalog.generatePromptCatalog({
+        compactAbove: appConfig.catalog_index_threshold ?? 8,
+        discovery: toolRegistry.has('browse_stac_catalog'),
+    });
     let systemPrompt = basePrompt + '\n\n' + catalogText;
 
     // Read server-provided prompt (if any)
