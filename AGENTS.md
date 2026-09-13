@@ -25,6 +25,8 @@ Core library for map-based applications with LLM-powered data analysis. Interact
 Settled architectural calls are recorded in `docs/design/` so they aren't re-litigated. Read the relevant note before reopening one of these questions.
 
 - [`docs/design/tool-call-parsing.md`](docs/design/tool-call-parsing.md) — why tool-call dialect recovery (`parseEmbeddedToolCalls` / `looksLikeAttemptedToolCall` in `app/agent.js`) lives in the harness and is kept, not moved to the server/proxy or replaced by a library.
+- [`docs/design/data-scope.md`](docs/design/data-scope.md) — why which-data-exists is a deployment property rather than a model-supplied tool argument, why the prompt's `discovery` flag is read off the tool registry instead of app config, and why the `query` escape hatch was deliberately left open.
+- [`docs/design/prompt-prefix-stability.md`](docs/design/prompt-prefix-stability.md) — why dynamic content stays out of the leading bytes of the request, so prompt-prefix caching keeps paying off.
 
 ## Configuration
 - `app/layers-input.json` — Static config: STAC catalog URL, collection IDs, map view
