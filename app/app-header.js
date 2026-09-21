@@ -76,9 +76,23 @@ export function resolveHeaderConfig(appConfig = {}) {
         mode,
         title: header.title || appConfig.sidebar?.title || null,
         brand: normalizeLogo(header.brand),
-        partner: normalizeLogo(header.partner),
+        partner: normalizeLogoList(header.partner),
         nav: resolveNav(header, appConfig.links),
     };
+}
+
+/**
+ * Trailing logos, as a list.
+ *
+ * Accepts a single object or an array, because a deployment often carries
+ * more than one mark at the end of the bar — a partner alongside the
+ * institution that hosts it. Entries without a `src` are dropped.
+ *
+ * @returns {Array<Object>}
+ */
+function normalizeLogoList(value) {
+    const items = Array.isArray(value) ? value : [value];
+    return items.map(normalizeLogo).filter(Boolean);
 }
 
 /**
@@ -158,8 +172,8 @@ export function buildAppHeader(appConfig, doc = document) {
     /* ----- Nav zone: links + optional partner mark ----- */
     const navZone = el(doc, 'div', { class: 'app-header-end' });
     if (cfg.nav.length) navZone.appendChild(buildNav(doc, cfg.nav));
-    if (cfg.partner) {
-        navZone.appendChild(logoEl(doc, cfg.partner, 'app-header-logo app-header-logo--partner'));
+    for (const logo of cfg.partner) {
+        navZone.appendChild(logoEl(doc, logo, 'app-header-logo app-header-logo--partner'));
     }
 
     header.append(brandZone, navZone);

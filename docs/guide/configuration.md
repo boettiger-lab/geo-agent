@@ -573,10 +573,16 @@ controls) belong on the map, in the [overlay rail](#map-overlay-rail-and-stackin
 | `mode` | string | `"solid"` | `"solid"` is an opaque band with a separating edge, and the map starts below it. `"scrim"` floats a translucent band over a full-bleed map, costing no map area — but note it sits directly against the browser's own chrome, which can read as one bar. An unrecognised value falls back to `"solid"`. |
 | `title` | string | `sidebar.title` | Text beside the logos. Hidden on narrow viewports, where the logos carry identity. |
 | `brand` | object | — | Primary logo, shown first. `{ src, alt, href }`; `src` is required or the logo is skipped, and `href` is optional (without one the image is not a link). |
-| `partner` | object | — | Secondary logo, shown at the end of the bar after the nav. Same shape. |
+| `partner` | object or array | — | Trailing logo(s), shown at the end of the bar after the nav. Same shape as `brand`; pass an array to show several (e.g. a partner mark alongside the hosting institution). |
 | `nav` | array | derived | Top-level links — see below. |
 
 No logo images ship with the library; `src` is always a URL the app supplies.
+
+> **Watch the contrast.** A logo is an image, so it does not adapt to the
+> [theme](#theme). A white-on-transparent mark vanishes on a light header and a
+> dark-ink one vanishes on a dark header. Supply a variant that suits the theme
+> the app runs in. Prefer hosting a copy of a partner's mark rather than
+> hotlinking their site, which can change or block the request.
 
 ### Nav
 

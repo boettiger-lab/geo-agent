@@ -108,6 +108,26 @@ export async function contentHash(text) {
 
 /* ── DOM / network glue (browser-only, verified manually) ──────────────────── */
 
+/**
+ * The row of panel-level action buttons under the layer list.
+ *
+ * Shared, and created by whichever feature mounts first — upload is opt-in
+ * and the save button only appears once a conversation has started, so
+ * neither can own it. Exported so chat-ui.js can find the same row.
+ *
+ * @param {HTMLElement} controls — #layer-controls-container
+ * @returns {HTMLElement}
+ */
+export function ensurePanelActions(controls) {
+    const existing = document.getElementById('panel-actions');
+    if (existing) return existing;
+    const row = document.createElement('div');
+    row.id = 'panel-actions';
+    row.className = 'panel-actions';
+    controls.after(row);
+    return row;
+}
+
 export class UploadManager {
     /**
      * @param {import('./map-manager.js').MapManager} mapManager
@@ -157,8 +177,11 @@ export class UploadManager {
         this._status.className = 'upload-status';
 
         // Sit at the bottom of the Overlays section, below the layer list
-        // (uploaded rows append into the list above, so the button stays last).
-        controls.after(btn, input, this._status);
+        // (uploaded rows append into the list above, so the button stays
+        // last). The actions row is shared with the save button so the two
+        // sit side by side rather than stacking full-width.
+        ensurePanelActions(controls).appendChild(btn);
+        controls.after(input, this._status);
 
         this._wireDragDrop();
         console.log('[upload] ready');

@@ -59,6 +59,14 @@ body.theme-light {
     --chat-thinking-fg: #2c5282;
     --chat-input-bg: rgba(255, 255, 255, 0.45);
     --chat-input-bg-focus: rgba(255, 255, 255, 0.65);
+
+    /* Panel controls (basemap, globe, upload, save) read as buttons by
+    sitting a step off the surface rather than by having their own hue. */
+    --control-bg: rgba(0, 0, 0, 0.05);
+    --control-bg-hover: rgba(0, 0, 0, 0.1);
+    --control-border: rgba(0, 0, 0, 0.16);
+    --control-active-bg: rgba(134, 194, 116, 0.35);
+    --control-active-border: #86c274;
 }
 
 body.theme-dark {
@@ -86,6 +94,14 @@ body.theme-dark {
     --chat-thinking-fg: #bfdbfe;
     --chat-input-bg: rgba(255, 255, 255, 0.08);
     --chat-input-bg-focus: rgba(255, 255, 255, 0.14);
+
+    /* Panel controls (basemap, globe, upload, save) read as buttons by
+    sitting a step off the surface rather than by having their own hue. */
+    --control-bg: rgba(255, 255, 255, 0.08);
+    --control-bg-hover: rgba(255, 255, 255, 0.15);
+    --control-border: rgba(255, 255, 255, 0.2);
+    --control-active-bg: rgba(134, 194, 116, 0.32);
+    --control-active-border: #86c274;
 }
 
 /* `auto` follows the viewer's OS setting live, which is why theme.js leaves
@@ -116,6 +132,14 @@ body.theme-dark {
         --chat-thinking-fg: #bfdbfe;
         --chat-input-bg: rgba(255, 255, 255, 0.08);
         --chat-input-bg-focus: rgba(255, 255, 255, 0.14);
+
+        /* Panel controls (basemap, globe, upload, save) read as buttons by
+        sitting a step off the surface rather than by having their own hue. */
+        --control-bg: rgba(255, 255, 255, 0.08);
+        --control-bg-hover: rgba(255, 255, 255, 0.15);
+        --control-border: rgba(255, 255, 255, 0.2);
+        --control-active-bg: rgba(134, 194, 116, 0.32);
+        --control-active-border: #86c274;
     }
 }
 
@@ -477,24 +501,23 @@ body.has-app-header:not(.app-header-solid) .maplibregl-ctrl-top-right {
     padding: 5px 6px;
     font-size: 11px;
     font-weight: 500;
-    border: 1px solid rgba(255,255,255,0.2);
+    border: 1px solid var(--control-border);
     border-radius: 4px;
-    background: rgba(255,255,255,0.06);
-    color: rgba(0,0,0,0.75);
+    background: var(--control-bg);
+    color: inherit;
     cursor: pointer;
     transition: background 0.15s, color 0.15s, border-color 0.15s;
     white-space: nowrap;
 }
 
 .basemap-btn:hover {
-    background: rgba(255,255,255,0.14);
-    color: #000;
+    background: var(--control-bg-hover);
+    border-color: var(--chrome-fg-muted);
 }
 
 .basemap-btn.active {
-    background: rgba(134,194,116,0.35);
-    border-color: #86C274;
-    color: #000;
+    background: var(--control-active-bg);
+    border-color: var(--control-active-border);
     font-weight: 600;
 }
 
@@ -505,25 +528,28 @@ body.has-app-header:not(.app-header-solid) .maplibregl-ctrl-top-right {
 }
 
 .globe-btn {
-    background: none;
-    border: none;
-    padding: 2px 3px;
+    background: var(--control-bg);
+    border: 1px solid var(--control-border);
+    padding: 4px 6px;
     cursor: pointer;
-    color: rgba(0,0,0,0.2);
-    border-radius: 3px;
+    color: var(--chrome-fg-muted);
+    border-radius: 4px;
     line-height: 1;
-    transition: color 0.15s, background 0.15s;
+    transition: color 0.15s, background 0.15s, border-color 0.15s;
     display: flex;
     align-items: center;
 }
 
 .globe-btn:hover {
-    color: rgba(0,0,0,0.55);
+    color: var(--chrome-fg);
+    background: var(--control-bg-hover);
+    border-color: var(--chrome-fg-muted);
 }
 
 .globe-btn.active {
-    color: #000;
-    background: rgba(134,194,116,0.35);
+    color: var(--chrome-fg);
+    background: var(--control-active-bg);
+    border-color: var(--control-active-border);
 }
 
 .menu-header {
@@ -705,22 +731,39 @@ details.layer-group:not([open]) .layer-group-title::before {
 }
 
 /* Uploaded-GeoJSON control (opt-in — see upload-manager.js) */
-.upload-btn {
-    display: block;
-    width: 100%;
-    margin: 4px 0 6px;
-    padding: 5px 8px;
-    font-size: 12px;
-    color: #404040;
-    background: rgba(0, 0, 0, 0.03);
-    border: 1px dashed rgba(0, 0, 0, 0.25);
-    border-radius: 4px;
-    cursor: pointer;
+/* Row of panel-level actions (Upload, Save) under the layer list. They sit
+   side by side and size to their content rather than each spanning the
+   panel — a full-width button reads as a section, not a control. */
+.panel-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 8px 0 6px;
 }
 
-.upload-btn:hover {
-    background: rgba(0, 0, 0, 0.06);
-    border-color: rgba(0, 0, 0, 0.4);
+.upload-btn,
+.panel-btn {
+    padding: 5px 10px;
+    font-size: 12px;
+    font-family: inherit;
+    color: inherit;
+    background: var(--control-bg);
+    border: 1px solid var(--control-border);
+    border-radius: 4px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.15s, border-color 0.15s, opacity 0.15s;
+}
+
+.panel-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.upload-btn:hover,
+.panel-btn:not(:disabled):hover {
+    background: var(--control-bg-hover);
+    border-color: var(--chrome-fg-muted);
 }
 
 .upload-status {

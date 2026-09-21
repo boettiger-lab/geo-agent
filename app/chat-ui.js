@@ -6,6 +6,7 @@
  */
 
 import { CARBON_DASHBOARD_URL } from './app-header.js';
+import { ensurePanelActions } from './upload-manager.js';
 
 /**
  * Rewrite `s3://bucket/path` URLs to the public HTTPS endpoint so that the
@@ -705,13 +706,19 @@ export class ChatUI {
     /* ------------------------------------------------------------------ */
 
     initExportButton() {
-        const footer = this.footerRightEl;
-        if (!footer) return;
+        // Prefer the layer panel's action row, so Save sits beside Upload
+        // rather than alone in the footer. Falls back to the footer when
+        // there is no layer panel (floating mode, or a headless harness).
+        const controls = document.getElementById('layer-controls-container');
+        const row = controls ? ensurePanelActions(controls) : null;
+        const host = row || this.footerRightEl;
+        if (!host) return;
 
         const btn = document.createElement('button');
         btn.id = 'export-btn';
+        btn.className = row ? 'panel-btn' : '';
         btn.title = 'Save this conversation as a self-contained HTML document you can share or print.';
-        btn.textContent = '💾';
+        btn.textContent = row ? '\u{1F4BE} Save' : '\u{1F4BE}';
         btn.disabled = true;
 
         btn.addEventListener('click', () => {
@@ -719,7 +726,8 @@ export class ChatUI {
             this.exportHtml();
         });
 
-        footer.prepend(btn);
+        if (row) host.appendChild(btn);
+        else host.prepend(btn);
         this._exportBtn = btn;
 
         // Observe messagesEl for the first real turn appearing; enable once

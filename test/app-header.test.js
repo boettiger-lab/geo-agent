@@ -49,7 +49,8 @@ describe('resolveHeaderConfig', () => {
             header: { enabled: true, brand: { alt: 'DSE' }, partner: LOGO },
         });
         expect(cfg.brand).toBeNull();
-        expect(cfg.partner).toMatchObject({ src: LOGO.src, alt: 'DSE', href: LOGO.href });
+        expect(cfg.partner).toHaveLength(1);
+        expect(cfg.partner[0]).toMatchObject({ src: LOGO.src, alt: 'DSE', href: LOGO.href });
     });
 
     describe('nav resolution', () => {
@@ -153,6 +154,32 @@ describe('buildAppHeader', () => {
 
         const partnerImg = document.querySelector('.app-header-logo--partner');
         expect(partnerImg.closest('a')).toBeNull();
+    });
+
+    it('renders several trailing logos in order', () => {
+        // A deployment often carries a partner mark and the institution
+        // hosting it, both at the end of the bar.
+        buildAppHeader({
+            header: {
+                enabled: true,
+                partner: [
+                    { src: 'partner.svg', alt: 'Partner' },
+                    { src: 'dse.svg', alt: 'DSE', href: 'https://dse.berkeley.edu/' },
+                ],
+            },
+        }, document);
+
+        const imgs = [...document.querySelectorAll('.app-header-logo--partner')];
+        expect(imgs.map(i => i.alt)).toEqual(['Partner', 'DSE']);
+        expect(imgs[1].closest('a').href).toBe('https://dse.berkeley.edu/');
+    });
+
+    it('drops malformed entries from a logo list', () => {
+        buildAppHeader({
+            header: { enabled: true, partner: [{ alt: 'no src' }, { src: 'ok.svg', alt: 'Ok' }] },
+        }, document);
+        const imgs = [...document.querySelectorAll('.app-header-logo--partner')];
+        expect(imgs.map(i => i.alt)).toEqual(['Ok']);
     });
 
     it('reports that it absorbed the links when it renders a nav', () => {

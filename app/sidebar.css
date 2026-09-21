@@ -390,3 +390,21 @@ body.sidebar-mode #chat-footer .footer-link:hover {
     color: var(--chrome-fg);
     background: var(--chrome-hover);
 }
+
+/* The send button sized to its label rather than stretching. #chat-input
+   is the flexible element in the row; the button should not also grow, or
+   it reads as a bar across the panel instead of a control. */
+body.sidebar-mode #chat-input-container {
+    align-items: flex-end;
+}
+
+body.sidebar-mode #chat-input {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+body.sidebar-mode #chat-send,
+body.sidebar-mode #chat-mic {
+    flex: 0 0 auto;
+    align-self: flex-end;
+}
