@@ -17,6 +17,8 @@
  * Only floating mode is implemented in Task 1. Sidebar mode comes in Task 5.
  */
 
+import { buildAppHeader } from './app-header.js';
+
 // State exposed to main.js so it can wire map.resize() into the drag loop.
 export const sidebarHooks = {
     /** @type {(() => void) | null} — called on every rAF tick during drag */
@@ -28,6 +30,10 @@ export const sidebarHooks = {
 export function buildLayout(appConfig) {
     const title = appConfig.sidebar?.title || 'Data Assistant';
 
+    // App chrome first: it sets --app-header-h, which the sidebar's `top`
+    // reads. No-ops when no `header` block is configured.
+    const { absorbsLinks } = buildAppHeader(appConfig);
+
     // Remove any hardcoded chat scaffold left over from legacy index.html
     // files.  Without this, downstream apps that still ship the old
     // <div id="chat-container"> markup will end up with duplicate chat UI.
@@ -35,14 +41,14 @@ export function buildLayout(appConfig) {
     if (legacy) legacy.remove();
 
     if (appConfig.sidebar?.enabled) {
-        return buildSidebarLayout(appConfig, title);
+        return buildSidebarLayout(appConfig, title, absorbsLinks);
     }
-    return buildFloatingLayout(appConfig, title);
+    return buildFloatingLayout(appConfig, title, absorbsLinks);
 }
 
 /* ----- Floating mode ------------------------------------------------------ */
 
-function buildFloatingLayout(_appConfig, title) {
+function buildFloatingLayout(_appConfig, title, linksAbsorbed = false) {
     const container = el('div', { id: 'chat-container' });
 
     const header = el('div', { id: 'chat-header' });
@@ -87,14 +93,17 @@ function buildFloatingLayout(_appConfig, title) {
     initFloatingResize(container);
 
     return {
-        chatMount: { container, messages, input, send, mic, header, footer, footerRight },
+        chatMount: {
+            container, messages, input, send, mic, header, footer, footerRight,
+            linksAbsorbed,
+        },
         menuMountId: 'menu',
     };
 }
 
 /* ----- Sidebar mode ------------------------------------------------------ */
 
-function buildSidebarLayout(appConfig, title) {
+function buildSidebarLayout(appConfig, title, linksAbsorbed = false) {
     document.body.classList.add('sidebar-mode');
 
     // Apply initial --sidebar-width from config (localStorage override
@@ -208,6 +217,7 @@ function buildSidebarLayout(appConfig, title) {
             header,
             footer,
             footerRight,
+            linksAbsorbed,
         },
         menuMountId: 'sidebar-layers-pane',
     };

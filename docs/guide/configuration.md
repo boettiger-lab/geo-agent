@@ -21,6 +21,7 @@ Client apps configure GLEN via `layers-input.json`. All fields except `catalog` 
 | `catalog_index_threshold` | No | Dataset count above which the front-loaded catalog switches to a compact index (id + title + one-line summary + layer ids) to shrink the cold prompt; full descriptions/paths then arrive on demand via `get_schema`. Default: `8`. Set very high (e.g. `9999`) to always front-load the full catalog. |
 | `client_header_hosts` | No | Host suffixes that receive the `X-Client: geo-agent/<ref>` attribution header (for proxy log analysis). Default: `["nrp-nautilus.io"]`. The header is **only** sent to these hosts — never to bring-your-own external endpoints, where a custom header could trip CORS and block requests. Override only if your proxy runs on a different host. |
 | `links` | No | Optional links shown in the chat UI — see below. |
+| `header` | No | App chrome band across the top — logos and top-level nav. Off unless configured. See below. |
 
 ## View
 
@@ -541,6 +542,93 @@ see the full map first.
 
 The legend and H3/draw buttons remain free-floating overlays on the map in
 both modes.
+
+## App header
+
+An optional chrome band across the top of the page, carrying deployment identity
+(logos, app title) and top-level navigation. **Off by default** — with no
+`header` block nothing renders and the layout is unchanged, so bumping a pin
+never adds chrome an app did not ask for.
+
+The split it introduces: *app-level* things (who made this, what else there is
+to read) belong in the header; *map-level* things (legend, sliders, hex
+controls) belong on the map, in the [overlay rail](#map-overlay-rail-and-stacking-order).
+
+```json
+{
+  "header": {
+    "enabled": true,
+    "mode": "scrim",
+    "title": "Protected Areas Explorer",
+    "brand":   { "src": "https://example.org/dse.svg", "alt": "DSE", "href": "https://dse.berkeley.edu/" },
+    "partner": { "src": "https://example.org/partner.svg", "alt": "Partner org" }
+  }
+}
+```
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `enabled` | boolean | `false` | Render the band. Everything else is ignored when false. |
+| `mode` | string | `"scrim"` | `"scrim"` floats a translucent band over a full-bleed map, costing no map area. `"solid"` is opaque and the map starts below it. An unrecognised value falls back to `"scrim"`. |
+| `title` | string | `sidebar.title` | Text beside the logos. Hidden on narrow viewports, where the logos carry identity. |
+| `brand` | object | — | Primary logo, shown first. `{ src, alt, href }`; `src` is required or the logo is skipped, and `href` is optional (without one the image is not a link). |
+| `partner` | object | — | Secondary logo, shown at the end of the bar after the nav. Same shape. |
+| `nav` | array | derived | Top-level links — see below. |
+
+No logo images ship with the library; `src` is always a URL the app supplies.
+
+### Nav
+
+If `header.nav` is omitted, the nav is **derived from the existing top-level
+`links` block**, so an app that already configures `links` gets a nav for free,
+in the familiar order:
+
+| From | Becomes |
+|---|---|
+| `links.docs` | **About** |
+| `links.github` | **GitHub** |
+| `links.carbon` | **Carbon** (the NRP LLM carbon dashboard; set a string to point elsewhere) |
+
+When a nav is rendered, the chat footer **stops** showing those same links, so
+they appear once rather than twice.
+
+To take control, give an explicit list. It wins outright, and `[]` suppresses
+the derived nav entirely:
+
+```json
+"header": {
+  "enabled": true,
+  "nav": [
+    { "label": "About",   "href": "https://example.org/about" },
+    { "label": "Methods", "href": "/methods", "external": false },
+    { "label": "GitHub",  "href": "https://github.com/org/app" }
+  ]
+}
+```
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `label` | string | — | **Required.** Link text. |
+| `href` | string | — | **Required.** Entries missing either field are skipped. |
+| `external` | boolean | `true` | Open in a new tab with `rel="noopener noreferrer"`. Set `false` for a same-page route. |
+| `variant` | string | — | Styling hook; `"carbon"` gives the green treatment. |
+
+### Layout effects
+
+Enabling the header sets a `--app-header-h` custom property (`0px` when there
+is no header, so dependent rules can be written unconditionally):
+
+- The **sidebar** always starts below the band, in both modes.
+- The **map** starts below it only in `solid` mode; under a `scrim` it stays
+  full-bleed.
+- In `scrim` mode the band is click-through except for its own controls, so the
+  empty middle does not steal map interaction.
+
+### Narrow viewports
+
+Below 700px the nav row and the title are replaced — not compressed — by a menu
+button that opens a full-viewport takeover listing the same entries. It closes
+on the button, the ✕, or choosing a link.
 
 ## Links
 

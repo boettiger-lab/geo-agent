@@ -26,6 +26,9 @@
 body {
     margin: 0;
     padding: 0;
+    /* 0 unless app-header.js enables the band, so every `top` below is
+       written the same way whether or not there is a header. */
+    --app-header-h: 0px;
 }
 
 #map {
@@ -34,6 +37,210 @@ body {
     top: 0;
     bottom: 0;
     width: 100%;
+}
+
+/* ── App header ──────────────────────────────────────────────────────────
+   App chrome: identity and navigation. Map-scoped controls do NOT go here —
+   they belong in #map-overlay-rail. See app/app-header.js and #363.
+
+   Two modes on one component. `scrim` (default) floats over a full-bleed
+   map, so the header costs no map area; `solid` is opaque and the map starts
+   below it. Everything that needs to sit under the band reads
+   --app-header-h, which is 0px when there is no header. */
+#app-header {
+    position: fixed;
+    z-index: var(--z-app-header);
+    top: 0;
+    left: 0;
+    right: 0;
+    height: var(--app-header-h);
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 0 16px;
+    font-family: 'Open Sans', sans-serif;
+    color: #f5f5f5;
+}
+
+/* Scrim: a gradient, not a flat tint, so map detail stays readable at the
+   very top of the viewport while the text above it keeps its contrast. */
+#app-header[data-mode="scrim"] {
+    background: linear-gradient(to bottom,
+        rgba(16, 20, 24, 0.78) 0%,
+        rgba(16, 20, 24, 0.55) 60%,
+        rgba(16, 20, 24, 0) 100%);
+    /* The band spans the viewport but is mostly empty; let clicks through it
+       reach the map, while the controls themselves stay interactive. */
+    pointer-events: none;
+}
+
+#app-header[data-mode="scrim"] > * {
+    pointer-events: auto;
+}
+
+#app-header[data-mode="solid"] {
+    background: #101418;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+}
+
+/* Only the solid band takes space from the map; the scrim overlays it. */
+body.has-app-header.app-header-solid #map {
+    top: var(--app-header-h);
+}
+
+/* The sidebar always starts below the band — sliding it under a scrim would
+   put chrome over its own header. */
+body.has-app-header #sidebar,
+body.has-app-header #sidebar-show-btn {
+    top: var(--app-header-h);
+}
+
+.app-header-brand,
+.app-header-end {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    min-width: 0;
+}
+
+.app-header-logo {
+    display: block;
+    height: 28px;
+    width: auto;
+    max-width: 180px;
+    object-fit: contain;
+}
+
+.app-header-logo--partner {
+    height: 24px;
+}
+
+.app-header-logo-link {
+    display: flex;
+    align-items: center;
+}
+
+.app-header-title {
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: 0.2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+#app-header-nav {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.app-header-link {
+    padding: 6px 10px;
+    border-radius: 4px;
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.82);
+    text-decoration: none;
+    white-space: nowrap;
+    transition: color 120ms ease, background 120ms ease;
+}
+
+.app-header-link:hover {
+    color: #fff;
+    background: rgba(255, 255, 255, 0.12);
+}
+
+.app-header-link--carbon {
+    color: #8bc34a;
+}
+
+.app-header-link--carbon:hover {
+    color: #9ccc65;
+    background: rgba(139, 195, 74, 0.14);
+}
+
+/* ── Header menu button + takeover (narrow viewports) ────────────────────
+   Hidden above the breakpoint. Below it the nav row is replaced rather than
+   compressed — see #app-header-menu. */
+#app-header-menu-btn {
+    display: none;
+    flex-direction: column;
+    justify-content: center;
+    gap: 4px;
+    width: 36px;
+    height: 36px;
+    padding: 0 7px;
+    background: none;
+    border: none;
+    cursor: pointer;
+}
+
+#app-header-menu-btn span {
+    display: block;
+    height: 2px;
+    background: currentColor;
+    border-radius: 1px;
+}
+
+#app-header-menu {
+    position: fixed;
+    z-index: var(--z-mobile-takeover);
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    padding: 16px;
+    background: #101418;
+    color: #f5f5f5;
+}
+
+#app-header-menu[hidden] {
+    display: none;
+}
+
+.app-header-menu-close {
+    align-self: flex-end;
+    width: 40px;
+    height: 40px;
+    font-size: 20px;
+    line-height: 1;
+    background: none;
+    border: none;
+    color: inherit;
+    cursor: pointer;
+}
+
+#app-header-menu nav {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-top: 8px;
+}
+
+.app-header-menu-link {
+    padding: 14px 8px;
+    font-size: 17px;
+    color: inherit;
+    text-decoration: none;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.app-header-menu-link--carbon {
+    color: #8bc34a;
+}
+
+@media (max-width: 700px) {
+    #app-header-nav {
+        display: none;
+    }
+    #app-header-menu-btn {
+        display: flex;
+    }
+    /* The title is the first thing to go; the logos carry identity. */
+    .app-header-title {
+        display: none;
+    }
 }
 
 /* ── Map overlay rail ────────────────────────────────────────────────────

@@ -5,6 +5,8 @@
  * Renders collapsible tool-call blocks (VSCode Copilot-inspired).
  */
 
+import { CARBON_DASHBOARD_URL } from './app-header.js';
+
 /**
  * Rewrite `s3://bucket/path` URLs to the public HTTPS endpoint so that the
  * SQL is re-runnable from any DuckDB with httpfs loaded, outside the
@@ -206,6 +208,8 @@ export class ChatUI {
         this.headerEl = mount.header;
         this.footerEl = mount.footer;
         this.footerRightEl = mount.footerRight;
+        // True when the app header already renders `links` as top-level nav.
+        this.linksAbsorbed = Boolean(mount.linksAbsorbed);
         this.modelSelector = mount.footerRight.querySelector('#model-selector');
 
         // Voice input state. The voice + transcriber modules are loaded
@@ -463,6 +467,9 @@ export class ChatUI {
     initLinks() {
         const links = this.config.links;
         if (!links) return;
+        // The app header renders the same links as top-level nav when one is
+        // configured; showing them here too would duplicate every entry.
+        if (this.linksAbsorbed) return;
 
         // All links live in the footer-left zone in both floating and sidebar
         // modes. The header is kept link-free.
@@ -476,7 +483,7 @@ export class ChatUI {
 
         if (links.carbon) {
             const a = document.createElement('a');
-            a.href = 'https://carbon-api.nrp-nautilus.io/';
+            a.href = typeof links.carbon === 'string' ? links.carbon : CARBON_DASHBOARD_URL;
             a.target = '_blank';
             a.rel = 'noopener noreferrer';
             a.className = 'footer-link carbon-link';
