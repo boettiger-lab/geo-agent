@@ -6,20 +6,42 @@
  */
 
 /**
- * Rewrite `s3://bucket/path` URLs to the public HTTPS endpoint so that the
- * SQL is re-runnable from any DuckDB with httpfs loaded, outside the
- * cluster. Mirrors (in reverse) the conversion in
- * dataset-catalog.js:460-461.
- *
- * @param {string} sql
- * @returns {string}
+ * Default public (anonymous) S3 endpoint for the exported setup block.
+ * Mirrors the host that `dataset-catalog.js` strips when it converts asset
+ * hrefs to `s3://` paths. Apps on other storage override it with
+ * `public_s3_endpoint` in their config.
  */
-export function rewriteS3UrlsInSql(sql) {
-    if (!sql) return sql;
-    return sql.replace(
-        /\bs3:\/\/([A-Za-z0-9._-]+)(\/[^\s'"]*)?/g,
-        (_m, bucket, path) => `https://s3-west.nrp-nautilus.io/${bucket}${path || ''}`
-    );
+export const PUBLIC_S3_ENDPOINT = 's3-west.nrp-nautilus.io';
+
+/**
+ * DuckDB preamble that points `s3://` URLs at the public endpoint
+ * anonymously, so every query in an exported transcript re-runs verbatim
+ * outside the cluster.
+ *
+ * We emit this instead of rewriting `s3://bucket/key` to an HTTPS URL: the
+ * paths the catalog hands the model are routinely globs
+ * (`s3://bucket/hex/x/h0=*\/data_0.parquet`, `.../**`), and `httpfs` cannot
+ * expand a glob over plain HTTP — there is no listing. Under a configured
+ * S3 secret DuckDB lists via the S3 API and the glob resolves.
+ *
+ * Deliberately credential-free: an omitted KEY_ID/SECRET means unsigned
+ * requests, which is what public buckets want, and keeps the block clear of
+ * {@link scrubCredentials}' `SECRET '…'` pattern.
+ *
+ * @param {string} [endpoint] - S3 host, no scheme
+ * @returns {string} SQL to run once before the transcript's queries
+ */
+export function buildDuckdbSetupSql(endpoint = PUBLIC_S3_ENDPOINT) {
+    const host = String(endpoint || PUBLIC_S3_ENDPOINT).replace(/^https?:\/\//, '').replace(/\/+$/, '');
+    return `INSTALL httpfs; LOAD httpfs;
+
+CREATE OR REPLACE SECRET public_s3 (
+    TYPE s3,
+    PROVIDER config,
+    ENDPOINT '${host}',
+    URL_STYLE 'path',
+    USE_SSL true
+);`;
 }
 
 /**
@@ -1158,9 +1180,9 @@ export class ChatUI {
 
     /**
      * Build a self-contained HTML transcript of the current conversation
-     * and trigger a download. Faithful mirror of the live chat panel,
-     * with SQL rewritten for reproducibility and credential-shaped tokens
-     * scrubbed.
+     * and trigger a download. Faithful mirror of the live chat panel: SQL is
+     * carried verbatim under a DuckDB setup block that makes it re-runnable,
+     * and credential-shaped tokens are scrubbed.
      */
     exportHtml() {
         const clone = this.messagesEl.cloneNode(true);
@@ -1183,6 +1205,11 @@ export class ChatUI {
         }
         const mapEmbed = buildMapEmbedHtml(mapState);
 
+        // Setup block: the SQL in the transcript is left untouched (globs and all),
+        // so the export carries the preamble that makes those paths resolve.
+        const setupHost = this.config?.public_s3_endpoint || PUBLIC_S3_ENDPOINT;
+        const setupSql = buildDuckdbSetupSql(setupHost);
+
         const html =
 `<!doctype html>
 <html lang="en">
@@ -1196,10 +1223,17 @@ ${mapEmbed.headTags}
 <header class="export-header">
   <h1>GLEN chat transcript</h1>
   <p>Exported ${this.escapeHtml(exportedAt)} — <a href="${appUrlAttr}">${this.escapeHtml(appTitle)}</a></p>
-  <p class="export-note">SQL queries below have been rewritten to use the public S3 endpoint
-     (<code>https://s3-west.nrp-nautilus.io/</code>) so they can be re-run from any DuckDB
-     with the <code>httpfs</code> extension loaded.</p>
+  <p class="export-note">The SQL below is verbatim — the same queries the agent ran. To re-run
+     them outside the cluster, paste the setup block into DuckDB first; it points
+     <code>s3://</code> paths at the public endpoint (<code>${this.escapeHtml(setupHost)}</code>)
+     with anonymous access.</p>
 </header>
+<section class="export-setup">
+  <h2 class="export-setup-title">Run this first</h2>
+  <pre><code class="language-sql">${this.escapeHtml(setupSql)}</code></pre>
+  <p class="export-setup-note">One time per DuckDB session, then every query in this transcript
+     runs as written. Public buckets only — private data is not reachable this way.</p>
+</section>
 ${mapEmbed.body}
 <main id="chat-messages">${clone.innerHTML}</main>
 </body>
@@ -1224,7 +1258,7 @@ ${mapEmbed.body}
 
     /**
      * Walk a cloned messagesEl subtree applying export-time transforms:
-     * drop transient UI, rewrite SQL, scrub credentials.
+     * drop transient UI, flatten SQL highlighting, scrub credentials.
      */
     _sanitizeExportClone(root) {
         // Drop transient interactive UI.
@@ -1234,14 +1268,13 @@ ${mapEmbed.body}
         // Remove .running class from any rows still in-flight at click time.
         root.querySelectorAll('.running').forEach(el => el.classList.remove('running'));
 
-        // SQL rewrite: only inside .language-sql code blocks.
+        // SQL is exported verbatim — s3:// paths included, since the setup
+        // block in the header makes them resolve. Flatten the highlight spans
+        // so the export carries plain, copy-pasteable text.
         root.querySelectorAll('code.language-sql').forEach(codeEl => {
-            const original = codeEl.textContent;
-            const rewritten = rewriteS3UrlsInSql(original);
-            // Replace text content; drop any prior syntax-highlight spans
-            // (they reference the original token offsets and become stale).
+            const sql = codeEl.textContent;
             codeEl.className = 'language-sql';
-            codeEl.textContent = rewritten;
+            codeEl.textContent = sql;
         });
 
         // Credential scrub: DOM-wide on text nodes only.
@@ -1331,6 +1364,12 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-
 .welcome-message { background: #f9fafb; padding: 8px 10px; border-radius: 6px;
                    font-size: 13px; color: #6b7280; }
 .welcome-examples { display: none; }
+.export-setup { margin: 0 0 1rem; border: 1px solid #e5e7eb; border-radius: 6px;
+                padding: 8px 10px; }
+.export-setup-title { font-size: 1rem; margin: 0 0 0.5rem; }
+.export-setup pre { background: #1e293b; color: #e2e8f0; padding: 8px; border-radius: 4px;
+                    overflow-x: auto; font-size: 12px; }
+.export-setup-note { font-size: 12px; color: #6b7280; margin: 6px 0 0; }
 .export-map-section { margin: 0 0 1rem; }
 .export-map-title { font-size: 1rem; margin: 0 0 0.5rem; }
 .export-map { width: 100%; height: 480px; border: 1px solid #ddd; border-radius: 6px; }
