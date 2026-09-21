@@ -401,3 +401,64 @@ describe('nav icons', () => {
         expect(document.querySelector('#app-header-nav svg')).toBeNull();
     });
 });
+
+describe('href safety', () => {
+    beforeEach(() => { document.body.innerHTML = ''; document.body.className = ''; });
+
+    it('drops nav entries with a dangerous scheme', () => {
+        // Config is first-party, so this is defence in depth — but a config
+        // file is exactly the kind of thing that gets generated or pasted.
+        const cfg = resolveHeaderConfig({
+            header: {
+                nav: [
+                    { label: 'js', href: 'javascript:alert(1)' },
+                    { label: 'data', href: 'data:text/html,<script>x</script>' },
+                    { label: 'vb', href: 'vbscript:x' },
+                    { label: 'ok', href: 'https://ok.example' },
+                ],
+            },
+        });
+        expect(cfg.nav.map(n => n.label)).toEqual(['ok']);
+    });
+
+    it('allows http, https, mailto, tel and same-origin paths', () => {
+        const cfg = resolveHeaderConfig({
+            header: {
+                nav: [
+                    { label: 'a', href: 'https://a.example' },
+                    { label: 'b', href: 'http://b.example' },
+                    { label: 'c', href: 'mailto:c@example.org' },
+                    { label: 'd', href: 'tel:+15550100' },
+                    { label: 'e', href: '/methods' },
+                    { label: 'f', href: './about' },
+                    { label: 'g', href: '#section' },
+                ],
+            },
+        });
+        expect(cfg.nav.map(n => n.label)).toEqual(['a', 'b', 'c', 'd', 'e', 'f', 'g']);
+    });
+
+    it('nulls a logo href with a dangerous scheme but keeps the image', () => {
+        const cfg = resolveHeaderConfig({
+            header: { brand: { src: 'logo.png', href: 'javascript:alert(1)' } },
+        });
+        expect(cfg.brand.src).toBe('logo.png');
+        expect(cfg.brand.href).toBeNull();
+    });
+
+    it('renders an unlinked image when the href was rejected', () => {
+        buildAppHeader({
+            header: { brand: { src: 'logo.png', alt: 'L', href: 'javascript:alert(1)' } },
+        }, document);
+        const img = document.querySelector('.app-header-brand img');
+        expect(img).toBeTruthy();
+        expect(img.closest('a')).toBeNull();
+    });
+
+    it('drops a derived link whose configured URL is unsafe', () => {
+        const cfg = resolveHeaderConfig({
+            links: { github: 'javascript:alert(1)', docs: 'https://d.example', contact: false },
+        });
+        expect(cfg.nav.map(n => n.label)).toEqual(['About']);
+    });
+});

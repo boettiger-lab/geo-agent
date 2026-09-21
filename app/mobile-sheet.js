@@ -193,25 +193,39 @@ export function initMobileSheet(sidebar, { win = window } = {}) {
 
     // The rail is created lazily — the legend only exists once a layer with
     // one becomes visible — so watch for it rather than checking once.
-    const railWatch = new win.MutationObserver(() => {
-        if (!mq.matches) return;
+    //
+    // Two narrow observers rather than one broad one. Watching body with
+    // subtree:true would fire on every token appended to a streaming chat
+    // reply, thousands of times a turn, to answer a question about one
+    // element. The rail is appended to body directly, so childList alone
+    // catches it; after that only the rail's own children matter.
+    const railContents = new win.MutationObserver(syncLegendTab);
+    const railArrival = new win.MutationObserver(() => {
         const r = rail();
-        if (r && r.parentNode !== sidebar) sidebar.appendChild(r);
-        syncLegendTab();
+        if (!r || !mq.matches) return;
+        railArrival.disconnect();
+        adoptRail(r);
     });
+
+    function adoptRail(r) {
+        if (r.parentNode !== sidebar) sidebar.appendChild(r);
+        railContents.observe(r, { childList: true });
+        syncLegendTab();
+    }
 
     function enable() {
         body.classList.add('sheet-mode');
         if (!grabber.isConnected) sidebar.prepend(grabber, tabs);
         const r = rail();
-        if (r) sidebar.appendChild(r);
+        if (r) adoptRail(r);
+        else railArrival.observe(body, { childList: true });
         syncLegendTab();
         setTab(active);
         setDetent(detent);
-        railWatch.observe(body, { childList: true, subtree: true });
     }
     function disable() {
-        railWatch.disconnect();
+        railArrival.disconnect();
+        railContents.disconnect();
         body.classList.remove('sheet-mode');
         delete body.dataset.sheetDetent;
         delete body.dataset.sheetTab;

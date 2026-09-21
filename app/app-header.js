@@ -112,6 +112,30 @@ export function resolveHeaderConfig(appConfig = {}) {
 }
 
 /**
+ * Schemes a config may put behind a link or a logo.
+ *
+ * Config is first-party — it comes from the app's own layers-input.json, not
+ * from anything a visitor supplies — so this is defence in depth rather than
+ * a boundary. But `javascript:` in an href is a footgun worth closing at the
+ * point where config becomes DOM, and a config file is exactly the kind of
+ * thing that gets templated, generated, or pasted from elsewhere.
+ *
+ * Relative and root-relative paths are allowed: an app may reasonably link to
+ * its own routes.
+ */
+const SAFE_SCHEME = /^(https?:|mailto:|tel:)/i;
+
+function safeHref(value) {
+    if (typeof value !== 'string') return null;
+    const v = value.trim();
+    if (!v) return null;
+    if (SAFE_SCHEME.test(v)) return v;
+    // No scheme at all — a path, query or fragment on the app's own origin.
+    if (/^[a-z][a-z0-9+.-]*:/i.test(v)) return null;
+    return v;
+}
+
+/**
  * Resolve the contact target, accepting a bare address for convenience.
  *
  * A config that says `"contact": "team@example.org"` means mail, not a
@@ -151,17 +175,17 @@ function normalizeLogo(logo) {
         // on the other; supplying both is the only real fix.
         srcDark: logo.src_dark || null,
         alt: logo.alt || '',
-        href: logo.href || null,
+        href: safeHref(logo.href),
     };
 }
 
 function resolveNav(header, links) {
     if (Array.isArray(header.nav)) {
         return header.nav
-            .filter(item => item && item.label && item.href)
+            .filter(item => item && item.label && safeHref(item.href))
             .map(item => ({
                 label: String(item.label),
-                href: String(item.href),
+                href: safeHref(item.href),
                 variant: item.variant || null,
                 icon: ICONS[item.icon] ? item.icon : null,
                 external: item.external !== false,
@@ -174,25 +198,27 @@ function resolveNav(header, links) {
     // Contact, which is the one entry that appears by default rather than
     // only when configured. Set `links.contact` to false to drop it.
     const derived = [];
-    if (l.docs) derived.push({ label: 'About', href: l.docs });
-    if (l.github) derived.push({ label: 'GitHub', href: l.github, icon: 'github' });
+    if (l.docs) derived.push({ label: 'About', href: safeHref(l.docs) });
+    if (l.github) derived.push({ label: 'GitHub', href: safeHref(l.github), icon: 'github' });
     if (l.carbon) {
         derived.push({
             label: 'Carbon',
-            href: typeof l.carbon === 'string' ? l.carbon : CARBON_DASHBOARD_URL,
+            href: safeHref(typeof l.carbon === 'string' ? l.carbon : CARBON_DASHBOARD_URL),
             icon: 'leaf',
         });
     }
     if (l.contact !== false) {
         derived.push({
             label: 'Contact us',
-            href: contactHref(l.contact),
+            href: safeHref(contactHref(l.contact)),
             // A mailto: opens a mail client, so a new tab would leave a blank
             // one behind.
             external: false,
         });
     }
-    return derived.map(item => ({ variant: null, icon: null, external: true, ...item }));
+    return derived
+        .map(item => ({ variant: null, icon: null, external: true, ...item }))
+        .filter(item => item.href);
 }
 
 /**
