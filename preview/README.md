@@ -32,18 +32,36 @@ downstream app is involved — the preview serves that branch's `app/` directly,
 via relative imports, so pushing more commits and re-dispatching is the whole
 iteration loop.
 
+## Variants
+
+`preview/variants/<name>.json` is a **shallow patch** over the base fixture,
+published alongside it at `/preview/<name>/`. One branch can therefore show
+several configurations at once — a light and a dark theme, say — without
+duplicating the whole fixture, which would then drift out of sync.
+
+```json
+// preview/variants/light.json
+{ "theme": "light" }
+```
+
+Top-level keys in the patch replace those in the base; there is no deep merge,
+so patch whole blocks rather than individual nested fields.
+
 ## What the fixture covers
 
-Five real collections, chosen as the smallest set that still exercises every
-layout surface:
+Sixteen real collections across twelve groups. The count is deliberate: a
+three-layer panel does not show whether the layout survives a realistic list,
+so the fixture is sized to crowd it. Between them they cover:
 
 | Layer | Exercises |
 |---|---|
 | PAD-US fee (vector, visible) | categorical vector legend, tooltips |
-| NLCD (raster COG) | categorical raster legend |
-| Irrecoverable carbon (raster COG) | continuous colorbar legend |
+| NLCD, RAP cover (raster COG) | categorical raster legend, colormaps |
+| Irrecoverable carbon, MOBI richness, GHS population (raster COG) | continuous colorbar legends |
 | Federal trails (vector) | `layer_type: line` |
+| SVI, flood hazard, wetlands (vector) | further categorical legends |
 | USGS fire perimeters (vector, visible) | reactive `control` slider, animated |
+| PAD-US easement, critical habitat, watersheds, ecoregions, IPLC lands | group nesting and list density |
 
 Plus `sidebar.enabled`, charts, geocoder, draw, upload, geolocate and the
 footer links. The fire slider and a visible legend are deliberately on at once

@@ -71,6 +71,29 @@ jobs:
           test ! -e "$dest/config.json"
           echo "Staged ${GITHUB_REF_NAME} (${GITHUB_SHA}) at /preview/"
 
+          # Variants: each preview/variants/<name>.json is a shallow patch
+          # over the base fixture, published at /preview/<name>/. Lets one
+          # branch show several configurations side by side (a light and a
+          # dark theme, say) without duplicating the whole fixture, which
+          # would then drift.
+          for patch in preview/variants/*.json; do
+            [ -e "$patch" ] || continue
+            name=$(basename "$patch" .json)
+            sub="$dest/$name"
+            mkdir -p "$sub"
+            cp -R app/. "$sub/"
+            find preview -maxdepth 1 -type f ! -name README.md -exec cp {} "$sub/" \;
+            python3 - "$sub/layers-input.json" "$patch" <<'PYEOF'
+          import json, sys
+          target, patch = sys.argv[1], sys.argv[2]
+          base = json.load(open(target))
+          base.update(json.load(open(patch)))
+          json.dump(base, open(target, 'w'), indent=2)
+          PYEOF
+            test ! -e "$sub/config.json"
+            echo "  variant: /preview/$name/"
+          done
+
       - name: Setup Pages
         uses: actions/configure-pages@v5
 
