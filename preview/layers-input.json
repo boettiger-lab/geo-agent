@@ -587,7 +587,7 @@
   "header": {
     "enabled": true,
     "mode": "solid",
-    "title": "Layout preview",
+    "title": "GLEN Layout preview",
     "brand": {
       "src": "placeholder-brand.svg",
       "alt": "GLEN (placeholder mark)",

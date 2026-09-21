@@ -249,22 +249,22 @@ body.has-app-header {
     pointer-events: auto;
 }
 
-/* A visible edge matters more than it looks: without it the bar sits flush
-   against the browser's own chrome and reads as part of it.
+/* Neither the edge nor the shadow is set here — both live on ::after so
+   they stop at the sidebar. A border-bottom across the full width would
+   draw a line through the join, which is the one place header and sidebar
+   should read as a single surface rather than two stacked ones. */
 
-   The drop shadow is NOT set here — it lives on ::after so it can stop at
-   the sidebar, letting header and sidebar meet as one surface. */
-#app-header[data-mode="solid"] {
-    border-bottom: 1px solid var(--chrome-line);
-}
+/* The edge and shadow the header casts onto the map.
+   Header and sidebar are one continuous chrome surface, so anything drawn
+   across the sidebar's top edge — a border or a shadow — cuts a seam
+   through the middle of it. Carrying both on a pseudo-element lets them
+   stop where the sidebar starts: over the map the bar reads as raised and
+   separated from the basemap, and against the sidebar the two join with no
+   line at all. --sidebar-width is updated live during a drag, so the inset
+   tracks a resize without any JS.
 
-/* The shadow the header casts onto the map.
-   Header and sidebar are one continuous chrome surface, so a shadow falling
-   across the sidebar's top edge would draw a seam through the middle of it.
-   Carrying the shadow on a pseudo-element lets it stop where the sidebar
-   starts: over the map it reads as a raised bar, and against the sidebar the
-   two are flush. --sidebar-width is updated live during a drag, so the inset
-   tracks a resize without any JS. */
+   border-top sits on the pseudo-element's top edge, which is the header's
+   bottom edge, so it lands exactly where a border-bottom would have. */
 #app-header[data-mode="solid"]::after {
     content: '';
     position: absolute;
@@ -273,6 +273,7 @@ body.has-app-header {
     right: var(--chrome-shadow-inset, 0px);
     height: 10px;
     pointer-events: none;
+    border-top: 1px solid var(--chrome-line);
     background: linear-gradient(to bottom,
         var(--chrome-shadow) 0%,
         rgba(0, 0, 0, 0) 100%);
