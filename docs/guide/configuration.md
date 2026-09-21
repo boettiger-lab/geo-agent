@@ -800,14 +800,37 @@ The checkpoint is the only per-turn cap on tool use. Setting a value to `0` remo
 
 ## Chat export
 
-A 💾 save button in the chat footer saves the current conversation as a self-contained HTML document you can share or print. The button is disabled until the first user message and enables automatically after. No configuration — it's always present.
+A 💾 save button in the chat footer saves the current conversation as a self-contained HTML document you can share or print. The button is disabled until the first user message and enables automatically after. It is always present; the one optional key tunes what the saved file says about re-running its queries.
+
+| Key | Type | Default | Description |
+|---|---|---|---|
+| `public_s3_endpoint` | string | `s3-west.nrp-nautilus.io` | S3 host used by the export's DuckDB setup block. Set it when an app's data lives on other storage that is anonymously readable. A scheme or trailing slash is stripped. |
 
 The saved file mirrors what the user sees in the live chat: user prompts, assistant prose, and tool-call rows with collapsible SQL and result blocks, plus the **map as it stood when Save was clicked** (see below).
 
 Two guarantees apply to the export:
 
-- **Reproducible SQL.** Every `s3://bucket/...` URL inside a SQL block is rewritten to `https://s3-west.nrp-nautilus.io/bucket/...`. Pasting the SQL into any DuckDB with `INSTALL httpfs; LOAD httpfs;` will run it against the public endpoint without secret configuration (public buckets only).
+- **Re-runnable SQL.** The queries are exported **verbatim**, `s3://` paths and all, under a *Run this first* setup block at the top of the file:
+
+    ```sql
+    INSTALL httpfs; LOAD httpfs;
+
+    CREATE OR REPLACE SECRET public_s3 (
+        TYPE s3,
+        PROVIDER config,
+        ENDPOINT 's3-west.nrp-nautilus.io',
+        URL_STYLE 'path',
+        USE_SSL true
+    );
+    ```
+
+    Run it once per DuckDB session and every query in the transcript works as written. The secret carries no credentials — an omitted `KEY_ID`/`SECRET` means unsigned requests, which is what public buckets want. Apps on other storage set `public_s3_endpoint` (above); private buckets are out of scope, since the credentials that would reach them are scrubbed.
+
 - **Credential scrubbing.** On top of the live-chat redaction described in the agent-loop docs, the export pass replaces credential-shaped tokens with `[REDACTED]` — DuckDB `CREATE SECRET` key/value pairs, AWS access keys (`aws_access_key_id`, `aws_secret_access_key`), `Authorization: Bearer …` tokens, and pre-signed-URL `X-Amz-Signature` / `X-Amz-Credential` / `X-Amz-Security-Token` query parameters. This scrubbing also covers the embedded map state (below).
+
+::: info Why a setup block instead of rewriting the URLs?
+Earlier versions rewrote each `s3://bucket/key` to `https://s3-west.nrp-nautilus.io/bucket/key`. That silently broke every globbed path — and the catalog globs routinely, appending `/**` to partitioned assets and carrying hive patterns such as `h0=*/data_0.parquet` straight from STAC. Expanding a glob needs object listing, which the S3 API provides and plain HTTP does not, so DuckDB answered with *"Globs (`*`) for generic HTTP file is are not supported"*. Pointing DuckDB at the public endpoint, instead of editing the query, also keeps the transcript honest: what you read is what ran.
+:::
 
 ### Embedded map
 

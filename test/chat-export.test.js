@@ -1,48 +1,48 @@
 import { describe, it, expect } from 'vitest';
-import { rewriteS3UrlsInSql } from '../app/chat-ui.js';
+import {
+    buildDuckdbSetupSql, PUBLIC_S3_ENDPOINT, scrubCredentials,
+} from '../app/chat-ui.js';
 
-describe('rewriteS3UrlsInSql', () => {
-    it('rewrites a single s3:// URL inside read_parquet', () => {
-        const sql = "SELECT * FROM read_parquet('s3://public-data/foo.parquet') LIMIT 5";
-        expect(rewriteS3UrlsInSql(sql)).toBe(
-            "SELECT * FROM read_parquet('https://s3-west.nrp-nautilus.io/public-data/foo.parquet') LIMIT 5"
-        );
+describe('buildDuckdbSetupSql', () => {
+    it('loads httpfs and creates an s3 secret at the public endpoint', () => {
+        const sql = buildDuckdbSetupSql();
+        expect(sql).toContain('INSTALL httpfs; LOAD httpfs;');
+        expect(sql).toContain('CREATE OR REPLACE SECRET public_s3');
+        expect(sql).toContain('TYPE s3');
+        expect(sql).toContain(`ENDPOINT '${PUBLIC_S3_ENDPOINT}'`);
+        expect(sql).toContain("URL_STYLE 'path'");
+        expect(sql).toContain('USE_SSL true');
     });
 
-    it('rewrites multiple s3:// URLs in one string (join)', () => {
-        const sql =
-            "SELECT a.* FROM read_parquet('s3://b1/a.parquet') a " +
-            "JOIN read_parquet('s3://b2/b.parquet') b ON a.id = b.id";
-        const out = rewriteS3UrlsInSql(sql);
-        expect(out).toContain("'https://s3-west.nrp-nautilus.io/b1/a.parquet'");
-        expect(out).toContain("'https://s3-west.nrp-nautilus.io/b2/b.parquet'");
-        expect(out).not.toContain('s3://');
+    it('carries no credentials — anonymous access is the point', () => {
+        const sql = buildDuckdbSetupSql();
+        expect(sql).not.toMatch(/KEY_ID/i);
+        // `SECRET` appears only as the CREATE SECRET keyword, never as a value.
+        expect(sql).not.toMatch(/\bSECRET\s+'/i);
     });
 
-    it('handles bare s3://bucket with no trailing slash', () => {
-        expect(rewriteS3UrlsInSql('s3://my-bucket')).toBe(
-            'https://s3-west.nrp-nautilus.io/my-bucket'
-        );
+    it('survives the credential scrub unchanged', () => {
+        // scrubCredentials rewrites `SECRET '…'`; an emitted block that tripped
+        // it would reach the reader mangled.
+        const sql = buildDuckdbSetupSql();
+        expect(scrubCredentials(sql)).toBe(sql);
     });
 
-    it('preserves dotted and hyphenated bucket names', () => {
-        const sql = "FROM read_parquet('s3://my.bucket-name/x.parquet')";
-        expect(rewriteS3UrlsInSql(sql)).toBe(
-            "FROM read_parquet('https://s3-west.nrp-nautilus.io/my.bucket-name/x.parquet')"
-        );
+    it('honours a per-app endpoint override', () => {
+        expect(buildDuckdbSetupSql('minio.example.org'))
+            .toContain("ENDPOINT 'minio.example.org'");
     });
 
-    it('leaves non-s3 schemes alone', () => {
-        const sql = "FROM read_parquet('gs://bucket/x.parquet')";
-        expect(rewriteS3UrlsInSql(sql)).toBe(sql);
+    it('normalises a scheme or trailing slash in the override', () => {
+        const sql = buildDuckdbSetupSql('https://minio.example.org/');
+        expect(sql).toContain("ENDPOINT 'minio.example.org'");
+        expect(sql).not.toContain('https://minio');
     });
 
-    it('returns empty string for empty input', () => {
-        expect(rewriteS3UrlsInSql('')).toBe('');
+    it('falls back to the default for an empty override', () => {
+        expect(buildDuckdbSetupSql('')).toContain(`ENDPOINT '${PUBLIC_S3_ENDPOINT}'`);
     });
 });
-
-import { scrubCredentials } from '../app/chat-ui.js';
 
 describe('scrubCredentials', () => {
     it('redacts DuckDB CREATE SECRET KEY_ID and SECRET values', () => {
