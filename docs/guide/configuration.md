@@ -572,17 +572,30 @@ controls) belong on the map, in the [overlay rail](#map-overlay-rail-and-stackin
 | `enabled` | boolean | `false` | Render the band. Everything else is ignored when false. |
 | `mode` | string | `"solid"` | `"solid"` is an opaque band with a separating edge, and the map starts below it. `"scrim"` floats a translucent band over a full-bleed map, costing no map area — but note it sits directly against the browser's own chrome, which can read as one bar. An unrecognised value falls back to `"solid"`. |
 | `title` | string | `sidebar.title` | Text beside the logos. Hidden on narrow viewports, where the logos carry identity. |
-| `brand` | object | — | Primary logo, shown first. `{ src, alt, href }`; `src` is required or the logo is skipped, and `href` is optional (without one the image is not a link). |
+| `brand` | object | — | Primary logo, shown first. `{ src, src_dark, alt, href }`; `src` is required or the logo is skipped, and `href` is optional (without one the image is not a link). |
 | `partner` | object or array | — | Trailing logo(s), shown at the end of the bar after the nav. Same shape as `brand`; pass an array to show several (e.g. a partner mark alongside the hosting institution). |
 | `nav` | array | derived | Top-level links — see below. |
 
 No logo images ship with the library; `src` is always a URL the app supplies.
 
-> **Watch the contrast.** A logo is an image, so it does not adapt to the
-> [theme](#theme). A white-on-transparent mark vanishes on a light header and a
-> dark-ink one vanishes on a dark header. Supply a variant that suits the theme
-> the app runs in. Prefer hosting a copy of a partner's mark rather than
-> hotlinking their site, which can change or block the request.
+A logo is an image, so it cannot follow the [theme](#theme): a white-knockout
+mark vanishes on a light bar and a black one vanishes on a dark bar. Give a slot
+both and the right one shows automatically — including under `theme: "auto"`,
+which tracks the OS live:
+
+```json
+"brand": {
+  "src":      "https://cdn.jsdelivr.net/gh/boettiger-lab/geo-agent@v3.29.0/app/assets/dse-logo-black.png",
+  "src_dark": "https://cdn.jsdelivr.net/gh/boettiger-lab/geo-agent@v3.29.0/app/assets/dse-logo-white.png",
+  "alt":      "Eric and Wendy Schmidt Center for Data Science & Environment",
+  "href":     "https://dse.berkeley.edu/"
+}
+```
+
+The DSE mark ships with the library in both variants (`app/assets/`), so apps
+can reference it from the CDN at their pinned ref. Prefer hosting a copy of a
+*partner's* mark too, rather than hotlinking their site, which can change or
+block the request.
 
 ### Nav
 

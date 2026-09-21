@@ -23,18 +23,24 @@
     --z-modal: 70;            /* blocking dialogs */
 }
 
-/* ── Chrome theme tokens ─────────────────────────────────────────────────
-   The header and the sidebar form one continuous surface, so they share one
-   palette; colouring them separately shows a seam where they meet. Selected
-   by theme.js as a body class.
+/* ── Theme tokens ────────────────────────────────────────────────────────
+   Four families, by where the surface sits:
 
-   Scope is the chrome shell — surface, text, hairlines, the backdrop behind
-   a globe. The chat interior still carries its own colours in chat.css.
+     --chrome-*   the header + sidebar shell, one continuous surface
+     --control-*  buttons inside it. Deliberately OPAQUE: a translucent
+                  control picks up whatever is behind it, so a row of them
+                  reads as inconsistent even when the rules are identical
+     --panel-*    floating panels over the map (legend, hex, sliders, charts,
+                  tooltips). These must stay readable over any basemap, so
+                  they carry their own surface rather than relying on a blur
+     --chat-*     chat bubbles, applied in sidebar mode only
 
-   `light` is the default because it is what the sidebar has always been. */
+   Selected by theme.js as a body class. `light` is the default because it is
+   what the sidebar has always been. */
 :root,
 body.theme-light {
     --chrome-bg: #f8f9fa;
+    --chrome-bg-raised: #ffffff;
     --chrome-fg: #1a1a2e;
     --chrome-fg-muted: rgba(0, 0, 0, 0.55);
     --chrome-line: rgba(0, 0, 0, 0.1);
@@ -43,48 +49,63 @@ body.theme-light {
     --chrome-accent-wash: rgba(120, 170, 255, 0.12);
     --chrome-carbon: #2e7d32;
     --chrome-shadow: rgba(0, 0, 0, 0.18);
-
-    /* Backdrop behind the globe, and anywhere else no tile covers. */
-    --map-void-bg: #dfe6ee;
-    --map-void-pattern: url("data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="41.57" height="72.00" viewBox="0 0 41.57 72.00"><g fill="none" stroke="%2364748b" stroke-opacity="0.28" stroke-width="1"><path d="M0.00,-24.00 L20.78,-12.00 L20.78,12.00 L0.00,24.00 L-20.78,12.00 L-20.78,-12.00 Z"/><path d="M41.57,-24.00 L62.35,-12.00 L62.35,12.00 L41.57,24.00 L20.78,12.00 L20.78,-12.00 Z"/><path d="M0.00,48.00 L20.78,60.00 L20.78,84.00 L0.00,96.00 L-20.78,84.00 L-20.78,60.00 Z"/><path d="M41.57,48.00 L62.35,60.00 L62.35,84.00 L41.57,96.00 L20.78,84.00 L20.78,60.00 Z"/><path d="M20.78,12.00 L41.57,24.00 L41.57,48.00 L20.78,60.00 L0.00,48.00 L0.00,24.00 Z"/></g></svg>");
-
-    /* Chat surfaces. Applied only in sidebar mode (see sidebar.css) — the
-       floating panel is its own dark glass treatment and is left alone. */
+    --control-bg: #ffffff;
+    --control-bg-hover: #eef1f5;
+    --control-border: rgba(0, 0, 0, 0.18);
+    --control-fg: #1a1a2e;
+    --control-active-bg: rgba(134, 194, 116, 0.35);
+    --control-active-border: #86c274;
+    --control-focus-fg: #0b62a4;
+    --control-focus-bg: rgba(0, 124, 191, 0.12);
+    --panel-bg: rgba(255, 255, 255, 0.92);
+    --panel-bg-strong: rgba(255, 255, 255, 0.97);
+    --panel-fg: #333333;
+    --panel-fg-muted: #666666;
+    --panel-fg-faint: #999999;
+    --panel-line: rgba(0, 0, 0, 0.15);
+    --panel-hover: rgba(0, 0, 0, 0.07);
+    --panel-shadow: rgba(0, 0, 0, 0.2);
     --chat-surface: rgba(255, 255, 255, 0.55);
     --chat-surface-soft: rgba(255, 255, 255, 0.35);
-    --chat-fg: #333;
+    --chat-fg: #333333;
     --chat-code-bg: rgba(0, 0, 0, 0.06);
     --chat-tool-bg: rgba(245, 248, 255, 0.6);
     --chat-thinking-bg: rgba(173, 216, 230, 0.35);
     --chat-thinking-fg: #2c5282;
     --chat-input-bg: rgba(255, 255, 255, 0.45);
     --chat-input-bg-focus: rgba(255, 255, 255, 0.65);
-
-    /* Panel controls (basemap, globe, upload, save) read as buttons by
-    sitting a step off the surface rather than by having their own hue. */
-    --control-bg: rgba(0, 0, 0, 0.05);
-    --control-bg-hover: rgba(0, 0, 0, 0.1);
-    --control-border: rgba(0, 0, 0, 0.16);
-    --control-active-bg: rgba(134, 194, 116, 0.35);
-    --control-active-border: #86c274;
+    --danger-fg: #c0392b;
+    --map-void-bg: #dfe6ee;
+    --map-void-pattern: url("data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="41.57" height="72.00" viewBox="0 0 41.57 72.00"><g fill="none" stroke="%2364748b" stroke-opacity="0.28" stroke-width="1"><path d="M0.00,-24.00 L20.78,-12.00 L20.78,12.00 L0.00,24.00 L-20.78,12.00 L-20.78,-12.00 Z"/><path d="M41.57,-24.00 L62.35,-12.00 L62.35,12.00 L41.57,24.00 L20.78,12.00 L20.78,-12.00 Z"/><path d="M0.00,48.00 L20.78,60.00 L20.78,84.00 L0.00,96.00 L-20.78,84.00 L-20.78,60.00 Z"/><path d="M41.57,48.00 L62.35,60.00 L62.35,84.00 L41.57,96.00 L20.78,84.00 L20.78,60.00 Z"/><path d="M20.78,12.00 L41.57,24.00 L41.57,48.00 L20.78,60.00 L0.00,48.00 L0.00,24.00 Z"/></g></svg>");
 }
 
 body.theme-dark {
-    --chrome-bg: #101418;
-    --chrome-fg: #f1f5f9;
-    --chrome-fg-muted: rgba(255, 255, 255, 0.6);
+    --chrome-bg: #111b2e;
+    --chrome-bg-raised: #1b2740;
+    --chrome-fg: #e8eef7;
+    --chrome-fg-muted: rgba(232, 238, 247, 0.62);
     --chrome-line: rgba(255, 255, 255, 0.14);
-    --chrome-hover: rgba(255, 255, 255, 0.1);
+    --chrome-hover: rgba(255, 255, 255, 0.09);
     --chrome-accent: rgba(120, 170, 255, 0.9);
     --chrome-accent-wash: rgba(120, 170, 255, 0.18);
     --chrome-carbon: #8bc34a;
     --chrome-shadow: rgba(0, 0, 0, 0.45);
-
-    --map-void-bg: #0b1016;
-    --map-void-pattern: url("data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="41.57" height="72.00" viewBox="0 0 41.57 72.00"><g fill="none" stroke="%2394a3b8" stroke-opacity="0.16" stroke-width="1"><path d="M0.00,-24.00 L20.78,-12.00 L20.78,12.00 L0.00,24.00 L-20.78,12.00 L-20.78,-12.00 Z"/><path d="M41.57,-24.00 L62.35,-12.00 L62.35,12.00 L41.57,24.00 L20.78,12.00 L20.78,-12.00 Z"/><path d="M0.00,48.00 L20.78,60.00 L20.78,84.00 L0.00,96.00 L-20.78,84.00 L-20.78,60.00 Z"/><path d="M41.57,48.00 L62.35,60.00 L62.35,84.00 L41.57,96.00 L20.78,84.00 L20.78,60.00 Z"/><path d="M20.78,12.00 L41.57,24.00 L41.57,48.00 L20.78,60.00 L0.00,48.00 L0.00,24.00 Z"/></g></svg>");
-
-    /* Chat surfaces. Applied only in sidebar mode (see sidebar.css) — the
-       floating panel is its own dark glass treatment and is left alone. */
+    --control-bg: #1e2b46;
+    --control-bg-hover: #27375a;
+    --control-border: rgba(255, 255, 255, 0.22);
+    --control-fg: #e8eef7;
+    --control-active-bg: rgba(134, 194, 116, 0.32);
+    --control-active-border: #86c274;
+    --control-focus-fg: #7cc4f0;
+    --control-focus-bg: rgba(0, 124, 191, 0.28);
+    --panel-bg: rgba(17, 27, 46, 0.92);
+    --panel-bg-strong: rgba(17, 27, 46, 0.97);
+    --panel-fg: #e8eef7;
+    --panel-fg-muted: rgba(232, 238, 247, 0.62);
+    --panel-fg-faint: rgba(232, 238, 247, 0.4);
+    --panel-line: rgba(255, 255, 255, 0.16);
+    --panel-hover: rgba(255, 255, 255, 0.1);
+    --panel-shadow: rgba(0, 0, 0, 0.5);
     --chat-surface: rgba(255, 255, 255, 0.07);
     --chat-surface-soft: rgba(255, 255, 255, 0.04);
     --chat-fg: #e2e8f0;
@@ -94,35 +115,41 @@ body.theme-dark {
     --chat-thinking-fg: #bfdbfe;
     --chat-input-bg: rgba(255, 255, 255, 0.08);
     --chat-input-bg-focus: rgba(255, 255, 255, 0.14);
-
-    /* Panel controls (basemap, globe, upload, save) read as buttons by
-    sitting a step off the surface rather than by having their own hue. */
-    --control-bg: rgba(255, 255, 255, 0.08);
-    --control-bg-hover: rgba(255, 255, 255, 0.15);
-    --control-border: rgba(255, 255, 255, 0.2);
-    --control-active-bg: rgba(134, 194, 116, 0.32);
-    --control-active-border: #86c274;
+    --danger-fg: #ff8a80;
+    --map-void-bg: #0c1424;
+    --map-void-pattern: url("data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="41.57" height="72.00" viewBox="0 0 41.57 72.00"><g fill="none" stroke="%238fa8c8" stroke-opacity="0.18" stroke-width="1"><path d="M0.00,-24.00 L20.78,-12.00 L20.78,12.00 L0.00,24.00 L-20.78,12.00 L-20.78,-12.00 Z"/><path d="M41.57,-24.00 L62.35,-12.00 L62.35,12.00 L41.57,24.00 L20.78,12.00 L20.78,-12.00 Z"/><path d="M0.00,48.00 L20.78,60.00 L20.78,84.00 L0.00,96.00 L-20.78,84.00 L-20.78,60.00 Z"/><path d="M41.57,48.00 L62.35,60.00 L62.35,84.00 L41.57,96.00 L20.78,84.00 L20.78,60.00 Z"/><path d="M20.78,12.00 L41.57,24.00 L41.57,48.00 L20.78,60.00 L0.00,48.00 L0.00,24.00 Z"/></g></svg>");
 }
 
 /* `auto` follows the viewer's OS setting live, which is why theme.js leaves
    it as its own class instead of resolving it to light or dark at boot. */
 @media (prefers-color-scheme: dark) {
     body.theme-auto {
-        --chrome-bg: #101418;
-        --chrome-fg: #f1f5f9;
-        --chrome-fg-muted: rgba(255, 255, 255, 0.6);
+        --chrome-bg: #111b2e;
+        --chrome-bg-raised: #1b2740;
+        --chrome-fg: #e8eef7;
+        --chrome-fg-muted: rgba(232, 238, 247, 0.62);
         --chrome-line: rgba(255, 255, 255, 0.14);
-        --chrome-hover: rgba(255, 255, 255, 0.1);
+        --chrome-hover: rgba(255, 255, 255, 0.09);
         --chrome-accent: rgba(120, 170, 255, 0.9);
         --chrome-accent-wash: rgba(120, 170, 255, 0.18);
         --chrome-carbon: #8bc34a;
         --chrome-shadow: rgba(0, 0, 0, 0.45);
-
-        --map-void-bg: #0b1016;
-        --map-void-pattern: url("data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="41.57" height="72.00" viewBox="0 0 41.57 72.00"><g fill="none" stroke="%2394a3b8" stroke-opacity="0.16" stroke-width="1"><path d="M0.00,-24.00 L20.78,-12.00 L20.78,12.00 L0.00,24.00 L-20.78,12.00 L-20.78,-12.00 Z"/><path d="M41.57,-24.00 L62.35,-12.00 L62.35,12.00 L41.57,24.00 L20.78,12.00 L20.78,-12.00 Z"/><path d="M0.00,48.00 L20.78,60.00 L20.78,84.00 L0.00,96.00 L-20.78,84.00 L-20.78,60.00 Z"/><path d="M41.57,48.00 L62.35,60.00 L62.35,84.00 L41.57,96.00 L20.78,84.00 L20.78,60.00 Z"/><path d="M20.78,12.00 L41.57,24.00 L41.57,48.00 L20.78,60.00 L0.00,48.00 L0.00,24.00 Z"/></g></svg>");
-
-        /* Chat surfaces. Applied only in sidebar mode (see sidebar.css) — the
-           floating panel is its own dark glass treatment and is left alone. */
+        --control-bg: #1e2b46;
+        --control-bg-hover: #27375a;
+        --control-border: rgba(255, 255, 255, 0.22);
+        --control-fg: #e8eef7;
+        --control-active-bg: rgba(134, 194, 116, 0.32);
+        --control-active-border: #86c274;
+        --control-focus-fg: #7cc4f0;
+        --control-focus-bg: rgba(0, 124, 191, 0.28);
+        --panel-bg: rgba(17, 27, 46, 0.92);
+        --panel-bg-strong: rgba(17, 27, 46, 0.97);
+        --panel-fg: #e8eef7;
+        --panel-fg-muted: rgba(232, 238, 247, 0.62);
+        --panel-fg-faint: rgba(232, 238, 247, 0.4);
+        --panel-line: rgba(255, 255, 255, 0.16);
+        --panel-hover: rgba(255, 255, 255, 0.1);
+        --panel-shadow: rgba(0, 0, 0, 0.5);
         --chat-surface: rgba(255, 255, 255, 0.07);
         --chat-surface-soft: rgba(255, 255, 255, 0.04);
         --chat-fg: #e2e8f0;
@@ -132,14 +159,9 @@ body.theme-dark {
         --chat-thinking-fg: #bfdbfe;
         --chat-input-bg: rgba(255, 255, 255, 0.08);
         --chat-input-bg-focus: rgba(255, 255, 255, 0.14);
-
-        /* Panel controls (basemap, globe, upload, save) read as buttons by
-        sitting a step off the surface rather than by having their own hue. */
-        --control-bg: rgba(255, 255, 255, 0.08);
-        --control-bg-hover: rgba(255, 255, 255, 0.15);
-        --control-border: rgba(255, 255, 255, 0.2);
-        --control-active-bg: rgba(134, 194, 116, 0.32);
-        --control-active-border: #86c274;
+        --danger-fg: #ff8a80;
+    --map-void-bg: #0c1424;
+        --map-void-pattern: url("data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="41.57" height="72.00" viewBox="0 0 41.57 72.00"><g fill="none" stroke="%238fa8c8" stroke-opacity="0.18" stroke-width="1"><path d="M0.00,-24.00 L20.78,-12.00 L20.78,12.00 L0.00,24.00 L-20.78,12.00 L-20.78,-12.00 Z"/><path d="M41.57,-24.00 L62.35,-12.00 L62.35,12.00 L41.57,24.00 L20.78,12.00 L20.78,-12.00 Z"/><path d="M0.00,48.00 L20.78,60.00 L20.78,84.00 L0.00,96.00 L-20.78,84.00 L-20.78,60.00 Z"/><path d="M41.57,48.00 L62.35,60.00 L62.35,84.00 L41.57,96.00 L20.78,84.00 L20.78,60.00 Z"/><path d="M20.78,12.00 L41.57,24.00 L41.57,48.00 L20.78,60.00 L0.00,48.00 L0.00,24.00 Z"/></g></svg>");
     }
 }
 
@@ -467,7 +489,7 @@ body.has-app-header:not(.app-header-solid) .maplibregl-ctrl-top-right {
 }
 
 #menu {
-    background: rgba(255, 255, 255, 0) !important;
+    background: var(--panel-bg) !important;
     -webkit-backdrop-filter: blur(10px);
     backdrop-filter: blur(10px);
     position: absolute;
@@ -476,10 +498,10 @@ body.has-app-header:not(.app-header-solid) .maplibregl-ctrl-top-right {
     right: 10px;
     border-radius: 5px;
     min-width: 160px;
-    border: 1px solid rgba(0, 0, 0, 0.2);
+    border: 1px solid var(--panel-line);
     font-family: 'Open Sans', sans-serif;
     padding: 12px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 2px 4px var(--panel-shadow);
 }
 
 .menu-section {
@@ -563,7 +585,7 @@ body.has-app-header:not(.app-header-solid) .maplibregl-ctrl-top-right {
     display: block;
     font-size: 11px;
     font-weight: 600;
-    color: #666;
+    color: var(--panel-fg-muted);
     text-transform: uppercase;
     letter-spacing: 0.5px;
 }
@@ -573,27 +595,27 @@ body.has-app-header:not(.app-header-solid) .maplibregl-ctrl-top-right {
     border: none;
     font-size: 18px;
     cursor: pointer;
-    color: #666;
+    color: var(--panel-fg-muted);
     padding: 0 2px;
     line-height: 1;
 }
 
 #menu-toggle:hover {
-    color: #333;
+    color: var(--panel-fg);
 }
 
 .menu-header-btn {
     background: none;
     border: none;
     cursor: pointer;
-    color: #666;
+    color: var(--panel-fg-muted);
     padding: 0 4px;
     line-height: 1;
     display: flex;
     align-items: center;
 }
 .menu-header-btn:hover:not(:disabled) {
-    color: #333;
+    color: var(--panel-fg);
 }
 .menu-header-btn:disabled {
     opacity: 0.35;
@@ -619,7 +641,7 @@ body.has-app-header:not(.app-header-solid) .maplibregl-ctrl-top-right {
     display: flex;
     align-items: center;
     font-size: 13px;
-    color: #404040;
+    color: var(--panel-fg);
     margin-bottom: 6px;
     cursor: pointer;
 }
@@ -656,7 +678,7 @@ body.has-app-header:not(.app-header-solid) .maplibregl-ctrl-top-right {
 .layer-group-title {
     font-size: 11px;
     font-weight: 600;
-    color: #666;
+    color: var(--panel-fg-muted);
     text-transform: uppercase;
     letter-spacing: 0.5px;
     cursor: pointer;
@@ -672,7 +694,7 @@ body.has-app-header:not(.app-header-solid) .maplibregl-ctrl-top-right {
 .layer-group-title::before {
     content: '▾ ';
     font-size: 10px;
-    color: #999;
+    color: var(--panel-fg-faint);
 }
 
 details.layer-group:not([open]) .layer-group-title::before {
@@ -713,20 +735,20 @@ details.layer-group:not([open]) .layer-group-title::before {
     background: transparent;
     border: none;
     border-radius: 3px;
-    color: #808080;
+    color: var(--panel-fg-muted);
     cursor: pointer;
 }
 
 .layer-remove-btn:hover {
-    background: rgba(0, 0, 0, 0.08);
-    color: #c0392b;
+    background: var(--panel-hover);
+    color: var(--danger-fg);
 }
 
 .layer-toggle {
     display: flex;
     align-items: center;
     font-size: 13px;
-    color: #404040;
+    color: var(--panel-fg);
     cursor: pointer;
 }
 
@@ -768,7 +790,7 @@ details.layer-group:not([open]) .layer-group-title::before {
 
 .upload-status {
     font-size: 11px;
-    color: #606060;
+    color: var(--panel-fg-muted);
     margin: 0 0 6px;
     min-height: 0;
     line-height: 1.35;
@@ -779,7 +801,7 @@ details.layer-group:not([open]) .layer-group-title::before {
 }
 
 .upload-status.is-error {
-    color: #c0392b;
+    color: var(--danger-fg);
 }
 
 .upload-dragover {
@@ -798,49 +820,49 @@ details.layer-group:not([open]) .layer-group-title::before {
     margin: 4px 0 0 22px;
     font-size: 12px;
     padding: 2px 6px;
-    background: rgba(255, 255, 255, 0.1);
+    background: var(--control-bg);
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
-    border: 1px solid rgba(0, 0, 0, 0.2);
+    border: 1px solid var(--panel-line);
     border-radius: 3px;
-    color: #404040;
+    color: var(--panel-fg);
     cursor: pointer;
     max-width: 200px;
 }
 
 .version-select option {
-    background: rgba(255, 255, 255, 0.95);
-    color: #404040;
+    background: var(--panel-bg-strong);
+    color: var(--panel-fg);
 }
 
 /* Glass effect for species richness dropdown */
 #species-taxon {
-    background: rgba(255, 255, 255, 0.1) !important;
+    background: var(--control-bg) !important;
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
-    border: 1px solid rgba(0, 0, 0, 0.2);
+    border: 1px solid var(--panel-line);
     border-radius: 3px;
-    color: #404040;
+    color: var(--panel-fg);
     padding: 4px 8px;
     cursor: pointer;
 }
 
 #species-taxon option {
-    background: rgba(255, 255, 255, 0.95);
-    color: #404040;
+    background: var(--panel-bg-strong);
+    color: var(--panel-fg);
 }
 
 /* Legend styles */
 #legend {
-    background: rgba(255, 255, 255, 0) !important;
+    background: var(--panel-bg) !important;
     -webkit-backdrop-filter: blur(10px);
     backdrop-filter: blur(10px);
     border-radius: 5px;
     max-width: 280px;
     max-height: 80vh;
-    border: 1px solid rgba(0, 0, 0, 0.2);
+    border: 1px solid var(--panel-line);
     font-family: 'Open Sans', sans-serif;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 2px 4px var(--panel-shadow);
     overflow: hidden;
 }
 
@@ -849,15 +871,15 @@ details.layer-group:not([open]) .layer-group-title::before {
     justify-content: space-between;
     align-items: center;
     padding: 10px 15px;
-    background: rgba(248, 249, 250, 0);
-    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+    background: transparent;
+    border-bottom: 1px solid var(--panel-line);
 }
 
 #legend-header h3 {
     margin: 0;
     font-size: 14px;
     font-weight: 600;
-    color: #333;
+    color: var(--panel-fg);
 }
 
 #legend-toggle {
@@ -865,7 +887,7 @@ details.layer-group:not([open]) .layer-group-title::before {
     border: none;
     font-size: 20px;
     font-weight: bold;
-    color: #666;
+    color: var(--panel-fg-muted);
     cursor: pointer;
     padding: 0;
     width: 24px;
@@ -878,7 +900,7 @@ details.layer-group:not([open]) .layer-group-title::before {
 }
 
 #legend-toggle:hover {
-    background-color: rgba(0, 0, 0, 0.1);
+    background-color: var(--panel-hover);
 }
 
 #legend-content {
@@ -903,7 +925,7 @@ details.layer-group:not([open]) .layer-group-title::before {
     margin: 0 0 8px 0;
     font-size: 12px;
     font-weight: 600;
-    color: #555;
+    color: var(--panel-fg-muted);
     text-transform: uppercase;
     letter-spacing: 0.5px;
 }
@@ -923,7 +945,7 @@ details.layer-group:not([open]) .layer-group-title::before {
     margin: 0 0 8px 0;
     font-size: 12px;
     font-weight: 600;
-    color: #555;
+    color: var(--panel-fg-muted);
     text-transform: uppercase;
     letter-spacing: 0.5px;
 }
@@ -940,7 +962,7 @@ details.layer-group:not([open]) .layer-group-title::before {
 .legend-group .legend-section h4 {
     font-size: 11px;
     font-weight: 500;
-    color: #666;
+    color: var(--panel-fg-muted);
     text-transform: none;
     letter-spacing: 0;
 }
@@ -949,21 +971,21 @@ details.layer-group:not([open]) .layer-group-title::before {
     height: 12px;
     border-radius: 2px;
     margin: 4px 0 2px;
-    border: 1px solid rgba(0,0,0,0.1);
+    border: 1px solid var(--panel-line);
 }
 
 .legend-labels {
     display: flex;
     justify-content: space-between;
     font-size: 10px;
-    color: #666;
+    color: var(--panel-fg-muted);
     margin-bottom: 4px;
 }
 
 /* Hex legend: which H3 resolution the shown value range applies to. */
 .legend-hex-res {
     font-size: 10px;
-    color: #999;
+    color: var(--panel-fg-faint);
     font-style: italic;
 }
 
@@ -971,7 +993,7 @@ details.layer-group:not([open]) .layer-group-title::before {
     display: flex;
     align-items: center;
     font-size: 11px;
-    color: #333;
+    color: var(--panel-fg);
     margin-bottom: 5px;
     line-height: 1.3;
 }
@@ -986,7 +1008,7 @@ details.layer-group:not([open]) .layer-group-title::before {
     height: 18px;
     margin-right: 8px;
     border-radius: 2px;
-    border: 1px solid rgba(0, 0, 0, 0.2);
+    border: 1px solid var(--panel-line);
     flex-shrink: 0;
 }
 
@@ -996,17 +1018,17 @@ details.layer-group:not([open]) .layer-group-title::before {
 }
 
 #legend-content::-webkit-scrollbar-track {
-    background: #f1f1f1;
+    background: transparent;
     border-radius: 3px;
 }
 
 #legend-content::-webkit-scrollbar-thumb {
-    background: #888;
+    background: var(--panel-line);
     border-radius: 3px;
 }
 
 #legend-content::-webkit-scrollbar-thumb:hover {
-    background: #555;
+    background: var(--panel-fg-muted);
 }
 
 /* H3 hex grid toggle */
@@ -1014,14 +1036,14 @@ details.layer-group:not([open]) .layer-group-title::before {
     width: 32px;
     height: 32px;
     border-radius: 6px;
-    border: 1px solid rgba(0, 0, 0, 0.15);
-    background: rgba(255, 255, 255, 0.75);
+    border: 1px solid var(--panel-line);
+    background: var(--panel-bg);
     -webkit-backdrop-filter: blur(10px);
     backdrop-filter: blur(10px);
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+    box-shadow: 0 1px 3px var(--panel-shadow);
     font-size: 18px;
     line-height: 1;
-    color: #888;
+    color: var(--panel-fg-muted);
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -1031,14 +1053,14 @@ details.layer-group:not([open]) .layer-group-title::before {
 }
 
 #h3-toggle:hover {
-    background: rgba(255, 255, 255, 0.9);
-    color: #555;
+    background: var(--panel-bg-strong);
+    color: var(--panel-fg-muted);
 }
 
 #h3-toggle.active {
-    background: rgba(0, 124, 191, 0.12);
-    color: #007cbf;
-    border-color: rgba(0, 124, 191, 0.35);
+    background: var(--control-focus-bg);
+    color: var(--control-focus-fg);
+    border-color: var(--control-focus-fg);
 }
 
 /* Hover tooltip */
@@ -1046,16 +1068,16 @@ details.layer-group:not([open]) .layer-group-title::before {
     display: none;
     position: fixed;
     z-index: var(--z-tooltip);
-    background: rgba(255, 255, 255, 0.95);
+    background: var(--panel-bg-strong);
     -webkit-backdrop-filter: blur(4px);
     backdrop-filter: blur(4px);
-    border: 1px solid rgba(0, 0, 0, 0.2);
+    border: 1px solid var(--panel-line);
     border-radius: 4px;
     padding: 8px 10px;
     font-family: 'Open Sans', sans-serif;
     font-size: 12px;
-    color: #333;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+    color: var(--panel-fg);
+    box-shadow: 0 2px 6px var(--panel-shadow);
     pointer-events: none;
     max-width: 260px;
 }
@@ -1067,14 +1089,14 @@ details.layer-group:not([open]) .layer-group-title::before {
 
 .map-tooltip th {
     font-weight: 600;
-    color: #666;
+    color: var(--panel-fg-muted);
     text-align: left;
     padding: 2px 10px 2px 0;
     white-space: nowrap;
 }
 
 .map-tooltip td {
-    color: #333;
+    color: var(--panel-fg);
     padding: 2px 0;
     word-break: break-word;
 }
@@ -1082,13 +1104,13 @@ details.layer-group:not([open]) .layer-group-title::before {
 #h3-res-badge {
     font-family: 'Open Sans', sans-serif;
     font-size: 10px;
-    color: #555;
-    background: rgba(255, 255, 255, 0.75);
+    color: var(--panel-fg-muted);
+    background: var(--panel-bg);
     -webkit-backdrop-filter: blur(10px);
     backdrop-filter: blur(10px);
     padding: 2px 7px;
     border-radius: 4px;
-    border: 1px solid rgba(0, 0, 0, 0.1);
+    border: 1px solid var(--panel-line);
     pointer-events: none;
 }
 
@@ -1103,17 +1125,17 @@ details.layer-group:not([open]) .layer-group-title::before {
     border: none;
     background: none;
     cursor: pointer;
-    color: #333;
+    color: var(--panel-fg);
     border-radius: 4px;
 }
 
 #draw-toggle:hover {
-    background: rgba(0, 0, 0, 0.05);
+    background: var(--panel-hover);
 }
 
 #draw-toggle.active {
-    color: #3b82f6;
-    background: rgba(59, 130, 246, 0.1);
+    color: var(--control-focus-fg);
+    background: var(--control-focus-bg);
 }
 
 /* Animated trajectory layer controls */
@@ -1122,15 +1144,15 @@ details.layer-group:not([open]) .layer-group-title::before {
     align-items: center;
     gap: 8px;
     padding: 6px 10px;
-    background: rgba(255, 255, 255, 0.92);
+    background: var(--panel-bg);
     backdrop-filter: blur(6px);
     -webkit-backdrop-filter: blur(6px);
-    border: 1px solid rgba(0, 0, 0, 0.15);
+    border: 1px solid var(--panel-line);
     border-radius: 6px;
     font-family: 'Open Sans', sans-serif;
     font-size: 12px;
-    color: #222;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+    color: var(--panel-fg);
+    box-shadow: 0 2px 4px var(--panel-shadow);
 }
 
 .anim-controls .anim-label {
@@ -1142,8 +1164,8 @@ details.layer-group:not([open]) .layer-group-title::before {
 }
 
 .anim-controls .anim-play {
-    border: 1px solid rgba(0, 0, 0, 0.2);
-    background: #fff;
+    border: 1px solid var(--panel-line);
+    background: var(--control-bg);
     border-radius: 4px;
     width: 26px;
     height: 26px;
@@ -1153,21 +1175,21 @@ details.layer-group:not([open]) .layer-group-title::before {
 }
 
 .anim-controls .anim-play:hover {
-    background: #f5f5f5;
+    background: var(--control-bg-hover);
 }
 
 .anim-controls .anim-time {
     font-variant-numeric: tabular-nums;
     min-width: 120px;
-    color: #555;
+    color: var(--panel-fg-muted);
 }
 
 .anim-controls .anim-speed,
 .anim-controls .anim-mode {
-    border: 1px solid rgba(0, 0, 0, 0.2);
+    border: 1px solid var(--panel-line);
     border-radius: 4px;
     padding: 2px 4px;
-    background: #fff;
+    background: var(--control-bg);
     font-size: 12px;
 }
 
@@ -1179,15 +1201,15 @@ details.layer-group:not([open]) .layer-group-title::before {
     align-items: center;
     gap: 8px;
     padding: 6px 10px;
-    background: rgba(255, 255, 255, 0.92);
+    background: var(--panel-bg);
     backdrop-filter: blur(6px);
     -webkit-backdrop-filter: blur(6px);
-    border: 1px solid rgba(0, 0, 0, 0.15);
+    border: 1px solid var(--panel-line);
     border-radius: 6px;
     font-family: 'Open Sans', sans-serif;
     font-size: 12px;
-    color: #222;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+    color: var(--panel-fg);
+    box-shadow: 0 2px 4px var(--panel-shadow);
 }
 
 .reactive-controls .rc-label {
@@ -1199,8 +1221,8 @@ details.layer-group:not([open]) .layer-group-title::before {
 }
 
 .reactive-controls .rc-play {
-    border: 1px solid rgba(0, 0, 0, 0.2);
-    background: #fff;
+    border: 1px solid var(--panel-line);
+    background: var(--control-bg);
     border-radius: 4px;
     width: 26px;
     height: 26px;
@@ -1210,7 +1232,7 @@ details.layer-group:not([open]) .layer-group-title::before {
 }
 
 .reactive-controls .rc-play:hover {
-    background: #f5f5f5;
+    background: var(--control-bg-hover);
 }
 
 .reactive-controls .rc-slider {
@@ -1222,7 +1244,7 @@ details.layer-group:not([open]) .layer-group-title::before {
     font-variant-numeric: tabular-nums;
     min-width: 48px;
     text-align: right;
-    color: #555;
+    color: var(--panel-fg-muted);
 }
 
 /* ── Chart panels (opt-in charting primitive, #277) ──────────────────────
@@ -1246,12 +1268,12 @@ details.layer-group:not([open]) .layer-group-title::before {
     max-height: 92vh;
     display: flex;
     flex-direction: column;
-    background: rgba(255, 255, 255, 0.97);
+    background: var(--panel-bg-strong);
     backdrop-filter: blur(6px);
     -webkit-backdrop-filter: blur(6px);
-    border: 1px solid rgba(0, 0, 0, 0.15);
+    border: 1px solid var(--panel-line);
     border-radius: 8px;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 4px 16px var(--panel-shadow);
     font-family: 'Open Sans', sans-serif;
     overflow: hidden;
 }
@@ -1279,13 +1301,13 @@ details.layer-group:not([open]) .layer-group-title::before {
     z-index: 1;   /* local to .chart-panel's stacking context */
     cursor: nwse-resize;
     background:
-        linear-gradient(-45deg, transparent 0 4px, rgba(0, 0, 0, 0.28) 4px 5px, transparent 5px 8px, rgba(0, 0, 0, 0.28) 8px 9px, transparent 9px) top left / 12px 12px no-repeat;
+        linear-gradient(-45deg, transparent 0 4px, var(--panel-fg-faint) 4px 5px, transparent 5px 8px, var(--panel-fg-faint) 8px 9px, transparent 9px) top left / 12px 12px no-repeat;
     border-top-left-radius: 8px;
 }
 
 .chart-panel-resize:hover {
     background:
-        linear-gradient(-45deg, transparent 0 4px, rgba(0, 0, 0, 0.5) 4px 5px, transparent 5px 8px, rgba(0, 0, 0, 0.5) 8px 9px, transparent 9px) top left / 12px 12px no-repeat;
+        linear-gradient(-45deg, transparent 0 4px, var(--panel-fg-muted) 4px 5px, transparent 5px 8px, var(--panel-fg-muted) 8px 9px, transparent 9px) top left / 12px 12px no-repeat;
 }
 
 /* Popped-out is center-anchored via a transform, so the bottom-right pin the
@@ -1301,7 +1323,7 @@ details.layer-group:not([open]) .layer-group-title::before {
     gap: 8px;
     /* extra left padding clears the top-left resize grip */
     padding: 8px 12px 8px 22px;
-    border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+    border-bottom: 1px solid var(--panel-line);
 }
 
 .chart-panel-title {
@@ -1309,7 +1331,7 @@ details.layer-group:not([open]) .layer-group-title::before {
     min-width: 0;
     font-weight: 600;
     font-size: 13px;
-    color: #222;
+    color: var(--panel-fg);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -1322,7 +1344,7 @@ details.layer-group:not([open]) .layer-group-title::before {
     cursor: pointer;
     font-size: 14px;
     line-height: 1;
-    color: #666;
+    color: var(--panel-fg-muted);
     padding: 2px 4px;
     border-radius: 4px;
 }
@@ -1333,8 +1355,8 @@ details.layer-group:not([open]) .layer-group-title::before {
 
 .chart-panel-close:hover,
 .chart-panel-pop:hover {
-    background: rgba(0, 0, 0, 0.08);
-    color: #000;
+    background: var(--panel-hover);
+    color: var(--panel-fg);
 }
 
 .chart-panel-body {
@@ -1354,22 +1376,22 @@ details.layer-group:not([open]) .layer-group-title::before {
    maplibregl- and mapboxgl- class prefixes the control emits. */
 .maplibregl-ctrl-geocoder,
 .mapboxgl-ctrl-geocoder {
-    background: rgba(255, 255, 255, 0.15) !important;
+    background: var(--panel-bg) !important;
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
-    border: 1px solid rgba(0, 0, 0, 0.18);
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+    border: 1px solid var(--panel-line);
+    box-shadow: 0 2px 6px var(--panel-shadow);
     border-radius: 10px;
 }
 
 .maplibregl-ctrl-geocoder input,
 .mapboxgl-ctrl-geocoder input {
-    color: #2b2b2b;
+    color: var(--panel-fg);
 }
 
 .maplibregl-ctrl-geocoder input::placeholder,
 .mapboxgl-ctrl-geocoder input::placeholder {
-    color: rgba(0, 0, 0, 0.5);
+    color: var(--panel-fg-muted);
 }
 
 /* Search / loading / close icons */
@@ -1381,25 +1403,25 @@ details.layer-group:not([open]) .layer-group-title::before {
 /* Suggestions dropdown — lighter, more opaque frosted glass for list legibility */
 .maplibregl-ctrl-geocoder .suggestions,
 .mapboxgl-ctrl-geocoder .suggestions {
-    background: rgba(255, 255, 255, 0.85) !important;
+    background: var(--panel-bg-strong) !important;
     backdrop-filter: blur(14px);
     -webkit-backdrop-filter: blur(14px);
-    border: 1px solid rgba(0, 0, 0, 0.15);
+    border: 1px solid var(--panel-line);
     border-radius: 10px;
     overflow: hidden;
 }
 
 .maplibregl-ctrl-geocoder .suggestions > li > a,
 .mapboxgl-ctrl-geocoder .suggestions > li > a {
-    color: #333;
+    color: var(--panel-fg);
 }
 
 .maplibregl-ctrl-geocoder .suggestions > .active > a,
 .maplibregl-ctrl-geocoder .suggestions > li > a:hover,
 .mapboxgl-ctrl-geocoder .suggestions > .active > a,
 .mapboxgl-ctrl-geocoder .suggestions > li > a:hover {
-    background: rgba(0, 0, 0, 0.07);
-    color: #000;
+    background: var(--panel-hover);
+    color: var(--panel-fg);
 }
 
 /* ── Navigation control (zoom +/- and compass) ───────────────────────────
@@ -1408,11 +1430,11 @@ details.layer-group:not([open]) .layer-group-title::before {
    the light glass and stay crisp (no invert / shadow blurring). */
 .maplibregl-ctrl-group,
 .mapboxgl-ctrl-group {
-    background: rgba(255, 255, 255, 0.15) !important;
+    background: var(--panel-bg) !important;
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
-    border: 1px solid rgba(0, 0, 0, 0.18);
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+    border: 1px solid var(--panel-line);
+    box-shadow: 0 2px 6px var(--panel-shadow);
     border-radius: 10px;
     overflow: hidden;
 }
@@ -1424,10 +1446,41 @@ details.layer-group:not([open]) .layer-group-title::before {
 
 .maplibregl-ctrl-group button + button,
 .mapboxgl-ctrl-group button + button {
-    border-top: 1px solid rgba(0, 0, 0, 0.12);
+    border-top: 1px solid var(--panel-line);
 }
 
 .maplibregl-ctrl-group button:hover,
 .mapboxgl-ctrl-group button:hover {
-    background: rgba(0, 0, 0, 0.06) !important;
+    background: var(--panel-hover) !important;
+}
+
+/* ── Theme-aware logo variants ───────────────────────────────────────────
+   A logo is an image, so it cannot follow the palette: a white-knockout mark
+   vanishes on a light bar and a black one vanishes on a dark bar. When a
+   config supplies `src_dark`, both are rendered and CSS shows one — chosen
+   here rather than in JS so `theme: auto` tracks the OS live. */
+.app-header-logo-pair {
+    display: flex;
+    align-items: center;
+}
+
+.app-header-logo--dark {
+    display: none;
+}
+
+body.theme-dark .app-header-logo--light {
+    display: none;
+}
+
+body.theme-dark .app-header-logo--dark {
+    display: block;
+}
+
+@media (prefers-color-scheme: dark) {
+    body.theme-auto .app-header-logo--light {
+        display: none;
+    }
+    body.theme-auto .app-header-logo--dark {
+        display: block;
+    }
 }

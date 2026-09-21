@@ -103,6 +103,10 @@ function normalizeLogo(logo) {
     if (!logo || typeof logo !== 'object' || !logo.src) return null;
     return {
         src: logo.src,
+        // Optional variant for the dark theme. A logo is an image and cannot
+        // follow the palette, so a mark drawn for one background disappears
+        // on the other; supplying both is the only real fix.
+        srcDark: logo.src_dark || null,
         alt: logo.alt || '',
         href: logo.href || null,
     };
@@ -252,7 +256,18 @@ function navLink(doc, item, className) {
 }
 
 function logoEl(doc, logo, className) {
-    const img = el(doc, 'img', { class: className, src: logo.src, alt: logo.alt });
+    let img;
+    if (logo.srcDark) {
+        // Both variants are rendered and CSS picks one, rather than JS
+        // choosing at boot — that way `theme: auto` can follow the OS live.
+        img = el(doc, 'span', { class: 'app-header-logo-pair' });
+        img.append(
+            el(doc, 'img', { class: `${className} app-header-logo--light`, src: logo.src, alt: logo.alt }),
+            el(doc, 'img', { class: `${className} app-header-logo--dark`, src: logo.srcDark, alt: logo.alt }),
+        );
+    } else {
+        img = el(doc, 'img', { class: className, src: logo.src, alt: logo.alt });
+    }
     if (!logo.href) return img;
 
     const a = el(doc, 'a', {
