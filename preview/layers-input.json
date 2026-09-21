@@ -1,4 +1,5 @@
 {
+  "theme": "dark",
   "catalog": "https://s3-west.nrp-nautilus.io/public-data/stac/catalog.json",
   "titiler_url": "https://titiler.nrp-nautilus.io",
   "mcp_url": "https://duckdb-mcp.carlboettiger.info/mcp",
@@ -19,10 +20,11 @@
   },
   "view": {
     "center": [
-      -119.4,
-      37.6
+      -30,
+      25
     ],
-    "zoom": 6
+    "zoom": 1.6,
+    "globe": true
   },
   "links": {
     "github": "https://github.com/boettiger-lab/geo-agent",
@@ -581,5 +583,27 @@
         }
       ]
     }
-  ]
+  ],
+  "header": {
+    "enabled": true,
+    "mode": "solid",
+    "title": "Layout preview",
+    "brand": {
+      "src": "placeholder-brand.svg",
+      "alt": "GLEN (placeholder mark)",
+      "href": "https://schmidtdse.github.io/glen-website/a/"
+    },
+    "partner": [
+      {
+        "src": "placeholder-partner.svg",
+        "alt": "Partner organisation (placeholder mark)"
+      },
+      {
+        "src": "assets/dse-mark.png",
+        "src_dark": "assets/dse-mark-white.png",
+        "alt": "Eric and Wendy Schmidt Center for Data Science & Environment at Berkeley",
+        "href": "https://dse.berkeley.edu/"
+      }
+    ]
+  }
 }

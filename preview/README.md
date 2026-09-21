@@ -32,6 +32,14 @@ downstream app is involved — the preview serves that branch's `app/` directly,
 via relative imports, so pushing more commits and re-dispatching is the whole
 iteration loop.
 
+## Placeholder marks
+
+`placeholder-brand.svg` and `placeholder-partner.svg` are dashed boxes, not
+anyone's real logo. They stand in for the GLEN mark (which does not exist yet)
+and for a partner organisation's, so the header can be judged for spacing and
+truncation with a full set of marks present. The DSE mark in the fixture is
+real, and comes from `app/assets/`.
+
 ## Variants
 
 `preview/variants/<name>.json` is a **shallow patch** over the base fixture,
