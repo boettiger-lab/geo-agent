@@ -314,20 +314,135 @@ body.sidebar-mode.sidebar-collapsed #sidebar-show-btn {
 
 /* ----- Narrow-viewport fallback: overlay instead of push --------------- */
 
+/* ----- Narrow viewport: the sidebar becomes a bottom sheet -------------
+   A side-by-side panel and map cannot both work at phone width. The panel
+   moves to the bottom with three detents (peek / half / full), driven by
+   mobile-sheet.js, which sets --sheet-h. The map stays full-bleed behind it
+   and keeps every one of its own gestures: the sheet moves only from its
+   handle. See app/mobile-sheet.js. */
+
 @media (max-width: 700px) {
     body.sidebar-mode #map {
         right: 0;
         width: 100%;
     }
-    body.sidebar-mode #sidebar {
-        --sidebar-width: min(400px, 90vw);
-        width: var(--sidebar-width);
-        box-shadow: -4px 0 10px var(--chrome-shadow);
+
+    body.sidebar-mode.sheet-mode #sidebar {
+        top: auto;
+        right: 0;
+        left: 0;
+        bottom: 0;
+        width: 100%;
+        height: var(--sheet-h, 96px);
+        max-height: calc(100vh - var(--app-header-h));
+        flex-direction: column;
+        border-top: 1px solid var(--chrome-line);
+        border-radius: 12px 12px 0 0;
+        box-shadow: 0 -4px 16px var(--chrome-shadow);
+        overflow: hidden;
+        /* Nothing below the sheet is reachable, so let the browser keep the
+           page from rubber-banding when the panel's list hits its end. */
+        overscroll-behavior: contain;
+        padding-bottom: env(safe-area-inset-bottom, 0px);
     }
-    body.sidebar-mode .sidebar-resize-handle,
-    body.sidebar-mode .sidebar-splitter {
-        /* Drag-resize disabled on narrow viewports. */
-        pointer-events: none;
+
+    /* Only while snapping — a transition during a drag lags the finger. */
+    body.sidebar-mode.sheet-mode #sidebar.sheet-animating {
+        transition: height 180ms ease;
+    }
+
+    /* Map overlays sit above the sheet rather than behind it. */
+    body.sidebar-mode.sheet-mode #map-overlay-rail {
+        bottom: calc(var(--sheet-h, 96px) + 10px);
+        max-height: calc(100vh - var(--sheet-h, 96px) - var(--app-header-h) - 20px);
+    }
+
+    /* Desktop chrome that the sheet replaces. */
+    body.sidebar-mode.sheet-mode .sidebar-resize-handle,
+    body.sidebar-mode.sheet-mode .sidebar-splitter,
+    body.sidebar-mode.sheet-mode #sidebar-header,
+    body.sidebar-mode.sheet-mode #sidebar-show-btn,
+    body.sidebar-mode.sheet-mode #chat-section-header {
+        display: none;
+    }
+
+    /* ----- Handle ----- */
+    #sheet-grabber {
+        flex: 0 0 auto;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        /* Generous hit area around a small visual grabber: this is the one
+           drag target on the screen, and a thin bar is hard to catch. */
+        height: 28px;
+        padding: 0;
+        border: none;
+        background: none;
+        cursor: grab;
+        touch-action: none;
+    }
+
+    #sheet-grabber span {
+        display: block;
+        width: 38px;
+        height: 4px;
+        border-radius: 2px;
+        background: var(--chrome-fg-muted);
+    }
+
+    /* ----- Tabs ----- */
+    #sheet-tabs {
+        flex: 0 0 auto;
+        display: flex;
+        gap: 6px;
+        padding: 0 12px 10px;
+    }
+
+    .sheet-tab {
+        flex: 1;
+        padding: 9px 10px;
+        font: inherit;
+        font-size: 14px;
+        color: var(--chrome-fg);
+        background: var(--chrome-hover);
+        border: 1px solid transparent;
+        border-radius: 6px;
+        cursor: pointer;
+    }
+
+    .sheet-tab[aria-selected="true"] {
+        background: var(--control-bg);
+        color: var(--control-fg);
+    }
+
+    /* ----- Panes: one at a time ----- */
+    body.sheet-mode[data-sheet-tab="chat"] #sidebar-layers-pane,
+    body.sheet-mode[data-sheet-tab="layers"] #chat-messages,
+    body.sheet-mode[data-sheet-tab="layers"] #chat-input-container,
+    body.sheet-mode[data-sheet-tab="layers"] #sidebar-footer {
+        display: none;
+    }
+
+    body.sheet-mode #sidebar-layers-pane,
+    body.sheet-mode #chat-messages {
+        flex: 1 1 auto;
+        min-height: 0;
+        overflow-y: auto;
+        overscroll-behavior: contain;
+    }
+
+    /* At peek there is nothing to show but the handle and the tabs. */
+    body.sheet-mode[data-sheet-detent="peek"] #sidebar-layers-pane,
+    body.sheet-mode[data-sheet-detent="peek"] #chat-messages,
+    body.sheet-mode[data-sheet-detent="peek"] #chat-input-container,
+    body.sheet-mode[data-sheet-detent="peek"] #sidebar-footer {
+        display: none;
+    }
+
+    /* Inputs below 16px make iOS Safari zoom the whole page on focus. */
+    body.sheet-mode #chat-input,
+    body.sheet-mode .sheet-tab {
+        font-size: 16px;
     }
 }
 

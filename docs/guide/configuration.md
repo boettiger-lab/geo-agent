@@ -660,7 +660,34 @@ top edge.
 
 Below 700px the nav row and the title are replaced — not compressed — by a menu
 button that opens a full-viewport takeover listing the same entries. It closes
-on the button, the ✕, or choosing a link.
+on the button, the ✕, Escape, or choosing a link.
+
+## Mobile layout
+
+Below 700px the sidebar stops being a side panel and becomes a **bottom
+sheet**. Nothing to configure; it applies automatically in sidebar mode.
+
+Three detents:
+
+| Detent | Height | Reads as |
+|---|---|---|
+| peek | ~96px | a full-screen map |
+| half | 50vh | map above, panel below |
+| full | viewport minus the header | a full-screen panel |
+
+`half` is why this is a sheet rather than a set of full-screen tabs: toggling a
+layer or asking a question is *about* the map, and if the panel covers it you
+act blind and check afterwards.
+
+**Gestures never touch the map.** Horizontal drag over the map is pan and pinch
+is zoom — MapLibre keeps all of it. The sheet moves only from its own handle:
+drag it, or tap it to cycle detents. A **Layers / Chat** tab strip switches
+panes with a tap; choosing a tab from `peek` opens the sheet to `half` rather
+than relabelling a closed panel.
+
+The handle is a real button, so the keyboard gets the same moves (↑ / ↓ change
+detent). Map overlay panels — legend, sliders, hex controls — are lifted to sit
+above the sheet rather than behind it, and shrink as it grows.
 
 ## Theme
 

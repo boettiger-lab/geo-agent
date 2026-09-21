@@ -19,6 +19,7 @@
 
 import { buildAppHeader } from './app-header.js';
 import { applyTheme } from './theme.js';
+import { initMobileSheet } from './mobile-sheet.js';
 
 // State exposed to main.js so it can wire map.resize() into the drag loop.
 export const sidebarHooks = {
@@ -26,6 +27,8 @@ export const sidebarHooks = {
     onResizeTick: null,
     /** @type {(() => void) | null} — called once on drag-end / collapse transitionend */
     onResizeEnd: null,
+    /** @type {{destroy:()=>void, setDetent:(d:string)=>void} | null} */
+    sheet: null,
 };
 
 export function buildLayout(appConfig) {
@@ -211,6 +214,8 @@ function buildSidebarLayout(appConfig, title, linksAbsorbed = false) {
     initSidebarCollapse(sidebar, hideBtn, showBtn);
     initLayersSplitter(splitter, sidebar);
     initChatCollapse(chatToggle);
+    // Takes over only below the narrow breakpoint, and hands back above it.
+    sidebarHooks.sheet = initMobileSheet(sidebar);
 
     return {
         chatMount: {
