@@ -62,7 +62,12 @@ jobs:
           fi
           mkdir -p "$dest"
           cp -R app/. "$dest/"
-          cp preview/layers-input.json "$dest/layers-input.json"
+          # Overlay the fixture: layers-input.json replaces app/'s, and any
+          # assets beside it (placeholder logos, images the config points at)
+          # land next to it so relative paths resolve. preview/README.md is
+          # documentation, not part of the served app.
+          find preview -maxdepth 1 -type f ! -name README.md -exec cp {} "$dest/" \;
+          test -f "$dest/layers-input.json"
           test ! -e "$dest/config.json"
           echo "Staged ${GITHUB_REF_NAME} (${GITHUB_SHA}) at /preview/"
 
