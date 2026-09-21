@@ -8,7 +8,9 @@ on:
       - 'package.json'
       - '.github/workflows/gh-pages.yml'
 
-  # Allow manual trigger
+  # Allow manual trigger. Dispatching on a `preview/*` branch also publishes
+  # that branch's app/ at /preview/ — see the "Stage app preview" step and
+  # preview/README.md.
   workflow_dispatch:
 
 permissions:
@@ -36,6 +38,33 @@ jobs:
 
       - name: Build VitePress docs
         run: npm run docs:build
+
+      # Browser-bound modules (map, chat UI, layout) have no test harness, so
+      # they are verified by eye. Dispatching this workflow on a `preview/*`
+      # branch stages that branch's app/ into the built docs tree, giving a
+      # real browser URL for an unmerged change.
+      #
+      # The app is served as-is: app/index.html imports main.js relatively, so
+      # nothing is pinned and no downstream app is involved. app/config.json is
+      # gitignored and therefore never checked out — previews carry no secrets
+      # and have no LLM configured.
+      #
+      # Staged after the docs build so it survives it, and into a subdirectory
+      # so the docs keep their own URLs.
+      - name: Stage app preview
+        if: startsWith(github.ref, 'refs/heads/preview/')
+        run: |
+          set -euo pipefail
+          dest=docs/.vitepress/dist/preview
+          if [ -e "$dest" ]; then
+            echo "::error::$dest already exists in the docs build; pick another path"
+            exit 1
+          fi
+          mkdir -p "$dest"
+          cp -R app/. "$dest/"
+          cp preview/layers-input.json "$dest/layers-input.json"
+          test ! -e "$dest/config.json"
+          echo "Staged ${GITHUB_REF_NAME} (${GITHUB_SHA}) at /preview/"
 
       - name: Setup Pages
         uses: actions/configure-pages@v5

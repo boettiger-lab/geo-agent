@@ -1,0 +1,220 @@
+{
+  "catalog": "https://s3-west.nrp-nautilus.io/public-data/stac/catalog.json",
+  "titiler_url": "https://titiler.nrp-nautilus.io",
+  "mcp_url": "https://duckdb-mcp.carlboettiger.info/mcp",
+  "auto_approve": true,
+  "upload_enabled": true,
+  "draw_enabled": true,
+  "charts": {
+    "enabled": true
+  },
+  "geocoder": {
+    "provider": "nominatim",
+    "search_box": true
+  },
+  "geolocate": {
+    "button": true,
+    "agent_tool": true
+  },
+  "sidebar": {
+    "enabled": true,
+    "title": "Layout preview",
+    "chat_title": "Chat"
+  },
+  "view": {
+    "center": [
+      -119.4,
+      37.6
+    ],
+    "zoom": 6
+  },
+  "links": {
+    "github": "https://github.com/boettiger-lab/geo-agent",
+    "docs": "https://boettiger-lab.github.io/geo-agent/",
+    "carbon": true
+  },
+  "welcome": {
+    "message": "Layout preview build \u2014 a fixture for eyeballing browser-bound UI on an unmerged branch. No LLM is configured, so the chat will not answer.",
+    "examples": []
+  },
+  "collections": [
+    {
+      "collection_id": "pad-us-4.1-fee",
+      "collection_url": "https://s3-west.nrp-nautilus.io/public-padus/padus-4-1/fee/stac-collection.json",
+      "assets": [
+        {
+          "id": "fee-pmtiles",
+          "display_name": "Fee Lands",
+          "group": "Protected Areas",
+          "visible": true,
+          "default_style": {
+            "fill-color": [
+              "match",
+              [
+                "get",
+                "GAP_Sts"
+              ],
+              "1",
+              "#26633A",
+              "2",
+              "#3E9C47",
+              "3",
+              "#7EB3D3",
+              "4",
+              "#BDBDBD",
+              "#888888"
+            ],
+            "fill-opacity": 0.7
+          },
+          "default_filter": [
+            "match",
+            [
+              "get",
+              "GAP_Sts"
+            ],
+            [
+              "1",
+              "2"
+            ],
+            true,
+            false
+          ],
+          "tooltip_fields": [
+            "Unit_Nm",
+            "GAP_Sts",
+            "Mang_Type"
+          ],
+          "legend_type": "categorical",
+          "legend_classes": [
+            {
+              "label": "GAP Status 1 \u2014 managed for biodiversity",
+              "color": "#26633A"
+            },
+            {
+              "label": "GAP Status 2 \u2014 managed, some extractive use",
+              "color": "#3E9C47"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "collection_id": "nlcd",
+      "collection_url": "https://s3-west.nrp-nautilus.io/public-land-cover/nlcd/stac-collection.json",
+      "assets": [
+        {
+          "id": "nlcd-cog-2024",
+          "display_name": "Land Cover (NLCD 2024)",
+          "group": "Land Cover",
+          "legend_type": "categorical",
+          "visible": false
+        }
+      ]
+    },
+    {
+      "collection_id": "irrecoverable-carbon",
+      "collection_url": "https://s3-west.nrp-nautilus.io/public-carbon/stac-collection.json",
+      "assets": [
+        {
+          "id": "v2-irrecoverable-2024-cog",
+          "display_name": "Irrecoverable Carbon (2024)",
+          "group": "Carbon",
+          "colormap": "reds",
+          "rescale": "0,150",
+          "legend_label": "Mg C / ha",
+          "visible": false
+        }
+      ]
+    },
+    {
+      "collection_id": "federal-trails-2026",
+      "collection_url": "https://s3-west.nrp-nautilus.io/public-trails/federal-trails-2026/stac-collection.json",
+      "assets": [
+        {
+          "id": "federal-trails-2026-pmtiles",
+          "display_name": "Federal Trails (USFS / NPS / BLM)",
+          "group": "Trails",
+          "visible": false,
+          "layer_type": "line",
+          "default_style": {
+            "line-color": [
+              "match",
+              [
+                "get",
+                "admin_agency"
+              ],
+              "USFS",
+              "#1565C0",
+              "NPS",
+              "#5D4037",
+              "BLM",
+              "#E65100",
+              "#888888"
+            ],
+            "line-width": 1.2,
+            "line-opacity": 0.9
+          },
+          "tooltip_fields": [
+            "trail_name",
+            "admin_agency",
+            "admin_unit",
+            "length_miles"
+          ],
+          "legend_type": "categorical",
+          "legend_classes": [
+            {
+              "label": "USFS",
+              "color": "#1565C0"
+            },
+            {
+              "label": "NPS",
+              "color": "#5D4037"
+            },
+            {
+              "label": "BLM",
+              "color": "#E65100"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "collection_id": "usgs-fires-2021-combined",
+      "collection_url": "https://s3-west.nrp-nautilus.io/public-fire/usgs-fires-2021/combined/stac-collection.json",
+      "assets": [
+        {
+          "id": "combined-pmtiles",
+          "display_name": "Wildfire Perimeters (USGS, through 2021)",
+          "group": "Fire",
+          "visible": true,
+          "default_style": {
+            "fill-color": "#E64A19",
+            "fill-opacity": 0.45
+          },
+          "outline_style": {
+            "line-color": "#BF360C",
+            "line-width": 0.4,
+            "line-opacity": 0.6
+          },
+          "tooltip_fields": [
+            "Listed_Fire_Names",
+            "Fire_Year",
+            "GIS_Acres",
+            "Assigned_Fire_Type"
+          ],
+          "control": {
+            "type": "slider",
+            "field": "Fire_Year",
+            "label": "Fire year",
+            "min": 1900,
+            "max": 2021,
+            "step": 1,
+            "mode": "cumulative",
+            "animate": true,
+            "duration_seconds": 20
+          }
+        }
+      ]
+    }
+  ]
+}
