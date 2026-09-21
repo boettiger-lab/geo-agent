@@ -1624,7 +1624,7 @@ export class MapManager {
         cycleBtn.className = 'panel-btn';
         cycleBtn.title = 'Send the topmost visible layer to the back';
         cycleBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5 5.5 5.5 0 0 1-5.5 5.5H11"/></svg>';
-        cycleBtn.append(' Send back');
+        cycleBtn.append(' Layer to back');
         cycleBtn.addEventListener('click', () => this.sendTopVisibleLayerToBack());
 
         const btnGroup = document.createElement('div');
