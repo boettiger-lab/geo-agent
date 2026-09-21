@@ -718,7 +718,7 @@ export class ChatUI {
         btn.id = 'export-btn';
         btn.className = row ? 'panel-btn' : '';
         btn.title = 'Save this conversation as a self-contained HTML document you can share or print.';
-        btn.textContent = row ? '\u{1F4BE} Save' : '\u{1F4BE}';
+        btn.textContent = row ? '\u{1F4BE} Export Map' : '\u{1F4BE}';
         btn.disabled = true;
 
         btn.addEventListener('click', () => {

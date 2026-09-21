@@ -408,3 +408,14 @@ body.sidebar-mode #chat-mic {
     flex: 0 0 auto;
     align-self: flex-end;
 }
+
+/* Send uses the shared control fill, so it matches the panel buttons
+   instead of being the one bespoke blue in the sidebar. */
+body.sidebar-mode #chat-send {
+    background: var(--control-bg);
+    color: var(--control-fg);
+}
+
+body.sidebar-mode #chat-send:hover:not(:disabled) {
+    background: var(--control-bg-hover);
+}

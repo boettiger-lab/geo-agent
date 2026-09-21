@@ -1605,20 +1605,29 @@ export class MapManager {
         const basemapSection = document.createElement('div');
         basemapSection.className = 'menu-section';
 
-        // Basemap header: "BASEMAP" label + globe icon button inline
+        // Map-wide controls: globe projection and send-to-back, grouped
+        // because both act on the map as a whole rather than on one layer.
+        // The section carries no heading — "Basemap" over a row of basemap
+        // names said nothing the names did not.
         const basemapHeader = document.createElement('div');
-        basemapHeader.className = 'menu-section-header';
-        const basemapTitle = document.createElement('label');
-        basemapTitle.className = 'section-title';
-        basemapTitle.textContent = 'Basemap';
+        basemapHeader.className = 'menu-section-header menu-section-header--actions';
         const globeBtn = document.createElement('button');
         globeBtn.id = 'globe-btn';
-        globeBtn.className = 'globe-btn' + (this._globeEnabled ? ' active' : '');
+        globeBtn.className = 'panel-btn globe-btn' + (this._globeEnabled ? ' active' : '');
         globeBtn.title = 'Toggle globe view';
         globeBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>`;
+        globeBtn.append(' Globe');
         globeBtn.addEventListener('click', () => this.setProjection(this._globeEnabled ? 'mercator' : 'globe'));
-        basemapHeader.appendChild(basemapTitle);
-        basemapHeader.appendChild(globeBtn);
+
+        const cycleBtn = document.createElement('button');
+        cycleBtn.id = 'cycle-top-layer';
+        cycleBtn.className = 'panel-btn';
+        cycleBtn.title = 'Send the topmost visible layer to the back';
+        cycleBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5 5.5 5.5 0 0 1-5.5 5.5H11"/></svg>';
+        cycleBtn.append(' Send back');
+        cycleBtn.addEventListener('click', () => this.sendTopVisibleLayerToBack());
+
+        basemapHeader.append(globeBtn, cycleBtn);
         basemapSection.appendChild(basemapHeader);
 
         const btnGroup = document.createElement('div');
@@ -1643,22 +1652,7 @@ export class MapManager {
         const overlaysSection = document.createElement('div');
         overlaysSection.className = 'menu-section';
 
-        // Overlays header: "OVERLAYS" label + send-to-back button inline,
-        // right next to the layer stack the button reorders.
-        const overlaysHeader = document.createElement('div');
-        overlaysHeader.className = 'menu-section-header';
-        const overlaysTitle = document.createElement('label');
-        overlaysTitle.className = 'section-title';
-        overlaysTitle.textContent = 'Overlays';
-        const cycleBtn = document.createElement('button');
-        cycleBtn.id = 'cycle-top-layer';
-        cycleBtn.className = 'menu-header-btn';
-        cycleBtn.title = 'Send the topmost visible layer to the back';
-        cycleBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5 5.5 5.5 0 0 1-5.5 5.5H11"/></svg>';
-        cycleBtn.addEventListener('click', () => this.sendTopVisibleLayerToBack());
-        overlaysHeader.appendChild(overlaysTitle);
-        overlaysHeader.appendChild(cycleBtn);
-        overlaysSection.appendChild(overlaysHeader);
+        // No heading: the layer list below is self-evidently the overlays.
 
         const layerControls = document.createElement('div');
         layerControls.id = 'layer-controls-container';

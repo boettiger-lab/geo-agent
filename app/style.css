@@ -49,12 +49,13 @@ body.theme-light {
     --chrome-accent-wash: rgba(120, 170, 255, 0.12);
     --chrome-carbon: #2e7d32;
     --chrome-shadow: rgba(0, 0, 0, 0.18);
-    --control-bg: #ffffff;
-    --control-bg-hover: #eef1f5;
-    --control-border: rgba(0, 0, 0, 0.18);
-    --control-fg: #1a1a2e;
-    --control-active-bg: rgba(134, 194, 116, 0.35);
-    --control-active-border: #86c274;
+    --control-bg: #2f6fd0;
+    --control-bg-hover: #2a62b8;
+    --control-border: transparent;
+    --control-fg: #ffffff;
+    --control-active-bg: #1c4a92;
+    --control-active-border: transparent;
+    --control-accent: #2f6fd0;
     --control-focus-fg: #0b62a4;
     --control-focus-bg: rgba(0, 124, 191, 0.12);
     --panel-bg: rgba(255, 255, 255, 0.92);
@@ -90,12 +91,13 @@ body.theme-dark {
     --chrome-accent-wash: rgba(120, 170, 255, 0.18);
     --chrome-carbon: #8bc34a;
     --chrome-shadow: rgba(0, 0, 0, 0.45);
-    --control-bg: #1e2b46;
-    --control-bg-hover: #27375a;
-    --control-border: rgba(255, 255, 255, 0.22);
-    --control-fg: #e8eef7;
-    --control-active-bg: rgba(134, 194, 116, 0.32);
-    --control-active-border: #86c274;
+    --control-bg: #2f4f86;
+    --control-bg-hover: #3a5f9e;
+    --control-border: transparent;
+    --control-fg: #eaf1fb;
+    --control-active-bg: #4a80c8;
+    --control-active-border: transparent;
+    --control-accent: #5b8fd6;
     --control-focus-fg: #7cc4f0;
     --control-focus-bg: rgba(0, 124, 191, 0.28);
     --panel-bg: rgba(17, 27, 46, 0.92);
@@ -134,12 +136,13 @@ body.theme-dark {
         --chrome-accent-wash: rgba(120, 170, 255, 0.18);
         --chrome-carbon: #8bc34a;
         --chrome-shadow: rgba(0, 0, 0, 0.45);
-        --control-bg: #1e2b46;
-        --control-bg-hover: #27375a;
-        --control-border: rgba(255, 255, 255, 0.22);
-        --control-fg: #e8eef7;
-        --control-active-bg: rgba(134, 194, 116, 0.32);
-        --control-active-border: #86c274;
+        --control-bg: #2f4f86;
+        --control-bg-hover: #3a5f9e;
+        --control-border: transparent;
+        --control-fg: #eaf1fb;
+        --control-active-bg: #4a80c8;
+        --control-active-border: transparent;
+        --control-accent: #5b8fd6;
         --control-focus-fg: #7cc4f0;
         --control-focus-bg: rgba(0, 124, 191, 0.28);
         --panel-bg: rgba(17, 27, 46, 0.92);
@@ -526,7 +529,7 @@ body.has-app-header:not(.app-header-solid) .maplibregl-ctrl-top-right {
     border: 1px solid var(--control-border);
     border-radius: 4px;
     background: var(--control-bg);
-    color: inherit;
+    color: var(--control-fg);
     cursor: pointer;
     transition: background 0.15s, color 0.15s, border-color 0.15s;
     white-space: nowrap;
@@ -534,7 +537,6 @@ body.has-app-header:not(.app-header-solid) .maplibregl-ctrl-top-right {
 
 .basemap-btn:hover {
     background: var(--control-bg-hover);
-    border-color: var(--chrome-fg-muted);
 }
 
 .basemap-btn.active {
@@ -550,29 +552,12 @@ body.has-app-header:not(.app-header-solid) .maplibregl-ctrl-top-right {
 }
 
 .globe-btn {
-    background: var(--control-bg);
-    border: 1px solid var(--control-border);
-    padding: 4px 6px;
-    cursor: pointer;
-    color: var(--chrome-fg-muted);
-    border-radius: 4px;
-    line-height: 1;
-    transition: color 0.15s, background 0.15s, border-color 0.15s;
-    display: flex;
-    align-items: center;
+    gap: 5px;
 }
 
-.globe-btn:hover {
-    color: var(--chrome-fg);
-    background: var(--control-bg-hover);
-    border-color: var(--chrome-fg-muted);
-}
 
-.globe-btn.active {
-    color: var(--chrome-fg);
-    background: var(--control-active-bg);
-    border-color: var(--control-active-border);
-}
+
+
 
 .menu-header {
     display: flex;
@@ -763,18 +748,50 @@ details.layer-group:not([open]) .layer-group-title::before {
     margin: 8px 0 6px;
 }
 
+/* One button. Everything that is clickable in a panel — basemap, globe,
+   send-back, upload, export — uses this, so a row of them reads as a set.
+   Solid fill rather than an outline: a translucent control picks up whatever
+   is behind it, which is what made these look inconsistent. */
 .upload-btn,
-.panel-btn {
+.panel-btn,
+.basemap-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
     padding: 5px 10px;
     font-size: 12px;
     font-family: inherit;
-    color: inherit;
+    color: var(--control-fg);
     background: var(--control-bg);
     border: 1px solid var(--control-border);
     border-radius: 4px;
     cursor: pointer;
     white-space: nowrap;
-    transition: background 0.15s, border-color 0.15s, opacity 0.15s;
+    transition: background 0.15s, opacity 0.15s;
+}
+
+/* Selected — the current basemap, globe mode on. */
+.basemap-btn.active,
+.panel-btn.active {
+    background: var(--control-active-bg);
+    border-color: var(--control-active-border);
+}
+
+/* Checkboxes and range sliders (the layer toggles and the year slider) take
+   the same blue, so the whole panel agrees. */
+#layer-controls-container input[type="checkbox"],
+.checkbox-group input[type="checkbox"],
+.rc-slider,
+.anim-controls input[type="range"] {
+    accent-color: var(--control-accent);
+}
+
+/* The map-wide action row: globe + send-back, side by side. */
+.menu-section-header--actions {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 8px;
 }
 
 .panel-btn:disabled {
@@ -783,9 +800,9 @@ details.layer-group:not([open]) .layer-group-title::before {
 }
 
 .upload-btn:hover,
+.basemap-btn:hover,
 .panel-btn:not(:disabled):hover {
     background: var(--control-bg-hover);
-    border-color: var(--chrome-fg-muted);
 }
 
 .upload-status {
