@@ -34,6 +34,25 @@ export const CARBON_DASHBOARD_URL = 'https://carbon-api.nrp-nautilus.io/';
 export const DEFAULT_CONTACT = 'mailto:dse@berkeley.edu';
 
 /**
+ * The DSE mark every app in the fleet carries, resolved against this module's
+ * own URL.
+ *
+ * import.meta.url is the jsDelivr path the app loaded the library from, so the
+ * asset comes from the same pinned ref and needs no configuration — an app's
+ * own page is served from somewhere else entirely, so a relative path would
+ * not resolve.
+ */
+export function defaultTrailingLogo() {
+    const asset = name => new URL(`./assets/${name}`, import.meta.url).href;
+    return {
+        src: asset('dse-mark.png'),
+        src_dark: asset('dse-mark-white.png'),
+        alt: 'Eric and Wendy Schmidt Center for Data Science & Environment at Berkeley',
+        href: 'https://dse.berkeley.edu/',
+    };
+}
+
+/**
  * Height of the band, before any device safe-area inset.
  *
  * Published as `--app-header-base-h`; CSS adds `env(safe-area-inset-top)` on
@@ -72,7 +91,9 @@ const DEFAULT_MODE = 'solid';
  */
 export function resolveHeaderConfig(appConfig = {}) {
     const header = appConfig.header || {};
-    const enabled = Boolean(header.enabled);
+    // On by default across the fleet: every app carries the DSE mark. Opt out
+    // with `header: { enabled: false }`.
+    const enabled = header.enabled !== false;
 
     const mode = MODES.has(header.mode) ? header.mode : DEFAULT_MODE;
 
@@ -81,7 +102,11 @@ export function resolveHeaderConfig(appConfig = {}) {
         mode,
         title: header.title || appConfig.sidebar?.title || null,
         brand: normalizeLogo(header.brand),
-        partner: normalizeLogoList(header.partner),
+        // Unset means the default DSE mark; an explicit [] or null means the
+        // app has deliberately cleared it.
+        partner: normalizeLogoList(
+            header.partner === undefined ? defaultTrailingLogo() : header.partner,
+        ),
         nav: resolveNav(header, appConfig.links),
     };
 }

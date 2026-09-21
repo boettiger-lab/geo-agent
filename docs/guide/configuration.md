@@ -546,10 +546,18 @@ both modes.
 
 ## App header
 
-An optional chrome band across the top of the page, carrying deployment identity
-(logos, app title) and top-level navigation. **Off by default** — with no
-`header` block nothing renders and the layout is unchanged, so bumping a pin
-never adds chrome an app did not ask for.
+A chrome band across the top of the page, carrying deployment identity (logos,
+app title) and top-level navigation.
+
+> **On by default.** Every app in the fleet carries the DSE mark, so with no
+> `header` block you still get the band, the DSE logo and a Contact link. An
+> app bumping its pin past this version **will gain a header it did not ask
+> for** — opt out with `"header": { "enabled": false }`.
+
+The default trailing logo is the DSE mark, resolved from the same pinned ref
+the app loaded the library from, so it needs no configuration and no URL to
+maintain. Set `partner` to `[]` to clear it, or to your own list to replace
+it.
 
 The split it introduces: *app-level* things (who made this, what else there is
 to read) belong in the header; *map-level* things (legend, sliders, hex
@@ -569,11 +577,11 @@ controls) belong on the map, in the [overlay rail](#map-overlay-rail-and-stackin
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `enabled` | boolean | `false` | Render the band. Everything else is ignored when false. |
+| `enabled` | boolean | `true` | Render the band. Set `false` to opt out entirely. |
 | `mode` | string | `"solid"` | `"solid"` is an opaque band with a separating edge, and the map starts below it. `"scrim"` floats a translucent band over a full-bleed map, costing no map area — but note it sits directly against the browser's own chrome, which can read as one bar. An unrecognised value falls back to `"solid"`. |
 | `title` | string | `sidebar.title` | Text beside the logos. Hidden on narrow viewports, where the logos carry identity. |
 | `brand` | object | — | Primary logo, shown first. `{ src, src_dark, alt, href }`; `src` is required or the logo is skipped, and `href` is optional (without one the image is not a link). |
-| `partner` | object or array | — | Trailing logo(s), shown at the end of the bar after the nav. Same shape as `brand`; pass an array to show several (e.g. a partner mark alongside the hosting institution). |
+| `partner` | object or array | DSE mark | Trailing logo(s), after the nav. Same shape as `brand`; pass an array to show several. Unset gives the DSE mark; `[]` clears it. |
 | `nav` | array | derived | Top-level links — see below. |
 
 No logo images ship with the library; `src` is always a URL the app supplies.

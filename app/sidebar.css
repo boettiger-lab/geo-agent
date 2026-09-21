@@ -441,7 +441,7 @@ body.sidebar-mode.sidebar-collapsed #sidebar-show-btn {
        Stacked over a phone-sized map the legend, slider and hex controls
        cover most of it. On mobile they dock here instead, as their own
        pane, so the map stays a map. */
-    body.sidebar-mode.sheet-mode #map-overlay-rail {
+    body.sidebar-mode.sheet-mode[data-sheet-tab="legend"] #map-overlay-rail {
         position: static;
         display: flex;
         flex-direction: column;
@@ -452,7 +452,7 @@ body.sidebar-mode.sidebar-collapsed #sidebar-show-btn {
         pointer-events: auto;
     }
 
-    body.sidebar-mode.sheet-mode #map-overlay-rail > * {
+    body.sidebar-mode.sheet-mode[data-sheet-tab="legend"] #map-overlay-rail > * {
         position: static;
         max-width: none;
     }

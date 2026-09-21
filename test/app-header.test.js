@@ -16,9 +16,34 @@ beforeEach(() => {
 });
 
 describe('resolveHeaderConfig', () => {
-    it('is disabled when there is no header block', () => {
-        expect(resolveHeaderConfig({}).enabled).toBe(false);
-        expect(resolveHeaderConfig().enabled).toBe(false);
+    it('is on by default — every app in the fleet carries the DSE mark', () => {
+        expect(resolveHeaderConfig({}).enabled).toBe(true);
+        expect(resolveHeaderConfig().enabled).toBe(true);
+    });
+
+    it('can be opted out of explicitly', () => {
+        expect(resolveHeaderConfig({ header: { enabled: false } }).enabled).toBe(false);
+    });
+
+    it('supplies the DSE mark when no trailing logo is configured', () => {
+        const { partner } = resolveHeaderConfig({});
+        expect(partner).toHaveLength(1);
+        expect(partner[0].src).toContain('dse-mark.png');
+        expect(partner[0].srcDark).toContain('dse-mark-white.png');
+        expect(partner[0].href).toBe('https://dse.berkeley.edu/');
+        expect(partner[0].alt).toBeTruthy();
+    });
+
+    it('resolves the mark against the library URL, not the app page', () => {
+        // The app's own page is served from somewhere else entirely, so a
+        // relative path would not resolve; this must be absolute.
+        const { partner } = resolveHeaderConfig({});
+        expect(partner[0].src).toMatch(/^[a-z]+:\/\//);
+    });
+
+    it('an explicit empty list clears the default mark', () => {
+        expect(resolveHeaderConfig({ header: { partner: [] } }).partner).toEqual([]);
+        expect(resolveHeaderConfig({ header: { partner: null } }).partner).toEqual([]);
     });
 
     it('defaults to solid mode and rejects unknown modes', () => {
@@ -148,7 +173,7 @@ describe('resolveHeaderConfig', () => {
 
 describe('buildAppHeader', () => {
     it('renders nothing and zeroes the height when disabled', () => {
-        const res = buildAppHeader({}, document);
+        const res = buildAppHeader({ header: { enabled: false } }, document);
         expect(res.element).toBeNull();
         expect(res.absorbsLinks).toBe(false);
         expect(document.getElementById('app-header')).toBeNull();
@@ -187,6 +212,13 @@ describe('buildAppHeader', () => {
 
         const partnerImg = document.querySelector('.app-header-logo--partner');
         expect(partnerImg.closest('a')).toBeNull();
+    });
+
+    it('renders the default DSE mark when nothing is configured', () => {
+        buildAppHeader({}, document);
+        const img = document.querySelector('.app-header-logo--light');
+        expect(img.src).toContain('dse-mark.png');
+        expect(img.closest('a').href).toBe('https://dse.berkeley.edu/');
     });
 
     it('renders several trailing logos in order', () => {
