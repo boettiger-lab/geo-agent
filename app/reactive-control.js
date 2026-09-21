@@ -13,10 +13,13 @@
  * reactive parameters (a weight slider that re-styles, etc.) by adding `bind`
  * kinds to `buildControlAction` — `filter` is implemented here.
  *
- * Owns a single DOM panel (`.reactive-controls`) and, when `animate` is set, a
- * RAF autoplay loop. Lifecycle methods (setVisible / destroy) let MapManager
- * treat it like the trajectory animation's controls.
+ * Owns a single DOM panel (`.reactive-controls`), mounted into the shared
+ * map overlay rail, and, when `animate` is set, a RAF autoplay loop.
+ * Lifecycle methods (setVisible / destroy) let MapManager treat it like the
+ * trajectory animation's controls.
  */
+
+import { mountOverlay, SLOT } from './overlay-rail.js';
 
 const DEFAULTS = {
     type: 'slider',
@@ -131,10 +134,7 @@ export class ReactiveControl {
                    step="${this.config.step}" value="${this.value}" />
             <span class="rc-value"></span>
         `;
-        // Stack above any trajectory-animation panels and other reactive panels.
-        const existing = this.doc.querySelectorAll('.reactive-controls, .anim-controls').length;
-        panel.style.bottom = (12 + existing * 44) + 'px';
-        this.doc.body.appendChild(panel);
+        mountOverlay(panel, SLOT.REACTIVE, this.doc);
 
         this._panel = panel;
         this._slider = panel.querySelector('.rc-slider');
