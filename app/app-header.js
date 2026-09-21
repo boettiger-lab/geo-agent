@@ -28,10 +28,23 @@
 /** Carbon dashboard for NRP-hosted LLM usage, shown as a nav entry. */
 export const CARBON_DASHBOARD_URL = 'https://carbon-api.nrp-nautilus.io/';
 
-/** Height of the band. Mirrored into `--app-header-h` for other CSS to use. */
-const HEADER_HEIGHT_PX = 56;
+/**
+ * Height of the band, before any device safe-area inset.
+ *
+ * Published as `--app-header-base-h`; CSS adds `env(safe-area-inset-top)` on
+ * top and exposes the total as `--app-header-h`, which is what everything
+ * below the band reads.
+ */
+const HEADER_BASE_HEIGHT_PX = 64;
 
+/**
+ * `solid` is the default: a translucent scrim sits directly against the
+ * browser's own chrome and reads as part of it rather than as the app's bar.
+ * `scrim` stays available for a full-bleed map where the band must not cost
+ * any map area.
+ */
 const MODES = new Set(['scrim', 'solid']);
+const DEFAULT_MODE = 'solid';
 
 /**
  * Resolve the `header` config block into the model the DOM builder renders.
@@ -56,7 +69,7 @@ export function resolveHeaderConfig(appConfig = {}) {
     const header = appConfig.header || {};
     const enabled = Boolean(header.enabled);
 
-    const mode = MODES.has(header.mode) ? header.mode : 'scrim';
+    const mode = MODES.has(header.mode) ? header.mode : DEFAULT_MODE;
 
     return {
         enabled,
@@ -124,11 +137,10 @@ export function buildAppHeader(appConfig, doc = document) {
     const cfg = resolveHeaderConfig(appConfig);
 
     if (!cfg.enabled) {
-        doc.documentElement.style.setProperty('--app-header-h', '0px');
         return { element: null, absorbsLinks: false, height: 0 };
     }
 
-    doc.documentElement.style.setProperty('--app-header-h', HEADER_HEIGHT_PX + 'px');
+    doc.documentElement.style.setProperty('--app-header-base-h', HEADER_BASE_HEIGHT_PX + 'px');
     doc.body.classList.add('has-app-header');
     if (cfg.mode === 'solid') doc.body.classList.add('app-header-solid');
 
@@ -167,7 +179,7 @@ export function buildAppHeader(appConfig, doc = document) {
         element: header,
         // The chat footer shows the same links; with a nav they'd appear twice.
         absorbsLinks: cfg.nav.length > 0,
-        height: HEADER_HEIGHT_PX,
+        height: HEADER_BASE_HEIGHT_PX,
     };
 }
 

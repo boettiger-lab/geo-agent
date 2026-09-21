@@ -569,7 +569,7 @@ controls) belong on the map, in the [overlay rail](#map-overlay-rail-and-stackin
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `enabled` | boolean | `false` | Render the band. Everything else is ignored when false. |
-| `mode` | string | `"scrim"` | `"scrim"` floats a translucent band over a full-bleed map, costing no map area. `"solid"` is opaque and the map starts below it. An unrecognised value falls back to `"scrim"`. |
+| `mode` | string | `"solid"` | `"solid"` is an opaque band with a separating edge, and the map starts below it. `"scrim"` floats a translucent band over a full-bleed map, costing no map area — but note it sits directly against the browser's own chrome, which can read as one bar. An unrecognised value falls back to `"solid"`. |
 | `title` | string | `sidebar.title` | Text beside the logos. Hidden on narrow viewports, where the logos carry identity. |
 | `brand` | object | — | Primary logo, shown first. `{ src, alt, href }`; `src` is required or the logo is skipped, and `href` is optional (without one the image is not a link). |
 | `partner` | object | — | Secondary logo, shown at the end of the bar after the nav. Same shape. |
@@ -616,11 +616,18 @@ the derived nav entirely:
 ### Layout effects
 
 Enabling the header sets a `--app-header-h` custom property (`0px` when there
-is no header, so dependent rules can be written unconditionally):
+is no header, so dependent rules can be written unconditionally). It is the
+64px band plus `env(safe-area-inset-top)`, so notched phones and browsers whose
+UI eats into the viewport get real clearance rather than controls hugging the
+top edge.
 
 - The **sidebar** always starts below the band, in both modes.
 - The **map** starts below it only in `solid` mode; under a `scrim` it stays
   full-bleed.
+- The floating-mode **layer panel** is pushed down by the full offset.
+- **MapLibre's controls** (zoom, geocoder, draw) are measured from the map, so
+  they only need nudging in `scrim` mode — in `solid` mode the map already
+  starts below the band.
 - In `scrim` mode the band is click-through except for its own controls, so the
   empty middle does not steal map interaction.
 

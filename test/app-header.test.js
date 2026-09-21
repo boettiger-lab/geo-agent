@@ -20,10 +20,12 @@ describe('resolveHeaderConfig', () => {
         expect(resolveHeaderConfig().enabled).toBe(false);
     });
 
-    it('defaults to scrim mode and rejects unknown modes', () => {
-        expect(resolveHeaderConfig({ header: { enabled: true } }).mode).toBe('scrim');
-        expect(resolveHeaderConfig({ header: { enabled: true, mode: 'solid' } }).mode).toBe('solid');
-        expect(resolveHeaderConfig({ header: { enabled: true, mode: 'wat' } }).mode).toBe('scrim');
+    it('defaults to solid mode and rejects unknown modes', () => {
+        // Solid by default: a scrim against the browser's own chrome reads as
+        // part of it rather than as the app's bar.
+        expect(resolveHeaderConfig({ header: { enabled: true } }).mode).toBe('solid');
+        expect(resolveHeaderConfig({ header: { enabled: true, mode: 'scrim' } }).mode).toBe('scrim');
+        expect(resolveHeaderConfig({ header: { enabled: true, mode: 'wat' } }).mode).toBe('solid');
     });
 
     it('falls back to the sidebar title when the header sets none', () => {
@@ -117,24 +119,26 @@ describe('buildAppHeader', () => {
         expect(res.absorbsLinks).toBe(false);
         expect(document.getElementById('app-header')).toBeNull();
         expect(document.body.classList.contains('has-app-header')).toBe(false);
-        // Other rules read this unconditionally, so it must be a usable length.
-        expect(document.documentElement.style.getPropertyValue('--app-header-h')).toBe('0px');
+        // Without .has-app-header the stylesheet's own `--app-header-h: 0px`
+        // stands, so the disabled case sets no inline height at all.
+        expect(document.documentElement.style.getPropertyValue('--app-header-base-h')).toBe('');
     });
 
-    it('publishes its height so the sidebar can sit below it', () => {
+    it('publishes its base height so the sidebar can sit below it', () => {
+        // CSS adds env(safe-area-inset-top) to this to get --app-header-h.
         buildAppHeader({ header: { enabled: true } }, document);
-        expect(document.documentElement.style.getPropertyValue('--app-header-h')).toBe('56px');
+        expect(document.documentElement.style.getPropertyValue('--app-header-base-h')).toBe('64px');
         expect(document.body.classList.contains('has-app-header')).toBe(true);
     });
 
     it('marks solid mode on the body so the map can offset', () => {
-        buildAppHeader({ header: { enabled: true, mode: 'solid' } }, document);
+        buildAppHeader({ header: { enabled: true } }, document);
         expect(document.body.classList.contains('app-header-solid')).toBe(true);
         expect(document.getElementById('app-header').dataset.mode).toBe('solid');
     });
 
     it('does not mark the body solid in scrim mode', () => {
-        buildAppHeader({ header: { enabled: true } }, document);
+        buildAppHeader({ header: { enabled: true, mode: 'scrim' } }, document);
         expect(document.body.classList.contains('app-header-solid')).toBe(false);
     });
 
