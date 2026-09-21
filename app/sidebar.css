@@ -579,3 +579,64 @@ body.sidebar-mode #model-selector:hover {
     background: var(--control-bg-hover);
     opacity: 1;
 }
+
+/* ----- API key panel, themed ------------------------------------------
+   chat.css styles this for the floating panel's dark-glass surface: a
+   translucent white box with dark text. On a themed sidebar that reads as a
+   grey slab, and in the dark theme the text sits on the wrong ground
+   entirely. Scoped to sidebar mode, so floating mode keeps its own look. */
+
+body.sidebar-mode #api-settings-panel {
+    background: var(--chat-surface-soft);
+    border-bottom: 1px solid var(--chrome-line);
+}
+
+body.sidebar-mode .settings-title {
+    color: var(--chrome-fg);
+}
+
+body.sidebar-mode .settings-label {
+    color: var(--chrome-fg-muted);
+}
+
+body.sidebar-mode .settings-hint {
+    color: var(--chrome-fg-muted);
+}
+
+body.sidebar-mode #settings-btn {
+    color: var(--chrome-fg-muted);
+}
+
+body.sidebar-mode #settings-btn:hover {
+    color: var(--chrome-fg);
+}
+
+body.sidebar-mode #api-settings-panel input {
+    background: var(--chat-input-bg);
+    color: var(--chat-fg);
+    border: 1px solid var(--chrome-line);
+}
+
+body.sidebar-mode #api-settings-panel input:focus {
+    border-color: var(--control-accent);
+}
+
+/* Save is a control like any other; cancel stays quiet beside it. */
+body.sidebar-mode .settings-save-btn {
+    background: var(--control-bg);
+    color: var(--control-fg);
+}
+
+body.sidebar-mode .settings-save-btn:hover {
+    background: var(--control-bg-hover);
+}
+
+body.sidebar-mode .settings-cancel-btn {
+    background: var(--chrome-hover);
+    color: var(--chrome-fg-muted);
+}
+
+body.sidebar-mode .settings-cancel-btn:hover {
+    background: var(--chrome-hover);
+    color: var(--chrome-fg);
+}
