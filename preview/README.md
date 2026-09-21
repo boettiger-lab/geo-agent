@@ -52,6 +52,10 @@ duplicating the whole fixture, which would then drift out of sync.
 { "theme": "light" }
 ```
 
+`brand.json` is the same fixture under an invented house palette, to show that
+a downstream app can recolour from config alone. It is a made-up colour scheme,
+not anyone's real branding.
+
 Top-level keys in the patch replace those in the base; there is no deep merge,
 so patch whole blocks rather than individual nested fields.
 

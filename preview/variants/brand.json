@@ -1,0 +1,10 @@
+{
+  "theme": {
+    "mode": "dark",
+    "primary": "#c2603a",
+    "surface": "#241a16",
+    "text": "#f6ece6",
+    "panel": "rgba(36, 26, 22, 0.92)",
+    "backdrop": "#160f0c"
+  }
+}
