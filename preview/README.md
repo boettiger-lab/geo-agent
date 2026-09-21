@@ -13,6 +13,11 @@ browser-bound UI can be looked at in a real browser before it merges.
 
 ## Publishing a preview
 
+> The operational runbook — mirror-push pattern, verification, variants,
+> gotchas — is the **`deploy-preview`** skill in `.claude/skills/`. This file
+> covers what the fixture *is*; that one covers how to ship it.
+
+
 Deploys are restricted to branches matching `preview/*` (a deployment-branch
 policy on the `github-pages` environment). Push the branch you want to look at
 under that prefix, then dispatch the workflow on it:

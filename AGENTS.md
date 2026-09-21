@@ -147,6 +147,25 @@ split is deliberate, see #344.
 - Tests live in `test/`; CI runs them on every PR (`.github/workflows/test.yml`).
 - The test runner is [vitest](https://vitest.dev/). Browser-bound modules are not in jsdom — they're left to manual verification in deployed apps.
 
+### Reviewing visible changes
+
+Browser-bound modules have no test harness, so UI changes are reviewed by
+using them. Publish a live preview of your branch to GitHub Pages and lead with
+the URL rather than describing the change — this is how the team reviews the
+visible surface, and it has caught bugs no unit test would (a data URI whose
+quotes voided a CSS declaration, specificity ties that silently lost, a flex
+rule that made a panel unscrollable on a phone).
+
+Invoke the **`deploy-preview`** skill, or see `preview/README.md` for the
+fixture and `.github/workflows/gh-pages.yml` for the staging step. In short:
+
+```bash
+git push -f origin <branch>:preview/<name>     # only preview/* may deploy
+gh workflow run gh-pages.yml --ref preview/<name>
+```
+
+→ <https://boettiger-lab.github.io/geo-agent/preview/>
+
 ### Module coverage status
 
 When a PR touches a covered module, expect tests to change too. When it touches an uncovered one, verify by hand on a representative downstream app.
