@@ -681,13 +681,18 @@ act blind and check afterwards.
 
 **Gestures never touch the map.** Horizontal drag over the map is pan and pinch
 is zoom — MapLibre keeps all of it. The sheet moves only from its own handle:
-drag it, or tap it to cycle detents. A **Layers / Chat** tab strip switches
-panes with a tap; choosing a tab from `peek` opens the sheet to `half` rather
-than relabelling a closed panel.
+drag it, or tap it to cycle detents. A **Layers / Legend / Chat** tab strip
+switches panes with a tap; choosing a tab from `peek` opens the sheet to `half`
+rather than relabelling a closed panel.
 
 The handle is a real button, so the keyboard gets the same moves (↑ / ↓ change
-detent). Map overlay panels — legend, sliders, hex controls — are lifted to sit
-above the sheet rather than behind it, and shrink as it grows.
+detent).
+
+**Map overlays move into the sheet.** Stacked over a phone-sized map, the
+legend, reactive sliders and hex controls cover most of it, so on mobile they
+dock into the sheet as the **Legend** pane instead and the map stays a map. The
+tab hides itself when there is nothing in it — an app with no legend and no
+sliders sees only Layers and Chat.
 
 ## Theme
 

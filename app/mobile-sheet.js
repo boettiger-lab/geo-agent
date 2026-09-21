@@ -30,6 +30,13 @@ export const SHEET_QUERY = '(max-width: 700px)';
 /** Detent order, lowest first. `peek` is tall enough for handle + tabs. */
 export const PEEK_PX = 96;
 
+/** Tabs, in order. `legend` only appears when there is something in it. */
+export const TABS = [
+    ['layers', 'Layers'],
+    ['legend', 'Legend'],
+    ['chat', 'Chat'],
+];
+
 /**
  * The three detent heights in pixels, given the space available.
  *
@@ -167,18 +174,51 @@ export function initMobileSheet(sidebar, { win = window } = {}) {
         btn.addEventListener('click', () => setTab(btn.dataset.tab));
     }
 
-    /* ----- Enable only while narrow ----- */
+    /* ----- The map-overlay rail docks into the sheet while narrow -----
+       Stacked over a phone-sized map, the legend, slider and hex controls
+       cover most of it. The rail is just a container, so it can move. */
+    const legendTab = tabButtons.find(b => b.dataset.tab === 'legend');
+
+    function rail() {
+        return doc.getElementById('map-overlay-rail');
+    }
+
+    /** Hide the Legend tab when the rail holds nothing worth showing. */
+    function syncLegendTab() {
+        const r = rail();
+        const has = Boolean(r && r.childElementCount);
+        legendTab.hidden = !has;
+        if (!has && active === 'legend') setTab('layers');
+    }
+
+    // The rail is created lazily — the legend only exists once a layer with
+    // one becomes visible — so watch for it rather than checking once.
+    const railWatch = new win.MutationObserver(() => {
+        if (!mq.matches) return;
+        const r = rail();
+        if (r && r.parentNode !== sidebar) sidebar.appendChild(r);
+        syncLegendTab();
+    });
+
     function enable() {
         body.classList.add('sheet-mode');
         if (!grabber.isConnected) sidebar.prepend(grabber, tabs);
+        const r = rail();
+        if (r) sidebar.appendChild(r);
+        syncLegendTab();
         setTab(active);
         setDetent(detent);
+        railWatch.observe(body, { childList: true, subtree: true });
     }
     function disable() {
+        railWatch.disconnect();
         body.classList.remove('sheet-mode');
         delete body.dataset.sheetDetent;
         delete body.dataset.sheetTab;
         doc.documentElement.style.removeProperty('--sheet-h');
+        // Hand the rail back to the map, where it floats again.
+        const r = rail();
+        if (r && r.parentNode === sidebar) body.appendChild(r);
         grabber.remove();
         tabs.remove();
     }
@@ -210,7 +250,7 @@ function buildControls(doc) {
     tabs.setAttribute('aria-label', 'Panel');
 
     const tabButtons = [];
-    for (const [name, label] of [['layers', 'Layers'], ['chat', 'Chat']]) {
+    for (const [name, label] of TABS) {
         const btn = doc.createElement('button');
         btn.type = 'button';
         btn.className = 'sheet-tab';

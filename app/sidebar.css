@@ -93,7 +93,7 @@ body.sidebar-mode #sidebar-hide:hover {
 
 /* ----- Layers pane ------------------------------------------------------- */
 
-body.sidebar-mode #sidebar-layers-pane {
+body.sidebar-mode:not(.sheet-mode) #sidebar-layers-pane {
     flex: 0 0 auto;
     max-height: 40%;
     overflow-y: auto;
@@ -103,14 +103,14 @@ body.sidebar-mode #sidebar-layers-pane {
 
 /* Once the user drags the splitter, switch to fixed-pixel sizing.
  * Skipped when either pane is collapsed (other rules below take over). */
-body.sidebar-mode.layers-pane-resized:not(.chat-collapsed)
+body.sidebar-mode.layers-pane-resized:not(.sheet-mode):not(.chat-collapsed)
     #sidebar-layers-pane:not(.collapsed) {
     flex: 0 0 var(--layers-pane-height, 200px);
     max-height: none;
 }
 
 /* When chat is collapsed, layers pane fills the available height. */
-body.sidebar-mode.chat-collapsed #sidebar-layers-pane {
+body.sidebar-mode.chat-collapsed:not(.sheet-mode) #sidebar-layers-pane {
     flex: 1 1 auto;
     max-height: none;
     border-bottom: 1px solid var(--chrome-line);
@@ -351,12 +351,6 @@ body.sidebar-mode.sidebar-collapsed #sidebar-show-btn {
         transition: height 180ms ease;
     }
 
-    /* Map overlays sit above the sheet rather than behind it. */
-    body.sidebar-mode.sheet-mode #map-overlay-rail {
-        bottom: calc(var(--sheet-h, 96px) + 10px);
-        max-height: calc(100vh - var(--sheet-h, 96px) - var(--app-header-h) - 20px);
-    }
-
     /* Desktop chrome that the sheet replaces. */
     body.sidebar-mode.sheet-mode .sidebar-resize-handle,
     body.sidebar-mode.sheet-mode .sidebar-splitter,
@@ -416,23 +410,61 @@ body.sidebar-mode.sidebar-collapsed #sidebar-show-btn {
     }
 
     /* ----- Panes: one at a time ----- */
-    body.sheet-mode[data-sheet-tab="chat"] #sidebar-layers-pane,
-    body.sheet-mode[data-sheet-tab="layers"] #chat-messages,
-    body.sheet-mode[data-sheet-tab="layers"] #chat-input-container,
-    body.sheet-mode[data-sheet-tab="layers"] #sidebar-footer {
+    body.sheet-mode:not([data-sheet-tab="layers"]) #sidebar-layers-pane,
+    body.sheet-mode:not([data-sheet-tab="legend"]) #map-overlay-rail,
+    body.sheet-mode:not([data-sheet-tab="chat"]) #chat-messages,
+    body.sheet-mode:not([data-sheet-tab="chat"]) #chat-input-container,
+    body.sheet-mode:not([data-sheet-tab="chat"]) #sidebar-footer {
         display: none;
     }
 
-    body.sheet-mode #sidebar-layers-pane,
-    body.sheet-mode #chat-messages {
+    /* The one pane on show fills the sheet and scrolls inside it. Without
+       this the layers list keeps its natural height, overflows a short
+       sheet, and its bottom — and the chat below it — cannot be reached. */
+    body.sidebar-mode.sheet-mode #sidebar-layers-pane,
+    body.sidebar-mode.sheet-mode #chat-messages,
+    body.sidebar-mode.sheet-mode #map-overlay-rail {
         flex: 1 1 auto;
         min-height: 0;
+        max-height: none;
         overflow-y: auto;
         overscroll-behavior: contain;
     }
 
+    /* Input and footer keep their place at the bottom of the sheet. */
+    body.sidebar-mode.sheet-mode #chat-input-container,
+    body.sidebar-mode.sheet-mode #sidebar-footer {
+        flex: 0 0 auto;
+    }
+
+    /* ----- Map overlays move into the sheet -----------------------------
+       Stacked over a phone-sized map the legend, slider and hex controls
+       cover most of it. On mobile they dock here instead, as their own
+       pane, so the map stays a map. */
+    body.sidebar-mode.sheet-mode #map-overlay-rail {
+        position: static;
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
+        width: auto;
+        padding: 4px 12px 12px;
+        pointer-events: auto;
+    }
+
+    body.sidebar-mode.sheet-mode #map-overlay-rail > * {
+        position: static;
+        max-width: none;
+    }
+
+    /* The legend is scrolled by the pane, not by itself. */
+    body.sidebar-mode.sheet-mode #legend {
+        max-height: none;
+    }
+
     /* At peek there is nothing to show but the handle and the tabs. */
     body.sheet-mode[data-sheet-detent="peek"] #sidebar-layers-pane,
+    body.sheet-mode[data-sheet-detent="peek"] #map-overlay-rail,
     body.sheet-mode[data-sheet-detent="peek"] #chat-messages,
     body.sheet-mode[data-sheet-detent="peek"] #chat-input-container,
     body.sheet-mode[data-sheet-detent="peek"] #sidebar-footer {
