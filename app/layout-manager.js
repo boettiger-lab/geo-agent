@@ -18,6 +18,7 @@
  */
 
 import { buildAppHeader } from './app-header.js';
+import { applyTheme } from './theme.js';
 
 // State exposed to main.js so it can wire map.resize() into the drag loop.
 export const sidebarHooks = {
@@ -30,7 +31,11 @@ export const sidebarHooks = {
 export function buildLayout(appConfig) {
     const title = appConfig.sidebar?.title || 'Data Assistant';
 
-    // App chrome first: it sets --app-header-h, which the sidebar's `top`
+    // Theme first: the header and sidebar are one surface and both read the
+    // --chrome-* tokens the theme class selects.
+    applyTheme(appConfig);
+
+    // Then app chrome: it sets --app-header-h, which the sidebar's `top`
     // reads. No-ops when no `header` block is configured.
     const { absorbsLinks } = buildAppHeader(appConfig);
 

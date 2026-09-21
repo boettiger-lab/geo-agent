@@ -23,6 +23,102 @@
     --z-modal: 70;            /* blocking dialogs */
 }
 
+/* ── Chrome theme tokens ─────────────────────────────────────────────────
+   The header and the sidebar form one continuous surface, so they share one
+   palette; colouring them separately shows a seam where they meet. Selected
+   by theme.js as a body class.
+
+   Scope is the chrome shell — surface, text, hairlines, the backdrop behind
+   a globe. The chat interior still carries its own colours in chat.css.
+
+   `light` is the default because it is what the sidebar has always been. */
+:root,
+body.theme-light {
+    --chrome-bg: #f8f9fa;
+    --chrome-fg: #1a1a2e;
+    --chrome-fg-muted: rgba(0, 0, 0, 0.55);
+    --chrome-line: rgba(0, 0, 0, 0.1);
+    --chrome-hover: rgba(0, 0, 0, 0.06);
+    --chrome-accent: rgba(120, 170, 255, 0.8);
+    --chrome-accent-wash: rgba(120, 170, 255, 0.12);
+    --chrome-carbon: #2e7d32;
+    --chrome-shadow: rgba(0, 0, 0, 0.18);
+
+    /* Backdrop behind the globe, and anywhere else no tile covers. */
+    --map-void-bg: #dfe6ee;
+    --map-void-pattern: url("data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="41.57" height="72.00" viewBox="0 0 41.57 72.00"><g fill="none" stroke="%2364748b" stroke-opacity="0.28" stroke-width="1"><path d="M0.00,-24.00 L20.78,-12.00 L20.78,12.00 L0.00,24.00 L-20.78,12.00 L-20.78,-12.00 Z"/><path d="M41.57,-24.00 L62.35,-12.00 L62.35,12.00 L41.57,24.00 L20.78,12.00 L20.78,-12.00 Z"/><path d="M0.00,48.00 L20.78,60.00 L20.78,84.00 L0.00,96.00 L-20.78,84.00 L-20.78,60.00 Z"/><path d="M41.57,48.00 L62.35,60.00 L62.35,84.00 L41.57,96.00 L20.78,84.00 L20.78,60.00 Z"/><path d="M20.78,12.00 L41.57,24.00 L41.57,48.00 L20.78,60.00 L0.00,48.00 L0.00,24.00 Z"/></g></svg>");
+
+    /* Chat surfaces. Applied only in sidebar mode (see sidebar.css) — the
+       floating panel is its own dark glass treatment and is left alone. */
+    --chat-surface: rgba(255, 255, 255, 0.55);
+    --chat-surface-soft: rgba(255, 255, 255, 0.35);
+    --chat-fg: #333;
+    --chat-code-bg: rgba(0, 0, 0, 0.06);
+    --chat-tool-bg: rgba(245, 248, 255, 0.6);
+    --chat-thinking-bg: rgba(173, 216, 230, 0.35);
+    --chat-thinking-fg: #2c5282;
+    --chat-input-bg: rgba(255, 255, 255, 0.45);
+    --chat-input-bg-focus: rgba(255, 255, 255, 0.65);
+}
+
+body.theme-dark {
+    --chrome-bg: #101418;
+    --chrome-fg: #f1f5f9;
+    --chrome-fg-muted: rgba(255, 255, 255, 0.6);
+    --chrome-line: rgba(255, 255, 255, 0.14);
+    --chrome-hover: rgba(255, 255, 255, 0.1);
+    --chrome-accent: rgba(120, 170, 255, 0.9);
+    --chrome-accent-wash: rgba(120, 170, 255, 0.18);
+    --chrome-carbon: #8bc34a;
+    --chrome-shadow: rgba(0, 0, 0, 0.45);
+
+    --map-void-bg: #0b1016;
+    --map-void-pattern: url("data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="41.57" height="72.00" viewBox="0 0 41.57 72.00"><g fill="none" stroke="%2394a3b8" stroke-opacity="0.16" stroke-width="1"><path d="M0.00,-24.00 L20.78,-12.00 L20.78,12.00 L0.00,24.00 L-20.78,12.00 L-20.78,-12.00 Z"/><path d="M41.57,-24.00 L62.35,-12.00 L62.35,12.00 L41.57,24.00 L20.78,12.00 L20.78,-12.00 Z"/><path d="M0.00,48.00 L20.78,60.00 L20.78,84.00 L0.00,96.00 L-20.78,84.00 L-20.78,60.00 Z"/><path d="M41.57,48.00 L62.35,60.00 L62.35,84.00 L41.57,96.00 L20.78,84.00 L20.78,60.00 Z"/><path d="M20.78,12.00 L41.57,24.00 L41.57,48.00 L20.78,60.00 L0.00,48.00 L0.00,24.00 Z"/></g></svg>");
+
+    /* Chat surfaces. Applied only in sidebar mode (see sidebar.css) — the
+       floating panel is its own dark glass treatment and is left alone. */
+    --chat-surface: rgba(255, 255, 255, 0.07);
+    --chat-surface-soft: rgba(255, 255, 255, 0.04);
+    --chat-fg: #e2e8f0;
+    --chat-code-bg: rgba(0, 0, 0, 0.35);
+    --chat-tool-bg: rgba(255, 255, 255, 0.05);
+    --chat-thinking-bg: rgba(56, 120, 160, 0.25);
+    --chat-thinking-fg: #bfdbfe;
+    --chat-input-bg: rgba(255, 255, 255, 0.08);
+    --chat-input-bg-focus: rgba(255, 255, 255, 0.14);
+}
+
+/* `auto` follows the viewer's OS setting live, which is why theme.js leaves
+   it as its own class instead of resolving it to light or dark at boot. */
+@media (prefers-color-scheme: dark) {
+    body.theme-auto {
+        --chrome-bg: #101418;
+        --chrome-fg: #f1f5f9;
+        --chrome-fg-muted: rgba(255, 255, 255, 0.6);
+        --chrome-line: rgba(255, 255, 255, 0.14);
+        --chrome-hover: rgba(255, 255, 255, 0.1);
+        --chrome-accent: rgba(120, 170, 255, 0.9);
+        --chrome-accent-wash: rgba(120, 170, 255, 0.18);
+        --chrome-carbon: #8bc34a;
+        --chrome-shadow: rgba(0, 0, 0, 0.45);
+
+        --map-void-bg: #0b1016;
+        --map-void-pattern: url("data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="41.57" height="72.00" viewBox="0 0 41.57 72.00"><g fill="none" stroke="%2394a3b8" stroke-opacity="0.16" stroke-width="1"><path d="M0.00,-24.00 L20.78,-12.00 L20.78,12.00 L0.00,24.00 L-20.78,12.00 L-20.78,-12.00 Z"/><path d="M41.57,-24.00 L62.35,-12.00 L62.35,12.00 L41.57,24.00 L20.78,12.00 L20.78,-12.00 Z"/><path d="M0.00,48.00 L20.78,60.00 L20.78,84.00 L0.00,96.00 L-20.78,84.00 L-20.78,60.00 Z"/><path d="M41.57,48.00 L62.35,60.00 L62.35,84.00 L41.57,96.00 L20.78,84.00 L20.78,60.00 Z"/><path d="M20.78,12.00 L41.57,24.00 L41.57,48.00 L20.78,60.00 L0.00,48.00 L0.00,24.00 Z"/></g></svg>");
+
+        /* Chat surfaces. Applied only in sidebar mode (see sidebar.css) — the
+           floating panel is its own dark glass treatment and is left alone. */
+        --chat-surface: rgba(255, 255, 255, 0.07);
+        --chat-surface-soft: rgba(255, 255, 255, 0.04);
+        --chat-fg: #e2e8f0;
+        --chat-code-bg: rgba(0, 0, 0, 0.35);
+        --chat-tool-bg: rgba(255, 255, 255, 0.05);
+        --chat-thinking-bg: rgba(56, 120, 160, 0.25);
+        --chat-thinking-fg: #bfdbfe;
+        --chat-input-bg: rgba(255, 255, 255, 0.08);
+        --chat-input-bg-focus: rgba(255, 255, 255, 0.14);
+    }
+}
+
 body {
     margin: 0;
     padding: 0;
@@ -45,6 +141,14 @@ body.has-app-header {
     top: 0;
     bottom: 0;
     width: 100%;
+    /* Shows wherever no tile covers the canvas — most visibly the space
+       around the globe in globe projection, which was previously bare white.
+       The hex tile is a quiet nod to the H3 grid the analytics are built on;
+       it is meant to read as texture, not as data, so it stays low-contrast
+       and is themed alongside the rest of the chrome. */
+    background-color: var(--map-void-bg);
+    background-image: var(--map-void-pattern);
+    background-repeat: repeat;
 }
 
 /* ── App header ──────────────────────────────────────────────────────────
@@ -72,16 +176,21 @@ body.has-app-header {
     gap: 16px;
     padding: 0 16px;
     font-family: 'Open Sans', sans-serif;
-    color: #f5f5f5;
+    background: var(--chrome-bg);
+    color: var(--chrome-fg);
 }
 
 /* Scrim: a gradient, not a flat tint, so map detail stays readable at the
-   very top of the viewport while the text above it keeps its contrast. */
+   very top of the viewport while the text above it keeps its contrast.
+   Deliberately always dark-on-map regardless of theme — a light scrim over
+   satellite imagery is unreadable. */
 #app-header[data-mode="scrim"] {
     background: linear-gradient(to bottom,
         rgba(16, 20, 24, 0.78) 0%,
         rgba(16, 20, 24, 0.55) 60%,
         rgba(16, 20, 24, 0) 100%);
+    color: #f1f5f9;
+    border-bottom: none;
     /* The band spans the viewport but is mostly empty; let clicks through it
        reach the map, while the controls themselves stay interactive. */
     pointer-events: none;
@@ -91,12 +200,42 @@ body.has-app-header {
     pointer-events: auto;
 }
 
-/* A visible edge matters more than it looks: without it a dark bar sits
-   flush against the browser's own dark chrome and reads as part of it. */
+/* A visible edge matters more than it looks: without it the bar sits flush
+   against the browser's own chrome and reads as part of it.
+
+   The drop shadow is NOT set here — it lives on ::after so it can stop at
+   the sidebar, letting header and sidebar meet as one surface. */
 #app-header[data-mode="solid"] {
-    background: #101418;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.14);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+    border-bottom: 1px solid var(--chrome-line);
+}
+
+/* The shadow the header casts onto the map.
+   Header and sidebar are one continuous chrome surface, so a shadow falling
+   across the sidebar's top edge would draw a seam through the middle of it.
+   Carrying the shadow on a pseudo-element lets it stop where the sidebar
+   starts: over the map it reads as a raised bar, and against the sidebar the
+   two are flush. --sidebar-width is updated live during a drag, so the inset
+   tracks a resize without any JS. */
+#app-header[data-mode="solid"]::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: var(--chrome-shadow-inset, 0px);
+    height: 10px;
+    pointer-events: none;
+    background: linear-gradient(to bottom,
+        var(--chrome-shadow) 0%,
+        rgba(0, 0, 0, 0) 100%);
+}
+
+body.sidebar-mode {
+    --chrome-shadow-inset: var(--sidebar-width, 0px);
+}
+
+/* Collapsed, the sidebar is off-screen and the map runs full width again. */
+body.sidebar-mode.sidebar-collapsed {
+    --chrome-shadow-inset: 0px;
 }
 
 /* Only the solid band takes space from the map; the scrim overlays it. */
@@ -169,24 +308,21 @@ body.has-app-header:not(.app-header-solid) .maplibregl-ctrl-top-right {
     padding: 6px 10px;
     border-radius: 4px;
     font-size: 13px;
-    color: rgba(255, 255, 255, 0.82);
+    color: inherit;
+    opacity: 0.85;
     text-decoration: none;
     white-space: nowrap;
     transition: color 120ms ease, background 120ms ease;
 }
 
 .app-header-link:hover {
-    color: #fff;
-    background: rgba(255, 255, 255, 0.12);
+    opacity: 1;
+    background: var(--chrome-hover);
 }
 
 .app-header-link--carbon {
-    color: #8bc34a;
-}
-
-.app-header-link--carbon:hover {
-    color: #9ccc65;
-    background: rgba(139, 195, 74, 0.14);
+    color: var(--chrome-carbon);
+    opacity: 1;
 }
 
 /* ── Header menu button + takeover (narrow viewports) ────────────────────
@@ -218,9 +354,9 @@ body.has-app-header:not(.app-header-solid) .maplibregl-ctrl-top-right {
     inset: 0;
     display: flex;
     flex-direction: column;
-    padding: 16px;
-    background: #101418;
-    color: #f5f5f5;
+    padding: calc(16px + env(safe-area-inset-top, 0px)) 16px 16px;
+    background: var(--chrome-bg);
+    color: var(--chrome-fg);
 }
 
 #app-header-menu[hidden] {
@@ -251,11 +387,11 @@ body.has-app-header:not(.app-header-solid) .maplibregl-ctrl-top-right {
     font-size: 17px;
     color: inherit;
     text-decoration: none;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    border-bottom: 1px solid var(--chrome-line);
 }
 
 .app-header-menu-link--carbon {
-    color: #8bc34a;
+    color: var(--chrome-carbon);
 }
 
 @media (max-width: 700px) {

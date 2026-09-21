@@ -22,6 +22,7 @@ Client apps configure GLEN via `layers-input.json`. All fields except `catalog` 
 | `client_header_hosts` | No | Host suffixes that receive the `X-Client: geo-agent/<ref>` attribution header (for proxy log analysis). Default: `["nrp-nautilus.io"]`. The header is **only** sent to these hosts — never to bring-your-own external endpoints, where a custom header could trip CORS and block requests. Override only if your proxy runs on a different host. |
 | `links` | No | Optional links shown in the chat UI — see below. |
 | `header` | No | App chrome band across the top — logos and top-level nav. Off unless configured. See below. |
+| `theme` | No | Chrome colour scheme: `"light"` (default), `"dark"`, or `"auto"` (follows the viewer's OS). See below. |
 
 ## View
 
@@ -636,6 +637,48 @@ top edge.
 Below 700px the nav row and the title are replaced — not compressed — by a menu
 button that opens a full-viewport takeover listing the same entries. It closes
 on the button, the ✕, or choosing a link.
+
+## Theme
+
+Colours the **chrome shell** — the header band, the sidebar surface, hairlines,
+the chat bubbles inside the sidebar, and the backdrop behind the globe.
+
+```json
+{ "theme": "dark" }
+```
+
+| Value | Effect |
+|---|---|
+| `"light"` | Default. What the sidebar has always looked like, so bumping a pin does not change an app's colours. |
+| `"dark"` | Dark chrome. |
+| `"auto"` | Follows the viewer's `prefers-color-scheme`, live — switching the OS setting does not need a reload. |
+
+The header and sidebar deliberately share one palette and meet flush: the
+header's drop shadow is carried on a pseudo-element that stops at the sidebar
+edge, so it reads as a raised bar over the map while the two chrome surfaces
+join without a seam. The inset tracks `--sidebar-width`, so it stays correct
+through a sidebar resize or collapse.
+
+**What is not themed yet:** syntax highlighting inside code blocks (that comes
+from the highlight.js stylesheet in `index.html`), the legend and other
+map-overlay panels, and the floating chat panel — which keeps its own dark
+glass treatment, since it sits on the map rather than on a chrome surface.
+
+Apps needing finer control can override the `--chrome-*` and `--chat-*` custom
+properties directly; they are defined on `:root` and per theme class in
+`style.css`.
+
+### Map backdrop
+
+Wherever no tile covers the canvas — most visibly the space around the globe in
+globe projection, which used to be bare white — the map shows a themed backdrop
+with a faint hexagonal texture, a nod to the H3 grid the analytics are built on.
+It is deliberately low-contrast so it reads as texture rather than as data.
+Override `--map-void-bg` and `--map-void-pattern` to change or remove it:
+
+```css
+:root { --map-void-pattern: none; }
+```
 
 ## Links
 

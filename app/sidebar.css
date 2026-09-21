@@ -26,12 +26,12 @@ body.sidebar-mode #sidebar {
     right: 0;
     bottom: 0;
     width: var(--sidebar-width, 420px);
-    background: #f8f9fa;
-    color: #1a1a2e;
+    background: var(--chrome-bg);
+    color: var(--chrome-fg);
     display: flex;
     flex-direction: column;
     z-index: var(--z-sidebar, 30);
-    box-shadow: -2px 0 6px rgba(0, 0, 0, 0.12);
+    box-shadow: -2px 0 6px var(--chrome-shadow);
     transition: transform 200ms ease;
     /* Sidebar chat uses solid background — override any glass blur coming
      * from chat.css that assumes a translucent floating container. */
@@ -49,14 +49,14 @@ body.sidebar-mode .sidebar-resize-handle {
     width: 6px;
     cursor: col-resize;
     background: transparent;
-    border-left: 1px solid rgba(255, 255, 255, 0.08);
+    border-left: 1px solid var(--chrome-line);
     transition: border-color 120ms ease, background 120ms ease;
     z-index: 2;
 }
 
 body.sidebar-mode .sidebar-resize-handle:hover {
-    border-left-color: rgba(120, 170, 255, 0.8);
-    background: rgba(120, 170, 255, 0.08);
+    border-left-color: var(--chrome-accent);
+    background: var(--chrome-accent-wash);
 }
 
 /* ----- Header ------------------------------------------------------------ */
@@ -66,7 +66,7 @@ body.sidebar-mode #sidebar-header {
     align-items: center;
     justify-content: space-between;
     padding: 10px 12px;
-    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+    border-bottom: 1px solid var(--chrome-line);
     flex: 0 0 auto;
 }
 
@@ -88,7 +88,7 @@ body.sidebar-mode #sidebar-hide {
 }
 
 body.sidebar-mode #sidebar-hide:hover {
-    background: rgba(255, 255, 255, 0.08);
+    background: var(--chrome-hover);
 }
 
 /* ----- Layers pane ------------------------------------------------------- */
@@ -113,13 +113,13 @@ body.sidebar-mode.layers-pane-resized:not(.chat-collapsed)
 body.sidebar-mode.chat-collapsed #sidebar-layers-pane {
     flex: 1 1 auto;
     max-height: none;
-    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+    border-bottom: 1px solid var(--chrome-line);
 }
 
 /* Layers pane keeps a visible divider when its own splitter is hidden
  * (which happens when the layers pane itself is collapsed). */
 body.sidebar-mode #sidebar-layers-pane.collapsed {
-    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+    border-bottom: 1px solid var(--chrome-line);
 }
 
 /* Collapse behavior — mirror the floating-mode #menu rules in style.css
@@ -142,15 +142,15 @@ body.sidebar-mode #sidebar-layers-pane:not(.collapsed) .menu-header {
 body.sidebar-mode .sidebar-splitter {
     flex: 0 0 5px;
     background: transparent;
-    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+    border-bottom: 1px solid var(--chrome-line);
     cursor: row-resize;
     transition: background 120ms ease, border-color 120ms ease;
     z-index: 1;
 }
 
 body.sidebar-mode .sidebar-splitter:hover {
-    background: rgba(120, 170, 255, 0.12);
-    border-bottom-color: rgba(120, 170, 255, 0.8);
+    background: var(--chrome-accent-wash);
+    border-bottom-color: var(--chrome-accent);
 }
 
 /* Hide the splitter when either side is fully collapsed — nothing to drag. */
@@ -168,7 +168,7 @@ body.sidebar-mode #chat-section-header {
     justify-content: flex-end;
     padding: 4px 8px;
     font-size: 11px;
-    color: rgba(0, 0, 0, 0.55);
+    color: var(--chrome-fg-muted);
     letter-spacing: 0.4px;
     text-transform: uppercase;
 }
@@ -182,7 +182,7 @@ body.sidebar-mode #chat-section-header .section-title {
 
 body.sidebar-mode.chat-collapsed #chat-section-header {
     justify-content: space-between;
-    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+    border-bottom: 1px solid var(--chrome-line);
 }
 
 body.sidebar-mode.chat-collapsed #chat-section-header .section-title {
@@ -211,7 +211,7 @@ body.sidebar-mode #chat-section-toggle {
 }
 
 body.sidebar-mode #chat-section-toggle:hover {
-    background: rgba(0, 0, 0, 0.06);
+    background: var(--chrome-hover);
 }
 
 /* Hide chat content when collapsed; layers pane fills the gap. */
@@ -235,7 +235,7 @@ body.sidebar-mode #chat-input-container {
     align-items: flex-end;
     gap: 6px;
     padding: 8px 12px;
-    border-top: 1px solid rgba(0, 0, 0, 0.1);
+    border-top: 1px solid var(--chrome-line);
 }
 
 body.sidebar-mode #chat-input-container #chat-input {
@@ -249,7 +249,7 @@ body.sidebar-mode #sidebar-footer {
     align-items: center;
     justify-content: space-between;
     padding: 6px 12px 8px;
-    border-top: 1px solid rgba(0, 0, 0, 0.1);
+    border-top: 1px solid var(--chrome-line);
     font-size: 11px;
     flex: 0 0 auto;
 }
@@ -266,19 +266,19 @@ body.sidebar-mode #sidebar-footer .footer-link {
     align-items: center;
     padding: 2px 6px;
     margin-right: 4px;
-    color: rgba(0, 0, 0, 0.55);
+    color: var(--chrome-fg-muted);
     text-decoration: none;
     border-radius: 3px;
 }
 
 body.sidebar-mode #sidebar-footer .footer-link:hover {
-    color: rgba(0, 0, 0, 0.85);
-    background: rgba(0, 0, 0, 0.06);
+    color: var(--chrome-fg);
+    background: var(--chrome-hover);
 }
 
 body.sidebar-mode #sidebar-footer .footer-link.carbon-link,
 body.sidebar-mode #sidebar-footer .footer-link.carbon-link:hover {
-    color: #2e7d32;
+    color: var(--chrome-carbon);
 }
 
 /* ----- Collapse / show toggle ------------------------------------------- */
@@ -296,16 +296,16 @@ body.sidebar-mode.sidebar-collapsed #sidebar {
     top: 10px;
     right: 10px;
     display: none;  /* shown only while collapsed */
-    background: rgba(255, 255, 255, 0.85);
+    background: var(--chrome-bg);
     -webkit-backdrop-filter: blur(8px);
     backdrop-filter: blur(8px);
-    border: 1px solid rgba(0, 0, 0, 0.1);
+    border: 1px solid var(--chrome-line);
     border-radius: 4px;
     padding: 4px 10px;
     font-size: 14px;
     cursor: pointer;
     z-index: var(--z-sidebar-show, 35);
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 1px 3px var(--chrome-shadow);
 }
 
 body.sidebar-mode.sidebar-collapsed #sidebar-show-btn {
@@ -322,11 +322,71 @@ body.sidebar-mode.sidebar-collapsed #sidebar-show-btn {
     body.sidebar-mode #sidebar {
         --sidebar-width: min(400px, 90vw);
         width: var(--sidebar-width);
-        box-shadow: -4px 0 10px rgba(0, 0, 0, 0.35);
+        box-shadow: -4px 0 10px var(--chrome-shadow);
     }
     body.sidebar-mode .sidebar-resize-handle,
     body.sidebar-mode .sidebar-splitter {
         /* Drag-resize disabled on narrow viewports. */
         pointer-events: none;
     }
+}
+
+/* ----- Chat surfaces, themed -------------------------------------------
+   chat.css styles the chat for the floating panel, which is its own dark
+   glass treatment on top of the map. In the sidebar the chat sits on the
+   chrome surface instead, so its colours have to follow the theme or a dark
+   sidebar ends up with light bubbles floating on it.
+
+   Scoped to sidebar mode so the (deprecated) floating panel is untouched.
+   This covers the chat shell and bubbles; syntax highlighting inside code
+   blocks still comes from the highlight.js stylesheet and is not themed. */
+
+body.sidebar-mode #chat-header h3 {
+    color: var(--chrome-fg);
+}
+
+body.sidebar-mode #chat-messages::-webkit-scrollbar-thumb {
+    background: var(--chrome-line);
+}
+
+body.sidebar-mode #chat-input {
+    background: var(--chat-input-bg);
+    color: var(--chat-fg);
+}
+
+body.sidebar-mode #chat-input:focus {
+    background: var(--chat-input-bg-focus);
+}
+
+body.sidebar-mode .chat-message.assistant {
+    background: var(--chat-surface);
+    color: var(--chat-fg);
+}
+
+body.sidebar-mode .chat-message.system {
+    background: var(--chat-surface-soft);
+    color: var(--chrome-fg-muted);
+}
+
+body.sidebar-mode .chat-message.assistant-thinking {
+    background: var(--chat-thinking-bg);
+    color: var(--chat-thinking-fg);
+}
+
+body.sidebar-mode .chat-message pre,
+body.sidebar-mode .chat-message th {
+    background: var(--chat-code-bg);
+}
+
+body.sidebar-mode .chat-message.tool-block {
+    background: var(--chat-tool-bg);
+}
+
+body.sidebar-mode #chat-footer .footer-link {
+    color: var(--chrome-fg-muted);
+}
+
+body.sidebar-mode #chat-footer .footer-link:hover {
+    color: var(--chrome-fg);
+    background: var(--chrome-hover);
 }
