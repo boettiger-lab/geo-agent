@@ -63,7 +63,11 @@ describe('resolveHeaderConfig', () => {
             expect(cfg.nav.map(n => n.label)).toEqual(['About', 'GitHub', 'Carbon', 'Contact us']);
             expect(cfg.nav[0].href).toBe('https://d.example');
             expect(cfg.nav[2].href).toBe(CARBON_DASHBOARD_URL);
-            expect(cfg.nav[2].variant).toBe('carbon');
+            // The carbon entry is marked by its icon, not by a colour — a
+            // single recoloured nav item reads as a different kind of link.
+            expect(cfg.nav[2].icon).toBe('leaf');
+            expect(cfg.nav[2].variant).toBeNull();
+            expect(cfg.nav[1].icon).toBe('github');
         });
 
         it('lets carbon be a string to override the default dashboard', () => {
@@ -323,5 +327,45 @@ describe('buildAppHeader', () => {
             expect(panel.getAttribute('aria-modal')).toBe('true');
             expect(panel.getAttribute('aria-label')).toBeTruthy();
         });
+    });
+});
+
+describe('nav icons', () => {
+    beforeEach(() => { document.body.innerHTML = ''; document.body.className = ''; });
+
+    it('renders the icon beside the label, not instead of it', () => {
+        buildAppHeader({
+            header: { enabled: true },
+            links: { github: 'https://g.example', carbon: true, contact: false },
+        }, document);
+
+        const links = [...document.querySelectorAll('#app-header-nav a')];
+        expect(links.map(a => a.textContent.trim())).toEqual(['GitHub', 'Carbon']);
+        for (const a of links) {
+            expect(a.querySelector('.app-header-link-icon svg')).toBeTruthy();
+        }
+    });
+
+    it('hides icons from assistive tech, since the label already says it', () => {
+        buildAppHeader({
+            header: { enabled: true }, links: { github: 'https://g.example', contact: false },
+        }, document);
+        const svg = document.querySelector('#app-header-nav svg');
+        expect(svg.getAttribute('aria-hidden')).toBe('true');
+        expect(svg.getAttribute('focusable')).toBe('false');
+    });
+
+    it('leaves entries without an icon as plain labels', () => {
+        buildAppHeader({ header: { enabled: true } }, document);   // Contact only
+        const a = document.querySelector('#app-header-nav a');
+        expect(a.textContent.trim()).toBe('Contact us');
+        expect(a.querySelector('svg')).toBeNull();
+    });
+
+    it('ignores an unknown icon name from config', () => {
+        buildAppHeader({
+            header: { enabled: true, nav: [{ label: 'X', href: 'https://x.example', icon: 'nope' }] },
+        }, document);
+        expect(document.querySelector('#app-header-nav svg')).toBeNull();
     });
 });

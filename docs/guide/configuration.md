@@ -635,7 +635,8 @@ the derived nav entirely:
 | `label` | string | — | **Required.** Link text. |
 | `href` | string | — | **Required.** Entries missing either field are skipped. |
 | `external` | boolean | `true` | Open in a new tab with `rel="noopener noreferrer"`. Set `false` for a same-page route. |
-| `variant` | string | — | Styling hook; `"carbon"` gives the green treatment. |
+| `icon` | string | — | `"github"` or `"leaf"`, drawn before the label. Unknown names are ignored. |
+| `variant` | string | — | Styling hook: adds `.app-header-link--<variant>` for an app's own CSS. No built-in variants. |
 
 ### Layout effects
 

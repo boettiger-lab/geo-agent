@@ -16,6 +16,7 @@ Core library for map-based applications with LLM-powered data analysis. Interact
 - `map-manager.js` — Creates MapLibre map, manages layers/filters/styles
 - `overlay-rail.js` — Shared bottom-left rail every map-scoped overlay panel mounts into (legend, sliders, hex controls). New floating panels go here, not onto `document.body` with their own anchors.
 - `app-header.js` — Optional app chrome band (logos, top-level nav) in `scrim` or `solid` mode. App-level UI goes here; map-scoped controls go in the overlay rail.
+- `icons.js` — The few inline SVGs shared by the header nav and the chat footer links.
 - `theme.js` — Selects the chrome colour scheme (light/dark/auto) as a body class and applies per-app colour overrides inline; the tokens themselves live in `style.css`.
 - `map-tools.js` — the local tools the LLM agent can call (map control, styling, legends, geocoding)
 - `tool-registry.js` — Unified dispatch for local + remote (MCP) tools

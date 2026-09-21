@@ -378,6 +378,19 @@ body.has-app-header:not(.app-header-solid) .maplibregl-ctrl-top-right {
     gap: 4px;
 }
 
+/* Nav links carry an icon beside the label, not instead of it. */
+.app-header-link,
+.app-header-menu-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.app-header-link-icon {
+    display: inline-flex;
+    flex: 0 0 auto;
+}
+
 .app-header-link {
     padding: 6px 10px;
     border-radius: 4px;
@@ -394,10 +407,6 @@ body.has-app-header:not(.app-header-solid) .maplibregl-ctrl-top-right {
     background: var(--chrome-hover);
 }
 
-.app-header-link--carbon {
-    color: var(--chrome-carbon);
-    opacity: 1;
-}
 
 /* ── Header menu button + takeover (narrow viewports) ────────────────────
    Hidden above the breakpoint. Below it the nav row is replaced rather than
@@ -462,10 +471,6 @@ body.has-app-header:not(.app-header-solid) .maplibregl-ctrl-top-right {
     color: inherit;
     text-decoration: none;
     border-bottom: 1px solid var(--chrome-line);
-}
-
-.app-header-menu-link--carbon {
-    color: var(--chrome-carbon);
 }
 
 @media (max-width: 700px) {

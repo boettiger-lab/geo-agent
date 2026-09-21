@@ -25,6 +25,8 @@
  * Logos are supplied by config as URLs; this module ships no image assets.
  */
 
+import { githubIcon, leafIcon } from './icons.js';
+
 /** Carbon dashboard for NRP-hosted LLM usage, shown as a nav entry. */
 export const CARBON_DASHBOARD_URL = 'https://carbon-api.nrp-nautilus.io/';
 
@@ -136,6 +138,7 @@ function resolveNav(header, links) {
                 label: String(item.label),
                 href: String(item.href),
                 variant: item.variant || null,
+                icon: ICONS[item.icon] ? item.icon : null,
                 external: item.external !== false,
             }));
     }
@@ -147,12 +150,12 @@ function resolveNav(header, links) {
     // only when configured. Set `links.contact` to false to drop it.
     const derived = [];
     if (l.docs) derived.push({ label: 'About', href: l.docs });
-    if (l.github) derived.push({ label: 'GitHub', href: l.github });
+    if (l.github) derived.push({ label: 'GitHub', href: l.github, icon: 'github' });
     if (l.carbon) {
         derived.push({
             label: 'Carbon',
             href: typeof l.carbon === 'string' ? l.carbon : CARBON_DASHBOARD_URL,
-            variant: 'carbon',
+            icon: 'leaf',
         });
     }
     if (l.contact !== false) {
@@ -164,7 +167,7 @@ function resolveNav(header, links) {
             external: false,
         });
     }
-    return derived.map(item => ({ variant: null, external: true, ...item }));
+    return derived.map(item => ({ variant: null, icon: null, external: true, ...item }));
 }
 
 /**
@@ -286,6 +289,8 @@ function buildMobileMenu(doc, items) {
     return { button, panel };
 }
 
+const ICONS = { github: githubIcon, leaf: leafIcon };
+
 function navLink(doc, item, className) {
     const a = el(doc, 'a', { class: className, href: item.href });
     if (item.variant) a.classList.add(`${className}--${item.variant}`);
@@ -293,7 +298,14 @@ function navLink(doc, item, className) {
         a.target = '_blank';
         a.rel = 'noopener noreferrer';
     }
-    a.textContent = item.label;
+    // Icon first, then the label as a text node. The icon is aria-hidden, so
+    // the accessible name is the label either way.
+    if (ICONS[item.icon]) {
+        const slot = el(doc, 'span', { class: 'app-header-link-icon' });
+        slot.innerHTML = ICONS[item.icon]();
+        a.appendChild(slot);
+    }
+    a.appendChild(doc.createTextNode(item.label));
     return a;
 }
 
