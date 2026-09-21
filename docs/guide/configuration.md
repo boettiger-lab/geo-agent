@@ -22,7 +22,7 @@ Client apps configure GLEN via `layers-input.json`. All fields except `catalog` 
 | `client_header_hosts` | No | Host suffixes that receive the `X-Client: geo-agent/<ref>` attribution header (for proxy log analysis). Default: `["nrp-nautilus.io"]`. The header is **only** sent to these hosts — never to bring-your-own external endpoints, where a custom header could trip CORS and block requests. Override only if your proxy runs on a different host. |
 | `links` | No | Optional links shown in the chat UI — see below. |
 | `header` | No | App chrome band across the top — logos and top-level nav. Off unless configured. See below. |
-| `theme` | No | Chrome colour scheme: `"light"` (default), `"dark"`, or `"auto"` (follows the viewer's OS). See below. |
+| `theme` | No | Chrome colour scheme — a mode string, or an object that also sets brand colours. See below. |
 
 ## View
 
@@ -671,6 +671,48 @@ the chat bubbles inside the sidebar, and the backdrop behind the globe.
 | `"light"` | Default. What the sidebar has always looked like, so bumping a pin does not change an app's colours. |
 | `"dark"` | Dark chrome. |
 | `"auto"` | Follows the viewer's `prefers-color-scheme`, live — switching the OS setting does not need a reload. |
+
+### Brand colours
+
+For anything past light and dark, give `theme` an object. `mode` picks the
+palette to start from and the rest recolours it — no CSS needed:
+
+```json
+{
+  "theme": {
+    "mode": "dark",
+    "primary": "#7a5cff",
+    "surface": "#1b1533",
+    "text": "#f2edff",
+    "backdrop": "#120e26"
+  }
+}
+```
+
+| Key | Recolours |
+|---|---|
+| `mode` | Which palette to start from: `light` (default), `dark`, `auto`. |
+| `primary` | Buttons, checkboxes, sliders, the send button — every control. Hover and selected states are derived from it, so this one key moves the whole set. |
+| `surface` | The chrome surface: header band and sidebar. |
+| `text` | Primary text on that surface. |
+| `panel` | Floating panels over the map (legend, sliders, charts). |
+| `backdrop` | The area behind the globe, under the hex texture. |
+
+Values may be hex, `rgb()`, `hsl()` or a named colour. Anything else is
+ignored rather than written into the page.
+
+Derived states use CSS `color-mix()` against the palette's own direction —
+darker on light, lighter on dark — so `mode: "auto"` still gets it right when
+the viewer switches their OS setting, with no reload.
+
+For a token the named keys do not reach, use the escape hatch:
+
+```json
+{ "theme": { "mode": "dark", "tokens": { "--chrome-carbon": "#a5d6a7" } } }
+```
+
+Token names are listed in `style.css` under *Theme tokens*. They are internal,
+so treat them as less stable than the named keys above.
 
 The header and sidebar deliberately share one palette and meet flush: the
 header's drop shadow is carried on a pseudo-element that stops at the sidebar

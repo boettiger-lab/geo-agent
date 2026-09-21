@@ -50,10 +50,15 @@ body.theme-light {
     --chrome-carbon: #2e7d32;
     --chrome-shadow: rgba(0, 0, 0, 0.18);
     --control-bg: #2f6fd0;
-    --control-bg-hover: #2a62b8;
+    /* Direction a control moves when hovered or selected: toward black on
+       a light palette, toward white on a dark one. Kept as a token so a
+       `primary` override recolours every state, and so `auto` picks the
+       right direction live. */
+    --control-mix-target: black;
+    --control-bg-hover: color-mix(in srgb, var(--control-bg) 88%, var(--control-mix-target));
     --control-border: transparent;
     --control-fg: #ffffff;
-    --control-active-bg: #1c4a92;
+    --control-active-bg: color-mix(in srgb, var(--control-bg) 68%, var(--control-mix-target));
     --control-active-border: transparent;
     --control-accent: #2f6fd0;
     --control-focus-fg: #0b62a4;
@@ -92,10 +97,15 @@ body.theme-dark {
     --chrome-carbon: #8bc34a;
     --chrome-shadow: rgba(0, 0, 0, 0.45);
     --control-bg: #2f4f86;
-    --control-bg-hover: #3a5f9e;
+    /* Direction a control moves when hovered or selected: toward black on
+       a light palette, toward white on a dark one. Kept as a token so a
+       `primary` override recolours every state, and so `auto` picks the
+       right direction live. */
+    --control-mix-target: white;
+    --control-bg-hover: color-mix(in srgb, var(--control-bg) 88%, var(--control-mix-target));
     --control-border: transparent;
     --control-fg: #eaf1fb;
-    --control-active-bg: #4a80c8;
+    --control-active-bg: color-mix(in srgb, var(--control-bg) 72%, var(--control-mix-target));
     --control-active-border: transparent;
     --control-accent: #5b8fd6;
     --control-focus-fg: #7cc4f0;
@@ -137,10 +147,15 @@ body.theme-dark {
         --chrome-carbon: #8bc34a;
         --chrome-shadow: rgba(0, 0, 0, 0.45);
         --control-bg: #2f4f86;
-        --control-bg-hover: #3a5f9e;
+        /* Direction a control moves when hovered or selected: toward black on
+           a light palette, toward white on a dark one. Kept as a token so a
+           `primary` override recolours every state, and so `auto` picks the
+           right direction live. */
+        --control-mix-target: white;
+        --control-bg-hover: color-mix(in srgb, var(--control-bg) 88%, var(--control-mix-target));
         --control-border: transparent;
         --control-fg: #eaf1fb;
-        --control-active-bg: #4a80c8;
+        --control-active-bg: color-mix(in srgb, var(--control-bg) 72%, var(--control-mix-target));
         --control-active-border: transparent;
         --control-accent: #5b8fd6;
         --control-focus-fg: #7cc4f0;
