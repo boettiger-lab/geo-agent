@@ -14,6 +14,7 @@
 
 import { extractHashFromUrl, buildFillColorExpression, buildFlatFillColorExpression, rewriteValueColumn, PALETTES, buildHeightExpression, buildFlatHeightExpression, defaultExtrusionMaxHeight } from './hex-layer-helpers.js';
 import { deriveCategoricalLegend, deriveContinuousLegend, primaryColorValue } from './legend-helpers.js';
+import { mountOverlay, SLOT } from './overlay-rail.js';
 
 const BASEMAPS = {
     natgeo: {
@@ -2205,7 +2206,7 @@ export class MapManager {
             </div>
             <div id="legend-content"></div>
         `;
-        document.body.appendChild(legend);
+        mountOverlay(legend, SLOT.LEGEND);
         this._legendEl = legend;
         this._legendContent = legend.querySelector('#legend-content');
 
