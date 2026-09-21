@@ -219,6 +219,7 @@ export class ChartRenderer {
         const pop = this.doc.createElement('button');
         pop.className = 'chart-panel-pop';
         pop.title = 'Pop out / restore';
+        pop.setAttribute('aria-label', 'Pop out or restore chart');
         pop.textContent = '⤢';
         pop.addEventListener('click', () => {
             const popped = panel.classList.toggle('chart-panel--popped');
@@ -228,6 +229,7 @@ export class ChartRenderer {
         const close = this.doc.createElement('button');
         close.className = 'chart-panel-close';
         close.title = 'Close chart';
+        close.setAttribute('aria-label', 'Close chart');
         close.textContent = '✕';
         close.addEventListener('click', () => this.remove(id));
 

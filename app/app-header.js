@@ -28,6 +28,9 @@
 /** Carbon dashboard for NRP-hosted LLM usage, shown as a nav entry. */
 export const CARBON_DASHBOARD_URL = 'https://carbon-api.nrp-nautilus.io/';
 
+/** Where "Contact us" goes when an app does not say otherwise. */
+export const DEFAULT_CONTACT = 'mailto:dse@berkeley.edu';
+
 /**
  * Height of the band, before any device safe-area inset.
  *
@@ -82,6 +85,19 @@ export function resolveHeaderConfig(appConfig = {}) {
 }
 
 /**
+ * Resolve the contact target, accepting a bare address for convenience.
+ *
+ * A config that says `"contact": "team@example.org"` means mail, not a
+ * relative path, so it is normalised rather than left to 404.
+ */
+function contactHref(value) {
+    if (typeof value !== 'string' || !value.trim()) return DEFAULT_CONTACT;
+    const v = value.trim();
+    if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) return `mailto:${v}`;
+    return v;
+}
+
+/**
  * Trailing logos, as a list.
  *
  * Accepts a single object or an array, because a deployment often carries
@@ -124,17 +140,28 @@ function resolveNav(header, links) {
             }));
     }
 
-    if (!links) return [];
+    const l = links || {};
 
-    // Mirror the order the footer has used: About, GitHub, Carbon.
+    // Mirror the order the footer has used — About, GitHub, Carbon — then
+    // Contact, which is the one entry that appears by default rather than
+    // only when configured. Set `links.contact` to false to drop it.
     const derived = [];
-    if (links.docs) derived.push({ label: 'About', href: links.docs });
-    if (links.github) derived.push({ label: 'GitHub', href: links.github });
-    if (links.carbon) {
+    if (l.docs) derived.push({ label: 'About', href: l.docs });
+    if (l.github) derived.push({ label: 'GitHub', href: l.github });
+    if (l.carbon) {
         derived.push({
             label: 'Carbon',
-            href: typeof links.carbon === 'string' ? links.carbon : CARBON_DASHBOARD_URL,
+            href: typeof l.carbon === 'string' ? l.carbon : CARBON_DASHBOARD_URL,
             variant: 'carbon',
+        });
+    }
+    if (l.contact !== false) {
+        derived.push({
+            label: 'Contact us',
+            href: contactHref(l.contact),
+            // A mailto: opens a mail client, so a new tab would leave a blank
+            // one behind.
+            external: false,
         });
     }
     return derived.map(item => ({ variant: null, external: true, ...item }));
@@ -217,7 +244,14 @@ function buildMobileMenu(doc, items) {
     });
     button.innerHTML = '<span></span><span></span><span></span>';
 
-    const panel = el(doc, 'div', { id: 'app-header-menu', hidden: '' });
+    const panel = el(doc, 'div', {
+        id: 'app-header-menu',
+        hidden: '',
+        role: 'dialog',
+        'aria-modal': 'true',
+        'aria-label': 'Site menu',
+        tabindex: '-1',
+    });
     const close = el(doc, 'button', {
         class: 'app-header-menu-close',
         type: 'button',
@@ -232,9 +266,17 @@ function buildMobileMenu(doc, items) {
     const setOpen = open => {
         panel.hidden = !open;
         button.setAttribute('aria-expanded', String(open));
+        // Move focus with the panel, and hand it back to the control that
+        // opened it — otherwise a keyboard user is left at the top of the
+        // document with no idea the panel closed.
+        if (open) close.focus();
+        else button.focus();
     };
     button.addEventListener('click', () => setOpen(panel.hidden));
     close.addEventListener('click', () => setOpen(false));
+    panel.addEventListener('keydown', e => {
+        if (e.key === 'Escape') setOpen(false);
+    });
     // Tapping a link navigates away, but close anyway so a same-page target
     // doesn't leave the takeover covering the map.
     list.addEventListener('click', e => {

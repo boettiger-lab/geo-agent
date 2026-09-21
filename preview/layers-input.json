@@ -32,7 +32,7 @@
     "carbon": true
   },
   "welcome": {
-    "message": "Layout preview build \u2014 a fixture for eyeballing browser-bound UI on an unmerged branch. No LLM is configured, so the chat will not answer.",
+    "message": "Layout preview build \u2014 a fixture for eyeballing browser-bound UI on an unmerged branch. Add your own API key with the gear icon to try the chat and the microphone.",
     "examples": []
   },
   "collections": [
@@ -603,6 +603,27 @@
         "src_dark": "assets/dse-mark-white.png",
         "alt": "Eric and Wendy Schmidt Center for Data Science & Environment at Berkeley",
         "href": "https://dse.berkeley.edu/"
+      }
+    ]
+  },
+  "llm": {
+    "user_provided": true,
+    "transcription_model": {
+      "value": "gemma"
+    },
+    "default_endpoint": "https://openrouter.ai/api/v1",
+    "models": [
+      {
+        "value": "anthropic/claude-sonnet-5",
+        "label": "Claude Sonnet 5"
+      },
+      {
+        "value": "google/gemini-3.5-flash-lite",
+        "label": "Gemini 3.5 Flash Lite"
+      },
+      {
+        "value": "z-ai/glm-5.2",
+        "label": "GLM-5.2"
       }
     ]
   }

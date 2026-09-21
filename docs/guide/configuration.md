@@ -608,6 +608,10 @@ in the familiar order:
 | `links.docs` | **About** |
 | `links.github` | **GitHub** |
 | `links.carbon` | **Carbon** (the NRP LLM carbon dashboard; set a string to point elsewhere) |
+| `links.contact` | **Contact us** — the one entry present **by default**, pointing at `mailto:dse@berkeley.edu`. Give a full URL, or a bare address which is normalised to a `mailto:`. Set `false` to drop it. |
+
+Because Contact defaults on, enabling the header always yields at least one
+nav entry. The mailto opens in the same tab, so no blank one is left behind.
 
 When a nav is rendered, the chat footer **stops** showing those same links, so
 they appear once rather than twice.

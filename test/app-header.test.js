@@ -4,6 +4,7 @@ import {
     resolveHeaderConfig,
     buildAppHeader,
     CARBON_DASHBOARD_URL,
+    DEFAULT_CONTACT,
 } from '../app/app-header.js';
 
 const LOGO = { src: 'https://example.org/dse.svg', alt: 'DSE', href: 'https://dse.example.org' };
@@ -59,7 +60,7 @@ describe('resolveHeaderConfig', () => {
                 header: { enabled: true },
                 links: { docs: 'https://d.example', github: 'https://g.example', carbon: true },
             });
-            expect(cfg.nav.map(n => n.label)).toEqual(['About', 'GitHub', 'Carbon']);
+            expect(cfg.nav.map(n => n.label)).toEqual(['About', 'GitHub', 'Carbon', 'Contact us']);
             expect(cfg.nav[0].href).toBe('https://d.example');
             expect(cfg.nav[2].href).toBe(CARBON_DASHBOARD_URL);
             expect(cfg.nav[2].variant).toBe('carbon');
@@ -78,7 +79,7 @@ describe('resolveHeaderConfig', () => {
                 header: { enabled: true },
                 links: { github: 'https://g.example' },
             });
-            expect(cfg.nav.map(n => n.label)).toEqual(['GitHub']);
+            expect(cfg.nav.map(n => n.label)).toEqual(['GitHub', 'Contact us']);
         });
 
         it('an explicit nav wins over the derived one', () => {
@@ -107,8 +108,36 @@ describe('resolveHeaderConfig', () => {
             expect(cfg.nav.map(n => n.label)).toEqual(['Ok']);
         });
 
-        it('is empty when there is neither a nav nor a links block', () => {
-            expect(resolveHeaderConfig({ header: { enabled: true } }).nav).toEqual([]);
+        it('still offers Contact when there is no links block at all', () => {
+            const nav = resolveHeaderConfig({ header: { enabled: true } }).nav;
+            expect(nav.map(n => n.label)).toEqual(['Contact us']);
+            expect(nav[0].href).toBe(DEFAULT_CONTACT);
+        });
+
+        it('normalises a bare address to a mailto', () => {
+            const cfg = resolveHeaderConfig({
+                header: { enabled: true }, links: { contact: 'team@example.org' },
+            });
+            expect(cfg.nav.at(-1).href).toBe('mailto:team@example.org');
+        });
+
+        it('passes a full URL through untouched', () => {
+            const cfg = resolveHeaderConfig({
+                header: { enabled: true }, links: { contact: 'https://example.org/contact' },
+            });
+            expect(cfg.nav.at(-1).href).toBe('https://example.org/contact');
+        });
+
+        it('keeps a mailto in the same tab, so no blank one is left behind', () => {
+            const cfg = resolveHeaderConfig({ header: { enabled: true } });
+            expect(cfg.nav.at(-1).external).toBe(false);
+        });
+
+        it('drops Contact when explicitly disabled', () => {
+            const cfg = resolveHeaderConfig({
+                header: { enabled: true }, links: { contact: false },
+            });
+            expect(cfg.nav).toEqual([]);
         });
     });
 });
@@ -188,11 +217,13 @@ describe('buildAppHeader', () => {
             links: { github: 'https://g.example' },
         }, document);
         expect(res.absorbsLinks).toBe(true);
-        expect(document.querySelectorAll('#app-header-nav a')).toHaveLength(1);
+        // GitHub + the default Contact entry.
+        expect(document.querySelectorAll('#app-header-nav a')).toHaveLength(2);
     });
 
     it('absorbs nothing when there is no nav to show', () => {
-        const res = buildAppHeader({ header: { enabled: true, title: 'X' } }, document);
+        const res = buildAppHeader(
+            { header: { enabled: true, title: 'X' }, links: { contact: false } }, document);
         expect(res.absorbsLinks).toBe(false);
         expect(document.getElementById('app-header-nav')).toBeNull();
         // No nav means no menu button either.
@@ -264,7 +295,33 @@ describe('buildAppHeader', () => {
 
         it('mirrors every nav entry', () => {
             build();
-            expect(document.querySelectorAll('.app-header-menu-link')).toHaveLength(2);
+            // About + GitHub + Contact.
+            expect(document.querySelectorAll('.app-header-menu-link')).toHaveLength(3);
+        });
+
+        it('closes on Escape', () => {
+            build();
+            const btn = document.getElementById('app-header-menu-btn');
+            const panel = document.getElementById('app-header-menu');
+            btn.click();
+            panel.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+            expect(panel.hidden).toBe(true);
+        });
+
+        it('returns focus to the button it was opened from', () => {
+            build();
+            const btn = document.getElementById('app-header-menu-btn');
+            btn.click();
+            document.querySelector('.app-header-menu-close').click();
+            expect(document.activeElement).toBe(btn);
+        });
+
+        it('is a labelled modal dialog', () => {
+            build();
+            const panel = document.getElementById('app-header-menu');
+            expect(panel.getAttribute('role')).toBe('dialog');
+            expect(panel.getAttribute('aria-modal')).toBe('true');
+            expect(panel.getAttribute('aria-label')).toBeTruthy();
         });
     });
 });

@@ -250,6 +250,7 @@ export class ChatUI {
         this.abandonBtn.type = 'button';
         this.abandonBtn.textContent = '✕';
         this.abandonBtn.title = 'Discard the paused work and start fresh';
+        this.abandonBtn.setAttribute('aria-label', 'Discard the paused work and start fresh');
         this.abandonBtn.hidden = true;
         this.abandonBtn.addEventListener('click', () => this.abandonSuspendedTurn());
         this.sendBtn.parentNode.insertBefore(this.abandonBtn, this.sendBtn);
