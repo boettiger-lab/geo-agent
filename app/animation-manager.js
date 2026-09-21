@@ -24,6 +24,8 @@
  * destroy) let MapManager treat it like any other layer.
  */
 
+import { mountOverlay, SLOT } from './overlay-rail.js';
+
 const DEFAULTS = {
     loop: true,
     duration_seconds: 30,
@@ -299,11 +301,7 @@ export class TrajectoryAnimation {
                 <option value="4">4×</option>
             </select>
         `;
-        // Stack multiple panels vertically — count reactive-control sliders too
-        // so the two panel types never render on top of each other.
-        const existing = document.querySelectorAll('.anim-controls, .reactive-controls').length;
-        panel.style.bottom = (12 + existing * 44) + 'px';
-        document.body.appendChild(panel);
+        mountOverlay(panel, SLOT.ANIMATION);
 
         this._panel = panel;
         this._playBtn = panel.querySelector('.anim-play');

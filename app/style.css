@@ -1,3 +1,28 @@
+/* ── Stacking scale ──────────────────────────────────────────────────────
+   One ordered set of named tiers, replacing the ad-hoc 1/2/3/4/5/10/12/100/
+   1000 that accumulated in arrival order. Gaps are deliberate: a new surface
+   slots between two tiers without renumbering, and nothing needs to "win" by
+   picking a bigger number.
+
+   Local stacking inside a panel (a resize grip against its own panel body)
+   stays a plain small integer — those never compete with the tiers here,
+   because a positioned ancestor with a z-index opens its own context.
+
+   --z-app-header, --z-mobile-takeover and --z-modal have no users yet: the
+   first two are reserved for the layout scaffold (#363), and --z-modal names
+   the top tier so a future dialog doesn't have to invent one. */
+:root {
+    --z-map: 1;               /* the map canvas */
+    --z-map-overlay: 10;      /* #map-overlay-rail — legend, sliders, hex */
+    --z-chart-panel: 20;      /* chart panels, cascaded over the map */
+    --z-sidebar: 30;          /* the sidebar (and the legacy floating chat) */
+    --z-sidebar-show: 35;     /* re-open affordance, above the collapsed edge */
+    --z-app-header: 40;       /* reserved: app chrome / nav band */
+    --z-mobile-takeover: 50;  /* reserved: full-viewport panels at phone width */
+    --z-tooltip: 60;          /* hover readouts, above all chrome */
+    --z-modal: 70;            /* blocking dialogs */
+}
+
 body {
     margin: 0;
     padding: 0;
@@ -5,9 +30,45 @@ body {
 
 #map {
     position: absolute;
+    z-index: var(--z-map);
     top: 0;
     bottom: 0;
     width: 100%;
+}
+
+/* ── Map overlay rail ────────────────────────────────────────────────────
+   Bottom-left column shared by every map-scoped panel. Anchored at the
+   bottom and auto-height, so it grows upward as panels mount; children are
+   ordered by the `order` set in overlay-rail.js, not by mount order.
+
+   The rail itself is click-through, so the gaps between panels don't steal
+   map interaction. See app/overlay-rail.js for why this exists. */
+#map-overlay-rail {
+    position: absolute;
+    z-index: var(--z-map-overlay);
+    bottom: 10px;
+    left: 10px;
+    max-height: calc(100vh - 20px);
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+    pointer-events: none;
+}
+
+#map-overlay-rail > * {
+    pointer-events: auto;
+    /* Panels no longer carry their own anchors; the rail places them. */
+    position: static;
+    flex: 0 0 auto;
+}
+
+/* The legend is the only panel that can outgrow the viewport, so it is the
+   one that yields — it shrinks and scrolls internally (#legend-content)
+   rather than pushing the compact controls off-screen. */
+#map-overlay-rail > #legend {
+    flex: 0 1 auto;
+    min-height: 0;
 }
 
 #menu {
@@ -15,7 +76,7 @@ body {
     -webkit-backdrop-filter: blur(10px);
     backdrop-filter: blur(10px);
     position: absolute;
-    z-index: 1;
+    z-index: var(--z-map-overlay);
     top: 10px;
     right: 10px;
     border-radius: 5px;
@@ -360,10 +421,6 @@ details.layer-group:not([open]) .layer-group-title::before {
     background: rgba(255, 255, 255, 0) !important;
     -webkit-backdrop-filter: blur(10px);
     backdrop-filter: blur(10px);
-    position: absolute;
-    z-index: 1;
-    bottom: 10px;
-    left: 10px;
     border-radius: 5px;
     max-width: 280px;
     max-height: 80vh;
@@ -540,10 +597,6 @@ details.layer-group:not([open]) .layer-group-title::before {
 
 /* H3 hex grid toggle */
 #h3-toggle {
-    position: absolute;
-    z-index: 1;
-    bottom: 14px;
-    left: 14px;
     width: 32px;
     height: 32px;
     border-radius: 6px;
@@ -578,7 +631,7 @@ details.layer-group:not([open]) .layer-group-title::before {
 .map-tooltip {
     display: none;
     position: fixed;
-    z-index: 100;
+    z-index: var(--z-tooltip);
     background: rgba(255, 255, 255, 0.95);
     -webkit-backdrop-filter: blur(4px);
     backdrop-filter: blur(4px);
@@ -613,10 +666,6 @@ details.layer-group:not([open]) .layer-group-title::before {
 }
 
 #h3-res-badge {
-    position: absolute;
-    z-index: 1;
-    bottom: 52px;
-    left: 14px;
     font-family: 'Open Sans', sans-serif;
     font-size: 10px;
     color: #555;
@@ -655,9 +704,6 @@ details.layer-group:not([open]) .layer-group-title::before {
 
 /* Animated trajectory layer controls */
 .anim-controls {
-    position: absolute;
-    left: 12px;
-    z-index: 2;
     display: flex;
     align-items: center;
     gap: 8px;
@@ -712,12 +758,9 @@ details.layer-group:not([open]) .layer-group-title::before {
 }
 
 /* ── Reactive-parameter controls (temporal / value sliders, #147) ────────
-   Same frosted-glass surface as .anim-controls; floats bottom-left and
-   stacks above any animation panels. */
+   Same frosted-glass surface as .anim-controls. Placement comes from
+   #map-overlay-rail (SLOT.REACTIVE), not from this rule. */
 .reactive-controls {
-    position: absolute;
-    left: 12px;
-    z-index: 2;
     display: flex;
     align-items: center;
     gap: 8px;
@@ -772,7 +815,7 @@ details.layer-group:not([open]) .layer-group-title::before {
    Floating card anchored bottom-right; multiple charts cascade. */
 .chart-panel {
     position: absolute;
-    z-index: 3;
+    z-index: var(--z-chart-panel);
     /* Anchor to the bottom-right of the MAP area: offset past the sidebar
        (--sidebar-width is 0 in floating mode) plus the per-panel cascade, so
        charts never hide behind a right-docked sidebar. */
@@ -819,7 +862,7 @@ details.layer-group:not([open]) .layer-group-title::before {
     left: 0;
     width: 18px;
     height: 18px;
-    z-index: 4;
+    z-index: 1;   /* local to .chart-panel's stacking context */
     cursor: nwse-resize;
     background:
         linear-gradient(-45deg, transparent 0 4px, rgba(0, 0, 0, 0.28) 4px 5px, transparent 5px 8px, rgba(0, 0, 0, 0.28) 8px 9px, transparent 9px) top left / 12px 12px no-repeat;

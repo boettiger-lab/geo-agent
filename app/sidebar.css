@@ -30,7 +30,7 @@ body.sidebar-mode #sidebar {
     color: #1a1a2e;
     display: flex;
     flex-direction: column;
-    z-index: 10;
+    z-index: var(--z-sidebar, 30);
     box-shadow: -2px 0 6px rgba(0, 0, 0, 0.12);
     transition: transform 200ms ease;
     /* Sidebar chat uses solid background — override any glass blur coming
@@ -304,20 +304,12 @@ body.sidebar-mode.sidebar-collapsed #sidebar {
     padding: 4px 10px;
     font-size: 14px;
     cursor: pointer;
-    z-index: 12;
+    z-index: var(--z-sidebar-show, 35);
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
 }
 
 body.sidebar-mode.sidebar-collapsed #sidebar-show-btn {
     display: block;
-}
-
-/* ----- Z-index adjustments for floating map overlays in narrow map ----- */
-
-body.sidebar-mode #legend,
-body.sidebar-mode #h3-toggle,
-body.sidebar-mode #h3-res-badge {
-    z-index: 5;
 }
 
 /* ----- Narrow-viewport fallback: overlay instead of push --------------- */

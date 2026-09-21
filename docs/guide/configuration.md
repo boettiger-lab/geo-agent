@@ -818,6 +818,50 @@ Trade-offs, by design:
 - **Not fully offline.** The embedded map loads MapLibre GL JS and PMTiles from the same pinned CDN builds the app uses (`maplibre-gl@5.22.0`, `pmtiles@3.0.7`) and fetches tiles from the original public sources at view time. Without a network connection, the map area shows an error message; the rest of the transcript still renders.
 - **Public layers only.** Terrain (whose DEM source is keyed to a private MapTiler token) is stripped, and any signed or private tile URL is redacted by the credential scrub — so such layers may not appear for a recipient. The transcript text remains complete.
 
+## Map overlay rail and stacking order
+
+Not a config block — background for apps that ship their own CSS overrides.
+
+Every panel that floats over the map bottom-left — the legend, reactive-parameter
+sliders, trajectory playback controls, and the H3 hex toggle and resolution badge —
+mounts into a single container, `#map-overlay-rail`. The rail is a bottom-anchored
+flex column, so panels queue above one another in a fixed order instead of each
+anchoring itself to the same corner. Adding or removing a panel reflows the rest
+automatically.
+
+This replaces the previous arrangement, where each panel carried its own
+`position: absolute; bottom; left` and two of them hand-computed an offset at
+construction time. Panels overlapped whenever they didn't know about each other
+(notably the legend covering a slider in sidebar mode).
+
+**What this means for custom CSS:**
+
+- Panels inside the rail are `position: static`. Overriding `bottom`, `left` or
+  `z-index` on `#legend`, `.reactive-controls`, `.anim-controls`, `#h3-toggle` or
+  `#h3-res-badge` no longer does anything — the rail places them. Such rules are
+  inert rather than broken, so a stale workaround does no harm, but it can be deleted.
+- Sizing and appearance overrides (`max-width`, colors, fonts, padding) still apply
+  normally.
+- To reposition the group as a whole, style `#map-overlay-rail` itself.
+
+Stacking across the whole app uses a named scale defined on `:root` in `style.css`,
+rather than ad-hoc numbers:
+
+| Token | Value | Layer |
+|---|---:|---|
+| `--z-map` | 1 | map canvas |
+| `--z-map-overlay` | 10 | `#map-overlay-rail` and the layer menu |
+| `--z-chart-panel` | 20 | chart panels |
+| `--z-sidebar` | 30 | sidebar (and the legacy floating chat) |
+| `--z-sidebar-show` | 35 | sidebar re-open button |
+| `--z-app-header` | 40 | reserved for app chrome |
+| `--z-mobile-takeover` | 50 | reserved for full-viewport panels at phone width |
+| `--z-tooltip` | 60 | hover readouts |
+| `--z-modal` | 70 | blocking dialogs |
+
+Custom overlays of your own should pick a token (or a value between two of them)
+rather than escalating past everything with a large number.
+
 ## Finding STAC asset IDs
 
 Browse the catalog in STAC Browser:

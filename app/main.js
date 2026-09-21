@@ -13,6 +13,7 @@ import { createGeocoder } from './geocoder.js';
 import { Agent } from './agent.js';
 import { ChatUI } from './chat-ui.js';
 import { buildLayout, sidebarHooks } from './layout-manager.js';
+import { mountOverlay, SLOT } from './overlay-rail.js';
 
 async function main() {
     console.log('[main] Starting app…');
@@ -133,13 +134,13 @@ async function main() {
         btn.id = 'h3-toggle';
         btn.title = 'Toggle H3 hex grid';
         btn.innerHTML = '⬡';
-        document.body.appendChild(btn);
+        mountOverlay(btn, SLOT.HEX_TOGGLE);
 
         // Resolution badge (hidden until active)
         const badge = document.createElement('span');
         badge.id = 'h3-res-badge';
         badge.style.display = 'none';
-        document.body.appendChild(badge);
+        mountOverlay(badge, SLOT.HEX_BADGE);
 
         let h3Active = false;
         btn.addEventListener('click', () => {
