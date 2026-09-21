@@ -8,7 +8,9 @@ on:
       - 'package.json'
       - '.github/workflows/gh-pages.yml'
 
-  # Allow manual trigger
+  # Allow manual trigger. Dispatching on a `preview/*` branch also publishes
+  # that branch's app/ at /preview/ — see the "Stage app preview" step and
+  # preview/README.md.
   workflow_dispatch:
 
 permissions:
@@ -36,6 +38,61 @@ jobs:
 
       - name: Build VitePress docs
         run: npm run docs:build
+
+      # Browser-bound modules (map, chat UI, layout) have no test harness, so
+      # they are verified by eye. Dispatching this workflow on a `preview/*`
+      # branch stages that branch's app/ into the built docs tree, giving a
+      # real browser URL for an unmerged change.
+      #
+      # The app is served as-is: app/index.html imports main.js relatively, so
+      # nothing is pinned and no downstream app is involved. app/config.json is
+      # gitignored and therefore never checked out — previews carry no secrets
+      # and have no LLM configured.
+      #
+      # Staged after the docs build so it survives it, and into a subdirectory
+      # so the docs keep their own URLs.
+      - name: Stage app preview
+        if: startsWith(github.ref, 'refs/heads/preview/')
+        run: |
+          set -euo pipefail
+          dest=docs/.vitepress/dist/preview
+          if [ -e "$dest" ]; then
+            echo "::error::$dest already exists in the docs build; pick another path"
+            exit 1
+          fi
+          mkdir -p "$dest"
+          cp -R app/. "$dest/"
+          # Overlay the fixture: layers-input.json replaces app/'s, and any
+          # assets beside it (placeholder logos, images the config points at)
+          # land next to it so relative paths resolve. preview/README.md is
+          # documentation, not part of the served app.
+          find preview -maxdepth 1 -type f ! -name README.md -exec cp {} "$dest/" \;
+          test -f "$dest/layers-input.json"
+          test ! -e "$dest/config.json"
+          echo "Staged ${GITHUB_REF_NAME} (${GITHUB_SHA}) at /preview/"
+
+          # Variants: each preview/variants/<name>.json is a shallow patch
+          # over the base fixture, published at /preview/<name>/. Lets one
+          # branch show several configurations side by side (a light and a
+          # dark theme, say) without duplicating the whole fixture, which
+          # would then drift.
+          for patch in preview/variants/*.json; do
+            [ -e "$patch" ] || continue
+            name=$(basename "$patch" .json)
+            sub="$dest/$name"
+            mkdir -p "$sub"
+            cp -R app/. "$sub/"
+            find preview -maxdepth 1 -type f ! -name README.md -exec cp {} "$sub/" \;
+            python3 - "$sub/layers-input.json" "$patch" <<'PYEOF'
+          import json, sys
+          target, patch = sys.argv[1], sys.argv[2]
+          base = json.load(open(target))
+          base.update(json.load(open(patch)))
+          json.dump(base, open(target, 'w'), indent=2)
+          PYEOF
+            test ! -e "$sub/config.json"
+            echo "  variant: /preview/$name/"
+          done
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
