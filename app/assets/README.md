@@ -10,6 +10,7 @@ https://cdn.jsdelivr.net/gh/boettiger-lab/geo-agent@<ref>/app/assets/<file>
 
 | File | Use |
 |---|---|
+| `favicon.svg` | Browser-tab icon. **Placeholder** — a plain hexagon, nodding to the H3 grid, until GLEN has a mark |
 | `dse-mark.png` | Monogram — "DSE" + sprout, no wordmark. Legible small; **light** backgrounds |
 | `dse-mark-white.png` | Monogram, knockout, for **dark** backgrounds. **Derived, not official** — see below |
 | `dse-logo-black.png` | Full horizontal lockup for **light** backgrounds |
@@ -40,3 +41,18 @@ Source: the DSE brand drive. These are **third-party brand assets, not
 project code** — do not recolour, crop or redraw them; check the DSE brand
 guidelines before using them in a new way, and replace them here if DSE
 reissues the mark.
+
+## Favicon
+
+`favicon.svg` is a placeholder: a single filled hexagon, kept plain so it
+survives a 16px browser tab. It stands in until GLEN has a real mark, at which
+point replace it here.
+
+Downstream apps link it from their `index.html`:
+
+```html
+<link rel="icon" type="image/svg+xml"
+      href="https://cdn.jsdelivr.net/gh/boettiger-lab/geo-agent@<ref>/app/assets/favicon.svg">
+```
+
+An app with its own branding should point this at its own icon instead.
