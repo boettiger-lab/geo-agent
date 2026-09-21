@@ -1,3 +1,4 @@
+import { ensurePanelActions } from './panel-actions.js';
 /**
  * UploadManager — user-uploaded GeoJSON polygons as agent-addressable layers
  *
@@ -107,26 +108,6 @@ export async function contentHash(text) {
 }
 
 /* ── DOM / network glue (browser-only, verified manually) ──────────────────── */
-
-/**
- * The row of panel-level action buttons under the layer list.
- *
- * Shared, and created by whichever feature mounts first — upload is opt-in
- * and the save button only appears once a conversation has started, so
- * neither can own it. Exported so chat-ui.js can find the same row.
- *
- * @param {HTMLElement} controls — #layer-controls-container
- * @returns {HTMLElement}
- */
-export function ensurePanelActions(controls) {
-    const existing = document.getElementById('panel-actions');
-    if (existing) return existing;
-    const row = document.createElement('div');
-    row.id = 'panel-actions';
-    row.className = 'panel-actions';
-    controls.after(row);
-    return row;
-}
 
 export class UploadManager {
     /**

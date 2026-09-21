@@ -10,17 +10,21 @@ https://cdn.jsdelivr.net/gh/boettiger-lab/geo-agent@<ref>/app/assets/<file>
 
 | File | Use |
 |---|---|
-| `dse-mark.png` | Monogram — "DSE" + sprout, no wordmark. Legible small; **light backgrounds only** |
+| `dse-mark.png` | Monogram — "DSE" + sprout, no wordmark. Legible small; **light** backgrounds |
+| `dse-mark-white.png` | Monogram, knockout, for **dark** backgrounds. **Derived, not official** — see below |
 | `dse-logo-black.png` | Full horizontal lockup for **light** backgrounds |
 | `dse-logo-white.png` | Full lockup, knockout, for **dark** backgrounds |
 
 The lockups are 2162×958; the monogram is 1255×958. At a header's ~24px height
 the lockup's wordmark is unreadable, so prefer the monogram where it fits.
 
-> **Gap:** there is no knockout (white) monogram in the DSE brand drive — only
-> the full lockup has a `ko` variant. So a dark header currently has to fall
-> back to the lockup. Ask DSE for a knockout monogram rather than recolouring
-> `dse-mark.png`, which would be deriving a brand asset we do not own. Supply both to a header logo slot
+> **`dse-mark-white.png` is derived, not official.** The brand drive ships no
+> knockout monogram — only the full lockup has a `ko` variant. This one was
+> made from `dse-mark.png` by recolouring the navy ink to white and leaving
+> the green sprout untouched, preserving alpha so the edges stay clean. That
+> mirrors the treatment DSE already applies to the lockup, but it is still our
+> derivation. **Replace it with an official asset** when DSE supplies one, and
+> do not derive further variants from it. Supply both to a header logo slot
 via `src` and `src_dark` so the right one shows in either theme:
 
 ```json

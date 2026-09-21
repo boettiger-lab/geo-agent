@@ -419,3 +419,16 @@ body.sidebar-mode #chat-send {
 body.sidebar-mode #chat-send:hover:not(:disabled) {
     background: var(--control-bg-hover);
 }
+
+/* The model selector is a control like any other, so it takes the shared
+   fill rather than a near-invisible translucent chip. */
+body.sidebar-mode #model-selector {
+    background: var(--control-bg);
+    color: var(--control-fg);
+    opacity: 1;
+}
+
+body.sidebar-mode #model-selector:hover {
+    background: var(--control-bg-hover);
+    opacity: 1;
+}

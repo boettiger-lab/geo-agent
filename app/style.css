@@ -787,15 +787,10 @@ details.layer-group:not([open]) .layer-group-title::before {
     accent-color: var(--control-accent);
 }
 
-/* The map-wide action row: globe + send-back, side by side. */
-.menu-section-header--actions {
-    display: flex;
-    gap: 6px;
-    margin-bottom: 8px;
-}
 
-.panel-btn:disabled {
-    opacity: 0.4;
+.panel-btn:disabled,
+.upload-btn:disabled {
+    opacity: 0.55;
     cursor: not-allowed;
 }
 

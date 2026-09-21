@@ -6,7 +6,7 @@
  */
 
 import { CARBON_DASHBOARD_URL } from './app-header.js';
-import { ensurePanelActions } from './upload-manager.js';
+import { ensurePanelActions } from './panel-actions.js';
 
 /**
  * Rewrite `s3://bucket/path` URLs to the public HTTPS endpoint so that the
