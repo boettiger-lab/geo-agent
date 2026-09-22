@@ -291,11 +291,20 @@ export const EXPORT_MAP_PMTILES_VERSION = '3.0.7';
  * along into a shared file. `<` is escaped to `<` so a source name or URL
  * containing `</script>` can't break out of the embedded JSON block.
  *
+ * The section also carries the embed affordance: a recipient who wants this
+ * map on their own site gets the iframe snippet and plain-language steps, and
+ * `#map` strips the page to the map alone so one file serves both the
+ * transcript and the embed.
+ *
  * @param {object|null} state - from MapManager.getExportState(); null/empty → no map
+ * @param {{filename?: string}} [options] - the download's own filename, used in the snippet
  * @returns {{ headTags: string, body: string }} empty strings when there is no map
  */
-export function buildMapEmbedHtml(state) {
+export function buildMapEmbedHtml(state, options = {}) {
     if (!state || !state.style) return { headTags: '', body: '' };
+
+    const filename = options.filename || 'this-file.html';
+    const safeName = escapeHtmlText(filename);
 
     let stateJson = JSON.stringify(state);
     stateJson = scrubCredentials(stateJson);
@@ -312,23 +321,53 @@ export function buildMapEmbedHtml(state) {
 <script src="https://unpkg.com/maplibre-gl@${ml}/dist/maplibre-gl.js" crossorigin="anonymous"></script>
 <script src="https://unpkg.com/pmtiles@${pm}/dist/pmtiles.js" crossorigin="anonymous"></script>`;
 
+    // The snippet a recipient pastes into their own page. `#map` is what makes
+    // one file serve two purposes — see the view-mode script below.
+    const snippet =
+`<iframe src="${safeName}#map" width="100%" height="480"
+        style="border:0" loading="lazy" title="Map"></iframe>`;
+
     const body =
 `<section class="export-map-section">
   <h2 class="export-map-title">Map at time of export</h2>
   <div id="export-map" class="export-map"></div>
   <p class="export-map-note">Interactive map re-rendered from the saved state. Needs a network
      connection to the original public tile sources; private or signed layers may not appear.</p>
+  <div class="export-embed">
+    <button type="button" class="export-embed-toggle" aria-expanded="false"
+            aria-controls="export-embed-help">Embed this map on your website</button>
+    <div class="export-embed-help" id="export-embed-help" hidden>
+      <p>This map can go on your own website. It is one self-contained file — no server, no
+         account, no build step.</p>
+      <ol>
+        <li>Send this file (<code>${safeName}</code>) to whoever looks after your website and
+            ask them to upload it. Any web host will do.</li>
+        <li>Ask them to paste this where the map should appear:
+          <pre class="export-embed-snippet"><code>${escapeHtmlText(snippet)}</code></pre>
+          <button type="button" class="export-embed-copy">Copy snippet</button>
+        </li>
+        <li>If they put the file somewhere other than beside that page, they will need to change
+            <code>src</code> to wherever it ended up.</li>
+      </ol>
+      <p class="export-embed-note">The <code>#map</code> on the end shows the map by itself,
+         without this transcript — <a href="#map">open that view</a> to see what a visitor gets.
+         Drop the <code>#map</code> to embed the whole page instead. Either way the map draws its
+         tiles from the same public sources it came from, so the page needs a network connection,
+         and private or signed layers will not appear.</p>
+    </div>
+  </div>
   <script type="application/json" id="export-map-state">${safeJson}</script>
   <script>
   (function () {
     var el = document.getElementById('export-map');
+    var map = null;
     try {
       if (typeof maplibregl === 'undefined') throw new Error('MapLibre GL JS did not load');
       var state = JSON.parse(document.getElementById('export-map-state').textContent);
       if (window.pmtiles && maplibregl.addProtocol) {
         maplibregl.addProtocol('pmtiles', new pmtiles.Protocol().tile);
       }
-      var map = new maplibregl.Map({
+      map = new maplibregl.Map({
         container: 'export-map',
         style: state.style,
         center: state.center,
@@ -336,6 +375,7 @@ export function buildMapEmbedHtml(state) {
         bearing: state.bearing,
         pitch: state.pitch,
         renderWorldCopies: false,
+        preserveDrawingBuffer: true,
       });
       map.addControl(new maplibregl.NavigationControl(), 'top-left');
       if (state.projection === 'globe') {
@@ -344,6 +384,54 @@ export function buildMapEmbedHtml(state) {
     } catch (e) {
       if (el) el.innerHTML = '<p class="export-map-error">Could not render the saved map: ' +
         (e && e.message ? e.message : e) + '</p>';
+    }
+
+    // View mode: '#map' strips the page to the map alone, which is what the
+    // embed snippet points an iframe at. Same file, two presentations.
+    function applyView() {
+      var mapOnly = window.location.hash === '#map';
+      document.body.setAttribute('data-view', mapOnly ? 'map' : 'full');
+      if (map) map.resize();
+    }
+    applyView();
+    window.addEventListener('hashchange', applyView);
+
+    var toggle = document.querySelector('.export-embed-toggle');
+    var help = document.getElementById('export-embed-help');
+    if (toggle && help) {
+      toggle.addEventListener('click', function () {
+        var opening = help.hasAttribute('hidden');
+        if (opening) help.removeAttribute('hidden');
+        else help.setAttribute('hidden', '');
+        toggle.setAttribute('aria-expanded', String(opening));
+      });
+    }
+
+    var copyBtn = document.querySelector('.export-embed-copy');
+    var snippetEl = document.querySelector('.export-embed-snippet code');
+    if (copyBtn && snippetEl) {
+      copyBtn.addEventListener('click', function () {
+        function settle(label) {
+          copyBtn.textContent = label;
+          setTimeout(function () { copyBtn.textContent = 'Copy snippet'; }, 2000);
+        }
+        // Selecting the text is the fallback: clipboard access is refused on
+        // file:// in some browsers, which is exactly how this file gets opened.
+        function selectInstead() {
+          try {
+            var range = document.createRange();
+            range.selectNodeContents(snippetEl);
+            var sel = window.getSelection();
+            sel.removeAllRanges();
+            sel.addRange(range);
+            settle('Selected — press Ctrl+C');
+          } catch (err) { settle('Copy by hand'); }
+        }
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(snippetEl.textContent)
+            .then(function () { settle('Copied'); }, selectInstead);
+        } else selectInstead();
+      });
     }
   })();
   </script>
@@ -1391,7 +1479,7 @@ export class ChatUI {
         } catch (err) {
             console.warn('[ChatUI] map capture for export failed:', err);
         }
-        const mapEmbed = buildMapEmbedHtml(mapState);
+        const mapEmbed = buildMapEmbedHtml(mapState, { filename: this._exportFilename() });
 
         // Setup block: the SQL in the transcript is left untouched (globs and all),
         // so the export carries the preamble that makes those paths resolve.
@@ -1609,6 +1697,32 @@ body[data-code-lang="python"] .code-variant[data-lang="python"] { display: block
 .export-map { width: 100%; height: 480px; border: 1px solid #ddd; border-radius: 6px; }
 .export-map-note { font-size: 12px; color: #6b7280; margin: 6px 0 0; }
 .export-map-error { padding: 1rem; color: #991b1b; font-size: 13px; }
+.export-embed { margin: 8px 0 0; }
+.export-embed-toggle { font: inherit; font-size: 12px; padding: 4px 10px; cursor: pointer;
+                       border: 1px solid #d1d5db; border-radius: 4px; background: #fff;
+                       color: #2c5282; }
+.export-embed-toggle[aria-expanded="true"] { background: #eef2ff; border-color: #c7d2fe; }
+.export-embed-help { border: 1px solid #e5e7eb; border-radius: 6px; padding: 10px 12px;
+                     margin: 8px 0 0; font-size: 13px; background: #f9fafb; }
+.export-embed-help ol { margin: 8px 0; padding-left: 20px; }
+.export-embed-help li { margin: 6px 0; }
+.export-embed-snippet { background: #1e293b; color: #e2e8f0; padding: 8px; border-radius: 4px;
+                        overflow-x: auto; font-size: 11px; white-space: pre-wrap;
+                        word-break: break-word; margin: 6px 0; }
+.export-embed-copy { font: inherit; font-size: 11px; padding: 2px 8px; cursor: pointer;
+                     border: 1px solid #d1d5db; border-radius: 4px; background: #fff;
+                     color: #374151; }
+.export-embed-note { font-size: 12px; color: #6b7280; margin: 8px 0 0; }
+
+/* '#map' view: the same file, stripped to the map, which is what the embed
+   snippet points an iframe at. */
+body[data-view="map"] { margin: 0; padding: 0; max-width: none; }
+body[data-view="map"] > *:not(.export-map-section) { display: none !important; }
+body[data-view="map"] .export-map-title,
+body[data-view="map"] .export-map-note,
+body[data-view="map"] .export-embed { display: none; }
+body[data-view="map"] .export-map-section { margin: 0; }
+body[data-view="map"] .export-map { height: 100vh; border: 0; border-radius: 0; }
 `;
     }
 

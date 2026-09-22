@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>GLEN chat — 2026-09-22 02:51</title>
+<title>GLEN chat — 2026-09-22 04:33</title>
 <style>
 body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
        max-width: 900px; margin: 1rem auto; padding: 0 1rem; color: #1a1a2e; line-height: 1.5; }
@@ -77,6 +77,32 @@ body[data-code-lang="python"] .code-variant[data-lang="python"] { display: block
 .export-map { width: 100%; height: 480px; border: 1px solid #ddd; border-radius: 6px; }
 .export-map-note { font-size: 12px; color: #6b7280; margin: 6px 0 0; }
 .export-map-error { padding: 1rem; color: #991b1b; font-size: 13px; }
+.export-embed { margin: 8px 0 0; }
+.export-embed-toggle { font: inherit; font-size: 12px; padding: 4px 10px; cursor: pointer;
+                       border: 1px solid #d1d5db; border-radius: 4px; background: #fff;
+                       color: #2c5282; }
+.export-embed-toggle[aria-expanded="true"] { background: #eef2ff; border-color: #c7d2fe; }
+.export-embed-help { border: 1px solid #e5e7eb; border-radius: 6px; padding: 10px 12px;
+                     margin: 8px 0 0; font-size: 13px; background: #f9fafb; }
+.export-embed-help ol { margin: 8px 0; padding-left: 20px; }
+.export-embed-help li { margin: 6px 0; }
+.export-embed-snippet { background: #1e293b; color: #e2e8f0; padding: 8px; border-radius: 4px;
+                        overflow-x: auto; font-size: 11px; white-space: pre-wrap;
+                        word-break: break-word; margin: 6px 0; }
+.export-embed-copy { font: inherit; font-size: 11px; padding: 2px 8px; cursor: pointer;
+                     border: 1px solid #d1d5db; border-radius: 4px; background: #fff;
+                     color: #374151; }
+.export-embed-note { font-size: 12px; color: #6b7280; margin: 8px 0 0; }
+
+/* '#map' view: the same file, stripped to the map, which is what the embed
+   snippet points an iframe at. */
+body[data-view="map"] { margin: 0; padding: 0; max-width: none; }
+body[data-view="map"] > *:not(.export-map-section) { display: none !important; }
+body[data-view="map"] .export-map-title,
+body[data-view="map"] .export-map-note,
+body[data-view="map"] .export-embed { display: none; }
+body[data-view="map"] .export-map-section { margin: 0; }
+body[data-view="map"] .export-map { height: 100vh; border: 0; border-radius: 0; }
 </style>
 <link href="https://unpkg.com/maplibre-gl@5.22.0/dist/maplibre-gl.css" rel="stylesheet" crossorigin="anonymous">
 <script src="https://unpkg.com/maplibre-gl@5.22.0/dist/maplibre-gl.js" crossorigin="anonymous"></script>
@@ -85,7 +111,7 @@ body[data-code-lang="python"] .code-variant[data-lang="python"] { display: block
 <body data-code-lang="sql">
 <header class="export-header">
   <h1>GLEN chat transcript</h1>
-  <p>Exported 9/22/2026, 2:51:21 AM — <a href="https://boettiger-lab.github.io/geo-agent/preview/">GLEN</a></p>
+  <p>Exported 9/22/2026, 4:33:04 AM — <a href="https://boettiger-lab.github.io/geo-agent/preview/">GLEN</a></p>
   <p class="export-note">The queries below are the ones the agent ran, verbatim. To re-run them
      outside the cluster, run the setup block first; it points <code>s3://</code> paths at the
      public endpoint (<code>s3-west.nrp-nautilus.io</code>) with anonymous access.</p>
@@ -125,17 +151,42 @@ con.execute("CREATE OR REPLACE SECRET public_s3 (TYPE s3, PROVIDER config, ENDPO
   <div id="export-map" class="export-map"></div>
   <p class="export-map-note">Interactive map re-rendered from the saved state. Needs a network
      connection to the original public tile sources; private or signed layers may not appear.</p>
+  <div class="export-embed">
+    <button type="button" class="export-embed-toggle" aria-expanded="false"
+            aria-controls="export-embed-help">Embed this map on your website</button>
+    <div class="export-embed-help" id="export-embed-help" hidden>
+      <p>This map can go on your own website. It is one self-contained file — no server, no
+         account, no build step.</p>
+      <ol>
+        <li>Send this file (<code>glen-chat-2026-09-22-0433.html</code>) to whoever looks after your website and
+            ask them to upload it. Any web host will do.</li>
+        <li>Ask them to paste this where the map should appear:
+          <pre class="export-embed-snippet"><code>&lt;iframe src=&quot;glen-chat-2026-09-22-0433.html#map&quot; width=&quot;100%&quot; height=&quot;480&quot;
+        style=&quot;border:0&quot; loading=&quot;lazy&quot; title=&quot;Map&quot;&gt;&lt;/iframe&gt;</code></pre>
+          <button type="button" class="export-embed-copy">Copy snippet</button>
+        </li>
+        <li>If they put the file somewhere other than beside that page, they will need to change
+            <code>src</code> to wherever it ended up.</li>
+      </ol>
+      <p class="export-embed-note">The <code>#map</code> on the end shows the map by itself,
+         without this transcript — <a href="#map">open that view</a> to see what a visitor gets.
+         Drop the <code>#map</code> to embed the whole page instead. Either way the map draws its
+         tiles from the same public sources it came from, so the page needs a network connection,
+         and private or signed layers will not appear.</p>
+    </div>
+  </div>
   <script type="application/json" id="export-map-state">{"center":[-119.9,37.1],"zoom":5.2,"bearing":0,"pitch":0,"projection":"mercator","style":{"version":8,"glyphs":"https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf","sources":{"natgeo":{"type":"raster","tiles":["https://services.arcgisonline.com/ArcGIS/rest/services/NatGeo_World_Map/MapServer/tile/{z}/{y}/{x}"],"tileSize":256,"maxzoom":16,"attribution":"Tiles &copy; Esri &mdash; National Geographic, Esri, DeLorme, NAVTEQ, UNEP-WCMC, USGS, NASA, ESA, METI, NRCAN, GEBCO, NOAA"},"cpad-holdings":{"type":"vector","url":"pmtiles://https://s3-west.nrp-nautilus.io/public-cpad/cpad-2025b-holdings.pmtiles"}},"layers":[{"id":"natgeo-base","type":"raster","source":"natgeo"},{"id":"cpad-holdings-fill","type":"fill","source":"cpad-holdings","source-layer":"cpad-2025b-holdings","paint":{"fill-color":"#2e7d32","fill-opacity":0.45}},{"id":"cpad-holdings-line","type":"line","source":"cpad-holdings","source-layer":"cpad-2025b-holdings","paint":{"line-color":"#1b5e20","line-width":0.3}}]}}</script>
   <script>
   (function () {
     var el = document.getElementById('export-map');
+    var map = null;
     try {
       if (typeof maplibregl === 'undefined') throw new Error('MapLibre GL JS did not load');
       var state = JSON.parse(document.getElementById('export-map-state').textContent);
       if (window.pmtiles && maplibregl.addProtocol) {
         maplibregl.addProtocol('pmtiles', new pmtiles.Protocol().tile);
       }
-      var map = new maplibregl.Map({
+      map = new maplibregl.Map({
         container: 'export-map',
         style: state.style,
         center: state.center,
@@ -143,6 +194,7 @@ con.execute("CREATE OR REPLACE SECRET public_s3 (TYPE s3, PROVIDER config, ENDPO
         bearing: state.bearing,
         pitch: state.pitch,
         renderWorldCopies: false,
+        preserveDrawingBuffer: true,
       });
       map.addControl(new maplibregl.NavigationControl(), 'top-left');
       if (state.projection === 'globe') {
@@ -151,6 +203,54 @@ con.execute("CREATE OR REPLACE SECRET public_s3 (TYPE s3, PROVIDER config, ENDPO
     } catch (e) {
       if (el) el.innerHTML = '<p class="export-map-error">Could not render the saved map: ' +
         (e && e.message ? e.message : e) + '</p>';
+    }
+
+    // View mode: '#map' strips the page to the map alone, which is what the
+    // embed snippet points an iframe at. Same file, two presentations.
+    function applyView() {
+      var mapOnly = window.location.hash === '#map';
+      document.body.setAttribute('data-view', mapOnly ? 'map' : 'full');
+      if (map) map.resize();
+    }
+    applyView();
+    window.addEventListener('hashchange', applyView);
+
+    var toggle = document.querySelector('.export-embed-toggle');
+    var help = document.getElementById('export-embed-help');
+    if (toggle && help) {
+      toggle.addEventListener('click', function () {
+        var opening = help.hasAttribute('hidden');
+        if (opening) help.removeAttribute('hidden');
+        else help.setAttribute('hidden', '');
+        toggle.setAttribute('aria-expanded', String(opening));
+      });
+    }
+
+    var copyBtn = document.querySelector('.export-embed-copy');
+    var snippetEl = document.querySelector('.export-embed-snippet code');
+    if (copyBtn && snippetEl) {
+      copyBtn.addEventListener('click', function () {
+        function settle(label) {
+          copyBtn.textContent = label;
+          setTimeout(function () { copyBtn.textContent = 'Copy snippet'; }, 2000);
+        }
+        // Selecting the text is the fallback: clipboard access is refused on
+        // file:// in some browsers, which is exactly how this file gets opened.
+        function selectInstead() {
+          try {
+            var range = document.createRange();
+            range.selectNodeContents(snippetEl);
+            var sel = window.getSelection();
+            sel.removeAllRanges();
+            sel.addRange(range);
+            settle('Selected — press Ctrl+C');
+          } catch (err) { settle('Copy by hand'); }
+        }
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(snippetEl.textContent)
+            .then(function () { settle('Copied'); }, selectInstead);
+        } else selectInstead();
+      });
     }
   })();
   </script>

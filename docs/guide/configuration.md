@@ -876,6 +876,17 @@ Both are raw strings, so a query containing a backslash or a quote survives inta
 
 The export captures the final map state — one map per saved log — as an **interactive MapLibre map**, not a static image. It serializes `map.getStyle()` (all sources, layers, and their current paint / filter / visibility) plus the camera (center, zoom, bearing, pitch, and globe-vs-mercator projection), embeds it in the HTML, and re-renders a live, pannable map when the file is opened. Because it's the real style rather than a screenshot, the recipient sees exactly the layers and styling that were on screen and can zoom and inspect them.
 
+#### Putting the map on your own site
+
+The map section carries an **Embed this map on your website** button. It opens plain-language steps for someone who does not build websites: hand the file to whoever looks after the site, have them upload it, and paste an `<iframe>` snippet where the map should appear. The snippet names the export's own filename, so the instructions match the file in the reader's downloads folder:
+
+```html
+<iframe src="glen-chat-2026-09-22-0433.html#map" width="100%" height="480"
+        style="border:0" loading="lazy" title="Map"></iframe>
+```
+
+The `#map` fragment is what makes one file serve both purposes: opened normally the file is the full transcript, and at `#map` it strips to the map alone, filling its frame. There is no separate map-only export to keep in sync — the same download does both, and dropping `#map` from the snippet embeds the whole transcript instead.
+
 Trade-offs, by design:
 
 - **Not fully offline.** The embedded map loads MapLibre GL JS and PMTiles from the same pinned CDN builds the app uses (`maplibre-gl@5.22.0`, `pmtiles@3.0.7`) and fetches tiles from the original public sources at view time. Without a network connection, the map area shows an error message; the rest of the transcript still renders.
