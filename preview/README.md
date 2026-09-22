@@ -27,20 +27,24 @@ git push -u origin HEAD:preview/<name>
 gh workflow run gh-pages.yml --ref preview/<name>
 ```
 
-It lands at <https://boettiger-lab.github.io/geo-agent/preview/> and the docs
-site keeps its usual URLs, because the preview is staged into the built docs
-tree rather than replacing it.
+It lands at `https://boettiger-lab.github.io/geo-agent/preview/<name>/`, and the
+docs site keeps its usual URLs, because previews are staged into the built docs
+tree rather than replacing it. `/preview/` lists whatever is published.
 
-The Pages site has a single deployment slot, so one preview is live at a time
-and the next `main` push to `docs/**` replaces it. Nothing is pinned and no
-downstream app is involved — the preview serves that branch's `app/` directly,
-via relative imports, so pushing more commits and re-dispatching is the whole
-iteration loop.
+**Every `preview/*` branch is rebuilt on each deploy**, whichever ref triggered
+it. Pages has a single deployment slot, so staging only the triggering branch
+meant one preview silently took every other offline and a push to `main` took
+them all; rebuilding the set keeps them additive. A preview lives until its
+branch is deleted.
+
+Nothing is pinned and no downstream app is involved — a preview serves that
+branch's `app/` directly, via relative imports, so pushing more commits and
+re-dispatching is the whole iteration loop.
 
 ## Variants
 
 `preview/variants/<name>.json` is a **shallow patch** over the base fixture,
-published alongside it at `/preview/<name>/`. One branch can therefore show
+published alongside it at `/preview/<branch>/<name>/`. One branch can therefore show
 several configurations at once — a light and a dark theme, say — without
 duplicating the whole fixture, which would then drift out of sync.
 

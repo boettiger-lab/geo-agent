@@ -40,59 +40,103 @@ jobs:
         run: npm run docs:build
 
       # Browser-bound modules (map, chat UI, layout) have no test harness, so
-      # they are verified by eye. Dispatching this workflow on a `preview/*`
-      # branch stages that branch's app/ into the built docs tree, giving a
-      # real browser URL for an unmerged change.
+      # they are verified by eye. Every `preview/*` branch is staged into the
+      # built docs tree, giving each a real browser URL for an unmerged change.
       #
-      # The app is served as-is: app/index.html imports main.js relatively, so
+      # All of them, every time — not just the branch that triggered the run.
+      # Pages has a single deployment slot, so a build that staged only one
+      # branch silently took every other preview offline, and a routine push
+      # to main took them all. Rebuilding the full set on each deploy makes
+      # previews additive instead of mutually exclusive.
+      #
+      # Apps are served as-is: app/index.html imports main.js relatively, so
       # nothing is pinned and no downstream app is involved. app/config.json is
-      # gitignored and therefore never checked out — previews carry no secrets
-      # and have no LLM configured.
-      #
-      # Staged after the docs build so it survives it, and into a subdirectory
-      # so the docs keep their own URLs.
-      - name: Stage app preview
-        if: startsWith(github.ref, 'refs/heads/preview/')
+      # gitignored and never checked out — previews carry no secrets.
+      - name: Stage app previews
+        env:
+          PREVIEW_ROOT: docs/.vitepress/dist/preview
         run: |
           set -euo pipefail
-          dest=docs/.vitepress/dist/preview
-          if [ -e "$dest" ]; then
-            echo "::error::$dest already exists in the docs build; pick another path"
-            exit 1
-          fi
-          mkdir -p "$dest"
-          cp -R app/. "$dest/"
-          # Overlay the fixture: layers-input.json replaces app/'s, and any
-          # assets beside it (placeholder logos, images the config points at)
-          # land next to it so relative paths resolve. preview/README.md is
-          # documentation, not part of the served app.
-          find preview -maxdepth 1 -type f ! -name README.md -exec cp {} "$dest/" \;
-          test -f "$dest/layers-input.json"
-          test ! -e "$dest/config.json"
-          echo "Staged ${GITHUB_REF_NAME} (${GITHUB_SHA}) at /preview/"
 
-          # Variants: each preview/variants/<name>.json is a shallow patch
-          # over the base fixture, published at /preview/<name>/. Lets one
-          # branch show several configurations side by side (a light and a
-          # dark theme, say) without duplicating the whole fixture, which
-          # would then drift.
-          for patch in preview/variants/*.json; do
-            [ -e "$patch" ] || continue
-            name=$(basename "$patch" .json)
-            sub="$dest/$name"
-            mkdir -p "$sub"
-            cp -R app/. "$sub/"
-            find preview -maxdepth 1 -type f ! -name README.md -exec cp {} "$sub/" \;
-            python3 - "$sub/layers-input.json" "$patch" <<'PYEOF'
+          git fetch --no-tags --depth=1 origin \
+            "+refs/heads/preview/*:refs/remotes/origin/preview/*" || true
+
+          branches=$(git for-each-ref --format='%(refname:short)' \
+            refs/remotes/origin/preview | sed 's|^origin/||')
+
+          if [ -z "$branches" ]; then
+            echo "No preview/* branches; publishing the docs alone."
+            exit 0
+          fi
+
+          # Each branch is staged from a detached worktree, so the docs build
+          # already in the working tree is never disturbed.
+          for branch in $branches; do
+            slug=$(printf '%s' "${branch#preview/}" | tr -c 'A-Za-z0-9._-' '-')
+            dest="$PREVIEW_ROOT/$slug"
+            work=$(mktemp -d)
+
+            if ! git worktree add --detach "$work" "origin/$branch" >/dev/null 2>&1; then
+              echo "::warning::could not check out $branch; skipping"
+              rm -rf "$work"
+              continue
+            fi
+
+            if [ ! -d "$work/app" ]; then
+              echo "::warning::$branch has no app/; skipping"
+              git worktree remove --force "$work"
+              continue
+            fi
+
+            mkdir -p "$dest"
+            cp -R "$work/app/." "$dest/"
+            # Fixture config and any assets beside it, but not its README.
+            if [ -d "$work/preview" ]; then
+              find "$work/preview" -maxdepth 1 -type f ! -name README.md \
+                -exec cp {} "$dest/" \;
+            fi
+            test ! -e "$dest/config.json"
+
+            # Variants: preview/variants/<name>.json is a shallow patch over
+            # the fixture, published beside it so two configurations can be
+            # compared side by side without duplicating the whole file.
+            for patch in "$work"/preview/variants/*.json; do
+              [ -e "$patch" ] || continue
+              vname=$(basename "$patch" .json)
+              vdest="$dest/$vname"
+              mkdir -p "$vdest"
+              cp -R "$work/app/." "$vdest/"
+              find "$work/preview" -maxdepth 1 -type f ! -name README.md \
+                -exec cp {} "$vdest/" \;
+              python3 - "$vdest/layers-input.json" "$patch" <<'PYEOF'
           import json, sys
           target, patch = sys.argv[1], sys.argv[2]
           base = json.load(open(target))
           base.update(json.load(open(patch)))
           json.dump(base, open(target, 'w'), indent=2)
           PYEOF
-            test ! -e "$sub/config.json"
-            echo "  variant: /preview/$name/"
+              test ! -e "$vdest/config.json"
+              echo "  /preview/$slug/$vname/"
+            done
+
+            git worktree remove --force "$work"
+            echo "Staged $branch at /preview/$slug/"
           done
+
+          # An index, so a reviewer handed the bare /preview/ URL can find
+          # whichever branch they were sent.
+          {
+            echo '<!doctype html><meta charset=utf-8><title>Previews</title>'
+            echo '<style>body{font:16px/1.5 system-ui,sans-serif;margin:3rem auto;max-width:34rem;padding:0 1rem}'
+            echo 'li{margin:.4rem 0}code{color:#666}</style>'
+            echo '<h1>Branch previews</h1><ul>'
+            for branch in $branches; do
+              slug=$(printf '%s' "${branch#preview/}" | tr -c 'A-Za-z0-9._-' '-')
+              [ -d "$PREVIEW_ROOT/$slug" ] || continue
+              echo "<li><a href=\"./$slug/\">$slug</a> &mdash; <code>$branch</code></li>"
+            done
+            echo '</ul>'
+          } > "$PREVIEW_ROOT/index.html"
 
       - name: Setup Pages
         uses: actions/configure-pages@v5

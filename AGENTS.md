@@ -164,7 +164,9 @@ git push -f origin <branch>:preview/<name>     # only preview/* may deploy
 gh workflow run gh-pages.yml --ref preview/<name>
 ```
 
-→ <https://boettiger-lab.github.io/geo-agent/preview/>
+→ `https://boettiger-lab.github.io/geo-agent/preview/<name>/`
+(`/preview/` indexes them; every `preview/*` branch is rebuilt on each deploy,
+so publishing yours does not take anyone else's offline)
 
 ### Module coverage status
 
