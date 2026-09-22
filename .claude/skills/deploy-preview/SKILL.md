@@ -87,6 +87,26 @@ Expect several rounds. Each one is: change → mirror push → dispatch → veri
 give the URL. Do not batch many changes hoping to get them all right at once;
 the point is that the reviewer sees each step.
 
+## Do not dry-run the staging step against your working clone
+
+The step starts with `git fetch --depth=1`, which is right on an ephemeral
+runner and **destructive locally**: it writes `.git/shallow` and truncates
+history in the object store. The symptom is alarming and misleading — branches
+look like orphan commits with no parent, `git log` shows one entry, and a
+rebase reports `AA` conflicts on files the commit never touched. Worktrees
+share the object store, so it hits every branch in the checkout, including
+other people's.
+
+Nothing is lost; the remote is untouched. Recover with:
+
+```bash
+git fetch --unshallow origin
+git rev-parse --is-shallow-repository   # expect false
+git rev-list --parents -1 <branch> | wc -w   # expect 2, not 1
+```
+
+To exercise the step for real, run it in a throwaway clone.
+
 ## Gotchas
 
 - **Previews are rebuilt from the branches, not from the last deploy.** Every
