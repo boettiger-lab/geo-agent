@@ -23,8 +23,16 @@ from `main` and `preview/*`.
 
 ```bash
 git push -f origin <your-branch>:preview/<name>
-gh workflow run gh-pages.yml --ref preview/<name>
+gh workflow run gh-pages.yml --ref main
 ```
+
+**Dispatch on `main`, not on your preview branch.** `workflow_dispatch` runs
+the workflow file *from the ref you dispatch on*, so dispatching on your own
+branch uses whatever copy of `gh-pages.yml` that branch happens to carry —
+which is stale the moment the workflow changes, and fails silently by
+publishing to the old paths. `main` always has the current one, and the build
+stages every `preview/*` branch from worktrees regardless of which ref
+triggered it, so your branch's app is published either way.
 
 Then wait for it and confirm it is really live:
 
