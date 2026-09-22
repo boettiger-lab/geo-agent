@@ -29,7 +29,7 @@ describe.each(FILES)('%s', file => {
         const p = hexPoints(svg);
         const edges = p.map((v, i) => dist(v, p[(i + 1) % 6]));
         const spread = Math.max(...edges) - Math.min(...edges);
-        expect(spread).toBeLessThan(0.01);
+        expect(spread).toBeLessThan(1e-6);
     });
 
     it('is a regular hexagon — all six vertices equidistant from the centre', () => {
@@ -38,7 +38,9 @@ describe.each(FILES)('%s', file => {
         const cy = p.reduce((a, [, y]) => a + y, 0) / 6;
         const radii = p.map(v => dist(v, [cx, cy]));
         const spread = Math.max(...radii) - Math.min(...radii);
-        expect(spread).toBeLessThan(0.01);
+        // Tight on purpose: coordinates are emitted at 4dp, so anything
+        // looser would pass a hexagon that is merely close to regular.
+        expect(spread).toBeLessThan(1e-6);
     });
 
     it('carries the GLEN wordmark as text, not as a decorative shape', () => {
