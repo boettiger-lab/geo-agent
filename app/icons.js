@@ -13,7 +13,7 @@
 
 /** GitHub mark. */
 export function githubIcon(size = 14) {
-    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="${size}" height="${size}" aria-hidden="true" focusable="false">${GITHUB_PATH}</svg>`;
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="${size}" height="${size}" fill="currentColor" aria-hidden="true" focusable="false">${GITHUB_PATH}</svg>`;
 }
 
 /** Leaf, for the carbon dashboard. */
