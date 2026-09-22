@@ -603,9 +603,17 @@ controls) belong on the map, in the [overlay rail](#map-overlay-rail-and-stackin
 No logo images ship with the library; `src` is always a URL the app supplies.
 
 A logo is an image, so it cannot follow the [theme](#theme): a white-knockout
-mark vanishes on a light bar and a black one vanishes on a dark bar. Give a slot
-both and the right one shows automatically — including under `theme: "auto"`,
-which tracks the OS live:
+mark vanishes on a light bar and a black one vanishes on a dark bar.
+
+**Most apps should not bother with two.** Pick `light` or `dark`, supply the
+one logo that suits it, and stop there — `src_dark` is optional and exists for
+the cases that genuinely need it. A mark that carries its own background, like
+a badge or a filled tile, needs no variant at all and works in either theme.
+
+The exception is **`theme: "auto"`**, which follows the viewer's OS setting and
+changes at runtime — a single logo will be wrong half the time there, so an app
+using `auto` does need both. Supply the pair and the right one shows
+automatically, with no reload:
 
 ```json
 "brand": {

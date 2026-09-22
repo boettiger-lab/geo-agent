@@ -191,9 +191,11 @@ function normalizeLogo(logo) {
     if (!logo || typeof logo !== 'object' || !logo.src) return null;
     return {
         src: logo.src,
-        // Optional variant for the dark theme. A logo is an image and cannot
-        // follow the palette, so a mark drawn for one background disappears
-        // on the other; supplying both is the only real fix.
+        // Optional variant for the dark theme. Most apps should not need it:
+        // commit to light or dark and supply the one logo that suits, or use
+        // a mark that carries its own background. It matters for `theme:
+        // auto`, which changes at runtime, and for the fleet defaults, which
+        // have to look right in whichever theme an app picks.
         srcDark: logo.src_dark || null,
         alt: logo.alt || '',
         href: safeHref(logo.href),
