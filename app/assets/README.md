@@ -61,11 +61,17 @@ An app with its own branding should point this at its own icon instead.
 
 ## GLEN mark
 
-A **regular** hexagon — the H3 motif — with a `G` inside, and the wordmark
-beside it. The wordmark sits outside the hexagon deliberately: inside a regular
-hexagon it renders around 8px at the header's 28px height, which cannot be
-read, and stretching the hexagon to make room stops it being a hexagon.
+A **regular** hexagon — the H3 motif the map is built on — holding a speech
+bubble, for the chat that drives it. The wordmark sits beside the mark, not
+inside it: inside a regular hexagon it renders around 8px at the header's 28px
+height and cannot be read, and stretching the hexagon to make room stops it
+being a hexagon.
 
-`test/glen-logo.test.js` asserts the six edges and six radii are equal, so that
-trade cannot be quietly re-made. It is a placeholder; replace both variants
+The bubble is solid rather than outlined. At a 28px header height the hexagon
+is only ~24px across, and a stroked bubble inside a stroked hexagon turns to
+mush.
+
+`test/glen-logo.test.js` asserts the six edges and six radii are equal so that
+trade cannot be quietly re-made, and that every corner of the bubble and the
+tip of its tail land inside the hexagon. It is a placeholder; replace both variants
 together when a real mark exists.
