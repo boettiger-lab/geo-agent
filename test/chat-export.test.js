@@ -1,15 +1,16 @@
 import { describe, it, expect } from 'vitest';
 import {
-    buildDuckdbSetupSql, resolveExportConfig, PUBLIC_S3_ENDPOINT, scrubCredentials,
+    buildDuckdbSetupSql, buildSetupSnippet, wrapQuery, resolveExportConfig,
+    CODE_LANGUAGES, PUBLIC_S3_ENDPOINT, scrubCredentials,
 } from '../app/chat-ui.js';
 
 describe('resolveExportConfig', () => {
     it('defaults to enabled at the public endpoint when unconfigured', () => {
         expect(resolveExportConfig()).toEqual({
-            enabled: true, s3Endpoint: PUBLIC_S3_ENDPOINT,
+            enabled: true, s3Endpoint: PUBLIC_S3_ENDPOINT, codeLanguage: 'sql',
         });
         expect(resolveExportConfig({})).toEqual({
-            enabled: true, s3Endpoint: PUBLIC_S3_ENDPOINT,
+            enabled: true, s3Endpoint: PUBLIC_S3_ENDPOINT, codeLanguage: 'sql',
         });
     });
 
@@ -35,7 +36,7 @@ describe('resolveExportConfig', () => {
 
     it('takes the endpoint from the block', () => {
         expect(resolveExportConfig({ export: { public_s3_endpoint: 'minio.example.org' } }))
-            .toEqual({ enabled: true, s3Endpoint: 'minio.example.org' });
+            .toEqual({ enabled: true, s3Endpoint: 'minio.example.org', codeLanguage: 'sql' });
     });
 
     it('still honours the older flat key', () => {
@@ -58,10 +59,133 @@ describe('resolveExportConfig', () => {
             .s3Endpoint).toBe('b.example.org');
     });
 
+    it('defaults the code language to SQL — what actually ran', () => {
+        expect(resolveExportConfig({}).codeLanguage).toBe('sql');
+    });
+
+    it('takes a default code language from the block', () => {
+        expect(resolveExportConfig({ export: { default_code_language: 'R' } }).codeLanguage)
+            .toBe('r');
+        expect(resolveExportConfig({ export: { default_code_language: 'python' } }).codeLanguage)
+            .toBe('python');
+    });
+
+    it('falls back to SQL for a language the export cannot render', () => {
+        expect(resolveExportConfig({ export: { default_code_language: 'julia' } }).codeLanguage)
+            .toBe('sql');
+        expect(CODE_LANGUAGES.map(l => l.id)).toEqual(['sql', 'r', 'python']);
+    });
+
     it('keeps the endpoint resolved even when the export is off', () => {
         // A disabled export still resolves a sane endpoint, so nothing
         // downstream has to special-case the off state.
         expect(resolveExportConfig({ export: false }).s3Endpoint).toBe(PUBLIC_S3_ENDPOINT);
+    });
+});
+
+describe('wrapQuery (#368 §3)', () => {
+    const SQL = "SELECT count(*) FROM read_parquet('s3://public-iucn/hex/mammals_sr/h0=*/data_0.parquet')";
+
+    it('leaves SQL alone', () => {
+        expect(wrapQuery(SQL, 'sql')).toBe(SQL);
+    });
+
+    it('wraps for R without touching the query text', () => {
+        const out = wrapQuery(SQL, 'r');
+        expect(out).toBe(`df <- dbGetQuery(con, r"(\n${SQL}\n)")`);
+        expect(out).toContain(SQL);
+    });
+
+    it('wraps for Python without touching the query text', () => {
+        const out = wrapQuery(SQL, 'python');
+        expect(out).toBe(`df = con.sql(r"""\n${SQL}\n""").df()`);
+        expect(out).toContain(SQL);
+    });
+
+    it('keeps globs verbatim in every language', () => {
+        // The whole point of #367: a glob must survive to the reader intact.
+        for (const lang of ['sql', 'r', 'python']) {
+            expect(wrapQuery(SQL, lang)).toContain("h0=*/data_0.parquet");
+        }
+    });
+
+    it("picks another R delimiter when the query contains )\"", () => {
+        const sql = `SELECT ')"' AS x`;
+        const out = wrapQuery(sql, 'r');
+        expect(out).toContain('r"[');
+        expect(out).toContain(']"');
+        expect(out).toContain(sql);
+    });
+
+    it('falls back to an escaped R string when every raw form collides', () => {
+        const sql = `a )" b ]" c }" d )---"`;
+        const out = wrapQuery(sql, 'r');
+        expect(out).not.toContain('r"(');
+        expect(out).toContain('\\"');
+    });
+
+    it('uses a raw Python string so backslashes survive', () => {
+        const sql = "SELECT regexp_matches(name, '\\\\d+') FROM t";
+        const out = wrapQuery(sql, 'python');
+        expect(out).toContain('r"""');
+        expect(out).toContain("'\\\\d+'");
+    });
+
+    it("switches Python quotes when the query contains a triple quote", () => {
+        const sql = 'SELECT \'"""\' AS x';
+        const out = wrapQuery(sql, 'python');
+        expect(out).toContain("r'''");
+        expect(out).toContain(sql);
+    });
+
+    it('trims trailing whitespace so the closing delimiter sits on its own line', () => {
+        expect(wrapQuery('SELECT 1   \n\n', 'r')).toBe('df <- dbGetQuery(con, r"(\nSELECT 1\n)")');
+    });
+
+    it('treats an unknown language as SQL', () => {
+        expect(wrapQuery(SQL, 'julia')).toBe(SQL);
+    });
+
+    it('handles empty and null input', () => {
+        expect(wrapQuery('', 'sql')).toBe('');
+        expect(wrapQuery(null, 'python')).toContain('con.sql');
+    });
+});
+
+describe('buildSetupSnippet (#368 §3)', () => {
+    it('gives SQL the same block as buildDuckdbSetupSql', () => {
+        expect(buildSetupSnippet('sql')).toBe(buildDuckdbSetupSql());
+    });
+
+    it('connects and configures in R', () => {
+        const out = buildSetupSnippet('r');
+        expect(out).toContain('library(duckdb)');
+        expect(out).toContain('con <- dbConnect(duckdb())');
+        expect(out).toContain('dbExecute(con, "INSTALL httpfs; LOAD httpfs;")');
+        expect(out).toContain(`ENDPOINT '${PUBLIC_S3_ENDPOINT}'`);
+    });
+
+    it('connects and configures in Python', () => {
+        const out = buildSetupSnippet('python');
+        expect(out).toContain('import duckdb');
+        expect(out).toContain('con = duckdb.connect()');
+        expect(out).toContain(`ENDPOINT '${PUBLIC_S3_ENDPOINT}'`);
+    });
+
+    it('carries the endpoint override into every language', () => {
+        for (const lang of ['sql', 'r', 'python']) {
+            expect(buildSetupSnippet(lang, 'https://minio.example.org/'))
+                .toContain("ENDPOINT 'minio.example.org'");
+        }
+    });
+
+    it('survives the credential scrub in every language', () => {
+        // A snippet tripping scrubCredentials' `SECRET '…'` pattern would
+        // reach the reader mangled.
+        for (const lang of ['sql', 'r', 'python']) {
+            const out = buildSetupSnippet(lang);
+            expect(scrubCredentials(out)).toBe(out);
+        }
     });
 });
 

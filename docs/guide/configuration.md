@@ -807,7 +807,8 @@ The export is **on by default** — the public apps are the common case. Configu
 ```json
 "export": {
   "enabled": true,
-  "public_s3_endpoint": "s3-west.nrp-nautilus.io"
+  "public_s3_endpoint": "s3-west.nrp-nautilus.io",
+  "default_code_language": "sql"
 }
 ```
 
@@ -815,6 +816,7 @@ The export is **on by default** — the public apps are the common case. Configu
 |---|---|---|---|
 | `enabled` | boolean | `true` | `false` removes the save button entirely — it is never created, not merely disabled. |
 | `public_s3_endpoint` | string | `s3-west.nrp-nautilus.io` | S3 host for the export's DuckDB setup block. Set it when an app's data lives on other anonymously-readable storage. A scheme or trailing slash is stripped. |
+| `default_code_language` | `sql` \| `r` \| `python` | `sql` | Which language the saved document opens on. The reader can switch inside the file; an unrecognised value falls back to `sql`. |
 
 `"export": false` is shorthand for `{"enabled": false}`, and a stringified `"false"` from a generated `config.json` counts as off. `public_s3_endpoint` as a top-level key is the older spelling and still works; the block wins when both are set.
 
@@ -847,6 +849,28 @@ Two guarantees apply to the export:
 ::: info Why a setup block instead of rewriting the URLs?
 Earlier versions rewrote each `s3://bucket/key` to `https://s3-west.nrp-nautilus.io/bucket/key`. That silently broke every globbed path — and the catalog globs routinely, appending `/**` to partitioned assets and carrying hive patterns such as `h0=*/data_0.parquet` straight from STAC. Expanding a glob needs object listing, which the S3 API provides and plain HTTP does not, so DuckDB answered with *"Globs (`*`) for generic HTTP file is are not supported"*. Pointing DuckDB at the public endpoint, instead of editing the query, also keeps the transcript honest: what you read is what ran.
 :::
+
+### Code in R, Python or SQL
+
+Most people who receive one of these files can drive R or Python and do not write SQL — and both languages hand SQL to DuckDB in three lines, which is the part nobody knows. So the saved document carries every query in all three languages, with a **Show code as** toggle in its header that switches the whole document at once. The choice is remembered for the next export the reader opens.
+
+The SQL inside each wrapper is byte-identical to what ran — the wrapper is presentation, or the export stops being a record of the analysis. In R:
+
+```r
+df <- dbGetQuery(con, r"(
+SELECT count(*) FROM read_parquet('s3://public-iucn/hex/mammals_sr/h0=*/data_0.parquet')
+)")
+```
+
+and in Python:
+
+```python
+df = con.sql(r"""
+SELECT count(*) FROM read_parquet('s3://public-iucn/hex/mammals_sr/h0=*/data_0.parquet')
+""").df()
+```
+
+Both are raw strings, so a query containing a backslash or a quote survives intact; a query that collides with every raw-string delimiter falls back to an escaped literal. The *Run this first* block gets the same treatment — `library(duckdb)` / `import duckdb` with the same anonymous S3 secret.
 
 ### Embedded map
 

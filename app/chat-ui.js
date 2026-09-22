@@ -58,7 +58,13 @@ export function resolveExportConfig(config = {}) {
     const enabled = !isOff(block) && !isOff(blk.enabled);
     const endpoint = blk.public_s3_endpoint || config?.public_s3_endpoint || PUBLIC_S3_ENDPOINT;
 
-    return { enabled, s3Endpoint: normalizeS3Host(endpoint) };
+    // Which language the exported document opens on. An unknown value falls
+    // back to SQL rather than showing an empty document — the reader can
+    // still switch in the file.
+    const wanted = String(blk.default_code_language ?? 'sql').toLowerCase();
+    const codeLanguage = CODE_LANGUAGES.some(l => l.id === wanted) ? wanted : 'sql';
+
+    return { enabled, s3Endpoint: normalizeS3Host(endpoint), codeLanguage };
 }
 
 /**
@@ -91,6 +97,133 @@ CREATE OR REPLACE SECRET public_s3 (
     USE_SSL true
 );`;
 }
+
+/**
+ * Code languages the export can present. SQL is what actually ran; R and
+ * Python are thin wrappers around the identical query text, because most of
+ * our users can drive R or Python and cannot write SQL — they just don't know
+ * that `duckdb` hands SQL straight through in three lines.
+ */
+export const CODE_LANGUAGES = [
+    { id: 'sql', label: 'SQL' },
+    { id: 'r', label: 'R' },
+    { id: 'python', label: 'Python' },
+];
+
+/**
+ * Quote SQL as an R raw string, so nothing inside it needs escaping. Walks
+ * R's delimiter forms in turn; only a query containing every closing form
+ * falls back to an escaped ordinary string. Raw strings need R >= 4.0.
+ *
+ * @param {string} sql
+ * @returns {string} an R string literal
+ */
+function rRawString(sql) {
+    const forms = [['r"(', ')"'], ['r"[', ']"'], ['r"{', '}"'], ['r"---(', ')---"']];
+    for (const [open, close] of forms) {
+        if (!sql.includes(close)) return `${open}\n${sql}\n${close}`;
+    }
+    return `"${sql.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
+}
+
+/**
+ * Quote SQL as a Python triple-quoted raw string. Raw so a backslash in the
+ * query (a regex, say) survives verbatim; the newline before the closing
+ * delimiter keeps a trailing backslash legal. Falls back to an escaped
+ * literal only if the query contains both triple-quote forms.
+ *
+ * @param {string} sql
+ * @returns {string} a Python string literal
+ */
+function pyString(sql) {
+    for (const q of ['"""', "'''"]) {
+        if (!sql.includes(q)) return `r${q}\n${sql}\n${q}`;
+    }
+    return JSON.stringify(sql);
+}
+
+/**
+ * The connect-and-configure preamble for one language: load `httpfs` and
+ * point `s3://` at the public endpoint anonymously (see
+ * {@link buildDuckdbSetupSql} for why the export configures the endpoint
+ * rather than rewriting the URLs).
+ *
+ * @param {string} lang - 'sql' | 'r' | 'python'
+ * @param {string} [endpoint]
+ * @returns {string}
+ */
+export function buildSetupSnippet(lang, endpoint = PUBLIC_S3_ENDPOINT) {
+    const host = normalizeS3Host(endpoint);
+    const secret =
+        `CREATE OR REPLACE SECRET public_s3 (TYPE s3, PROVIDER config, ` +
+        `ENDPOINT '${host}', URL_STYLE 'path', USE_SSL true);`;
+
+    if (lang === 'r') {
+        return `# install.packages("duckdb")        # first time only
+library(duckdb)
+
+con <- dbConnect(duckdb())
+# invisible() keeps dbExecute's row count from printing at the console
+invisible(dbExecute(con, "INSTALL httpfs; LOAD httpfs;"))
+invisible(dbExecute(con, "${secret}"))`;
+    }
+
+    if (lang === 'python') {
+        return `# pip install duckdb pandas          # first time only
+import duckdb
+
+con = duckdb.connect()
+con.execute("INSTALL httpfs; LOAD httpfs;")
+con.execute("${secret}")`;
+    }
+
+    return buildDuckdbSetupSql(host);
+}
+
+/**
+ * Wrap one query for a language, around byte-identical SQL. The wrapper is
+ * presentation only: change the query text and the export stops being a
+ * record of what ran.
+ *
+ * @param {string} sql
+ * @param {string} lang - 'sql' | 'r' | 'python'
+ * @returns {string}
+ */
+export function wrapQuery(sql, lang) {
+    const body = String(sql ?? '').replace(/\s+$/, '');
+    if (lang === 'r') return `df <- dbGetQuery(con, ${rRawString(body)})`;
+    if (lang === 'python') return `df = con.sql(${pyString(body)}).df()`;
+    return body;
+}
+
+/**
+ * Inline script for the exported document: the language toggle. Kept as a
+ * literal rather than built from `wrapQuery` logic, because every variant is
+ * already rendered into the file — this only flips which one shows, and
+ * remembers the choice for the next file the reader opens.
+ */
+const EXPORT_CODE_LANG_SCRIPT = `<script>
+(function () {
+  var KEY = 'glen-export-code-lang';
+  var strip = document.querySelector('.code-lang-toggle');
+  if (!strip) return;
+  function apply(lang) {
+    document.body.setAttribute('data-code-lang', lang);
+    var btns = strip.querySelectorAll('button[data-set-lang]');
+    for (var i = 0; i < btns.length; i++) {
+      btns[i].setAttribute('aria-pressed', String(btns[i].getAttribute('data-set-lang') === lang));
+    }
+    try { localStorage.setItem(KEY, lang); } catch (e) {}
+  }
+  var saved = null;
+  try { saved = localStorage.getItem(KEY); } catch (e) {}
+  if (saved && strip.querySelector('button[data-set-lang="' + saved + '"]')) apply(saved);
+  strip.addEventListener('click', function (e) {
+    var b = e.target && e.target.closest ? e.target.closest('button[data-set-lang]') : null;
+    if (b) apply(b.getAttribute('data-set-lang'));
+  });
+})();
+<\/script>`;
 
 /**
  * Defense-in-depth credential scrub. Replaces credential-shaped tokens with
@@ -1262,8 +1395,20 @@ export class ChatUI {
 
         // Setup block: the SQL in the transcript is left untouched (globs and all),
         // so the export carries the preamble that makes those paths resolve.
-        const setupHost = (this.exportConfig || resolveExportConfig(this.config)).s3Endpoint;
-        const setupSql = buildDuckdbSetupSql(setupHost);
+        const exportCfg = this.exportConfig || resolveExportConfig(this.config);
+        const setupHost = exportCfg.s3Endpoint;
+        const codeLang = exportCfg.codeLanguage;
+
+        // One setup block per language, one visible at a time (§3 of #368).
+        const setupBlocks = CODE_LANGUAGES.map(l =>
+            `<pre class="code-variant" data-lang="${l.id}"><code class="language-${l.id}">` +
+            `${this.escapeHtml(buildSetupSnippet(l.id, setupHost))}</code></pre>`
+        ).join('\n  ');
+
+        const langButtons = CODE_LANGUAGES.map(l =>
+            `<button type="button" data-set-lang="${l.id}" ` +
+            `aria-pressed="${l.id === codeLang}">${this.escapeHtml(l.label)}</button>`
+        ).join('');
 
         const html =
 `<!doctype html>
@@ -1274,23 +1419,26 @@ export class ChatUI {
 <style>${css}</style>
 ${mapEmbed.headTags}
 </head>
-<body>
+<body data-code-lang="${codeLang}">
 <header class="export-header">
   <h1>GLEN chat transcript</h1>
   <p>Exported ${this.escapeHtml(exportedAt)} — <a href="${appUrlAttr}">${this.escapeHtml(appTitle)}</a></p>
-  <p class="export-note">The SQL below is verbatim — the same queries the agent ran. To re-run
-     them outside the cluster, paste the setup block into DuckDB first; it points
-     <code>s3://</code> paths at the public endpoint (<code>${this.escapeHtml(setupHost)}</code>)
-     with anonymous access.</p>
+  <p class="export-note">The queries below are the ones the agent ran, verbatim. To re-run them
+     outside the cluster, run the setup block first; it points <code>s3://</code> paths at the
+     public endpoint (<code>${this.escapeHtml(setupHost)}</code>) with anonymous access.</p>
+  <div class="code-lang-toggle" role="group" aria-label="Show code as">
+    <span class="code-lang-label">Show code as</span>${langButtons}
+  </div>
 </header>
 <section class="export-setup">
   <h2 class="export-setup-title">Run this first</h2>
-  <pre><code class="language-sql">${this.escapeHtml(setupSql)}</code></pre>
-  <p class="export-setup-note">One time per DuckDB session, then every query in this transcript
-     runs as written. Public buckets only — private data is not reachable this way.</p>
+  ${setupBlocks}
+  <p class="export-setup-note">One time per session, then every query in this transcript runs as
+     written. Public buckets only — private data is not reachable this way.</p>
 </section>
 ${mapEmbed.body}
 <main id="chat-messages">${clone.innerHTML}</main>
+${EXPORT_CODE_LANG_SCRIPT}
 </body>
 </html>`;
 
@@ -1323,13 +1471,33 @@ ${mapEmbed.body}
         // Remove .running class from any rows still in-flight at click time.
         root.querySelectorAll('.running').forEach(el => el.classList.remove('running'));
 
-        // SQL is exported verbatim — s3:// paths included, since the setup
-        // block in the header makes them resolve. Flatten the highlight spans
-        // so the export carries plain, copy-pasteable text.
-        root.querySelectorAll('code.language-sql').forEach(codeEl => {
+        // Each SQL block becomes one block per language: the same query,
+        // wrapped for R or Python, with only one visible at a time. The SQL
+        // itself is exported verbatim — s3:// paths included, since the setup
+        // block in the header makes them resolve — and building the variants
+        // through the DOM also flattens stale highlight spans.
+        const doc = root.ownerDocument || document;
+        root.querySelectorAll('pre > code.language-sql').forEach(codeEl => {
             const sql = codeEl.textContent;
-            codeEl.className = 'language-sql';
-            codeEl.textContent = sql;
+            const variants = doc.createElement('div');
+            variants.className = 'code-variants';
+            for (const lang of CODE_LANGUAGES) {
+                const pre = doc.createElement('pre');
+                pre.className = 'code-variant';
+                pre.setAttribute('data-lang', lang.id);
+                const code = doc.createElement('code');
+                code.className = `language-${lang.id}`;
+                code.textContent = wrapQuery(sql, lang.id);
+                pre.appendChild(code);
+                variants.appendChild(pre);
+            }
+            codeEl.parentElement.replaceWith(variants);
+        });
+
+        // The collapsed row says "SQL" in the live chat, where SQL is all it
+        // can be; in the export it may be showing R or Python.
+        root.querySelectorAll('details.sql-detail > summary').forEach(sum => {
+            if (sum.textContent.trim() === 'SQL') sum.textContent = 'Query';
         });
 
         // Credential scrub: DOM-wide on text nodes only.
@@ -1419,10 +1587,21 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-
 .welcome-message { background: #f9fafb; padding: 8px 10px; border-radius: 6px;
                    font-size: 13px; color: #6b7280; }
 .welcome-examples { display: none; }
+.code-lang-toggle { display: flex; align-items: center; gap: 6px; margin: 8px 0 0; }
+.code-lang-label { font-size: 12px; color: #6b7280; }
+.code-lang-toggle button { font: inherit; font-size: 12px; padding: 2px 10px; cursor: pointer;
+                           border: 1px solid #d1d5db; border-radius: 4px; background: #fff;
+                           color: #374151; }
+.code-lang-toggle button[aria-pressed="true"] { background: #2c5282; border-color: #2c5282;
+                                                color: #fff; }
+.code-variant { display: none; }
+body[data-code-lang="sql"] .code-variant[data-lang="sql"],
+body[data-code-lang="r"] .code-variant[data-lang="r"],
+body[data-code-lang="python"] .code-variant[data-lang="python"] { display: block; }
 .export-setup { margin: 0 0 1rem; border: 1px solid #e5e7eb; border-radius: 6px;
                 padding: 8px 10px; }
 .export-setup-title { font-size: 1rem; margin: 0 0 0.5rem; }
-.export-setup pre { background: #1e293b; color: #e2e8f0; padding: 8px; border-radius: 4px;
+.export-setup .code-variant { background: #1e293b; color: #e2e8f0; padding: 8px; border-radius: 4px;
                     overflow-x: auto; font-size: 12px; }
 .export-setup-note { font-size: 12px; color: #6b7280; margin: 6px 0 0; }
 .export-map-section { margin: 0 0 1rem; }
