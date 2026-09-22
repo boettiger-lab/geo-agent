@@ -50,6 +50,11 @@ function openExport(html) {
     return doc;
 }
 
+const MAP_STATE = {
+    center: [-119.4, 36.8], zoom: 6, bearing: 0, pitch: 0, projection: 'mercator',
+    style: { version: 8, sources: {}, layers: [] },
+};
+
 const SQL = "SELECT count(*) FROM read_parquet('s3://public-iucn/hex/mammals_sr/h0=*/data_0.parquet')";
 const oneQuery =
     `<div class="agent-turn-row-body"><details class="sql-detail"><summary>SQL</summary>` +
@@ -123,5 +128,118 @@ describe('exported document: code languages (#368)', () => {
         }));
         expect(doc.querySelector('main .tool-approval-buttons')).toBe(null);
         expect(doc.querySelectorAll('.code-lang-toggle button').length).toBe(3);
+    });
+});
+
+describe('exported document: embed affordance (#368 §2)', () => {
+    it('offers the embed panel, collapsed, when there is a map', () => {
+        const doc = openExport(exportWith({ messagesHtml: oneQuery, mapState: MAP_STATE }));
+        const toggle = doc.querySelector('.export-embed-toggle');
+        expect(toggle).not.toBe(null);
+        expect(toggle.getAttribute('aria-expanded')).toBe('false');
+        expect(doc.getElementById('export-embed-help').hasAttribute('hidden')).toBe(true);
+    });
+
+    it('offers nothing to embed when the export has no map', () => {
+        const doc = openExport(exportWith({ messagesHtml: oneQuery }));
+        expect(doc.querySelector('.export-embed')).toBe(null);
+        expect(doc.querySelector('.export-map-section')).toBe(null);
+    });
+
+    it('names the file the reader actually downloaded in the snippet', () => {
+        const html = exportWith({ messagesHtml: oneQuery, mapState: MAP_STATE });
+        const doc = openExport(html);
+        const snippet = doc.querySelector('.export-embed-snippet code').textContent;
+        // Same stamped filename the download carries, or the instructions send
+        // their web person looking for a file that does not exist.
+        const filename = /glen-chat-[\d-]+\.html/.exec(html)[0];
+        expect(snippet).toContain(`src="${filename}#map"`);
+        expect(snippet).toContain('<iframe');
+        expect(snippet).toContain('title="Map"');
+    });
+
+    it('expands the instructions on click', () => {
+        const doc = openExport(exportWith({ messagesHtml: oneQuery, mapState: MAP_STATE }));
+        const toggle = doc.querySelector('.export-embed-toggle');
+        toggle.click();
+        expect(doc.getElementById('export-embed-help').hasAttribute('hidden')).toBe(false);
+        expect(toggle.getAttribute('aria-expanded')).toBe('true');
+        toggle.click();
+        expect(doc.getElementById('export-embed-help').hasAttribute('hidden')).toBe(true);
+    });
+
+    it('strips the page to the map alone at #map', () => {
+        window.location.hash = '#map';
+        try {
+            const doc = openExport(exportWith({ messagesHtml: oneQuery, mapState: MAP_STATE }));
+            expect(doc.body.dataset.view).toBe('map');
+        } finally {
+            window.location.hash = '';
+        }
+    });
+
+    it('shows the whole transcript without the fragment', () => {
+        const doc = openExport(exportWith({ messagesHtml: oneQuery, mapState: MAP_STATE }));
+        expect(doc.body.dataset.view).toBe('full');
+    });
+
+    it('sets up the embed even when MapLibre fails to load', () => {
+        // jsdom has no maplibregl, so this exercises the error path: the map
+        // reports itself broken, and the page around it still works.
+        const doc = openExport(exportWith({ messagesHtml: oneQuery, mapState: MAP_STATE }));
+        expect(doc.querySelector('.export-map-error')).not.toBe(null);
+        expect(doc.body.dataset.view).toBe('full');
+        doc.querySelector('.export-embed-toggle').click();
+        expect(doc.getElementById('export-embed-help').hasAttribute('hidden')).toBe(false);
+    });
+
+    it('keeps the canvas readable for printing and snapshots', () => {
+        const html = exportWith({ messagesHtml: oneQuery, mapState: MAP_STATE });
+        expect(html).toContain('preserveDrawingBuffer: true');
+    });
+});
+
+describe('exported document: printing (#368 §1)', () => {
+    it('opens collapsed details for the print run, and closes them after', () => {
+        const doc = openExport(exportWith({ messagesHtml: oneQuery }));
+        const details = doc.querySelector('details.sql-detail');
+        expect(details.open).toBe(false);
+
+        // Bound to the events, not to our button, so Ctrl+P behaves the same.
+        window.dispatchEvent(new window.Event('beforeprint'));
+        expect(details.open).toBe(true);
+        window.dispatchEvent(new window.Event('afterprint'));
+        expect(details.open).toBe(false);
+    });
+
+    it('leaves details the reader opened alone', () => {
+        const doc = openExport(exportWith({ messagesHtml: oneQuery }));
+        const details = doc.querySelector('details.sql-detail');
+        details.open = true;
+        window.dispatchEvent(new window.Event('beforeprint'));
+        window.dispatchEvent(new window.Event('afterprint'));
+        expect(details.open).toBe(true);
+    });
+
+    it('switches to report style from the checkbox', () => {
+        const doc = openExport(exportWith({ messagesHtml: oneQuery }));
+        expect(doc.body.dataset.print).toBe('full');
+        const check = doc.getElementById('export-report-style');
+        check.checked = true;
+        check.dispatchEvent(new window.Event('change'));
+        expect(doc.body.dataset.print).toBe('report');
+        check.checked = false;
+        check.dispatchEvent(new window.Event('change'));
+        expect(doc.body.dataset.print).toBe('full');
+    });
+
+    it('carries print rules for the traps that make a printed export useless', () => {
+        const html = exportWith({ messagesHtml: oneQuery, mapState: MAP_STATE });
+        const css = /<style>([\s\S]*?)<\/style>/.exec(html)[1];
+        const print = /@media print \{([\s\S]*)\}/.exec(css)[1];
+        expect(print).toContain('break-inside: avoid');       // queries split across pages
+        expect(print).toContain('max-height: none');          // scroll boxes clipped to a screenful
+        expect(print).toContain('.export-controls');          // controls on paper
+        expect(print).toContain('data-print="report"');       // the report variant
     });
 });

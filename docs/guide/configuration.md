@@ -850,6 +850,20 @@ Two guarantees apply to the export:
 Earlier versions rewrote each `s3://bucket/key` to `https://s3-west.nrp-nautilus.io/bucket/key`. That silently broke every globbed path — and the catalog globs routinely, appending `/**` to partitioned assets and carrying hive patterns such as `h0=*/data_0.parquet` straight from STAC. Expanding a glob needs object listing, which the S3 API provides and plain HTTP does not, so DuckDB answered with *"Globs (`*`) for generic HTTP file is are not supported"*. Pointing DuckDB at the public endpoint, instead of editing the query, also keeps the transcript honest: what you read is what ran.
 :::
 
+### Printing, and PDF
+
+There is no PDF export, deliberately: a PDF generator means a new dependency and a flattened map for an artifact the browser already produces. What was missing was the print stylesheet, so the export now carries one, and **Print / Save as PDF** in the document's header hands off to the browser's own print dialog.
+
+Three things the stylesheet handles, each of which quietly ruined a printed export before:
+
+- **Collapsed `<details>` print empty.** Every query and result in the transcript lives in one, so a naive print-to-PDF dropped the entire analysis. The document opens them for the print run and closes them again afterwards — bound to `beforeprint`/`afterprint` rather than to the button, so <kbd>Ctrl</kbd>+<kbd>P</kbd> behaves identically.
+- **Page breaks.** Turns, queries, results and the map are `break-inside: avoid`, so a query never splits across a page boundary.
+- **Scroll boxes.** Tool output is capped to a screenful on screen; on paper it prints in full.
+
+The **Report style** checkbox beside the button prints the prose, the answers and the map without the tool machinery or the setup block — the version for a board packet rather than a colleague reproducing the work. It affects the printed output only; the document on screen is unchanged.
+
+The map prints as it appears, because the embedded map sets `preserveDrawingBuffer` — without it a WebGL canvas can print blank.
+
 ### Code in R, Python or SQL
 
 Most people who receive one of these files can drive R or Python and do not write SQL — and both languages hand SQL to DuckDB in three lines, which is the part nobody knows. So the saved document carries every query in all three languages, with a **Show code as** toggle in its header that switches the whole document at once. The choice is remembered for the next export the reader opens.
@@ -875,6 +889,17 @@ Both are raw strings, so a query containing a backslash or a quote survives inta
 ### Embedded map
 
 The export captures the final map state — one map per saved log — as an **interactive MapLibre map**, not a static image. It serializes `map.getStyle()` (all sources, layers, and their current paint / filter / visibility) plus the camera (center, zoom, bearing, pitch, and globe-vs-mercator projection), embeds it in the HTML, and re-renders a live, pannable map when the file is opened. Because it's the real style rather than a screenshot, the recipient sees exactly the layers and styling that were on screen and can zoom and inspect them.
+
+#### Putting the map on your own site
+
+The map section carries an **Embed this map on your website** button. It opens plain-language steps for someone who does not build websites: hand the file to whoever looks after the site, have them upload it, and paste an `<iframe>` snippet where the map should appear. The snippet names the export's own filename, so the instructions match the file in the reader's downloads folder:
+
+```html
+<iframe src="glen-chat-2026-09-22-0433.html#map" width="100%" height="480"
+        style="border:0" loading="lazy" title="Map"></iframe>
+```
+
+The `#map` fragment is what makes one file serve both purposes: opened normally the file is the full transcript, and at `#map` it strips to the map alone, filling its frame. There is no separate map-only export to keep in sync — the same download does both, and dropping `#map` from the snippet embeds the whole transcript instead.
 
 Trade-offs, by design:
 
