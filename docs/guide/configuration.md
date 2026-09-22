@@ -1068,18 +1068,106 @@ The checkpoint is the only per-turn cap on tool use. Setting a value to `0` remo
 
 ## Chat export
 
-A 💾 save button in the chat footer saves the current conversation as a self-contained HTML document you can share or print. The button is disabled until the first user message and enables automatically after. No configuration — it's always present.
+A 💾 save button in the chat footer saves the current conversation as a self-contained HTML document you can share or print. The button is disabled until the first user message and enables automatically after.
+
+The export is **on by default** — the public apps are the common case. Configure it with an `export` block in `layers-input.json` (or the deploy-time `config.json`, which wins):
+
+```json
+"export": {
+  "enabled": true,
+  "public_s3_endpoint": "s3-west.nrp-nautilus.io",
+  "default_code_language": "sql"
+}
+```
+
+| Key | Type | Default | Description |
+|---|---|---|---|
+| `enabled` | boolean | `true` | `false` removes the save button entirely — it is never created, not merely disabled. |
+| `public_s3_endpoint` | string | `s3-west.nrp-nautilus.io` | S3 host for the export's DuckDB setup block. Set it when an app's data lives on other anonymously-readable storage. A scheme or trailing slash is stripped. |
+| `default_code_language` | `sql` \| `r` \| `python` | `sql` | Which language the saved document opens on. The reader can switch inside the file; an unrecognised value falls back to `sql`. |
+
+`"export": false` is shorthand for `{"enabled": false}`, and a stringified `"false"` from a generated `config.json` counts as off. `public_s3_endpoint` as a top-level key is the older spelling and still works; the block wins when both are set.
+
+::: tip Private deployments should opt out
+For an app serving private data the export is worse than useless. The credential scrub (below) strips exactly what the exported queries would need to reach that data, so the recipient gets a document whose code cannot run — while the transcript still narrates what the data holds. Set `"export": false`.
+:::
 
 The saved file mirrors what the user sees in the live chat: user prompts, assistant prose, and tool-call rows with collapsible SQL and result blocks, plus the **map as it stood when Save was clicked** (see below).
 
 Two guarantees apply to the export:
 
-- **Reproducible SQL.** Every `s3://bucket/...` URL inside a SQL block is rewritten to `https://s3-west.nrp-nautilus.io/bucket/...`. Pasting the SQL into any DuckDB with `INSTALL httpfs; LOAD httpfs;` will run it against the public endpoint without secret configuration (public buckets only).
+- **Re-runnable SQL.** The queries are exported **verbatim**, `s3://` paths and all, under a *Run this first* setup block at the top of the file:
+
+    ```sql
+    INSTALL httpfs; LOAD httpfs;
+
+    CREATE OR REPLACE SECRET public_s3 (
+        TYPE s3,
+        PROVIDER config,
+        ENDPOINT 's3-west.nrp-nautilus.io',
+        URL_STYLE 'path',
+        USE_SSL true
+    );
+    ```
+
+    Run it once per DuckDB session and every query in the transcript works as written. The secret carries no credentials — an omitted `KEY_ID`/`SECRET` means unsigned requests, which is what public buckets want. Apps on other storage set `export.public_s3_endpoint` (above); private buckets are out of scope, since the credentials that would reach them are scrubbed.
+
 - **Credential scrubbing.** On top of the live-chat redaction described in the agent-loop docs, the export pass replaces credential-shaped tokens with `[REDACTED]` — DuckDB `CREATE SECRET` key/value pairs, AWS access keys (`aws_access_key_id`, `aws_secret_access_key`), `Authorization: Bearer …` tokens, and pre-signed-URL `X-Amz-Signature` / `X-Amz-Credential` / `X-Amz-Security-Token` query parameters. This scrubbing also covers the embedded map state (below).
+
+::: info Why a setup block instead of rewriting the URLs?
+Earlier versions rewrote each `s3://bucket/key` to `https://s3-west.nrp-nautilus.io/bucket/key`. That silently broke every globbed path — and the catalog globs routinely, appending `/**` to partitioned assets and carrying hive patterns such as `h0=*/data_0.parquet` straight from STAC. Expanding a glob needs object listing, which the S3 API provides and plain HTTP does not, so DuckDB answered with *"Globs (`*`) for generic HTTP file is are not supported"*. Pointing DuckDB at the public endpoint, instead of editing the query, also keeps the transcript honest: what you read is what ran.
+:::
+
+### Printing, and PDF
+
+There is no PDF export, deliberately: a PDF generator means a new dependency and a flattened map for an artifact the browser already produces. What was missing was the print stylesheet, so the export now carries one, and **Print / Save as PDF** in the document's header hands off to the browser's own print dialog.
+
+Three things the stylesheet handles, each of which quietly ruined a printed export before:
+
+- **Collapsed `<details>` print empty.** Every query and result in the transcript lives in one, so a naive print-to-PDF dropped the entire analysis. The document opens them for the print run and closes them again afterwards — bound to `beforeprint`/`afterprint` rather than to the button, so <kbd>Ctrl</kbd>+<kbd>P</kbd> behaves identically.
+- **Page breaks.** Turns, queries, results and the map are `break-inside: avoid`, so a query never splits across a page boundary.
+- **Scroll boxes.** Tool output is capped to a screenful on screen; on paper it prints in full.
+
+The **Report style** checkbox beside the button prints the prose, the answers and the map without the tool machinery or the setup block — the version for a board packet rather than a colleague reproducing the work. It affects the printed output only; the document on screen is unchanged.
+
+The map prints as it appears, because the embedded map sets `preserveDrawingBuffer` — without it a WebGL canvas can print blank.
+
+### Code in R, Python or SQL
+
+Most people who receive one of these files can drive R or Python and do not write SQL — and both languages hand SQL to DuckDB in three lines, which is the part nobody knows. So the saved document carries every query in all three languages, with a **Show code as** toggle in its header that switches the whole document at once. The choice is remembered for the next export the reader opens.
+
+The SQL inside each wrapper is byte-identical to what ran — the wrapper is presentation, or the export stops being a record of the analysis. In R:
+
+```r
+df <- dbGetQuery(con, r"(
+SELECT count(*) FROM read_parquet('s3://public-iucn/hex/mammals_sr/h0=*/data_0.parquet')
+)")
+```
+
+and in Python:
+
+```python
+df = con.sql(r"""
+SELECT count(*) FROM read_parquet('s3://public-iucn/hex/mammals_sr/h0=*/data_0.parquet')
+""").df()
+```
+
+Both are raw strings, so a query containing a backslash or a quote survives intact; a query that collides with every raw-string delimiter falls back to an escaped literal. The *Run this first* block gets the same treatment — `library(duckdb)` / `import duckdb` with the same anonymous S3 secret.
 
 ### Embedded map
 
 The export captures the final map state — one map per saved log — as an **interactive MapLibre map**, not a static image. It serializes `map.getStyle()` (all sources, layers, and their current paint / filter / visibility) plus the camera (center, zoom, bearing, pitch, and globe-vs-mercator projection), embeds it in the HTML, and re-renders a live, pannable map when the file is opened. Because it's the real style rather than a screenshot, the recipient sees exactly the layers and styling that were on screen and can zoom and inspect them.
+
+#### Putting the map on your own site
+
+The map section carries an **Embed this map on your website** button. It opens plain-language steps for someone who does not build websites: hand the file to whoever looks after the site, have them upload it, and paste an `<iframe>` snippet where the map should appear. The snippet names the export's own filename, so the instructions match the file in the reader's downloads folder:
+
+```html
+<iframe src="glen-chat-2026-09-22-0433.html#map" width="100%" height="480"
+        style="border:0" loading="lazy" title="Map"></iframe>
+```
+
+The `#map` fragment is what makes one file serve both purposes: opened normally the file is the full transcript, and at `#map` it strips to the map alone, filling its frame. There is no separate map-only export to keep in sync — the same download does both, and dropping `#map` from the snippet embeds the whole transcript instead.
 
 Trade-offs, by design:
 

@@ -1,0 +1,469 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>GLEN chat — 2026-09-22 04:35</title>
+<style>
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+       max-width: 900px; margin: 1rem auto; padding: 0 1rem; color: #1a1a2e; line-height: 1.5; }
+.export-header { border-bottom: 1px solid #ddd; padding-bottom: 0.75rem; margin-bottom: 1rem; }
+.export-header h1 { margin: 0 0 0.25rem; font-size: 1.25rem; }
+.export-header p { margin: 0.25rem 0; color: #555; font-size: 13px; }
+.export-note { font-size: 12px; color: #6b7280; background: #f3f4f6;
+               padding: 6px 10px; border-radius: 4px; }
+.chat-message { padding: 8px 10px; margin: 6px 0; border-radius: 6px; font-size: 14px; }
+.chat-message.user { background: #e0f2fe; }
+.chat-message.assistant { background: #f9fafb; }
+.chat-message.system { background: #fff7ed; color: #92400e; font-size: 12px; font-style: italic; }
+.chat-message.error { background: #fef2f2; color: #991b1b; font-size: 12px; }
+.chat-message pre { background: #1e293b; color: #e2e8f0; padding: 8px; border-radius: 4px;
+                    overflow-x: auto; font-size: 12px; }
+.chat-message code { background: rgba(0,0,0,0.05); padding: 1px 4px; border-radius: 3px;
+                     font-size: 12px; }
+.chat-message pre code { background: transparent; padding: 0; color: inherit; }
+.chat-message table { border-collapse: collapse; margin: 6px 0; font-size: 12px; }
+.chat-message th, .chat-message td { border: 1px solid #ddd; padding: 4px 8px; }
+.chat-message th { background: #f3f4f6; }
+.agent-turn { margin: 8px 0; border: 1px solid #e5e7eb; border-radius: 6px;
+              padding: 4px 8px; }
+.agent-turn > summary { cursor: pointer; font-size: 12px; color: #2c5282;
+                        padding: 2px 4px; list-style: none; }
+.agent-turn > summary::-webkit-details-marker { display: none; }
+.agent-turn-row { font-size: 12px; margin: 2px 0; }
+.agent-turn-row-summary { padding: 2px 6px; cursor: pointer; list-style: none;
+                          display: flex; align-items: center; gap: 6px; color: #2c5282; }
+.agent-turn-row-summary::-webkit-details-marker { display: none; }
+.agent-turn-row-body { padding: 4px 10px 6px 24px; font-size: 12px; color: #1a1a2e; }
+.tool-call-item, .tool-result-item { margin: 4px 0; }
+.tool-call-item strong, .tool-result-item strong { font-weight: 600; color: #374151; }
+.row-status.done { color: #28a745; font-weight: 600; }
+.row-status.error { color: #dc3545; font-weight: 600; }
+.sql-detail summary { cursor: pointer; color: #2c5282; font-size: 11px;
+                      padding: 2px 0; list-style: none; }
+.sql-detail summary::-webkit-details-marker { display: none; }
+.sql-detail summary::before { content: '▸ '; }
+.sql-detail[open] summary::before { content: '▾ '; }
+.sql-detail pre { background: #1e293b; color: #e2e8f0; padding: 8px;
+                  border-radius: 4px; overflow-x: auto; font-size: 11px;
+                  white-space: pre-wrap; word-break: break-word; }
+.tool-output { background: #f9fafb; padding: 6px; border-radius: 3px;
+               font-size: 11px; white-space: pre-wrap; word-break: break-word;
+               max-height: 400px; overflow-y: auto; }
+.tool-tag { font-size: 10px; padding: 1px 5px; border-radius: 3px;
+            background: #e5e7eb; color: #374151; margin-left: 4px; }
+.tool-tag.remote { background: #dbeafe; color: #1e40af; }
+.welcome-message { background: #f9fafb; padding: 8px 10px; border-radius: 6px;
+                   font-size: 13px; color: #6b7280; }
+.welcome-examples { display: none; }
+.export-controls { display: flex; flex-wrap: wrap; align-items: center;
+                   justify-content: space-between; gap: 8px; margin: 8px 0 0; }
+.export-print-controls { display: flex; align-items: center; gap: 8px; font-size: 12px;
+                         color: #6b7280; }
+.export-print-report { display: flex; align-items: center; gap: 4px; cursor: pointer; }
+.export-print-btn { font: inherit; font-size: 12px; padding: 2px 10px; cursor: pointer;
+                    border: 1px solid #d1d5db; border-radius: 4px; background: #fff;
+                    color: #374151; }
+.code-lang-toggle { display: flex; align-items: center; gap: 6px; margin: 0; }
+.code-lang-label { font-size: 12px; color: #6b7280; }
+.code-lang-toggle button { font: inherit; font-size: 12px; padding: 2px 10px; cursor: pointer;
+                           border: 1px solid #d1d5db; border-radius: 4px; background: #fff;
+                           color: #374151; }
+.code-lang-toggle button[aria-pressed="true"] { background: #2c5282; border-color: #2c5282;
+                                                color: #fff; }
+.code-variant { display: none; }
+body[data-code-lang="sql"] .code-variant[data-lang="sql"],
+body[data-code-lang="r"] .code-variant[data-lang="r"],
+body[data-code-lang="python"] .code-variant[data-lang="python"] { display: block; }
+.export-setup { margin: 0 0 1rem; border: 1px solid #e5e7eb; border-radius: 6px;
+                padding: 8px 10px; }
+.export-setup-title { font-size: 1rem; margin: 0 0 0.5rem; }
+.export-setup .code-variant { background: #1e293b; color: #e2e8f0; padding: 8px; border-radius: 4px;
+                    overflow-x: auto; font-size: 12px; }
+.export-setup-note { font-size: 12px; color: #6b7280; margin: 6px 0 0; }
+.export-map-section { margin: 0 0 1rem; }
+.export-map-title { font-size: 1rem; margin: 0 0 0.5rem; }
+.export-map { width: 100%; height: 480px; border: 1px solid #ddd; border-radius: 6px; }
+.export-map-note { font-size: 12px; color: #6b7280; margin: 6px 0 0; }
+.export-map-error { padding: 1rem; color: #991b1b; font-size: 13px; }
+.export-embed { margin: 8px 0 0; }
+.export-embed-toggle { font: inherit; font-size: 12px; padding: 4px 10px; cursor: pointer;
+                       border: 1px solid #d1d5db; border-radius: 4px; background: #fff;
+                       color: #2c5282; }
+.export-embed-toggle[aria-expanded="true"] { background: #eef2ff; border-color: #c7d2fe; }
+.export-embed-help { border: 1px solid #e5e7eb; border-radius: 6px; padding: 10px 12px;
+                     margin: 8px 0 0; font-size: 13px; background: #f9fafb; }
+.export-embed-help ol { margin: 8px 0; padding-left: 20px; }
+.export-embed-help li { margin: 6px 0; }
+.export-embed-snippet { background: #1e293b; color: #e2e8f0; padding: 8px; border-radius: 4px;
+                        overflow-x: auto; font-size: 11px; white-space: pre-wrap;
+                        word-break: break-word; margin: 6px 0; }
+.export-embed-copy { font: inherit; font-size: 11px; padding: 2px 8px; cursor: pointer;
+                     border: 1px solid #d1d5db; border-radius: 4px; background: #fff;
+                     color: #374151; }
+.export-embed-note { font-size: 12px; color: #6b7280; margin: 8px 0 0; }
+
+/* '#map' view: the same file, stripped to the map, which is what the embed
+   snippet points an iframe at. */
+body[data-view="map"] { margin: 0; padding: 0; max-width: none; }
+body[data-view="map"] > *:not(.export-map-section) { display: none !important; }
+body[data-view="map"] .export-map-title,
+body[data-view="map"] .export-map-note,
+body[data-view="map"] .export-embed { display: none; }
+body[data-view="map"] .export-map-section { margin: 0; }
+body[data-view="map"] .export-map { height: 100vh; border: 0; border-radius: 0; }
+
+/* Print: the export is a document people hand to a board or a funder, so
+   printing it has to come out as a document. */
+@media print {
+  body { max-width: none; margin: 0; padding: 0; }
+  .export-controls, .export-embed { display: none !important; }
+  .export-header { border-bottom: 1px solid #999; }
+  a { color: inherit; text-decoration: none; }
+  /* Never split a query, a result or a turn across a page. */
+  .agent-turn, .agent-turn-row, .tool-call-item, .tool-result-item,
+  .sql-detail, .code-variants, pre, .export-setup,
+  .export-map-section, .chat-message { break-inside: avoid; }
+  /* Screen scroll boxes become full text on paper. */
+  .tool-output { max-height: none; overflow: visible; }
+  .export-map { height: 420px; }
+  .agent-turn > summary, .agent-turn-row-summary, .sql-detail summary { color: #444; }
+  /* Report style: the prose, the answers and the map — none of the machinery. */
+  body[data-print="report"] .agent-turn,
+  body[data-print="report"] .export-setup { display: none !important; }
+}
+</style>
+<link href="https://unpkg.com/maplibre-gl@5.22.0/dist/maplibre-gl.css" rel="stylesheet" crossorigin="anonymous">
+<script src="https://unpkg.com/maplibre-gl@5.22.0/dist/maplibre-gl.js" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/pmtiles@3.0.7/dist/pmtiles.js" crossorigin="anonymous"></script>
+</head>
+<body data-code-lang="sql" data-print="full">
+<header class="export-header">
+  <h1>GLEN chat transcript</h1>
+  <p>Exported 9/22/2026, 4:35:10 AM — <a href="https://boettiger-lab.github.io/geo-agent/preview/">GLEN</a></p>
+  <p class="export-note">The queries below are the ones the agent ran, verbatim. To re-run them
+     outside the cluster, run the setup block first; it points <code>s3://</code> paths at the
+     public endpoint (<code>s3-west.nrp-nautilus.io</code>) with anonymous access.</p>
+  <div class="export-controls">
+    <div class="code-lang-toggle" role="group" aria-label="Show code as">
+      <span class="code-lang-label">Show code as</span><button type="button" data-set-lang="sql" aria-pressed="true">SQL</button><button type="button" data-set-lang="r" aria-pressed="false">R</button><button type="button" data-set-lang="python" aria-pressed="false">Python</button>
+    </div>
+    <div class="export-print-controls">
+      <label class="export-print-report"><input type="checkbox" id="export-report-style">
+        Report style — print without code</label>
+      <button type="button" class="export-print-btn">Print / Save as PDF</button>
+    </div>
+  </div>
+</header>
+<section class="export-setup">
+  <h2 class="export-setup-title">Run this first</h2>
+  <pre class="code-variant" data-lang="sql"><code class="language-sql">INSTALL httpfs; LOAD httpfs;
+
+CREATE OR REPLACE SECRET public_s3 (
+    TYPE s3,
+    PROVIDER config,
+    ENDPOINT 's3-west.nrp-nautilus.io',
+    URL_STYLE 'path',
+    USE_SSL true
+);</code></pre>
+  <pre class="code-variant" data-lang="r"><code class="language-r"># install.packages("duckdb")        # first time only
+library(duckdb)
+
+con &lt;- dbConnect(duckdb())
+# invisible() keeps dbExecute's row count from printing at the console
+invisible(dbExecute(con, "INSTALL httpfs; LOAD httpfs;"))
+invisible(dbExecute(con, "CREATE OR REPLACE SECRET public_s3 (TYPE s3, PROVIDER config, ENDPOINT 's3-west.nrp-nautilus.io', URL_STYLE 'path', USE_SSL true);"))</code></pre>
+  <pre class="code-variant" data-lang="python"><code class="language-python"># pip install duckdb pandas          # first time only
+import duckdb
+
+con = duckdb.connect()
+con.execute("INSTALL httpfs; LOAD httpfs;")
+con.execute("CREATE OR REPLACE SECRET public_s3 (TYPE s3, PROVIDER config, ENDPOINT 's3-west.nrp-nautilus.io', URL_STYLE 'path', USE_SSL true);")</code></pre>
+  <p class="export-setup-note">One time per session, then every query in this transcript runs as
+     written. Public buckets only — private data is not reachable this way.</p>
+</section>
+<section class="export-map-section">
+  <h2 class="export-map-title">Map at time of export</h2>
+  <div id="export-map" class="export-map"></div>
+  <p class="export-map-note">Interactive map re-rendered from the saved state. Needs a network
+     connection to the original public tile sources; private or signed layers may not appear.</p>
+  <div class="export-embed">
+    <button type="button" class="export-embed-toggle" aria-expanded="false"
+            aria-controls="export-embed-help">Embed this map on your website</button>
+    <div class="export-embed-help" id="export-embed-help" hidden>
+      <p>This map can go on your own website. It is one self-contained file — no server, no
+         account, no build step.</p>
+      <ol>
+        <li>Send this file (<code>glen-chat-2026-09-22-0435.html</code>) to whoever looks after your website and
+            ask them to upload it. Any web host will do.</li>
+        <li>Ask them to paste this where the map should appear:
+          <pre class="export-embed-snippet"><code>&lt;iframe src=&quot;glen-chat-2026-09-22-0435.html#map&quot; width=&quot;100%&quot; height=&quot;480&quot;
+        style=&quot;border:0&quot; loading=&quot;lazy&quot; title=&quot;Map&quot;&gt;&lt;/iframe&gt;</code></pre>
+          <button type="button" class="export-embed-copy">Copy snippet</button>
+        </li>
+        <li>If they put the file somewhere other than beside that page, they will need to change
+            <code>src</code> to wherever it ended up.</li>
+      </ol>
+      <p class="export-embed-note">The <code>#map</code> on the end shows the map by itself,
+         without this transcript — <a href="#map">open that view</a> to see what a visitor gets.
+         Drop the <code>#map</code> to embed the whole page instead. Either way the map draws its
+         tiles from the same public sources it came from, so the page needs a network connection,
+         and private or signed layers will not appear.</p>
+    </div>
+  </div>
+  <script type="application/json" id="export-map-state">{"center":[-119.9,37.1],"zoom":5.2,"bearing":0,"pitch":0,"projection":"mercator","style":{"version":8,"glyphs":"https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf","sources":{"natgeo":{"type":"raster","tiles":["https://services.arcgisonline.com/ArcGIS/rest/services/NatGeo_World_Map/MapServer/tile/{z}/{y}/{x}"],"tileSize":256,"maxzoom":16,"attribution":"Tiles &copy; Esri &mdash; National Geographic, Esri, DeLorme, NAVTEQ, UNEP-WCMC, USGS, NASA, ESA, METI, NRCAN, GEBCO, NOAA"},"cpad-holdings":{"type":"vector","url":"pmtiles://https://s3-west.nrp-nautilus.io/public-cpad/cpad-2025b-holdings.pmtiles"}},"layers":[{"id":"natgeo-base","type":"raster","source":"natgeo"},{"id":"cpad-holdings-fill","type":"fill","source":"cpad-holdings","source-layer":"cpad-2025b-holdings","paint":{"fill-color":"#2e7d32","fill-opacity":0.45}},{"id":"cpad-holdings-line","type":"line","source":"cpad-holdings","source-layer":"cpad-2025b-holdings","paint":{"line-color":"#1b5e20","line-width":0.3}}]}}</script>
+  <script>
+  (function () {
+    var el = document.getElementById('export-map');
+    var map = null;
+    try {
+      if (typeof maplibregl === 'undefined') throw new Error('MapLibre GL JS did not load');
+      var state = JSON.parse(document.getElementById('export-map-state').textContent);
+      if (window.pmtiles && maplibregl.addProtocol) {
+        maplibregl.addProtocol('pmtiles', new pmtiles.Protocol().tile);
+      }
+      map = new maplibregl.Map({
+        container: 'export-map',
+        style: state.style,
+        center: state.center,
+        zoom: state.zoom,
+        bearing: state.bearing,
+        pitch: state.pitch,
+        renderWorldCopies: false,
+        preserveDrawingBuffer: true,
+      });
+      map.addControl(new maplibregl.NavigationControl(), 'top-left');
+      if (state.projection === 'globe') {
+        map.on('load', function () { map.setProjection({ type: 'globe' }); });
+      }
+    } catch (e) {
+      if (el) el.innerHTML = '<p class="export-map-error">Could not render the saved map: ' +
+        (e && e.message ? e.message : e) + '</p>';
+    }
+
+    // View mode: '#map' strips the page to the map alone, which is what the
+    // embed snippet points an iframe at. Same file, two presentations.
+    function applyView() {
+      var mapOnly = window.location.hash === '#map';
+      document.body.setAttribute('data-view', mapOnly ? 'map' : 'full');
+      if (map) map.resize();
+    }
+    applyView();
+    window.addEventListener('hashchange', applyView);
+
+    var toggle = document.querySelector('.export-embed-toggle');
+    var help = document.getElementById('export-embed-help');
+    if (toggle && help) {
+      toggle.addEventListener('click', function () {
+        var opening = help.hasAttribute('hidden');
+        if (opening) help.removeAttribute('hidden');
+        else help.setAttribute('hidden', '');
+        toggle.setAttribute('aria-expanded', String(opening));
+      });
+    }
+
+    var copyBtn = document.querySelector('.export-embed-copy');
+    var snippetEl = document.querySelector('.export-embed-snippet code');
+    if (copyBtn && snippetEl) {
+      copyBtn.addEventListener('click', function () {
+        function settle(label) {
+          copyBtn.textContent = label;
+          setTimeout(function () { copyBtn.textContent = 'Copy snippet'; }, 2000);
+        }
+        // Selecting the text is the fallback: clipboard access is refused on
+        // file:// in some browsers, which is exactly how this file gets opened.
+        function selectInstead() {
+          try {
+            var range = document.createRange();
+            range.selectNodeContents(snippetEl);
+            var sel = window.getSelection();
+            sel.removeAllRanges();
+            sel.addRange(range);
+            settle('Selected — press Ctrl+C');
+          } catch (err) { settle('Copy by hand'); }
+        }
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(snippetEl.textContent)
+            .then(function () { settle('Copied'); }, selectInstead);
+        } else selectInstead();
+      });
+    }
+  })();
+  </script>
+</section>
+<main id="chat-messages"><div class="chat-message user">Which California counties hold the most protected land?</div><details class="agent-turn done"><summary class="agent-turn-summary"><span class="agent-turn-icon done">✓</span><span class="agent-turn-label">1 step · 0.0s</span></summary><div class="agent-turn-body"><details class="agent-turn-row tool done" data-iter="1"><summary class="agent-turn-row-summary"><span class="row-icon">⚙</span><span class="row-label">query</span><span class="row-status done">✓</span></summary><div class="agent-turn-row-body"><div class="tool-call-item"><strong>query</strong><details class="sql-detail"><summary>Query</summary><div class="code-variants"><pre class="code-variant" data-lang="sql"><code class="language-sql">SELECT COUNTY,
+       round(sum(ACRES)) AS protected_acres,
+       count(*)          AS holdings
+FROM read_parquet('s3://public-cpad/cpad-2025b-holdings.parquet')
+GROUP BY COUNTY
+ORDER BY protected_acres DESC
+LIMIT 6</code></pre><pre class="code-variant" data-lang="r"><code class="language-r">df &lt;- dbGetQuery(con, r"(
+SELECT COUNTY,
+       round(sum(ACRES)) AS protected_acres,
+       count(*)          AS holdings
+FROM read_parquet('s3://public-cpad/cpad-2025b-holdings.parquet')
+GROUP BY COUNTY
+ORDER BY protected_acres DESC
+LIMIT 6
+)")</code></pre><pre class="code-variant" data-lang="python"><code class="language-python">df = con.sql(r"""
+SELECT COUNTY,
+       round(sum(ACRES)) AS protected_acres,
+       count(*)          AS holdings
+FROM read_parquet('s3://public-cpad/cpad-2025b-holdings.parquet')
+GROUP BY COUNTY
+ORDER BY protected_acres DESC
+LIMIT 6
+""").df()</code></pre></div></details></div><div class="tool-results-list"><div class="tool-result-item"><strong>✓ query</strong> <span class="tool-tag remote">MCP</span><details class="sql-detail"><summary>Query</summary><div class="code-variants"><pre class="code-variant" data-lang="sql"><code class="language-sql">SELECT COUNTY,
+       round(sum(ACRES)) AS protected_acres,
+       count(*)          AS holdings
+FROM read_parquet('s3://public-cpad/cpad-2025b-holdings.parquet')
+GROUP BY COUNTY
+ORDER BY protected_acres DESC
+LIMIT 6</code></pre><pre class="code-variant" data-lang="r"><code class="language-r">df &lt;- dbGetQuery(con, r"(
+SELECT COUNTY,
+       round(sum(ACRES)) AS protected_acres,
+       count(*)          AS holdings
+FROM read_parquet('s3://public-cpad/cpad-2025b-holdings.parquet')
+GROUP BY COUNTY
+ORDER BY protected_acres DESC
+LIMIT 6
+)")</code></pre><pre class="code-variant" data-lang="python"><code class="language-python">df = con.sql(r"""
+SELECT COUNTY,
+       round(sum(ACRES)) AS protected_acres,
+       count(*)          AS holdings
+FROM read_parquet('s3://public-cpad/cpad-2025b-holdings.parquet')
+GROUP BY COUNTY
+ORDER BY protected_acres DESC
+LIMIT 6
+""").df()</code></pre></div></details><pre class="tool-output"><code>COUNTY          | protected_acres | holdings
+----------------+-----------------+---------
+San Bernardino  |       8538419.0 |    24181
+Inyo            |       5978897.0 |     3092
+Riverside       |       2970879.0 |    15584
+Siskiyou        |       2587554.0 |     5744
+Mono            |       1882239.0 |     4018
+Lassen          |       1770843.0 |     1311
+
+6 rows</code></pre></div></div></div></details></div></details><div class="chat-message assistant"><p><strong>San Bernardino County leads by a wide margin</strong> — 8.5 million protected acres, nearly a third more than every other county in the top six combined would suggest at first glance.</p>
+<table>
+<thead>
+<tr>
+<th>County</th>
+<th align="right">Protected acres</th>
+<th align="right">Holdings</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>San Bernardino</td>
+<td align="right">8,538,419</td>
+<td align="right">24,181</td>
+</tr>
+<tr>
+<td>Inyo</td>
+<td align="right">5,978,897</td>
+<td align="right">3,092</td>
+</tr>
+<tr>
+<td>Riverside</td>
+<td align="right">2,970,879</td>
+<td align="right">15,584</td>
+</tr>
+<tr>
+<td>Siskiyou</td>
+<td align="right">2,587,554</td>
+<td align="right">5,744</td>
+</tr>
+<tr>
+<td>Mono</td>
+<td align="right">1,882,239</td>
+<td align="right">4,018</td>
+</tr>
+<tr>
+<td>Lassen</td>
+<td align="right">1,770,843</td>
+<td align="right">1,311</td>
+</tr>
+</tbody></table>
+<p>Note the difference in <em>holding counts</em>: Inyo reaches 6 million acres across 3,092 holdings, while Riverside needs 15,584 holdings for half that. Desert and mountain counties are protected in large federal blocks; coastal and valley counties in many small parcels.</p>
+</div><div class="chat-message user">How does mammal species richness vary across the hex grid? Shade the protected areas darker while you are at it.</div><details class="agent-turn done"><summary class="agent-turn-summary"><span class="agent-turn-icon done">✓</span><span class="agent-turn-label">1 step · 0.0s</span></summary><div class="agent-turn-body"><details class="agent-turn-row tool done" data-iter="2"><summary class="agent-turn-row-summary"><span class="row-icon">⚙</span><span class="row-label">query, set_layer_style</span><span class="row-status done">✓</span></summary><div class="agent-turn-row-body"><div class="tool-call-item"><strong>query</strong><details class="sql-detail"><summary>Query</summary><div class="code-variants"><pre class="code-variant" data-lang="sql"><code class="language-sql">SELECT round(avg(mammals_sr), 1) AS mean_species,
+       max(mammals_sr)            AS max_species,
+       count(*)                   AS hex_cells
+FROM read_parquet('s3://public-iucn/hex/mammals_sr/h0=*/data_0.parquet')</code></pre><pre class="code-variant" data-lang="r"><code class="language-r">df &lt;- dbGetQuery(con, r"(
+SELECT round(avg(mammals_sr), 1) AS mean_species,
+       max(mammals_sr)            AS max_species,
+       count(*)                   AS hex_cells
+FROM read_parquet('s3://public-iucn/hex/mammals_sr/h0=*/data_0.parquet')
+)")</code></pre><pre class="code-variant" data-lang="python"><code class="language-python">df = con.sql(r"""
+SELECT round(avg(mammals_sr), 1) AS mean_species,
+       max(mammals_sr)            AS max_species,
+       count(*)                   AS hex_cells
+FROM read_parquet('s3://public-iucn/hex/mammals_sr/h0=*/data_0.parquet')
+""").df()</code></pre></div></details></div><div class="tool-call-item"><strong>set_layer_style</strong><pre><code>{
+  "layer": "cpad-holdings",
+  "fill_color": "#1b5e20",
+  "fill_opacity": 0.55
+}</code></pre></div><div class="tool-results-list"><div class="tool-result-item"><strong>✓ query</strong> <span class="tool-tag remote">MCP</span><details class="sql-detail"><summary>Query</summary><div class="code-variants"><pre class="code-variant" data-lang="sql"><code class="language-sql">SELECT round(avg(mammals_sr), 1) AS mean_species,
+       max(mammals_sr)            AS max_species,
+       count(*)                   AS hex_cells
+FROM read_parquet('s3://public-iucn/hex/mammals_sr/h0=*/data_0.parquet')</code></pre><pre class="code-variant" data-lang="r"><code class="language-r">df &lt;- dbGetQuery(con, r"(
+SELECT round(avg(mammals_sr), 1) AS mean_species,
+       max(mammals_sr)            AS max_species,
+       count(*)                   AS hex_cells
+FROM read_parquet('s3://public-iucn/hex/mammals_sr/h0=*/data_0.parquet')
+)")</code></pre><pre class="code-variant" data-lang="python"><code class="language-python">df = con.sql(r"""
+SELECT round(avg(mammals_sr), 1) AS mean_species,
+       max(mammals_sr)            AS max_species,
+       count(*)                   AS hex_cells
+FROM read_parquet('s3://public-iucn/hex/mammals_sr/h0=*/data_0.parquet')
+""").df()</code></pre></div></details><pre class="tool-output"><code>mean_species | max_species | hex_cells
+-------------+-------------+----------
+        31.1 |       213.0 |  1964322
+
+1 row</code></pre></div><div class="tool-result-item"><strong>✓ set_layer_style</strong><pre class="tool-output"><code>Styled cpad-holdings: fill #1b5e20 at 0.55 opacity.</code></pre></div></div></div></details></div></details><div class="chat-message assistant"><p>Across all <strong>1,964,322</strong> H3 cells with data, mammal richness averages <strong>31.1 species</strong>, peaking at <strong>213</strong> in the wettest tropical cells. California's own cells sit well above the global mean without approaching that ceiling.</p>
+<p>The protected-area layer is now darker green, so the richness surface reads through it.</p>
+</div></main>
+<script>
+(function () {
+  var KEY = 'glen-export-code-lang';
+  var strip = document.querySelector('.code-lang-toggle');
+  if (!strip) return;
+  function apply(lang) {
+    document.body.setAttribute('data-code-lang', lang);
+    var btns = strip.querySelectorAll('button[data-set-lang]');
+    for (var i = 0; i < btns.length; i++) {
+      btns[i].setAttribute('aria-pressed', String(btns[i].getAttribute('data-set-lang') === lang));
+    }
+    try { localStorage.setItem(KEY, lang); } catch (e) {}
+  }
+  var saved = null;
+  try { saved = localStorage.getItem(KEY); } catch (e) {}
+  if (saved && strip.querySelector('button[data-set-lang="' + saved + '"]')) apply(saved);
+  strip.addEventListener('click', function (e) {
+    var b = e.target && e.target.closest ? e.target.closest('button[data-set-lang]') : null;
+    if (b) apply(b.getAttribute('data-set-lang'));
+  });
+})();
+</script>
+<script>
+(function () {
+  var check = document.getElementById('export-report-style');
+  if (check) {
+    check.addEventListener('change', function () {
+      document.body.setAttribute('data-print', check.checked ? 'report' : 'full');
+    });
+  }
+  var reopened = [];
+  window.addEventListener('beforeprint', function () {
+    reopened = [];
+    var closed = document.querySelectorAll('details:not([open])');
+    for (var i = 0; i < closed.length; i++) { reopened.push(closed[i]); closed[i].open = true; }
+  });
+  window.addEventListener('afterprint', function () {
+    for (var i = 0; i < reopened.length; i++) reopened[i].open = false;
+    reopened = [];
+  });
+  var btn = document.querySelector('.export-print-btn');
+  if (btn) btn.addEventListener('click', function () { window.print(); });
+})();
+</script>
+</body>
+</html>

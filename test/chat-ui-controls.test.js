@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
-import { ChatUI } from '../app/chat-ui.js';
+import { ChatUI, resolveExportConfig } from '../app/chat-ui.js';
 import { Agent } from '../app/agent.js';
 
 /**
@@ -148,5 +148,51 @@ describe('ChatUI reasoning toggle (#283)', () => {
         const ui = makeUI([{ value: 'r', endpoint: 'e', api_key: 'k', reasoning_toggle: true }]);
         ui.initReasoningToggle();
         expect(ui.reasoningState()).toBe(true);
+    });
+});
+
+/**
+ * #368 §4 — per-app opt-out. Private deployments remove the export entirely:
+ * the credential scrub strips what the exported queries would need, so the
+ * artifact would reach its reader unable to run.
+ */
+function makeExportUI(config) {
+    const ui = Object.create(ChatUI.prototype);
+    ui.config = config;
+    ui.exportConfig = resolveExportConfig(config);
+    ui.footerRightEl = document.createElement('div');
+    ui.messagesEl = document.createElement('div');
+    return ui;
+}
+
+describe('ChatUI.initExportButton opt-out (#368)', () => {
+    it('creates the button by default', () => {
+        const ui = makeExportUI({});
+        ui.initExportButton();
+        expect(ui.footerRightEl.querySelector('#export-btn')).not.toBe(null);
+        expect(ui._exportBtn).toBeTruthy();
+    });
+
+    it('creates no button at all when the app opts out', () => {
+        const ui = makeExportUI({ export: { enabled: false } });
+        ui.initExportButton();
+        expect(ui.footerRightEl.querySelector('#export-btn')).toBe(null);
+        expect(ui._exportBtn).toBeUndefined();
+    });
+
+    it('honours the shorthand opt-out', () => {
+        const ui = makeExportUI({ export: false });
+        ui.initExportButton();
+        expect(ui.footerRightEl.querySelector('#export-btn')).toBe(null);
+    });
+
+    it('starts disabled until a turn exists, when enabled', () => {
+        const ui = makeExportUI({});
+        ui.initExportButton();
+        expect(ui._exportBtn.disabled).toBe(true);
+        ui.messagesEl.innerHTML = '<div class="chat-message user">hi</div>';
+        // The MutationObserver is async; drive the same predicate directly.
+        ui._exportBtn.disabled = !ui.messagesEl.querySelector('.chat-message.user, .agent-turn');
+        expect(ui._exportBtn.disabled).toBe(false);
     });
 });

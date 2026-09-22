@@ -1,48 +1,234 @@
 import { describe, it, expect } from 'vitest';
-import { rewriteS3UrlsInSql } from '../app/chat-ui.js';
+import {
+    buildDuckdbSetupSql, buildSetupSnippet, wrapQuery, resolveExportConfig,
+    CODE_LANGUAGES, PUBLIC_S3_ENDPOINT, scrubCredentials,
+} from '../app/chat-ui.js';
 
-describe('rewriteS3UrlsInSql', () => {
-    it('rewrites a single s3:// URL inside read_parquet', () => {
-        const sql = "SELECT * FROM read_parquet('s3://public-data/foo.parquet') LIMIT 5";
-        expect(rewriteS3UrlsInSql(sql)).toBe(
-            "SELECT * FROM read_parquet('https://s3-west.nrp-nautilus.io/public-data/foo.parquet') LIMIT 5"
-        );
+describe('resolveExportConfig', () => {
+    it('defaults to enabled at the public endpoint when unconfigured', () => {
+        expect(resolveExportConfig()).toEqual({
+            enabled: true, s3Endpoint: PUBLIC_S3_ENDPOINT, codeLanguage: 'sql',
+        });
+        expect(resolveExportConfig({})).toEqual({
+            enabled: true, s3Endpoint: PUBLIC_S3_ENDPOINT, codeLanguage: 'sql',
+        });
     });
 
-    it('rewrites multiple s3:// URLs in one string (join)', () => {
-        const sql =
-            "SELECT a.* FROM read_parquet('s3://b1/a.parquet') a " +
-            "JOIN read_parquet('s3://b2/b.parquet') b ON a.id = b.id";
-        const out = rewriteS3UrlsInSql(sql);
-        expect(out).toContain("'https://s3-west.nrp-nautilus.io/b1/a.parquet'");
-        expect(out).toContain("'https://s3-west.nrp-nautilus.io/b2/b.parquet'");
-        expect(out).not.toContain('s3://');
+    it('opts out via the block', () => {
+        expect(resolveExportConfig({ export: { enabled: false } }).enabled).toBe(false);
     });
 
-    it('handles bare s3://bucket with no trailing slash', () => {
-        expect(rewriteS3UrlsInSql('s3://my-bucket')).toBe(
-            'https://s3-west.nrp-nautilus.io/my-bucket'
-        );
+    it('opts out via the shorthand', () => {
+        expect(resolveExportConfig({ export: false }).enabled).toBe(false);
     });
 
-    it('preserves dotted and hyphenated bucket names', () => {
-        const sql = "FROM read_parquet('s3://my.bucket-name/x.parquet')";
-        expect(rewriteS3UrlsInSql(sql)).toBe(
-            "FROM read_parquet('https://s3-west.nrp-nautilus.io/my.bucket-name/x.parquet')"
-        );
+    it('treats a stringified false from config.json as off', () => {
+        // k8s-generated config.json can hand us "false" rather than false.
+        expect(resolveExportConfig({ export: 'false' }).enabled).toBe(false);
+        expect(resolveExportConfig({ export: { enabled: 'false' } }).enabled).toBe(false);
     });
 
-    it('leaves non-s3 schemes alone', () => {
-        const sql = "FROM read_parquet('gs://bucket/x.parquet')";
-        expect(rewriteS3UrlsInSql(sql)).toBe(sql);
+    it('stays enabled for every other spelling', () => {
+        expect(resolveExportConfig({ export: {} }).enabled).toBe(true);
+        expect(resolveExportConfig({ export: true }).enabled).toBe(true);
+        expect(resolveExportConfig({ export: { enabled: true } }).enabled).toBe(true);
     });
 
-    it('returns empty string for empty input', () => {
-        expect(rewriteS3UrlsInSql('')).toBe('');
+    it('takes the endpoint from the block', () => {
+        expect(resolveExportConfig({ export: { public_s3_endpoint: 'minio.example.org' } }))
+            .toEqual({ enabled: true, s3Endpoint: 'minio.example.org', codeLanguage: 'sql' });
+    });
+
+    it('still honours the older flat key', () => {
+        expect(resolveExportConfig({ public_s3_endpoint: 'minio.example.org' }).s3Endpoint)
+            .toBe('minio.example.org');
+    });
+
+    it('prefers the block over the flat key when both are set', () => {
+        const cfg = {
+            public_s3_endpoint: 'old.example.org',
+            export: { public_s3_endpoint: 'new.example.org' },
+        };
+        expect(resolveExportConfig(cfg).s3Endpoint).toBe('new.example.org');
+    });
+
+    it('normalises a scheme or trailing slash from either spelling', () => {
+        expect(resolveExportConfig({ export: { public_s3_endpoint: 'https://a.example.org/' } })
+            .s3Endpoint).toBe('a.example.org');
+        expect(resolveExportConfig({ public_s3_endpoint: 'http://b.example.org//' })
+            .s3Endpoint).toBe('b.example.org');
+    });
+
+    it('defaults the code language to SQL — what actually ran', () => {
+        expect(resolveExportConfig({}).codeLanguage).toBe('sql');
+    });
+
+    it('takes a default code language from the block', () => {
+        expect(resolveExportConfig({ export: { default_code_language: 'R' } }).codeLanguage)
+            .toBe('r');
+        expect(resolveExportConfig({ export: { default_code_language: 'python' } }).codeLanguage)
+            .toBe('python');
+    });
+
+    it('falls back to SQL for a language the export cannot render', () => {
+        expect(resolveExportConfig({ export: { default_code_language: 'julia' } }).codeLanguage)
+            .toBe('sql');
+        expect(CODE_LANGUAGES.map(l => l.id)).toEqual(['sql', 'r', 'python']);
+    });
+
+    it('keeps the endpoint resolved even when the export is off', () => {
+        // A disabled export still resolves a sane endpoint, so nothing
+        // downstream has to special-case the off state.
+        expect(resolveExportConfig({ export: false }).s3Endpoint).toBe(PUBLIC_S3_ENDPOINT);
     });
 });
 
-import { scrubCredentials } from '../app/chat-ui.js';
+describe('wrapQuery (#368 §3)', () => {
+    const SQL = "SELECT count(*) FROM read_parquet('s3://public-iucn/hex/mammals_sr/h0=*/data_0.parquet')";
+
+    it('leaves SQL alone', () => {
+        expect(wrapQuery(SQL, 'sql')).toBe(SQL);
+    });
+
+    it('wraps for R without touching the query text', () => {
+        const out = wrapQuery(SQL, 'r');
+        expect(out).toBe(`df <- dbGetQuery(con, r"(\n${SQL}\n)")`);
+        expect(out).toContain(SQL);
+    });
+
+    it('wraps for Python without touching the query text', () => {
+        const out = wrapQuery(SQL, 'python');
+        expect(out).toBe(`df = con.sql(r"""\n${SQL}\n""").df()`);
+        expect(out).toContain(SQL);
+    });
+
+    it('keeps globs verbatim in every language', () => {
+        // The whole point of #367: a glob must survive to the reader intact.
+        for (const lang of ['sql', 'r', 'python']) {
+            expect(wrapQuery(SQL, lang)).toContain("h0=*/data_0.parquet");
+        }
+    });
+
+    it("picks another R delimiter when the query contains )\"", () => {
+        const sql = `SELECT ')"' AS x`;
+        const out = wrapQuery(sql, 'r');
+        expect(out).toContain('r"[');
+        expect(out).toContain(']"');
+        expect(out).toContain(sql);
+    });
+
+    it('falls back to an escaped R string when every raw form collides', () => {
+        const sql = `a )" b ]" c }" d )---"`;
+        const out = wrapQuery(sql, 'r');
+        expect(out).not.toContain('r"(');
+        expect(out).toContain('\\"');
+    });
+
+    it('uses a raw Python string so backslashes survive', () => {
+        const sql = "SELECT regexp_matches(name, '\\\\d+') FROM t";
+        const out = wrapQuery(sql, 'python');
+        expect(out).toContain('r"""');
+        expect(out).toContain("'\\\\d+'");
+    });
+
+    it("switches Python quotes when the query contains a triple quote", () => {
+        const sql = 'SELECT \'"""\' AS x';
+        const out = wrapQuery(sql, 'python');
+        expect(out).toContain("r'''");
+        expect(out).toContain(sql);
+    });
+
+    it('trims trailing whitespace so the closing delimiter sits on its own line', () => {
+        expect(wrapQuery('SELECT 1   \n\n', 'r')).toBe('df <- dbGetQuery(con, r"(\nSELECT 1\n)")');
+    });
+
+    it('treats an unknown language as SQL', () => {
+        expect(wrapQuery(SQL, 'julia')).toBe(SQL);
+    });
+
+    it('handles empty and null input', () => {
+        expect(wrapQuery('', 'sql')).toBe('');
+        expect(wrapQuery(null, 'python')).toContain('con.sql');
+    });
+});
+
+describe('buildSetupSnippet (#368 §3)', () => {
+    it('gives SQL the same block as buildDuckdbSetupSql', () => {
+        expect(buildSetupSnippet('sql')).toBe(buildDuckdbSetupSql());
+    });
+
+    it('connects and configures in R', () => {
+        const out = buildSetupSnippet('r');
+        expect(out).toContain('library(duckdb)');
+        expect(out).toContain('con <- dbConnect(duckdb())');
+        expect(out).toContain('dbExecute(con, "INSTALL httpfs; LOAD httpfs;")');
+        expect(out).toContain(`ENDPOINT '${PUBLIC_S3_ENDPOINT}'`);
+    });
+
+    it('connects and configures in Python', () => {
+        const out = buildSetupSnippet('python');
+        expect(out).toContain('import duckdb');
+        expect(out).toContain('con = duckdb.connect()');
+        expect(out).toContain(`ENDPOINT '${PUBLIC_S3_ENDPOINT}'`);
+    });
+
+    it('carries the endpoint override into every language', () => {
+        for (const lang of ['sql', 'r', 'python']) {
+            expect(buildSetupSnippet(lang, 'https://minio.example.org/'))
+                .toContain("ENDPOINT 'minio.example.org'");
+        }
+    });
+
+    it('survives the credential scrub in every language', () => {
+        // A snippet tripping scrubCredentials' `SECRET '…'` pattern would
+        // reach the reader mangled.
+        for (const lang of ['sql', 'r', 'python']) {
+            const out = buildSetupSnippet(lang);
+            expect(scrubCredentials(out)).toBe(out);
+        }
+    });
+});
+
+describe('buildDuckdbSetupSql', () => {
+    it('loads httpfs and creates an s3 secret at the public endpoint', () => {
+        const sql = buildDuckdbSetupSql();
+        expect(sql).toContain('INSTALL httpfs; LOAD httpfs;');
+        expect(sql).toContain('CREATE OR REPLACE SECRET public_s3');
+        expect(sql).toContain('TYPE s3');
+        expect(sql).toContain(`ENDPOINT '${PUBLIC_S3_ENDPOINT}'`);
+        expect(sql).toContain("URL_STYLE 'path'");
+        expect(sql).toContain('USE_SSL true');
+    });
+
+    it('carries no credentials — anonymous access is the point', () => {
+        const sql = buildDuckdbSetupSql();
+        expect(sql).not.toMatch(/KEY_ID/i);
+        // `SECRET` appears only as the CREATE SECRET keyword, never as a value.
+        expect(sql).not.toMatch(/\bSECRET\s+'/i);
+    });
+
+    it('survives the credential scrub unchanged', () => {
+        // scrubCredentials rewrites `SECRET '…'`; an emitted block that tripped
+        // it would reach the reader mangled.
+        const sql = buildDuckdbSetupSql();
+        expect(scrubCredentials(sql)).toBe(sql);
+    });
+
+    it('honours a per-app endpoint override', () => {
+        expect(buildDuckdbSetupSql('minio.example.org'))
+            .toContain("ENDPOINT 'minio.example.org'");
+    });
+
+    it('normalises a scheme or trailing slash in the override', () => {
+        const sql = buildDuckdbSetupSql('https://minio.example.org/');
+        expect(sql).toContain("ENDPOINT 'minio.example.org'");
+        expect(sql).not.toContain('https://minio');
+    });
+
+    it('falls back to the default for an empty override', () => {
+        expect(buildDuckdbSetupSql('')).toContain(`ENDPOINT '${PUBLIC_S3_ENDPOINT}'`);
+    });
+});
 
 describe('scrubCredentials', () => {
     it('redacts DuckDB CREATE SECRET KEY_ID and SECRET values', () => {
