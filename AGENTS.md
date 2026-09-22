@@ -160,8 +160,8 @@ Invoke the **`deploy-preview`** skill, or see `preview/README.md` for the
 fixture and `.github/workflows/gh-pages.yml` for the staging step. In short:
 
 ```bash
-git push -f origin <branch>:preview/<name>     # only preview/* may deploy
-gh workflow run gh-pages.yml --ref preview/<name>
+git push -f origin <branch>:preview/<name>   # only preview/* may deploy
+gh workflow run gh-pages.yml --ref main     # main, not your branch — see the skill
 ```
 
 → `https://boettiger-lab.github.io/geo-agent/preview/<name>/`

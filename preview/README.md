@@ -24,8 +24,13 @@ under that prefix, then dispatch the workflow on it:
 
 ```bash
 git push -u origin HEAD:preview/<name>
-gh workflow run gh-pages.yml --ref preview/<name>
+gh workflow run gh-pages.yml --ref main
 ```
+
+Dispatch on `main`, not on the preview branch: `workflow_dispatch` runs the
+workflow file from the ref it is dispatched on, so dispatching on a branch
+uses that branch's copy, which goes stale whenever the workflow changes. The
+build stages every `preview/*` ref regardless of what triggered it.
 
 It lands at `https://boettiger-lab.github.io/geo-agent/preview/<name>/`, and the
 docs site keeps its usual URLs, because previews are staged into the built docs

@@ -23,8 +23,16 @@ from `main` and `preview/*`.
 
 ```bash
 git push -f origin <your-branch>:preview/<name>
-gh workflow run gh-pages.yml --ref preview/<name>
+gh workflow run gh-pages.yml --ref main
 ```
+
+**Dispatch on `main`, not on your preview branch.** `workflow_dispatch` runs
+the workflow file *from the ref you dispatch on*, so dispatching on your own
+branch uses whatever copy of `gh-pages.yml` that branch happens to carry —
+which is stale the moment the workflow changes, and fails silently by
+publishing to the old paths. `main` always has the current one, and the build
+stages every `preview/*` branch from worktrees regardless of which ref
+triggered it, so your branch's app is published either way.
 
 Then wait for it and confirm it is really live:
 
@@ -78,6 +86,31 @@ Top-level keys replace; there is no deep merge, so patch whole blocks.
 Expect several rounds. Each one is: change → mirror push → dispatch → verify →
 give the URL. Do not batch many changes hoping to get them all right at once;
 the point is that the reviewer sees each step.
+
+## Do not dry-run the staging step against your working clone
+
+The step starts with `git fetch --depth=1`, which is right on an ephemeral
+runner and **destructive locally**: it writes `.git/shallow` and truncates
+history in the object store. Worktrees share that store, so it hits every
+branch in the checkout, including other sessions'.
+
+**Check `is-shallow-repository` before believing anything else.** A shallow
+cutoff makes a perfectly healthy tip report no parent, so the symptoms all
+point at the wrong culprit: branches look like orphan commits, `git log` shows
+a single entry, and a rebase reports `AA` conflicts on files the commit never
+touched. Concluding "orphan branch" from a parent count sends you looking at
+how the commit was made, which is exactly where the bug is not. This cost one
+session a branch rebuild that was never needed.
+
+```bash
+git rev-parse --is-shallow-repository        # ask this FIRST — false is healthy
+git rev-list --parents -1 <branch> | wc -w   # 1 looks like an orphan and usually isn't
+```
+
+Nothing is lost and the remote is untouched. Recover with `git fetch
+--unshallow origin`, then re-check both.
+
+To exercise the step for real, run it in a throwaway clone.
 
 ## Gotchas
 
