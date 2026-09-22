@@ -39,10 +39,17 @@ exactly like a working one:
 
 ```bash
 sleep 20
-curl -s https://boettiger-lab.github.io/geo-agent/preview/style.css | grep -c '<the thing you changed>'
+curl -s https://boettiger-lab.github.io/geo-agent/preview/<name>/style.css \
+  | grep -c '<the thing you changed>'
 ```
 
-URL: <https://boettiger-lab.github.io/geo-agent/preview/>
+URL: `https://boettiger-lab.github.io/geo-agent/preview/<name>/`, where
+`<name>` is the branch without the `preview/` prefix. `/preview/` itself is an
+index of whatever is currently published.
+
+**Every `preview/*` branch is rebuilt on every deploy**, so publishing yours
+does not take anyone else's offline, and a push to `main` does not take them
+all offline. Dispatching on any ref refreshes the whole set.
 
 ## Keep the fixture on your branch
 
@@ -56,11 +63,11 @@ That was tried; it drifts, and a commit was lost to it.
 ## Variants
 
 `preview/variants/<name>.json` is a shallow patch over the base fixture,
-published at `/preview/<name>/`. Use one when two states need comparing side by
-side rather than in sequence:
+published beside the base fixture. Use one when two states need comparing side
+by side rather than in sequence:
 
 ```json
-// preview/variants/light.json  →  /preview/light/
+// preview/variants/light.json  →  /preview/<branch>/light/
 { "theme": "light" }
 ```
 
@@ -74,9 +81,9 @@ the point is that the reviewer sees each step.
 
 ## Gotchas
 
-- **One preview at a time.** Pages has a single deployment slot, so the next
-  `main` push touching `docs/**` replaces the preview with the docs site.
-  Re-dispatch to bring it back. Never treat a preview URL as durable.
+- **Previews are rebuilt from the branches, not from the last deploy.** Every
+  `preview/*` ref is staged on each run, so a preview stays up until its branch
+  is deleted. A branch with no `app/` directory is skipped with a warning.
 - **No secrets.** `app/config.json` is gitignored and never deployed, so the
   preview has no API key and no LLM. To exercise chat or voice, set
   `llm.user_provided: true` in the fixture — the viewer supplies their own key.
