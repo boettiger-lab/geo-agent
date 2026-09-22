@@ -45,14 +45,31 @@ can be judged as a deployed app would show them:
 
 ## Editing the fixture
 
-`layers-input.json` is generated with `json.dumps(..., indent=2)` and kept a
-fixed point of it, so a programmatic edit that round-trips through JSON
-produces a diff of only what changed.
+`layers-input.json` here is a **fixed point of `json.dumps(..., indent=2)`**
+plus a trailing newline: format it and you get the same bytes back. So a
+programmatic edit produces a diff of only what changed.
 
-That is worth preserving. A file in any other layout, round-tripped through a
-formatter, reformats wholesale — one session turned a six-line addition into a
-577-line diff that way. Nothing catches it: the tests still pass, and the churn
-only shows up in review.
+Round-tripping a file through a formatter it does not already match reformats
+it wholesale. One session turned a six-line addition into a 577-line diff that
+way. Nothing catches it — the tests still pass, and the churn only shows up in
+review, where it buries the actual change.
+
+**The settings are per file.** Check before editing, rather than assuming:
+
+```python
+raw = open(path).read()
+raw == json.dumps(json.load(open(path)), indent=N) + nl   # find the N and nl that hold
+```
+
+| File | Fixed point of |
+|---|---|
+| `preview/layers-input.json` | `indent=2`, trailing newline |
+| `preview/variants/*.json` | `indent=2`, trailing newline |
+| `app/layers-input.json` | **`indent=4`, no trailing newline** |
+
+`app/layers-input.json` is the one to be careful with: it is what downstream
+apps copy from, and reaching for `indent=2` out of habit rewrites all 66 lines
+of it.
 
 ## Variants
 
