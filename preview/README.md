@@ -32,13 +32,16 @@ downstream app is involved — the preview serves that branch's `app/` directly,
 via relative imports, so pushing more commits and re-dispatching is the whole
 iteration loop.
 
-## Placeholder marks
+## Logos in the fixture
 
-`placeholder-brand.svg` and `placeholder-partner.svg` are dashed boxes, not
-anyone's real logo. They stand in for the GLEN mark (which does not exist yet)
-and for a partner organisation's, so the header can be judged for spacing and
-truncation with a full set of marks present. The DSE mark in the fixture is
-real, and comes from `app/assets/`.
+All three header slots are filled with real marks, so spacing and truncation
+can be judged as a deployed app would show them:
+
+- **GLEN** and **DSE** come from `app/assets/` as library defaults, needing no
+  configuration. The GLEN one is a placeholder until a real mark exists.
+- **BOSL** (`bosl-logo.svg`, vendored from <https://bosl.ucsb.edu/>) fills the
+  partner slot, standing for a sister organisation. It is a self-contained
+  badge with its own dark background, so it needs no light/dark variant.
 
 ## Variants
 

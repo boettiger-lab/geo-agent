@@ -25,25 +25,39 @@ describe('resolveHeaderConfig', () => {
         expect(resolveHeaderConfig({ header: { enabled: false } }).enabled).toBe(false);
     });
 
-    it('supplies the DSE mark when no trailing logo is configured', () => {
-        const { partner } = resolveHeaderConfig({});
-        expect(partner).toHaveLength(1);
-        expect(partner[0].src).toContain('dse-mark.png');
-        expect(partner[0].srcDark).toContain('dse-mark-white.png');
-        expect(partner[0].href).toBe('https://dse.berkeley.edu/');
-        expect(partner[0].alt).toBeTruthy();
+    it('supplies GLEN and DSE by default, with no partner', () => {
+        // The two ends are the same across the fleet, so they default rather
+        // than being configured per app; the middle is app-specific.
+        const cfg = resolveHeaderConfig({});
+        expect(cfg.brand.src).toContain('glen-logo.svg');
+        expect(cfg.brand.srcDark).toContain('glen-logo-white.svg');
+        expect(cfg.institution).toHaveLength(1);
+        expect(cfg.institution[0].src).toContain('dse-mark.png');
+        expect(cfg.institution[0].href).toBe('https://dse.berkeley.edu/');
+        expect(cfg.partner).toEqual([]);
     });
 
-    it('resolves the mark against the library URL, not the app page', () => {
+    it('resolves default marks against the library URL, not the app page', () => {
         // The app's own page is served from somewhere else entirely, so a
-        // relative path would not resolve; this must be absolute.
-        const { partner } = resolveHeaderConfig({});
-        expect(partner[0].src).toMatch(/^[a-z]+:\/\//);
+        // relative path would not resolve; these must be absolute.
+        const cfg = resolveHeaderConfig({});
+        expect(cfg.brand.src).toMatch(/^[a-z]+:\/\//);
+        expect(cfg.institution[0].src).toMatch(/^[a-z]+:\/\//);
     });
 
-    it('an explicit empty list clears the default mark', () => {
-        expect(resolveHeaderConfig({ header: { partner: [] } }).partner).toEqual([]);
-        expect(resolveHeaderConfig({ header: { partner: null } }).partner).toEqual([]);
+    it('takes an app-specific partner without disturbing the defaults', () => {
+        const cfg = resolveHeaderConfig({
+            header: { partner: { src: 'bosl.svg', alt: 'BOSL', href: 'https://bosl.example' } },
+        });
+        expect(cfg.partner).toHaveLength(1);
+        expect(cfg.partner[0].alt).toBe('BOSL');
+        expect(cfg.brand.alt).toBe('GLEN');
+        expect(cfg.institution).toHaveLength(1);
+    });
+
+    it('lets either default be cleared explicitly', () => {
+        expect(resolveHeaderConfig({ header: { brand: null } }).brand).toBeNull();
+        expect(resolveHeaderConfig({ header: { institution: [] } }).institution).toEqual([]);
     });
 
     it('defaults to solid mode and rejects unknown modes', () => {
@@ -214,11 +228,37 @@ describe('buildAppHeader', () => {
         expect(partnerImg.closest('a')).toBeNull();
     });
 
-    it('renders the default DSE mark when nothing is configured', () => {
+    it('renders GLEN and DSE when nothing is configured', () => {
         buildAppHeader({}, document);
-        const img = document.querySelector('.app-header-logo--light');
-        expect(img.src).toContain('dse-mark.png');
-        expect(img.closest('a').href).toBe('https://dse.berkeley.edu/');
+        const brand = document.querySelector('.app-header-brand img');
+        expect(brand.src).toContain('glen-logo.svg');
+        const inst = document.querySelector('.app-header-logo--institution');
+        expect(inst.closest('a').href).toBe('https://dse.berkeley.edu/');
+    });
+
+    it('reserves the partner slot even with no partner, so marks do not shift', () => {
+        buildAppHeader({}, document);
+        const slot = document.querySelector('.app-header-partner-slot');
+        expect(slot).toBeTruthy();
+        expect(slot.children).toHaveLength(0);
+        // Nothing in it, so it should not be announced as a region.
+        expect(slot.getAttribute('aria-hidden')).toBe('true');
+    });
+
+    it('fills the partner slot and orders partner before institution', () => {
+        buildAppHeader({
+            header: { partner: { src: 'bosl.svg', alt: 'BOSL' } },
+        }, document);
+        const slot = document.querySelector('.app-header-partner-slot');
+        expect(slot.querySelector('img').alt).toBe('BOSL');
+        expect(slot.getAttribute('aria-hidden')).toBeNull();
+
+        // A logo with a dark variant renders both images and lets CSS choose,
+        // so compare positions rather than counting elements.
+        const partnerImg = slot.querySelector('img');
+        const instImg = document.querySelector('.app-header-logo--institution');
+        expect(partnerImg.compareDocumentPosition(instImg))
+            .toBe(Node.DOCUMENT_POSITION_FOLLOWING);
     });
 
     it('renders several trailing logos in order', () => {

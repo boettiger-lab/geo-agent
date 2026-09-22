@@ -354,8 +354,28 @@ body.has-app-header:not(.app-header-solid) .maplibregl-ctrl-top-right {
     object-fit: contain;
 }
 
-.app-header-logo--partner {
+.app-header-logo--partner,
+.app-header-logo--institution {
     height: 24px;
+}
+
+/* The partner slot holds its width even when empty, so the institution mark
+   lands in the same place across the fleet whether or not an app has a
+   partner. Without it the header visibly reflows app to app. */
+.app-header-partner-slot {
+    display: flex;
+    align-items: center;
+    flex: 0 0 auto;
+    min-width: 64px;
+    min-height: 24px;
+}
+
+/* At phone width the reserved gap is dead space that pushes the marks off
+   screen, so it collapses; the logos still order the same way. */
+@media (max-width: 700px) {
+    .app-header-partner-slot:empty {
+        display: none;
+    }
 }
 
 .app-header-logo-link {

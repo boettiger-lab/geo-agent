@@ -42,13 +42,27 @@ export const DEFAULT_CONTACT = 'mailto:dse@berkeley.edu';
  * own page is served from somewhere else entirely, so a relative path would
  * not resolve.
  */
-export function defaultTrailingLogo() {
-    const asset = name => new URL(`./assets/${name}`, import.meta.url).href;
+function asset(name) {
+    return new URL(`./assets/${name}`, import.meta.url).href;
+}
+
+/** The DSE mark, which trails every header in the fleet. */
+export function defaultInstitutionLogo() {
     return {
         src: asset('dse-mark.png'),
         src_dark: asset('dse-mark-white.png'),
         alt: 'Eric and Wendy Schmidt Center for Data Science & Environment at Berkeley',
         href: 'https://dse.berkeley.edu/',
+    };
+}
+
+/** The GLEN mark, which leads it. A placeholder until a real one exists. */
+export function defaultBrandLogo() {
+    return {
+        src: asset('glen-logo.svg'),
+        src_dark: asset('glen-logo-white.svg'),
+        alt: 'GLEN',
+        href: 'https://schmidtdse.github.io/glen-website/a/',
     };
 }
 
@@ -101,11 +115,18 @@ export function resolveHeaderConfig(appConfig = {}) {
         enabled,
         mode,
         title: header.title || appConfig.sidebar?.title || null,
-        brand: normalizeLogo(header.brand),
-        // Unset means the default DSE mark; an explicit [] or null means the
-        // app has deliberately cleared it.
-        partner: normalizeLogoList(
-            header.partner === undefined ? defaultTrailingLogo() : header.partner,
+        // Three slots, left to right: GLEN, then the app's own partner (if
+        // it has one), then DSE. Each defaults rather than being configured
+        // per app, since the two ends are the same across the fleet.
+        brand: normalizeLogo(
+            header.brand === undefined ? defaultBrandLogo() : header.brand,
+        ),
+        // An app-specific partner. Most apps have none, and the slot holds
+        // its width anyway so the DSE mark lands in the same place whether
+        // or not one is set — the header should not shift across the fleet.
+        partner: normalizeLogoList(header.partner),
+        institution: normalizeLogoList(
+            header.institution === undefined ? defaultInstitutionLogo() : header.institution,
         ),
         nav: resolveNav(header, appConfig.links),
     };
@@ -257,8 +278,16 @@ export function buildAppHeader(appConfig, doc = document) {
     /* ----- Nav zone: links + optional partner mark ----- */
     const navZone = el(doc, 'div', { class: 'app-header-end' });
     if (cfg.nav.length) navZone.appendChild(buildNav(doc, cfg.nav));
+    // The partner slot is rendered either way: empty, it reserves its width.
+    const partnerSlot = el(doc, 'div', { class: 'app-header-partner-slot' });
+    if (!cfg.partner.length) partnerSlot.setAttribute('aria-hidden', 'true');
     for (const logo of cfg.partner) {
-        navZone.appendChild(logoEl(doc, logo, 'app-header-logo app-header-logo--partner'));
+        partnerSlot.appendChild(logoEl(doc, logo, 'app-header-logo app-header-logo--partner'));
+    }
+    navZone.appendChild(partnerSlot);
+
+    for (const logo of cfg.institution) {
+        navZone.appendChild(logoEl(doc, logo, 'app-header-logo app-header-logo--institution'));
     }
 
     header.append(brandZone, navZone);

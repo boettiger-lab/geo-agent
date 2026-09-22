@@ -10,6 +10,8 @@ https://cdn.jsdelivr.net/gh/boettiger-lab/geo-agent@<ref>/app/assets/<file>
 
 | File | Use |
 |---|---|
+| `glen-logo.svg` | GLEN mark for **light** backgrounds. **Placeholder** — a hexagon with the wordmark inside, until a real one exists |
+| `glen-logo-white.svg` | Same, knockout, for **dark** backgrounds |
 | `favicon.svg` | Browser-tab icon. **Placeholder** — a plain hexagon, nodding to the H3 grid, until GLEN has a mark |
 | `dse-mark.png` | Monogram — "DSE" + sprout, no wordmark. Legible small; **light** backgrounds |
 | `dse-mark-white.png` | Monogram, knockout, for **dark** backgrounds. **Derived, not official** — see below |

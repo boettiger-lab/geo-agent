@@ -554,10 +554,25 @@ app title) and top-level navigation.
 > app bumping its pin past this version **will gain a header it did not ask
 > for** — opt out with `"header": { "enabled": false }`.
 
-The default trailing logo is the DSE mark, resolved from the same pinned ref
-the app loaded the library from, so it needs no configuration and no URL to
-maintain. Set `partner` to `[]` to clear it, or to your own list to replace
-it.
+**Three logo slots, left to right:**
+
+| Slot | Default | Who sets it |
+|---|---|---|
+| `brand` | the GLEN mark | fleet-wide; leave it alone |
+| `partner` | *none* | the app, if it has a partner organisation |
+| `institution` | the DSE mark | fleet-wide; leave it alone |
+
+Both defaults resolve from the same pinned ref the app loaded the library from,
+so they need no configuration and no URL to maintain. Either can be cleared
+(`"brand": null`, `"institution": []`).
+
+The **partner slot keeps its width even when empty**, so the DSE mark lands in
+the same place whether or not an app has a partner — without that the header
+visibly reflows from one app to the next. The reserved gap collapses below
+700px, where it would only push the marks off screen.
+
+> The shipped GLEN mark is a **placeholder** — a hexagon with the wordmark
+> inside — standing in until a real one exists.
 
 The split it introduces: *app-level* things (who made this, what else there is
 to read) belong in the header; *map-level* things (legend, sliders, hex
@@ -580,8 +595,9 @@ controls) belong on the map, in the [overlay rail](#map-overlay-rail-and-stackin
 | `enabled` | boolean | `true` | Render the band. Set `false` to opt out entirely. |
 | `mode` | string | `"solid"` | `"solid"` is an opaque band with a separating edge, and the map starts below it. `"scrim"` floats a translucent band over a full-bleed map, costing no map area — but note it sits directly against the browser's own chrome, which can read as one bar. An unrecognised value falls back to `"solid"`. |
 | `title` | string | `sidebar.title` | Text beside the logos. Hidden on narrow viewports, where the logos carry identity. |
-| `brand` | object | — | Primary logo, shown first. `{ src, src_dark, alt, href }`; `src` is required or the logo is skipped, and `href` is optional (without one the image is not a link). |
-| `partner` | object or array | DSE mark | Trailing logo(s), after the nav. Same shape as `brand`; pass an array to show several. Unset gives the DSE mark; `[]` clears it. |
+| `brand` | object | GLEN mark | Leading logo. `{ src, src_dark, alt, href }`; `src` is required or the logo is skipped, and `href` is optional (without one the image is not a link). `null` clears it. |
+| `partner` | object or array | *none* | The app's own partner organisation. Same shape as `brand`; an array shows several. The slot reserves its width when empty. |
+| `institution` | object or array | DSE mark | Trailing mark, after the partner. `[]` clears it. |
 | `nav` | array | derived | Top-level links — see below. |
 
 No logo images ship with the library; `src` is always a URL the app supplies.

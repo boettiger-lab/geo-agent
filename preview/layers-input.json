@@ -588,23 +588,11 @@
     "enabled": true,
     "mode": "solid",
     "title": "GLEN Layout preview",
-    "brand": {
-      "src": "placeholder-brand.svg",
-      "alt": "GLEN (placeholder mark)",
-      "href": "https://schmidtdse.github.io/glen-website/a/"
-    },
-    "partner": [
-      {
-        "src": "placeholder-partner.svg",
-        "alt": "Partner organisation (placeholder mark)"
-      },
-      {
-        "src": "assets/dse-mark.png",
-        "src_dark": "assets/dse-mark-white.png",
-        "alt": "Eric and Wendy Schmidt Center for Data Science & Environment at Berkeley",
-        "href": "https://dse.berkeley.edu/"
-      }
-    ]
+    "partner": {
+      "src": "bosl-logo.svg",
+      "alt": "Benioff Ocean Science Laboratory",
+      "href": "https://bosl.ucsb.edu/"
+    }
   },
   "llm": {
     "user_provided": true,
