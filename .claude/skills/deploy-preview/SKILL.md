@@ -91,19 +91,24 @@ the point is that the reviewer sees each step.
 
 The step starts with `git fetch --depth=1`, which is right on an ephemeral
 runner and **destructive locally**: it writes `.git/shallow` and truncates
-history in the object store. The symptom is alarming and misleading — branches
-look like orphan commits with no parent, `git log` shows one entry, and a
-rebase reports `AA` conflicts on files the commit never touched. Worktrees
-share the object store, so it hits every branch in the checkout, including
-other people's.
+history in the object store. Worktrees share that store, so it hits every
+branch in the checkout, including other sessions'.
 
-Nothing is lost; the remote is untouched. Recover with:
+**Check `is-shallow-repository` before believing anything else.** A shallow
+cutoff makes a perfectly healthy tip report no parent, so the symptoms all
+point at the wrong culprit: branches look like orphan commits, `git log` shows
+a single entry, and a rebase reports `AA` conflicts on files the commit never
+touched. Concluding "orphan branch" from a parent count sends you looking at
+how the commit was made, which is exactly where the bug is not. This cost one
+session a branch rebuild that was never needed.
 
 ```bash
-git fetch --unshallow origin
-git rev-parse --is-shallow-repository   # expect false
-git rev-list --parents -1 <branch> | wc -w   # expect 2, not 1
+git rev-parse --is-shallow-repository        # ask this FIRST — false is healthy
+git rev-list --parents -1 <branch> | wc -w   # 1 looks like an orphan and usually isn't
 ```
+
+Nothing is lost and the remote is untouched. Recover with `git fetch
+--unshallow origin`, then re-check both.
 
 To exercise the step for real, run it in a throwaway clone.
 
