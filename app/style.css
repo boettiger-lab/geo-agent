@@ -23,9 +23,189 @@
     --z-modal: 70;            /* blocking dialogs */
 }
 
+/* ── Theme tokens ────────────────────────────────────────────────────────
+   Four families, by where the surface sits:
+
+     --chrome-*   the header + sidebar shell, one continuous surface
+     --control-*  buttons inside it. Deliberately OPAQUE: a translucent
+                  control picks up whatever is behind it, so a row of them
+                  reads as inconsistent even when the rules are identical
+     --panel-*    floating panels over the map (legend, hex, sliders, charts,
+                  tooltips). These must stay readable over any basemap, so
+                  they carry their own surface rather than relying on a blur
+     --chat-*     chat bubbles, applied in sidebar mode only
+
+   Selected by theme.js as a body class. `light` is the default because it is
+   what the sidebar has always been. */
+:root,
+body.theme-light {
+    --chrome-bg: #f8f9fa;
+    --chrome-bg-raised: #ffffff;
+    --chrome-fg: #1a1a2e;
+    --chrome-fg-muted: rgba(0, 0, 0, 0.55);
+    --chrome-line: rgba(0, 0, 0, 0.1);
+    --chrome-hover: rgba(0, 0, 0, 0.06);
+    --chrome-accent: rgba(120, 170, 255, 0.8);
+    --chrome-accent-wash: rgba(120, 170, 255, 0.12);
+    --chrome-carbon: #2e7d32;
+    --chrome-shadow: rgba(0, 0, 0, 0.18);
+    --control-bg: #2f6fd0;
+    /* Direction a control moves when hovered or selected: toward black on
+       a light palette, toward white on a dark one. Kept as a token so a
+       `primary` override recolours every state, and so `auto` picks the
+       right direction live. */
+    --control-mix-target: black;
+    --control-bg-hover: color-mix(in srgb, var(--control-bg) 88%, var(--control-mix-target));
+    --control-border: transparent;
+    --control-fg: #ffffff;
+    --control-active-bg: color-mix(in srgb, var(--control-bg) 68%, var(--control-mix-target));
+    --control-active-border: transparent;
+    --control-accent: #2f6fd0;
+    --control-disabled-bg: #ccd6e6;
+    --control-disabled-fg: #4c5768;
+    --focus-ring: #1c4a92;
+    --control-focus-fg: #0b62a4;
+    --control-focus-bg: rgba(0, 124, 191, 0.12);
+    --panel-bg: rgba(255, 255, 255, 0.92);
+    --panel-bg-strong: rgba(255, 255, 255, 0.97);
+    --panel-fg: #333333;
+    --panel-fg-muted: #666666;
+    --panel-fg-faint: #767676;
+    --panel-line: rgba(0, 0, 0, 0.15);
+    --panel-hover: rgba(0, 0, 0, 0.07);
+    --panel-shadow: rgba(0, 0, 0, 0.2);
+    --chat-surface: rgba(255, 255, 255, 0.55);
+    --chat-surface-soft: rgba(255, 255, 255, 0.35);
+    --chat-fg: #333333;
+    --chat-code-bg: rgba(0, 0, 0, 0.06);
+    --chat-tool-bg: rgba(245, 248, 255, 0.6);
+    --chat-thinking-bg: rgba(173, 216, 230, 0.35);
+    --chat-thinking-fg: #2c5282;
+    --chat-input-bg: rgba(255, 255, 255, 0.45);
+    --chat-input-bg-focus: rgba(255, 255, 255, 0.65);
+    --danger-fg: #c0392b;
+    --map-void-bg: #dfe6ee;
+    --map-void-pattern: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='110.9' height='192.0' viewBox='0 0 110.9 192.0'><g fill='none' stroke='%2364748b' stroke-opacity='0.09' stroke-width='1'><path d='M0.0,-64.0 L55.4,-32.0 L55.4,32.0 L0.0,64.0 L-55.4,32.0 L-55.4,-32.0 Z'/><path d='M110.9,-64.0 L166.3,-32.0 L166.3,32.0 L110.9,64.0 L55.4,32.0 L55.4,-32.0 Z'/><path d='M0.0,128.0 L55.4,160.0 L55.4,224.0 L0.0,256.0 L-55.4,224.0 L-55.4,160.0 Z'/><path d='M110.9,128.0 L166.3,160.0 L166.3,224.0 L110.9,256.0 L55.4,224.0 L55.4,160.0 Z'/><path d='M55.4,32.0 L110.9,64.0 L110.9,128.0 L55.4,160.0 L-0.0,128.0 L0.0,64.0 Z'/></g></svg>");
+}
+
+body.theme-dark {
+    --chrome-bg: #111b2e;
+    --chrome-bg-raised: #1b2740;
+    --chrome-fg: #e8eef7;
+    --chrome-fg-muted: rgba(232, 238, 247, 0.62);
+    --chrome-line: rgba(255, 255, 255, 0.14);
+    --chrome-hover: rgba(255, 255, 255, 0.09);
+    --chrome-accent: rgba(120, 170, 255, 0.9);
+    --chrome-accent-wash: rgba(120, 170, 255, 0.18);
+    --chrome-carbon: #8bc34a;
+    --chrome-shadow: rgba(0, 0, 0, 0.45);
+    --control-bg: #4272ad;
+    /* Direction a control moves when hovered or selected: toward black on
+       a light palette, toward white on a dark one. Kept as a token so a
+       `primary` override recolours every state, and so `auto` picks the
+       right direction live. */
+    --control-mix-target: white;
+    --control-bg-hover: color-mix(in srgb, var(--control-bg) 88%, var(--control-mix-target));
+    --control-border: transparent;
+    --control-fg: #eaf1fb;
+    --control-active-bg: color-mix(in srgb, var(--control-bg) 72%, var(--control-mix-target));
+    --control-active-border: transparent;
+    --control-accent: #5b8fd6;
+    --control-disabled-bg: #26344d;
+    --control-disabled-fg: #97a3b5;
+    --focus-ring: #9ec5ff;
+    --control-focus-fg: #7cc4f0;
+    --control-focus-bg: rgba(0, 124, 191, 0.28);
+    --panel-bg: rgba(17, 27, 46, 0.92);
+    --panel-bg-strong: rgba(17, 27, 46, 0.97);
+    --panel-fg: #e8eef7;
+    --panel-fg-muted: rgba(232, 238, 247, 0.62);
+    --panel-fg-faint: rgba(232, 238, 247, 0.4);
+    --panel-line: rgba(255, 255, 255, 0.16);
+    --panel-hover: rgba(255, 255, 255, 0.1);
+    --panel-shadow: rgba(0, 0, 0, 0.5);
+    --chat-surface: rgba(255, 255, 255, 0.07);
+    --chat-surface-soft: rgba(255, 255, 255, 0.04);
+    --chat-fg: #e2e8f0;
+    --chat-code-bg: rgba(0, 0, 0, 0.35);
+    --chat-tool-bg: rgba(255, 255, 255, 0.05);
+    --chat-thinking-bg: rgba(56, 120, 160, 0.25);
+    --chat-thinking-fg: #bfdbfe;
+    --chat-input-bg: rgba(255, 255, 255, 0.08);
+    --chat-input-bg-focus: rgba(255, 255, 255, 0.14);
+    --danger-fg: #ff8a80;
+    --map-void-bg: #0c1424;
+    --map-void-pattern: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='110.9' height='192.0' viewBox='0 0 110.9 192.0'><g fill='none' stroke='%238fa8c8' stroke-opacity='0.055' stroke-width='1'><path d='M0.0,-64.0 L55.4,-32.0 L55.4,32.0 L0.0,64.0 L-55.4,32.0 L-55.4,-32.0 Z'/><path d='M110.9,-64.0 L166.3,-32.0 L166.3,32.0 L110.9,64.0 L55.4,32.0 L55.4,-32.0 Z'/><path d='M0.0,128.0 L55.4,160.0 L55.4,224.0 L0.0,256.0 L-55.4,224.0 L-55.4,160.0 Z'/><path d='M110.9,128.0 L166.3,160.0 L166.3,224.0 L110.9,256.0 L55.4,224.0 L55.4,160.0 Z'/><path d='M55.4,32.0 L110.9,64.0 L110.9,128.0 L55.4,160.0 L-0.0,128.0 L0.0,64.0 Z'/></g></svg>");
+}
+
+/* `auto` follows the viewer's OS setting live, which is why theme.js leaves
+   it as its own class instead of resolving it to light or dark at boot. */
+@media (prefers-color-scheme: dark) {
+    body.theme-auto {
+        --chrome-bg: #111b2e;
+        --chrome-bg-raised: #1b2740;
+        --chrome-fg: #e8eef7;
+        --chrome-fg-muted: rgba(232, 238, 247, 0.62);
+        --chrome-line: rgba(255, 255, 255, 0.14);
+        --chrome-hover: rgba(255, 255, 255, 0.09);
+        --chrome-accent: rgba(120, 170, 255, 0.9);
+        --chrome-accent-wash: rgba(120, 170, 255, 0.18);
+        --chrome-carbon: #8bc34a;
+        --chrome-shadow: rgba(0, 0, 0, 0.45);
+        --control-bg: #4272ad;
+        /* Direction a control moves when hovered or selected: toward black on
+           a light palette, toward white on a dark one. Kept as a token so a
+           `primary` override recolours every state, and so `auto` picks the
+           right direction live. */
+        --control-mix-target: white;
+        --control-bg-hover: color-mix(in srgb, var(--control-bg) 88%, var(--control-mix-target));
+        --control-border: transparent;
+        --control-fg: #eaf1fb;
+        --control-active-bg: color-mix(in srgb, var(--control-bg) 72%, var(--control-mix-target));
+        --control-active-border: transparent;
+        --control-accent: #5b8fd6;
+        --control-disabled-bg: #26344d;
+        --control-disabled-fg: #97a3b5;
+        --focus-ring: #9ec5ff;
+        --control-focus-fg: #7cc4f0;
+        --control-focus-bg: rgba(0, 124, 191, 0.28);
+        --panel-bg: rgba(17, 27, 46, 0.92);
+        --panel-bg-strong: rgba(17, 27, 46, 0.97);
+        --panel-fg: #e8eef7;
+        --panel-fg-muted: rgba(232, 238, 247, 0.62);
+        --panel-fg-faint: rgba(232, 238, 247, 0.4);
+        --panel-line: rgba(255, 255, 255, 0.16);
+        --panel-hover: rgba(255, 255, 255, 0.1);
+        --panel-shadow: rgba(0, 0, 0, 0.5);
+        --chat-surface: rgba(255, 255, 255, 0.07);
+        --chat-surface-soft: rgba(255, 255, 255, 0.04);
+        --chat-fg: #e2e8f0;
+        --chat-code-bg: rgba(0, 0, 0, 0.35);
+        --chat-tool-bg: rgba(255, 255, 255, 0.05);
+        --chat-thinking-bg: rgba(56, 120, 160, 0.25);
+        --chat-thinking-fg: #bfdbfe;
+        --chat-input-bg: rgba(255, 255, 255, 0.08);
+        --chat-input-bg-focus: rgba(255, 255, 255, 0.14);
+        --danger-fg: #ff8a80;
+    --map-void-bg: #0c1424;
+        --map-void-pattern: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='110.9' height='192.0' viewBox='0 0 110.9 192.0'><g fill='none' stroke='%238fa8c8' stroke-opacity='0.055' stroke-width='1'><path d='M0.0,-64.0 L55.4,-32.0 L55.4,32.0 L0.0,64.0 L-55.4,32.0 L-55.4,-32.0 Z'/><path d='M110.9,-64.0 L166.3,-32.0 L166.3,32.0 L110.9,64.0 L55.4,32.0 L55.4,-32.0 Z'/><path d='M0.0,128.0 L55.4,160.0 L55.4,224.0 L0.0,256.0 L-55.4,224.0 L-55.4,160.0 Z'/><path d='M110.9,128.0 L166.3,160.0 L166.3,224.0 L110.9,256.0 L55.4,224.0 L55.4,160.0 Z'/><path d='M55.4,32.0 L110.9,64.0 L110.9,128.0 L55.4,160.0 L-0.0,128.0 L0.0,64.0 Z'/></g></svg>");
+    }
+}
+
 body {
     margin: 0;
     padding: 0;
+    /* 0 unless app-header.js enables the band, so every `top` below is
+       written the same way whether or not there is a header. */
+    --app-header-h: 0px;
+}
+
+/* app-header.js sets --app-header-base-h; the device's top inset is added
+   here so notched phones and any browser UI that eats into the viewport get
+   real clearance instead of the first row of controls hugging the edge.
+   Everything below the band reads --app-header-h and ignores the split. */
+body.has-app-header {
+    --app-header-h: calc(var(--app-header-base-h, 64px) + env(safe-area-inset-top, 0px));
 }
 
 #map {
@@ -34,6 +214,296 @@ body {
     top: 0;
     bottom: 0;
     width: 100%;
+    /* Shows wherever no tile covers the canvas — most visibly the space
+       around the globe in globe projection, which was previously bare white.
+       The hex tile is a quiet nod to the H3 grid the analytics are built on;
+       it is meant to read as texture, not as data, so it stays low-contrast
+       and is themed alongside the rest of the chrome. */
+    background-color: var(--map-void-bg);
+    background-image: var(--map-void-pattern);
+    background-repeat: repeat;
+}
+
+/* ── App header ──────────────────────────────────────────────────────────
+   App chrome: identity and navigation. Map-scoped controls do NOT go here —
+   they belong in #map-overlay-rail. See app/app-header.js and #363.
+
+   Two modes on one component. `scrim` (default) floats over a full-bleed
+   map, so the header costs no map area; `solid` is opaque and the map starts
+   below it. Everything that needs to sit under the band reads
+   --app-header-h, which is 0px when there is no header. */
+#app-header {
+    position: fixed;
+    z-index: var(--z-app-header);
+    top: 0;
+    left: 0;
+    right: 0;
+    height: var(--app-header-h);
+    /* Keep the contents out of the inset; the band itself still spans it, so
+       the background reaches the very top of the viewport. */
+    padding-top: env(safe-area-inset-top, 0px);
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 0 16px;
+    font-family: 'Open Sans', sans-serif;
+    background: var(--chrome-bg);
+    color: var(--chrome-fg);
+}
+
+/* Scrim: a gradient, not a flat tint, so map detail stays readable at the
+   very top of the viewport while the text above it keeps its contrast.
+   Deliberately always dark-on-map regardless of theme — a light scrim over
+   satellite imagery is unreadable. */
+#app-header[data-mode="scrim"] {
+    background: linear-gradient(to bottom,
+        rgba(16, 20, 24, 0.78) 0%,
+        rgba(16, 20, 24, 0.55) 60%,
+        rgba(16, 20, 24, 0) 100%);
+    color: #f1f5f9;
+    border-bottom: none;
+    /* The band spans the viewport but is mostly empty; let clicks through it
+       reach the map, while the controls themselves stay interactive. */
+    pointer-events: none;
+}
+
+#app-header[data-mode="scrim"] > * {
+    pointer-events: auto;
+}
+
+/* Neither the edge nor the shadow is set here — both live on ::after so
+   they stop at the sidebar. A border-bottom across the full width would
+   draw a line through the join, which is the one place header and sidebar
+   should read as a single surface rather than two stacked ones. */
+
+/* The edge and shadow the header casts onto the map.
+   Header and sidebar are one continuous chrome surface, so anything drawn
+   across the sidebar's top edge — a border or a shadow — cuts a seam
+   through the middle of it. Carrying both on a pseudo-element lets them
+   stop where the sidebar starts: over the map the bar reads as raised and
+   separated from the basemap, and against the sidebar the two join with no
+   line at all. --sidebar-width is updated live during a drag, so the inset
+   tracks a resize without any JS.
+
+   border-top sits on the pseudo-element's top edge, which is the header's
+   bottom edge, so it lands exactly where a border-bottom would have. */
+#app-header[data-mode="solid"]::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: var(--chrome-shadow-inset, 0px);
+    height: 10px;
+    pointer-events: none;
+    border-top: 1px solid var(--chrome-line);
+    background: linear-gradient(to bottom,
+        var(--chrome-shadow) 0%,
+        rgba(0, 0, 0, 0) 100%);
+}
+
+body.sidebar-mode {
+    --chrome-shadow-inset: var(--sidebar-width, 0px);
+}
+
+/* Collapsed, the sidebar is off-screen and the map runs full width again. */
+body.sidebar-mode.sidebar-collapsed {
+    --chrome-shadow-inset: 0px;
+}
+
+/* Only the solid band takes space from the map; the scrim overlays it. */
+body.has-app-header.app-header-solid #map {
+    top: var(--app-header-h);
+}
+
+/* The sidebar always starts below the band — sliding it under a scrim would
+   put chrome over its own header. */
+body.has-app-header #sidebar,
+body.has-app-header #sidebar-show-btn {
+    top: var(--app-header-h);
+}
+
+/* Anything else anchored to the top of the viewport has to clear the band
+   too, or it lands underneath it. The floating-mode layer panel is measured
+   from the viewport, so it needs the full offset... */
+body.has-app-header #menu {
+    top: calc(var(--app-header-h) + 10px);
+}
+
+/* ...whereas MapLibre's own controls are measured from #map, which already
+   starts below a solid band. Only the scrim case needs the nudge. */
+body.has-app-header:not(.app-header-solid) .maplibregl-ctrl-top-left,
+body.has-app-header:not(.app-header-solid) .maplibregl-ctrl-top-right {
+    margin-top: var(--app-header-h);
+}
+
+.app-header-brand,
+.app-header-end {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    min-width: 0;
+}
+
+.app-header-logo {
+    display: block;
+    height: 28px;
+    width: auto;
+    max-width: 180px;
+    object-fit: contain;
+}
+
+.app-header-logo--partner,
+.app-header-logo--institution {
+    height: 24px;
+}
+
+/* The partner slot holds its width even when empty, so the institution mark
+   lands in the same place across the fleet whether or not an app has a
+   partner. Without it the header visibly reflows app to app. */
+.app-header-partner-slot {
+    display: flex;
+    align-items: center;
+    flex: 0 0 auto;
+    min-width: 64px;
+    min-height: 24px;
+}
+
+/* At phone width the reserved gap is dead space that pushes the marks off
+   screen, so it collapses; the logos still order the same way. */
+@media (max-width: 700px) {
+    .app-header-partner-slot:empty {
+        display: none;
+    }
+}
+
+.app-header-logo-link {
+    display: flex;
+    align-items: center;
+}
+
+.app-header-title {
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: 0.2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+#app-header-nav {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+/* Nav links carry an icon beside the label, not instead of it. */
+.app-header-link,
+.app-header-menu-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.app-header-link-icon {
+    display: inline-flex;
+    flex: 0 0 auto;
+}
+
+.app-header-link {
+    padding: 6px 10px;
+    border-radius: 4px;
+    font-size: 13px;
+    color: inherit;
+    opacity: 0.85;
+    text-decoration: none;
+    white-space: nowrap;
+    transition: color 120ms ease, background 120ms ease;
+}
+
+.app-header-link:hover {
+    opacity: 1;
+    background: var(--chrome-hover);
+}
+
+
+/* ── Header menu button + takeover (narrow viewports) ────────────────────
+   Hidden above the breakpoint. Below it the nav row is replaced rather than
+   compressed — see #app-header-menu. */
+#app-header-menu-btn {
+    display: none;
+    flex-direction: column;
+    justify-content: center;
+    gap: 4px;
+    width: 36px;
+    height: 36px;
+    padding: 0 7px;
+    background: none;
+    border: none;
+    cursor: pointer;
+}
+
+#app-header-menu-btn span {
+    display: block;
+    height: 2px;
+    background: currentColor;
+    border-radius: 1px;
+}
+
+#app-header-menu {
+    position: fixed;
+    z-index: var(--z-mobile-takeover);
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    padding: calc(16px + env(safe-area-inset-top, 0px)) 16px 16px;
+    background: var(--chrome-bg);
+    color: var(--chrome-fg);
+}
+
+#app-header-menu[hidden] {
+    display: none;
+}
+
+.app-header-menu-close {
+    align-self: flex-end;
+    width: 40px;
+    height: 40px;
+    font-size: 20px;
+    line-height: 1;
+    background: none;
+    border: none;
+    color: inherit;
+    cursor: pointer;
+}
+
+#app-header-menu nav {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-top: 8px;
+}
+
+.app-header-menu-link {
+    padding: 14px 8px;
+    font-size: 17px;
+    color: inherit;
+    text-decoration: none;
+    border-bottom: 1px solid var(--chrome-line);
+}
+
+@media (max-width: 700px) {
+    #app-header-nav {
+        display: none;
+    }
+    #app-header-menu-btn {
+        display: flex;
+    }
+    /* The title is the first thing to go; the logos carry identity. */
+    .app-header-title {
+        display: none;
+    }
 }
 
 /* ── Map overlay rail ────────────────────────────────────────────────────
@@ -72,7 +542,7 @@ body {
 }
 
 #menu {
-    background: rgba(255, 255, 255, 0) !important;
+    background: var(--panel-bg) !important;
     -webkit-backdrop-filter: blur(10px);
     backdrop-filter: blur(10px);
     position: absolute;
@@ -81,10 +551,10 @@ body {
     right: 10px;
     border-radius: 5px;
     min-width: 160px;
-    border: 1px solid rgba(0, 0, 0, 0.2);
+    border: 1px solid var(--panel-line);
     font-family: 'Open Sans', sans-serif;
     padding: 12px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 2px 4px var(--panel-shadow);
 }
 
 .menu-section {
@@ -106,24 +576,22 @@ body {
     padding: 5px 6px;
     font-size: 11px;
     font-weight: 500;
-    border: 1px solid rgba(255,255,255,0.2);
+    border: 1px solid var(--control-border);
     border-radius: 4px;
-    background: rgba(255,255,255,0.06);
-    color: rgba(0,0,0,0.75);
+    background: var(--control-bg);
+    color: var(--control-fg);
     cursor: pointer;
     transition: background 0.15s, color 0.15s, border-color 0.15s;
     white-space: nowrap;
 }
 
 .basemap-btn:hover {
-    background: rgba(255,255,255,0.14);
-    color: #000;
+    background: var(--control-bg-hover);
 }
 
 .basemap-btn.active {
-    background: rgba(134,194,116,0.35);
-    border-color: #86C274;
-    color: #000;
+    background: var(--control-active-bg);
+    border-color: var(--control-active-border);
     font-weight: 600;
 }
 
@@ -134,26 +602,12 @@ body {
 }
 
 .globe-btn {
-    background: none;
-    border: none;
-    padding: 2px 3px;
-    cursor: pointer;
-    color: rgba(0,0,0,0.2);
-    border-radius: 3px;
-    line-height: 1;
-    transition: color 0.15s, background 0.15s;
-    display: flex;
-    align-items: center;
+    gap: 5px;
 }
 
-.globe-btn:hover {
-    color: rgba(0,0,0,0.55);
-}
 
-.globe-btn.active {
-    color: #000;
-    background: rgba(134,194,116,0.35);
-}
+
+
 
 .menu-header {
     display: flex;
@@ -166,7 +620,7 @@ body {
     display: block;
     font-size: 11px;
     font-weight: 600;
-    color: #666;
+    color: var(--panel-fg-muted);
     text-transform: uppercase;
     letter-spacing: 0.5px;
 }
@@ -176,27 +630,27 @@ body {
     border: none;
     font-size: 18px;
     cursor: pointer;
-    color: #666;
+    color: var(--panel-fg-muted);
     padding: 0 2px;
     line-height: 1;
 }
 
 #menu-toggle:hover {
-    color: #333;
+    color: var(--panel-fg);
 }
 
 .menu-header-btn {
     background: none;
     border: none;
     cursor: pointer;
-    color: #666;
+    color: var(--panel-fg-muted);
     padding: 0 4px;
     line-height: 1;
     display: flex;
     align-items: center;
 }
 .menu-header-btn:hover:not(:disabled) {
-    color: #333;
+    color: var(--panel-fg);
 }
 .menu-header-btn:disabled {
     opacity: 0.35;
@@ -222,7 +676,7 @@ body {
     display: flex;
     align-items: center;
     font-size: 13px;
-    color: #404040;
+    color: var(--panel-fg);
     margin-bottom: 6px;
     cursor: pointer;
 }
@@ -259,7 +713,7 @@ body {
 .layer-group-title {
     font-size: 11px;
     font-weight: 600;
-    color: #666;
+    color: var(--panel-fg-muted);
     text-transform: uppercase;
     letter-spacing: 0.5px;
     cursor: pointer;
@@ -275,7 +729,7 @@ body {
 .layer-group-title::before {
     content: '▾ ';
     font-size: 10px;
-    color: #999;
+    color: var(--panel-fg-faint);
 }
 
 details.layer-group:not([open]) .layer-group-title::before {
@@ -316,45 +770,92 @@ details.layer-group:not([open]) .layer-group-title::before {
     background: transparent;
     border: none;
     border-radius: 3px;
-    color: #808080;
+    color: var(--panel-fg-muted);
     cursor: pointer;
 }
 
 .layer-remove-btn:hover {
-    background: rgba(0, 0, 0, 0.08);
-    color: #c0392b;
+    background: var(--panel-hover);
+    color: var(--danger-fg);
 }
 
 .layer-toggle {
     display: flex;
     align-items: center;
     font-size: 13px;
-    color: #404040;
+    color: var(--panel-fg);
     cursor: pointer;
 }
 
 /* Uploaded-GeoJSON control (opt-in — see upload-manager.js) */
-.upload-btn {
-    display: block;
-    width: 100%;
-    margin: 4px 0 6px;
-    padding: 5px 8px;
-    font-size: 12px;
-    color: #404040;
-    background: rgba(0, 0, 0, 0.03);
-    border: 1px dashed rgba(0, 0, 0, 0.25);
-    border-radius: 4px;
-    cursor: pointer;
+/* Row of panel-level actions (Upload, Save) under the layer list. They sit
+   side by side and size to their content rather than each spanning the
+   panel — a full-width button reads as a section, not a control. */
+.panel-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 8px 0 6px;
 }
 
-.upload-btn:hover {
-    background: rgba(0, 0, 0, 0.06);
-    border-color: rgba(0, 0, 0, 0.4);
+/* One button. Everything that is clickable in a panel — basemap, globe,
+   send-back, upload, export — uses this, so a row of them reads as a set.
+   Solid fill rather than an outline: a translucent control picks up whatever
+   is behind it, which is what made these look inconsistent. */
+.upload-btn,
+.panel-btn,
+.basemap-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    padding: 5px 10px;
+    font-size: 12px;
+    font-family: inherit;
+    color: var(--control-fg);
+    background: var(--control-bg);
+    border: 1px solid var(--control-border);
+    border-radius: 4px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.15s, opacity 0.15s;
+}
+
+/* Selected — the current basemap, globe mode on. */
+.basemap-btn.active,
+.panel-btn.active {
+    background: var(--control-active-bg);
+    border-color: var(--control-active-border);
+}
+
+/* Checkboxes and range sliders (the layer toggles and the year slider) take
+   the same blue, so the whole panel agrees. */
+#layer-controls-container input[type="checkbox"],
+.checkbox-group input[type="checkbox"],
+.rc-slider,
+.anim-controls input[type="range"] {
+    accent-color: var(--control-accent);
+}
+
+
+/* Disabled keeps full opacity and swaps colours instead: fading the whole
+   element also faded the label against its own fill, leaving it at ~2:1. */
+.panel-btn:disabled,
+.upload-btn:disabled {
+    background: var(--control-disabled-bg);
+    color: var(--control-disabled-fg);
+    cursor: not-allowed;
+}
+
+.upload-btn:hover,
+.basemap-btn:hover,
+.panel-btn:not(:disabled):hover {
+    background: var(--control-bg-hover);
 }
 
 .upload-status {
     font-size: 11px;
-    color: #606060;
+    color: var(--panel-fg-muted);
     margin: 0 0 6px;
     min-height: 0;
     line-height: 1.35;
@@ -365,7 +866,7 @@ details.layer-group:not([open]) .layer-group-title::before {
 }
 
 .upload-status.is-error {
-    color: #c0392b;
+    color: var(--danger-fg);
 }
 
 .upload-dragover {
@@ -384,49 +885,49 @@ details.layer-group:not([open]) .layer-group-title::before {
     margin: 4px 0 0 22px;
     font-size: 12px;
     padding: 2px 6px;
-    background: rgba(255, 255, 255, 0.1);
+    background: var(--control-bg);
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
-    border: 1px solid rgba(0, 0, 0, 0.2);
+    border: 1px solid var(--panel-line);
     border-radius: 3px;
-    color: #404040;
+    color: var(--panel-fg);
     cursor: pointer;
     max-width: 200px;
 }
 
 .version-select option {
-    background: rgba(255, 255, 255, 0.95);
-    color: #404040;
+    background: var(--panel-bg-strong);
+    color: var(--panel-fg);
 }
 
 /* Glass effect for species richness dropdown */
 #species-taxon {
-    background: rgba(255, 255, 255, 0.1) !important;
+    background: var(--control-bg) !important;
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
-    border: 1px solid rgba(0, 0, 0, 0.2);
+    border: 1px solid var(--panel-line);
     border-radius: 3px;
-    color: #404040;
+    color: var(--panel-fg);
     padding: 4px 8px;
     cursor: pointer;
 }
 
 #species-taxon option {
-    background: rgba(255, 255, 255, 0.95);
-    color: #404040;
+    background: var(--panel-bg-strong);
+    color: var(--panel-fg);
 }
 
 /* Legend styles */
 #legend {
-    background: rgba(255, 255, 255, 0) !important;
+    background: var(--panel-bg) !important;
     -webkit-backdrop-filter: blur(10px);
     backdrop-filter: blur(10px);
     border-radius: 5px;
     max-width: 280px;
     max-height: 80vh;
-    border: 1px solid rgba(0, 0, 0, 0.2);
+    border: 1px solid var(--panel-line);
     font-family: 'Open Sans', sans-serif;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 2px 4px var(--panel-shadow);
     overflow: hidden;
 }
 
@@ -435,15 +936,15 @@ details.layer-group:not([open]) .layer-group-title::before {
     justify-content: space-between;
     align-items: center;
     padding: 10px 15px;
-    background: rgba(248, 249, 250, 0);
-    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+    background: transparent;
+    border-bottom: 1px solid var(--panel-line);
 }
 
 #legend-header h3 {
     margin: 0;
     font-size: 14px;
     font-weight: 600;
-    color: #333;
+    color: var(--panel-fg);
 }
 
 #legend-toggle {
@@ -451,7 +952,7 @@ details.layer-group:not([open]) .layer-group-title::before {
     border: none;
     font-size: 20px;
     font-weight: bold;
-    color: #666;
+    color: var(--panel-fg-muted);
     cursor: pointer;
     padding: 0;
     width: 24px;
@@ -464,7 +965,7 @@ details.layer-group:not([open]) .layer-group-title::before {
 }
 
 #legend-toggle:hover {
-    background-color: rgba(0, 0, 0, 0.1);
+    background-color: var(--panel-hover);
 }
 
 #legend-content {
@@ -489,7 +990,7 @@ details.layer-group:not([open]) .layer-group-title::before {
     margin: 0 0 8px 0;
     font-size: 12px;
     font-weight: 600;
-    color: #555;
+    color: var(--panel-fg-muted);
     text-transform: uppercase;
     letter-spacing: 0.5px;
 }
@@ -509,7 +1010,7 @@ details.layer-group:not([open]) .layer-group-title::before {
     margin: 0 0 8px 0;
     font-size: 12px;
     font-weight: 600;
-    color: #555;
+    color: var(--panel-fg-muted);
     text-transform: uppercase;
     letter-spacing: 0.5px;
 }
@@ -526,7 +1027,7 @@ details.layer-group:not([open]) .layer-group-title::before {
 .legend-group .legend-section h4 {
     font-size: 11px;
     font-weight: 500;
-    color: #666;
+    color: var(--panel-fg-muted);
     text-transform: none;
     letter-spacing: 0;
 }
@@ -535,21 +1036,21 @@ details.layer-group:not([open]) .layer-group-title::before {
     height: 12px;
     border-radius: 2px;
     margin: 4px 0 2px;
-    border: 1px solid rgba(0,0,0,0.1);
+    border: 1px solid var(--panel-line);
 }
 
 .legend-labels {
     display: flex;
     justify-content: space-between;
     font-size: 10px;
-    color: #666;
+    color: var(--panel-fg-muted);
     margin-bottom: 4px;
 }
 
 /* Hex legend: which H3 resolution the shown value range applies to. */
 .legend-hex-res {
     font-size: 10px;
-    color: #999;
+    color: var(--panel-fg-faint);
     font-style: italic;
 }
 
@@ -557,7 +1058,7 @@ details.layer-group:not([open]) .layer-group-title::before {
     display: flex;
     align-items: center;
     font-size: 11px;
-    color: #333;
+    color: var(--panel-fg);
     margin-bottom: 5px;
     line-height: 1.3;
 }
@@ -572,7 +1073,7 @@ details.layer-group:not([open]) .layer-group-title::before {
     height: 18px;
     margin-right: 8px;
     border-radius: 2px;
-    border: 1px solid rgba(0, 0, 0, 0.2);
+    border: 1px solid var(--panel-line);
     flex-shrink: 0;
 }
 
@@ -582,17 +1083,17 @@ details.layer-group:not([open]) .layer-group-title::before {
 }
 
 #legend-content::-webkit-scrollbar-track {
-    background: #f1f1f1;
+    background: transparent;
     border-radius: 3px;
 }
 
 #legend-content::-webkit-scrollbar-thumb {
-    background: #888;
+    background: var(--panel-line);
     border-radius: 3px;
 }
 
 #legend-content::-webkit-scrollbar-thumb:hover {
-    background: #555;
+    background: var(--panel-fg-muted);
 }
 
 /* H3 hex grid toggle */
@@ -600,14 +1101,14 @@ details.layer-group:not([open]) .layer-group-title::before {
     width: 32px;
     height: 32px;
     border-radius: 6px;
-    border: 1px solid rgba(0, 0, 0, 0.15);
-    background: rgba(255, 255, 255, 0.75);
+    border: 1px solid var(--panel-line);
+    background: var(--panel-bg);
     -webkit-backdrop-filter: blur(10px);
     backdrop-filter: blur(10px);
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+    box-shadow: 0 1px 3px var(--panel-shadow);
     font-size: 18px;
     line-height: 1;
-    color: #888;
+    color: var(--panel-fg-muted);
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -617,14 +1118,14 @@ details.layer-group:not([open]) .layer-group-title::before {
 }
 
 #h3-toggle:hover {
-    background: rgba(255, 255, 255, 0.9);
-    color: #555;
+    background: var(--panel-bg-strong);
+    color: var(--panel-fg-muted);
 }
 
 #h3-toggle.active {
-    background: rgba(0, 124, 191, 0.12);
-    color: #007cbf;
-    border-color: rgba(0, 124, 191, 0.35);
+    background: var(--control-focus-bg);
+    color: var(--control-focus-fg);
+    border-color: var(--control-focus-fg);
 }
 
 /* Hover tooltip */
@@ -632,16 +1133,16 @@ details.layer-group:not([open]) .layer-group-title::before {
     display: none;
     position: fixed;
     z-index: var(--z-tooltip);
-    background: rgba(255, 255, 255, 0.95);
+    background: var(--panel-bg-strong);
     -webkit-backdrop-filter: blur(4px);
     backdrop-filter: blur(4px);
-    border: 1px solid rgba(0, 0, 0, 0.2);
+    border: 1px solid var(--panel-line);
     border-radius: 4px;
     padding: 8px 10px;
     font-family: 'Open Sans', sans-serif;
     font-size: 12px;
-    color: #333;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+    color: var(--panel-fg);
+    box-shadow: 0 2px 6px var(--panel-shadow);
     pointer-events: none;
     max-width: 260px;
 }
@@ -653,14 +1154,14 @@ details.layer-group:not([open]) .layer-group-title::before {
 
 .map-tooltip th {
     font-weight: 600;
-    color: #666;
+    color: var(--panel-fg-muted);
     text-align: left;
     padding: 2px 10px 2px 0;
     white-space: nowrap;
 }
 
 .map-tooltip td {
-    color: #333;
+    color: var(--panel-fg);
     padding: 2px 0;
     word-break: break-word;
 }
@@ -668,13 +1169,13 @@ details.layer-group:not([open]) .layer-group-title::before {
 #h3-res-badge {
     font-family: 'Open Sans', sans-serif;
     font-size: 10px;
-    color: #555;
-    background: rgba(255, 255, 255, 0.75);
+    color: var(--panel-fg-muted);
+    background: var(--panel-bg);
     -webkit-backdrop-filter: blur(10px);
     backdrop-filter: blur(10px);
     padding: 2px 7px;
     border-radius: 4px;
-    border: 1px solid rgba(0, 0, 0, 0.1);
+    border: 1px solid var(--panel-line);
     pointer-events: none;
 }
 
@@ -689,17 +1190,17 @@ details.layer-group:not([open]) .layer-group-title::before {
     border: none;
     background: none;
     cursor: pointer;
-    color: #333;
+    color: var(--panel-fg);
     border-radius: 4px;
 }
 
 #draw-toggle:hover {
-    background: rgba(0, 0, 0, 0.05);
+    background: var(--panel-hover);
 }
 
 #draw-toggle.active {
-    color: #3b82f6;
-    background: rgba(59, 130, 246, 0.1);
+    color: var(--control-focus-fg);
+    background: var(--control-focus-bg);
 }
 
 /* Animated trajectory layer controls */
@@ -708,15 +1209,15 @@ details.layer-group:not([open]) .layer-group-title::before {
     align-items: center;
     gap: 8px;
     padding: 6px 10px;
-    background: rgba(255, 255, 255, 0.92);
+    background: var(--panel-bg);
     backdrop-filter: blur(6px);
     -webkit-backdrop-filter: blur(6px);
-    border: 1px solid rgba(0, 0, 0, 0.15);
+    border: 1px solid var(--panel-line);
     border-radius: 6px;
     font-family: 'Open Sans', sans-serif;
     font-size: 12px;
-    color: #222;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+    color: var(--panel-fg);
+    box-shadow: 0 2px 4px var(--panel-shadow);
 }
 
 .anim-controls .anim-label {
@@ -728,8 +1229,8 @@ details.layer-group:not([open]) .layer-group-title::before {
 }
 
 .anim-controls .anim-play {
-    border: 1px solid rgba(0, 0, 0, 0.2);
-    background: #fff;
+    border: 1px solid var(--panel-line);
+    background: var(--control-bg);
     border-radius: 4px;
     width: 26px;
     height: 26px;
@@ -739,21 +1240,21 @@ details.layer-group:not([open]) .layer-group-title::before {
 }
 
 .anim-controls .anim-play:hover {
-    background: #f5f5f5;
+    background: var(--control-bg-hover);
 }
 
 .anim-controls .anim-time {
     font-variant-numeric: tabular-nums;
     min-width: 120px;
-    color: #555;
+    color: var(--panel-fg-muted);
 }
 
 .anim-controls .anim-speed,
 .anim-controls .anim-mode {
-    border: 1px solid rgba(0, 0, 0, 0.2);
+    border: 1px solid var(--panel-line);
     border-radius: 4px;
     padding: 2px 4px;
-    background: #fff;
+    background: var(--control-bg);
     font-size: 12px;
 }
 
@@ -765,15 +1266,15 @@ details.layer-group:not([open]) .layer-group-title::before {
     align-items: center;
     gap: 8px;
     padding: 6px 10px;
-    background: rgba(255, 255, 255, 0.92);
+    background: var(--panel-bg);
     backdrop-filter: blur(6px);
     -webkit-backdrop-filter: blur(6px);
-    border: 1px solid rgba(0, 0, 0, 0.15);
+    border: 1px solid var(--panel-line);
     border-radius: 6px;
     font-family: 'Open Sans', sans-serif;
     font-size: 12px;
-    color: #222;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+    color: var(--panel-fg);
+    box-shadow: 0 2px 4px var(--panel-shadow);
 }
 
 .reactive-controls .rc-label {
@@ -785,8 +1286,8 @@ details.layer-group:not([open]) .layer-group-title::before {
 }
 
 .reactive-controls .rc-play {
-    border: 1px solid rgba(0, 0, 0, 0.2);
-    background: #fff;
+    border: 1px solid var(--panel-line);
+    background: var(--control-bg);
     border-radius: 4px;
     width: 26px;
     height: 26px;
@@ -796,7 +1297,7 @@ details.layer-group:not([open]) .layer-group-title::before {
 }
 
 .reactive-controls .rc-play:hover {
-    background: #f5f5f5;
+    background: var(--control-bg-hover);
 }
 
 .reactive-controls .rc-slider {
@@ -808,7 +1309,7 @@ details.layer-group:not([open]) .layer-group-title::before {
     font-variant-numeric: tabular-nums;
     min-width: 48px;
     text-align: right;
-    color: #555;
+    color: var(--panel-fg-muted);
 }
 
 /* ── Chart panels (opt-in charting primitive, #277) ──────────────────────
@@ -832,12 +1333,12 @@ details.layer-group:not([open]) .layer-group-title::before {
     max-height: 92vh;
     display: flex;
     flex-direction: column;
-    background: rgba(255, 255, 255, 0.97);
+    background: var(--panel-bg-strong);
     backdrop-filter: blur(6px);
     -webkit-backdrop-filter: blur(6px);
-    border: 1px solid rgba(0, 0, 0, 0.15);
+    border: 1px solid var(--panel-line);
     border-radius: 8px;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 4px 16px var(--panel-shadow);
     font-family: 'Open Sans', sans-serif;
     overflow: hidden;
 }
@@ -865,13 +1366,13 @@ details.layer-group:not([open]) .layer-group-title::before {
     z-index: 1;   /* local to .chart-panel's stacking context */
     cursor: nwse-resize;
     background:
-        linear-gradient(-45deg, transparent 0 4px, rgba(0, 0, 0, 0.28) 4px 5px, transparent 5px 8px, rgba(0, 0, 0, 0.28) 8px 9px, transparent 9px) top left / 12px 12px no-repeat;
+        linear-gradient(-45deg, transparent 0 4px, var(--panel-fg-faint) 4px 5px, transparent 5px 8px, var(--panel-fg-faint) 8px 9px, transparent 9px) top left / 12px 12px no-repeat;
     border-top-left-radius: 8px;
 }
 
 .chart-panel-resize:hover {
     background:
-        linear-gradient(-45deg, transparent 0 4px, rgba(0, 0, 0, 0.5) 4px 5px, transparent 5px 8px, rgba(0, 0, 0, 0.5) 8px 9px, transparent 9px) top left / 12px 12px no-repeat;
+        linear-gradient(-45deg, transparent 0 4px, var(--panel-fg-muted) 4px 5px, transparent 5px 8px, var(--panel-fg-muted) 8px 9px, transparent 9px) top left / 12px 12px no-repeat;
 }
 
 /* Popped-out is center-anchored via a transform, so the bottom-right pin the
@@ -887,7 +1388,7 @@ details.layer-group:not([open]) .layer-group-title::before {
     gap: 8px;
     /* extra left padding clears the top-left resize grip */
     padding: 8px 12px 8px 22px;
-    border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+    border-bottom: 1px solid var(--panel-line);
 }
 
 .chart-panel-title {
@@ -895,7 +1396,7 @@ details.layer-group:not([open]) .layer-group-title::before {
     min-width: 0;
     font-weight: 600;
     font-size: 13px;
-    color: #222;
+    color: var(--panel-fg);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -908,7 +1409,7 @@ details.layer-group:not([open]) .layer-group-title::before {
     cursor: pointer;
     font-size: 14px;
     line-height: 1;
-    color: #666;
+    color: var(--panel-fg-muted);
     padding: 2px 4px;
     border-radius: 4px;
 }
@@ -919,8 +1420,8 @@ details.layer-group:not([open]) .layer-group-title::before {
 
 .chart-panel-close:hover,
 .chart-panel-pop:hover {
-    background: rgba(0, 0, 0, 0.08);
-    color: #000;
+    background: var(--panel-hover);
+    color: var(--panel-fg);
 }
 
 .chart-panel-body {
@@ -940,22 +1441,22 @@ details.layer-group:not([open]) .layer-group-title::before {
    maplibregl- and mapboxgl- class prefixes the control emits. */
 .maplibregl-ctrl-geocoder,
 .mapboxgl-ctrl-geocoder {
-    background: rgba(255, 255, 255, 0.15) !important;
+    background: var(--panel-bg) !important;
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
-    border: 1px solid rgba(0, 0, 0, 0.18);
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+    border: 1px solid var(--panel-line);
+    box-shadow: 0 2px 6px var(--panel-shadow);
     border-radius: 10px;
 }
 
 .maplibregl-ctrl-geocoder input,
 .mapboxgl-ctrl-geocoder input {
-    color: #2b2b2b;
+    color: var(--panel-fg);
 }
 
 .maplibregl-ctrl-geocoder input::placeholder,
 .mapboxgl-ctrl-geocoder input::placeholder {
-    color: rgba(0, 0, 0, 0.5);
+    color: var(--panel-fg-muted);
 }
 
 /* Search / loading / close icons */
@@ -967,25 +1468,25 @@ details.layer-group:not([open]) .layer-group-title::before {
 /* Suggestions dropdown — lighter, more opaque frosted glass for list legibility */
 .maplibregl-ctrl-geocoder .suggestions,
 .mapboxgl-ctrl-geocoder .suggestions {
-    background: rgba(255, 255, 255, 0.85) !important;
+    background: var(--panel-bg-strong) !important;
     backdrop-filter: blur(14px);
     -webkit-backdrop-filter: blur(14px);
-    border: 1px solid rgba(0, 0, 0, 0.15);
+    border: 1px solid var(--panel-line);
     border-radius: 10px;
     overflow: hidden;
 }
 
 .maplibregl-ctrl-geocoder .suggestions > li > a,
 .mapboxgl-ctrl-geocoder .suggestions > li > a {
-    color: #333;
+    color: var(--panel-fg);
 }
 
 .maplibregl-ctrl-geocoder .suggestions > .active > a,
 .maplibregl-ctrl-geocoder .suggestions > li > a:hover,
 .mapboxgl-ctrl-geocoder .suggestions > .active > a,
 .mapboxgl-ctrl-geocoder .suggestions > li > a:hover {
-    background: rgba(0, 0, 0, 0.07);
-    color: #000;
+    background: var(--panel-hover);
+    color: var(--panel-fg);
 }
 
 /* ── Navigation control (zoom +/- and compass) ───────────────────────────
@@ -994,11 +1495,11 @@ details.layer-group:not([open]) .layer-group-title::before {
    the light glass and stay crisp (no invert / shadow blurring). */
 .maplibregl-ctrl-group,
 .mapboxgl-ctrl-group {
-    background: rgba(255, 255, 255, 0.15) !important;
+    background: var(--panel-bg) !important;
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
-    border: 1px solid rgba(0, 0, 0, 0.18);
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+    border: 1px solid var(--panel-line);
+    box-shadow: 0 2px 6px var(--panel-shadow);
     border-radius: 10px;
     overflow: hidden;
 }
@@ -1010,10 +1511,78 @@ details.layer-group:not([open]) .layer-group-title::before {
 
 .maplibregl-ctrl-group button + button,
 .mapboxgl-ctrl-group button + button {
-    border-top: 1px solid rgba(0, 0, 0, 0.12);
+    border-top: 1px solid var(--panel-line);
 }
 
 .maplibregl-ctrl-group button:hover,
 .mapboxgl-ctrl-group button:hover {
-    background: rgba(0, 0, 0, 0.06) !important;
+    background: var(--panel-hover) !important;
+}
+
+/* ── Theme-aware logo variants ───────────────────────────────────────────
+   A logo is an image, so it cannot follow the palette: a white-knockout mark
+   vanishes on a light bar and a black one vanishes on a dark bar. When a
+   config supplies `src_dark`, both are rendered and CSS shows one — chosen
+   here rather than in JS so `theme: auto` tracks the OS live. */
+.app-header-logo-pair {
+    display: flex;
+    align-items: center;
+}
+
+.app-header-logo--dark {
+    display: none;
+}
+
+body.theme-dark .app-header-logo--light {
+    display: none;
+}
+
+body.theme-dark .app-header-logo--dark {
+    display: block;
+}
+
+@media (prefers-color-scheme: dark) {
+    body.theme-auto .app-header-logo--light {
+        display: none;
+    }
+    body.theme-auto .app-header-logo--dark {
+        display: block;
+    }
+}
+
+
+/* ── Focus ───────────────────────────────────────────────────────────────
+   WCAG 2.4.7. One visible ring across the chrome, on :focus-visible so it
+   answers the keyboard without outlining every mouse click. Rendered with
+   box-shadow as well as outline so it stays visible against a fill of any
+   colour, including an app's own brand primary. */
+#app-header a:focus-visible,
+#app-header button:focus-visible,
+#app-header-menu a:focus-visible,
+#app-header-menu button:focus-visible,
+.panel-btn:focus-visible,
+.upload-btn:focus-visible,
+.basemap-btn:focus-visible,
+#menu button:focus-visible,
+#menu select:focus-visible,
+#menu input:focus-visible,
+#legend button:focus-visible,
+#map-overlay-rail button:focus-visible,
+#map-overlay-rail input:focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 2px;
+    border-radius: 4px;
+}
+
+/* Honour a reduced-motion preference: the transitions here are decorative,
+   and the trajectory/slider autoplay is motion the viewer did not start. */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
 }

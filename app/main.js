@@ -133,6 +133,8 @@ async function main() {
         const btn = document.createElement('button');
         btn.id = 'h3-toggle';
         btn.title = 'Toggle H3 hex grid';
+        btn.setAttribute('aria-label', 'Toggle H3 hex grid');
+        btn.setAttribute('aria-pressed', 'false');
         btn.innerHTML = '⬡';
         mountOverlay(btn, SLOT.HEX_TOGGLE);
 
@@ -145,6 +147,7 @@ async function main() {
         let h3Active = false;
         btn.addEventListener('click', () => {
             h3Active = !h3Active;
+            btn.setAttribute('aria-pressed', String(h3Active));
             if (h3Active) {
                 h3Layer.start();
                 btn.classList.add('active');

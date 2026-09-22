@@ -46,6 +46,45 @@ Nothing is pinned and no downstream app is involved — a preview serves that
 branch's `app/` directly, via relative imports, so pushing more commits and
 re-dispatching is the whole iteration loop.
 
+## Logos in the fixture
+
+All three header slots are filled with real marks, so spacing and truncation
+can be judged as a deployed app would show them:
+
+- **GLEN** and **DSE** come from `app/assets/` as library defaults, needing no
+  configuration. The GLEN one is a placeholder until a real mark exists.
+- **BOSL** (`bosl-logo.svg`, vendored from <https://bosl.ucsb.edu/>) fills the
+  partner slot, standing for a sister organisation. It is a self-contained
+  badge with its own dark background, so it needs no light/dark variant.
+
+## Editing the fixture
+
+`layers-input.json` here is a **fixed point of `json.dumps(..., indent=2)`**
+plus a trailing newline: format it and you get the same bytes back. So a
+programmatic edit produces a diff of only what changed.
+
+Round-tripping a file through a formatter it does not already match reformats
+it wholesale. One session turned a six-line addition into a 577-line diff that
+way. Nothing catches it — the tests still pass, and the churn only shows up in
+review, where it buries the actual change.
+
+**The settings are per file.** Check before editing, rather than assuming:
+
+```python
+raw = open(path).read()
+raw == json.dumps(json.load(open(path)), indent=N) + nl   # find the N and nl that hold
+```
+
+| File | Fixed point of |
+|---|---|
+| `preview/layers-input.json` | `indent=2`, trailing newline |
+| `preview/variants/*.json` | `indent=2`, trailing newline |
+| `app/layers-input.json` | **`indent=4`, no trailing newline** |
+
+`app/layers-input.json` is the one to be careful with: it is what downstream
+apps copy from, and reaching for `indent=2` out of habit rewrites all 66 lines
+of it.
+
 ## Variants
 
 `preview/variants/<name>.json` is a **shallow patch** over the base fixture,
@@ -57,6 +96,10 @@ duplicating the whole fixture, which would then drift out of sync.
 // preview/variants/light.json
 { "theme": "light" }
 ```
+
+`brand.json` is the same fixture under an invented house palette, to show that
+a downstream app can recolour from config alone. It is a made-up colour scheme,
+not anyone's real branding.
 
 Top-level keys in the patch replace those in the base; there is no deep merge,
 so patch whole blocks rather than individual nested fields.

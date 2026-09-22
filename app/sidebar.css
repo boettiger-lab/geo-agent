@@ -26,12 +26,12 @@ body.sidebar-mode #sidebar {
     right: 0;
     bottom: 0;
     width: var(--sidebar-width, 420px);
-    background: #f8f9fa;
-    color: #1a1a2e;
+    background: var(--chrome-bg);
+    color: var(--chrome-fg);
     display: flex;
     flex-direction: column;
     z-index: var(--z-sidebar, 30);
-    box-shadow: -2px 0 6px rgba(0, 0, 0, 0.12);
+    box-shadow: -2px 0 6px var(--chrome-shadow);
     transition: transform 200ms ease;
     /* Sidebar chat uses solid background — override any glass blur coming
      * from chat.css that assumes a translucent floating container. */
@@ -49,14 +49,14 @@ body.sidebar-mode .sidebar-resize-handle {
     width: 6px;
     cursor: col-resize;
     background: transparent;
-    border-left: 1px solid rgba(255, 255, 255, 0.08);
+    border-left: 1px solid var(--chrome-line);
     transition: border-color 120ms ease, background 120ms ease;
     z-index: 2;
 }
 
 body.sidebar-mode .sidebar-resize-handle:hover {
-    border-left-color: rgba(120, 170, 255, 0.8);
-    background: rgba(120, 170, 255, 0.08);
+    border-left-color: var(--chrome-accent);
+    background: var(--chrome-accent-wash);
 }
 
 /* ----- Header ------------------------------------------------------------ */
@@ -66,7 +66,7 @@ body.sidebar-mode #sidebar-header {
     align-items: center;
     justify-content: space-between;
     padding: 10px 12px;
-    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+    border-bottom: 1px solid var(--chrome-line);
     flex: 0 0 auto;
 }
 
@@ -88,12 +88,12 @@ body.sidebar-mode #sidebar-hide {
 }
 
 body.sidebar-mode #sidebar-hide:hover {
-    background: rgba(255, 255, 255, 0.08);
+    background: var(--chrome-hover);
 }
 
 /* ----- Layers pane ------------------------------------------------------- */
 
-body.sidebar-mode #sidebar-layers-pane {
+body.sidebar-mode:not(.sheet-mode) #sidebar-layers-pane {
     flex: 0 0 auto;
     max-height: 40%;
     overflow-y: auto;
@@ -103,23 +103,23 @@ body.sidebar-mode #sidebar-layers-pane {
 
 /* Once the user drags the splitter, switch to fixed-pixel sizing.
  * Skipped when either pane is collapsed (other rules below take over). */
-body.sidebar-mode.layers-pane-resized:not(.chat-collapsed)
+body.sidebar-mode.layers-pane-resized:not(.sheet-mode):not(.chat-collapsed)
     #sidebar-layers-pane:not(.collapsed) {
     flex: 0 0 var(--layers-pane-height, 200px);
     max-height: none;
 }
 
 /* When chat is collapsed, layers pane fills the available height. */
-body.sidebar-mode.chat-collapsed #sidebar-layers-pane {
+body.sidebar-mode.chat-collapsed:not(.sheet-mode) #sidebar-layers-pane {
     flex: 1 1 auto;
     max-height: none;
-    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+    border-bottom: 1px solid var(--chrome-line);
 }
 
 /* Layers pane keeps a visible divider when its own splitter is hidden
  * (which happens when the layers pane itself is collapsed). */
 body.sidebar-mode #sidebar-layers-pane.collapsed {
-    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+    border-bottom: 1px solid var(--chrome-line);
 }
 
 /* Collapse behavior — mirror the floating-mode #menu rules in style.css
@@ -142,15 +142,15 @@ body.sidebar-mode #sidebar-layers-pane:not(.collapsed) .menu-header {
 body.sidebar-mode .sidebar-splitter {
     flex: 0 0 5px;
     background: transparent;
-    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+    border-bottom: 1px solid var(--chrome-line);
     cursor: row-resize;
     transition: background 120ms ease, border-color 120ms ease;
     z-index: 1;
 }
 
 body.sidebar-mode .sidebar-splitter:hover {
-    background: rgba(120, 170, 255, 0.12);
-    border-bottom-color: rgba(120, 170, 255, 0.8);
+    background: var(--chrome-accent-wash);
+    border-bottom-color: var(--chrome-accent);
 }
 
 /* Hide the splitter when either side is fully collapsed — nothing to drag. */
@@ -168,7 +168,7 @@ body.sidebar-mode #chat-section-header {
     justify-content: flex-end;
     padding: 4px 8px;
     font-size: 11px;
-    color: rgba(0, 0, 0, 0.55);
+    color: var(--chrome-fg-muted);
     letter-spacing: 0.4px;
     text-transform: uppercase;
 }
@@ -182,7 +182,7 @@ body.sidebar-mode #chat-section-header .section-title {
 
 body.sidebar-mode.chat-collapsed #chat-section-header {
     justify-content: space-between;
-    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+    border-bottom: 1px solid var(--chrome-line);
 }
 
 body.sidebar-mode.chat-collapsed #chat-section-header .section-title {
@@ -211,7 +211,7 @@ body.sidebar-mode #chat-section-toggle {
 }
 
 body.sidebar-mode #chat-section-toggle:hover {
-    background: rgba(0, 0, 0, 0.06);
+    background: var(--chrome-hover);
 }
 
 /* Hide chat content when collapsed; layers pane fills the gap. */
@@ -235,7 +235,7 @@ body.sidebar-mode #chat-input-container {
     align-items: flex-end;
     gap: 6px;
     padding: 8px 12px;
-    border-top: 1px solid rgba(0, 0, 0, 0.1);
+    border-top: 1px solid var(--chrome-line);
 }
 
 body.sidebar-mode #chat-input-container #chat-input {
@@ -249,7 +249,7 @@ body.sidebar-mode #sidebar-footer {
     align-items: center;
     justify-content: space-between;
     padding: 6px 12px 8px;
-    border-top: 1px solid rgba(0, 0, 0, 0.1);
+    border-top: 1px solid var(--chrome-line);
     font-size: 11px;
     flex: 0 0 auto;
 }
@@ -266,19 +266,19 @@ body.sidebar-mode #sidebar-footer .footer-link {
     align-items: center;
     padding: 2px 6px;
     margin-right: 4px;
-    color: rgba(0, 0, 0, 0.55);
+    color: var(--chrome-fg-muted);
     text-decoration: none;
     border-radius: 3px;
 }
 
 body.sidebar-mode #sidebar-footer .footer-link:hover {
-    color: rgba(0, 0, 0, 0.85);
-    background: rgba(0, 0, 0, 0.06);
+    color: var(--chrome-fg);
+    background: var(--chrome-hover);
 }
 
 body.sidebar-mode #sidebar-footer .footer-link.carbon-link,
 body.sidebar-mode #sidebar-footer .footer-link.carbon-link:hover {
-    color: #2e7d32;
+    color: var(--chrome-carbon);
 }
 
 /* ----- Collapse / show toggle ------------------------------------------- */
@@ -296,16 +296,16 @@ body.sidebar-mode.sidebar-collapsed #sidebar {
     top: 10px;
     right: 10px;
     display: none;  /* shown only while collapsed */
-    background: rgba(255, 255, 255, 0.85);
+    background: var(--chrome-bg);
     -webkit-backdrop-filter: blur(8px);
     backdrop-filter: blur(8px);
-    border: 1px solid rgba(0, 0, 0, 0.1);
+    border: 1px solid var(--chrome-line);
     border-radius: 4px;
     padding: 4px 10px;
     font-size: 14px;
     cursor: pointer;
     z-index: var(--z-sidebar-show, 35);
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 1px 3px var(--chrome-shadow);
 }
 
 body.sidebar-mode.sidebar-collapsed #sidebar-show-btn {
@@ -314,19 +314,329 @@ body.sidebar-mode.sidebar-collapsed #sidebar-show-btn {
 
 /* ----- Narrow-viewport fallback: overlay instead of push --------------- */
 
+/* ----- Narrow viewport: the sidebar becomes a bottom sheet -------------
+   A side-by-side panel and map cannot both work at phone width. The panel
+   moves to the bottom with three detents (peek / half / full), driven by
+   mobile-sheet.js, which sets --sheet-h. The map stays full-bleed behind it
+   and keeps every one of its own gestures: the sheet moves only from its
+   handle. See app/mobile-sheet.js. */
+
 @media (max-width: 700px) {
     body.sidebar-mode #map {
         right: 0;
         width: 100%;
     }
-    body.sidebar-mode #sidebar {
-        --sidebar-width: min(400px, 90vw);
-        width: var(--sidebar-width);
-        box-shadow: -4px 0 10px rgba(0, 0, 0, 0.35);
+
+    body.sidebar-mode.sheet-mode #sidebar {
+        top: auto;
+        right: 0;
+        left: 0;
+        bottom: 0;
+        width: 100%;
+        height: var(--sheet-h, 96px);
+        max-height: calc(100vh - var(--app-header-h));
+        flex-direction: column;
+        border-top: 1px solid var(--chrome-line);
+        border-radius: 12px 12px 0 0;
+        box-shadow: 0 -4px 16px var(--chrome-shadow);
+        overflow: hidden;
+        /* Nothing below the sheet is reachable, so let the browser keep the
+           page from rubber-banding when the panel's list hits its end. */
+        overscroll-behavior: contain;
+        padding-bottom: env(safe-area-inset-bottom, 0px);
     }
-    body.sidebar-mode .sidebar-resize-handle,
-    body.sidebar-mode .sidebar-splitter {
-        /* Drag-resize disabled on narrow viewports. */
-        pointer-events: none;
+
+    /* Only while snapping — a transition during a drag lags the finger. */
+    body.sidebar-mode.sheet-mode #sidebar.sheet-animating {
+        transition: height 180ms ease;
     }
+
+    /* Desktop chrome that the sheet replaces. */
+    body.sidebar-mode.sheet-mode .sidebar-resize-handle,
+    body.sidebar-mode.sheet-mode .sidebar-splitter,
+    body.sidebar-mode.sheet-mode #sidebar-header,
+    body.sidebar-mode.sheet-mode #sidebar-show-btn,
+    body.sidebar-mode.sheet-mode #chat-section-header {
+        display: none;
+    }
+
+    /* ----- Handle ----- */
+    #sheet-grabber {
+        flex: 0 0 auto;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        /* Generous hit area around a small visual grabber: this is the one
+           drag target on the screen, and a thin bar is hard to catch. */
+        height: 28px;
+        padding: 0;
+        border: none;
+        background: none;
+        cursor: grab;
+        touch-action: none;
+    }
+
+    #sheet-grabber span {
+        display: block;
+        width: 38px;
+        height: 4px;
+        border-radius: 2px;
+        background: var(--chrome-fg-muted);
+    }
+
+    /* ----- Tabs ----- */
+    #sheet-tabs {
+        flex: 0 0 auto;
+        display: flex;
+        gap: 6px;
+        padding: 0 12px 10px;
+    }
+
+    .sheet-tab {
+        flex: 1;
+        padding: 9px 10px;
+        font: inherit;
+        font-size: 14px;
+        color: var(--chrome-fg);
+        background: var(--chrome-hover);
+        border: 1px solid transparent;
+        border-radius: 6px;
+        cursor: pointer;
+    }
+
+    .sheet-tab[aria-selected="true"] {
+        background: var(--control-bg);
+        color: var(--control-fg);
+    }
+
+    /* ----- Panes: one at a time ----- */
+    body.sheet-mode:not([data-sheet-tab="layers"]) #sidebar-layers-pane,
+    body.sheet-mode:not([data-sheet-tab="legend"]) #map-overlay-rail,
+    body.sheet-mode:not([data-sheet-tab="chat"]) #chat-messages,
+    body.sheet-mode:not([data-sheet-tab="chat"]) #chat-input-container,
+    body.sheet-mode:not([data-sheet-tab="chat"]) #sidebar-footer {
+        display: none;
+    }
+
+    /* The one pane on show fills the sheet and scrolls inside it. Without
+       this the layers list keeps its natural height, overflows a short
+       sheet, and its bottom — and the chat below it — cannot be reached. */
+    body.sidebar-mode.sheet-mode #sidebar-layers-pane,
+    body.sidebar-mode.sheet-mode #chat-messages,
+    body.sidebar-mode.sheet-mode #map-overlay-rail {
+        flex: 1 1 auto;
+        min-height: 0;
+        max-height: none;
+        overflow-y: auto;
+        overscroll-behavior: contain;
+    }
+
+    /* Input and footer keep their place at the bottom of the sheet. */
+    body.sidebar-mode.sheet-mode #chat-input-container,
+    body.sidebar-mode.sheet-mode #sidebar-footer {
+        flex: 0 0 auto;
+    }
+
+    /* ----- Map overlays move into the sheet -----------------------------
+       Stacked over a phone-sized map the legend, slider and hex controls
+       cover most of it. On mobile they dock here instead, as their own
+       pane, so the map stays a map. */
+    body.sidebar-mode.sheet-mode[data-sheet-tab="legend"] #map-overlay-rail {
+        position: static;
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
+        width: auto;
+        padding: 4px 12px 12px;
+        pointer-events: auto;
+    }
+
+    body.sidebar-mode.sheet-mode[data-sheet-tab="legend"] #map-overlay-rail > * {
+        position: static;
+        max-width: none;
+    }
+
+    /* The legend is scrolled by the pane, not by itself. */
+    body.sidebar-mode.sheet-mode #legend {
+        max-height: none;
+    }
+
+    /* At peek there is nothing to show but the handle and the tabs. */
+    body.sheet-mode[data-sheet-detent="peek"] #sidebar-layers-pane,
+    body.sheet-mode[data-sheet-detent="peek"] #map-overlay-rail,
+    body.sheet-mode[data-sheet-detent="peek"] #chat-messages,
+    body.sheet-mode[data-sheet-detent="peek"] #chat-input-container,
+    body.sheet-mode[data-sheet-detent="peek"] #sidebar-footer {
+        display: none;
+    }
+
+    /* Inputs below 16px make iOS Safari zoom the whole page on focus. */
+    body.sheet-mode #chat-input,
+    body.sheet-mode .sheet-tab {
+        font-size: 16px;
+    }
+}
+
+/* ----- Chat surfaces, themed -------------------------------------------
+   chat.css styles the chat for the floating panel, which is its own dark
+   glass treatment on top of the map. In the sidebar the chat sits on the
+   chrome surface instead, so its colours have to follow the theme or a dark
+   sidebar ends up with light bubbles floating on it.
+
+   Scoped to sidebar mode so the (deprecated) floating panel is untouched.
+   This covers the chat shell and bubbles; syntax highlighting inside code
+   blocks still comes from the highlight.js stylesheet and is not themed. */
+
+body.sidebar-mode #chat-header h3 {
+    color: var(--chrome-fg);
+}
+
+body.sidebar-mode #chat-messages::-webkit-scrollbar-thumb {
+    background: var(--chrome-line);
+}
+
+body.sidebar-mode #chat-input {
+    background: var(--chat-input-bg);
+    color: var(--chat-fg);
+}
+
+body.sidebar-mode #chat-input:focus {
+    background: var(--chat-input-bg-focus);
+}
+
+body.sidebar-mode .chat-message.assistant {
+    background: var(--chat-surface);
+    color: var(--chat-fg);
+}
+
+body.sidebar-mode .chat-message.system {
+    background: var(--chat-surface-soft);
+    color: var(--chrome-fg-muted);
+}
+
+body.sidebar-mode .chat-message.assistant-thinking {
+    background: var(--chat-thinking-bg);
+    color: var(--chat-thinking-fg);
+}
+
+body.sidebar-mode .chat-message pre,
+body.sidebar-mode .chat-message th {
+    background: var(--chat-code-bg);
+}
+
+body.sidebar-mode .chat-message.tool-block {
+    background: var(--chat-tool-bg);
+}
+
+body.sidebar-mode #chat-footer .footer-link {
+    color: var(--chrome-fg-muted);
+}
+
+body.sidebar-mode #chat-footer .footer-link:hover {
+    color: var(--chrome-fg);
+    background: var(--chrome-hover);
+}
+
+/* The send button sized to its label rather than stretching. #chat-input
+   is the flexible element in the row; the button should not also grow, or
+   it reads as a bar across the panel instead of a control. */
+body.sidebar-mode #chat-input-container {
+    align-items: flex-end;
+}
+
+body.sidebar-mode #chat-input {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+body.sidebar-mode #chat-send,
+body.sidebar-mode #chat-mic {
+    flex: 0 0 auto;
+    align-self: flex-end;
+}
+
+/* Send uses the shared control fill, so it matches the panel buttons
+   instead of being the one bespoke blue in the sidebar. */
+body.sidebar-mode #chat-send {
+    background: var(--control-bg);
+    color: var(--control-fg);
+}
+
+body.sidebar-mode #chat-send:hover:not(:disabled) {
+    background: var(--control-bg-hover);
+}
+
+/* The model selector is a control like any other, so it takes the shared
+   fill rather than a near-invisible translucent chip. */
+body.sidebar-mode #model-selector {
+    background: var(--control-bg);
+    color: var(--control-fg);
+    opacity: 1;
+}
+
+body.sidebar-mode #model-selector:hover {
+    background: var(--control-bg-hover);
+    opacity: 1;
+}
+
+/* ----- API key panel, themed ------------------------------------------
+   chat.css styles this for the floating panel's dark-glass surface: a
+   translucent white box with dark text. On a themed sidebar that reads as a
+   grey slab, and in the dark theme the text sits on the wrong ground
+   entirely. Scoped to sidebar mode, so floating mode keeps its own look. */
+
+body.sidebar-mode #api-settings-panel {
+    background: var(--chat-surface-soft);
+    border-bottom: 1px solid var(--chrome-line);
+}
+
+body.sidebar-mode .settings-title {
+    color: var(--chrome-fg);
+}
+
+body.sidebar-mode .settings-label {
+    color: var(--chrome-fg-muted);
+}
+
+body.sidebar-mode .settings-hint {
+    color: var(--chrome-fg-muted);
+}
+
+body.sidebar-mode #settings-btn {
+    color: var(--chrome-fg-muted);
+}
+
+body.sidebar-mode #settings-btn:hover {
+    color: var(--chrome-fg);
+}
+
+body.sidebar-mode #api-settings-panel input {
+    background: var(--chat-input-bg);
+    color: var(--chat-fg);
+    border: 1px solid var(--chrome-line);
+}
+
+body.sidebar-mode #api-settings-panel input:focus {
+    border-color: var(--control-accent);
+}
+
+/* Save is a control like any other; cancel stays quiet beside it. */
+body.sidebar-mode .settings-save-btn {
+    background: var(--control-bg);
+    color: var(--control-fg);
+}
+
+body.sidebar-mode .settings-save-btn:hover {
+    background: var(--control-bg-hover);
+}
+
+body.sidebar-mode .settings-cancel-btn {
+    background: var(--chrome-hover);
+    color: var(--chrome-fg-muted);
+}
+
+body.sidebar-mode .settings-cancel-btn:hover {
+    background: var(--chrome-hover);
+    color: var(--chrome-fg);
 }

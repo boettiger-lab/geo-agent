@@ -15,6 +15,10 @@ Core library for map-based applications with LLM-powered data analysis. Interact
 - `dataset-catalog.js` — Fetches STAC collections, builds unified records
 - `map-manager.js` — Creates MapLibre map, manages layers/filters/styles
 - `overlay-rail.js` — Shared bottom-left rail every map-scoped overlay panel mounts into (legend, sliders, hex controls). New floating panels go here, not onto `document.body` with their own anchors.
+- `app-header.js` — Optional app chrome band (logos, top-level nav) in `scrim` or `solid` mode. App-level UI goes here; map-scoped controls go in the overlay rail.
+- `mobile-sheet.js` — Below 700px the sidebar becomes a bottom sheet with peek/half/full detents. No gesture is bound to the map.
+- `icons.js` — The few inline SVGs shared by the header nav and the chat footer links.
+- `theme.js` — Selects the chrome colour scheme (light/dark/auto) as a body class and applies per-app colour overrides inline; the tokens themselves live in `style.css`.
 - `map-tools.js` — the local tools the LLM agent can call (map control, styling, legends, geocoding)
 - `tool-registry.js` — Unified dispatch for local + remote (MCP) tools
 - `mcp-client.js` — MCP transport wrapper (connect once, lazy reconnect)
@@ -176,6 +180,9 @@ When a PR touches a covered module, expect tests to change too. When it touches 
 |---|---:|---|
 | `app/transcriber.js` | 100% | `test/transcriber.test.js` — endpoint resolution, error paths, abort signal |
 | `app/overlay-rail.js` | 100% | `test/overlay-rail.test.js` — rail creation, slot ordering, mount/remove, per-document mounting |
+| `app/app-header.js` | 100% | `test/app-header.test.js` — config resolution, nav derivation from `links`, logo slots, mobile takeover |
+| `app/theme.js` | 100% | `test/theme.test.js` — theme resolution, fallback, body class application |
+| `app/mobile-sheet.js` | partial | `test/mobile-sheet.test.js` — the pure detent maths (`detentHeights`, `nearestDetent`, `stepDetent`). Drag, tabs and the media-query switch are browser-bound; verify on a phone. |
 | `app/mcp-client.js` | 99% | `test/mcp-client.test.js` — connect / reconnect / callTool retry / resources / prompts |
 | `app/tool-registry.js` | 98% | `test/tool-registry.test.js` — registration, dispatch, argsRewriter, schema cleaning |
 | `app/map-tools.js` | 98% | `test/map-tools.test.js` — local-tool execute paths, get_schema MCP delegate |

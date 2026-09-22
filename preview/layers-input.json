@@ -1,9 +1,13 @@
 {
+  "theme": "dark",
   "catalog": "https://s3-west.nrp-nautilus.io/public-data/stac/catalog.json",
   "titiler_url": "https://titiler.nrp-nautilus.io",
   "mcp_url": "https://duckdb-mcp.carlboettiger.info/mcp",
   "llm": {
     "user_provided": true,
+    "transcription_model": {
+      "value": "gemma"
+    },
     "default_endpoint": "https://openrouter.ai/api/v1",
     "models": [
       {
@@ -13,6 +17,10 @@
       {
         "value": "google/gemini-3.5-flash-lite",
         "label": "Gemini 3.5 Flash Lite"
+      },
+      {
+        "value": "z-ai/glm-5.2",
+        "label": "GLM-5.2"
       }
     ]
   },
@@ -33,10 +41,11 @@
   },
   "view": {
     "center": [
-      -119.4,
-      37.6
+      -30,
+      25
     ],
-    "zoom": 6
+    "zoom": 1.6,
+    "globe": true
   },
   "links": {
     "github": "https://github.com/boettiger-lab/geo-agent",
@@ -44,7 +53,7 @@
     "carbon": true
   },
   "welcome": {
-    "message": "Layout preview build \u2014 a fixture for eyeballing browser-bound UI on an unmerged branch. No LLM is configured, so the chat will not answer.",
+    "message": "Layout preview build \u2014 a fixture for eyeballing browser-bound UI on an unmerged branch. Add your own API key with the gear icon to try the chat and the microphone.",
     "examples": []
   },
   "collections": [
@@ -595,5 +604,15 @@
         }
       ]
     }
-  ]
+  ],
+  "header": {
+    "enabled": true,
+    "mode": "solid",
+    "title": "GLEN Layout preview",
+    "partner": {
+      "src": "bosl-logo.svg",
+      "alt": "Benioff Ocean Science Laboratory",
+      "href": "https://bosl.ucsb.edu/"
+    }
+  }
 }

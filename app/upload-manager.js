@@ -1,3 +1,4 @@
+import { ensurePanelActions } from './panel-actions.js';
 /**
  * UploadManager — user-uploaded GeoJSON polygons as agent-addressable layers
  *
@@ -157,8 +158,11 @@ export class UploadManager {
         this._status.className = 'upload-status';
 
         // Sit at the bottom of the Overlays section, below the layer list
-        // (uploaded rows append into the list above, so the button stays last).
-        controls.after(btn, input, this._status);
+        // (uploaded rows append into the list above, so the button stays
+        // last). The actions row is shared with the save button so the two
+        // sit side by side rather than stacking full-width.
+        ensurePanelActions(controls).appendChild(btn);
+        controls.after(input, this._status);
 
         this._wireDragDrop();
         console.log('[upload] ready');

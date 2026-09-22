@@ -17,16 +17,30 @@
  * Only floating mode is implemented in Task 1. Sidebar mode comes in Task 5.
  */
 
+import { buildAppHeader } from './app-header.js';
+import { applyTheme } from './theme.js';
+import { initMobileSheet } from './mobile-sheet.js';
+
 // State exposed to main.js so it can wire map.resize() into the drag loop.
 export const sidebarHooks = {
     /** @type {(() => void) | null} — called on every rAF tick during drag */
     onResizeTick: null,
     /** @type {(() => void) | null} — called once on drag-end / collapse transitionend */
     onResizeEnd: null,
+    /** @type {{destroy:()=>void, setDetent:(d:string)=>void} | null} */
+    sheet: null,
 };
 
 export function buildLayout(appConfig) {
     const title = appConfig.sidebar?.title || 'Data Assistant';
+
+    // Theme first: the header and sidebar are one surface and both read the
+    // --chrome-* tokens the theme class selects.
+    applyTheme(appConfig);
+
+    // Then app chrome: it sets --app-header-h, which the sidebar's `top`
+    // reads. No-ops when no `header` block is configured.
+    const { absorbsLinks } = buildAppHeader(appConfig);
 
     // Remove any hardcoded chat scaffold left over from legacy index.html
     // files.  Without this, downstream apps that still ship the old
@@ -35,14 +49,14 @@ export function buildLayout(appConfig) {
     if (legacy) legacy.remove();
 
     if (appConfig.sidebar?.enabled) {
-        return buildSidebarLayout(appConfig, title);
+        return buildSidebarLayout(appConfig, title, absorbsLinks);
     }
-    return buildFloatingLayout(appConfig, title);
+    return buildFloatingLayout(appConfig, title, absorbsLinks);
 }
 
 /* ----- Floating mode ------------------------------------------------------ */
 
-function buildFloatingLayout(_appConfig, title) {
+function buildFloatingLayout(_appConfig, title, linksAbsorbed = false) {
     const container = el('div', { id: 'chat-container' });
 
     const header = el('div', { id: 'chat-header' });
@@ -87,14 +101,17 @@ function buildFloatingLayout(_appConfig, title) {
     initFloatingResize(container);
 
     return {
-        chatMount: { container, messages, input, send, mic, header, footer, footerRight },
+        chatMount: {
+            container, messages, input, send, mic, header, footer, footerRight,
+            linksAbsorbed,
+        },
         menuMountId: 'menu',
     };
 }
 
 /* ----- Sidebar mode ------------------------------------------------------ */
 
-function buildSidebarLayout(appConfig, title) {
+function buildSidebarLayout(appConfig, title, linksAbsorbed = false) {
     document.body.classList.add('sidebar-mode');
 
     // Apply initial --sidebar-width from config (localStorage override
@@ -197,6 +214,8 @@ function buildSidebarLayout(appConfig, title) {
     initSidebarCollapse(sidebar, hideBtn, showBtn);
     initLayersSplitter(splitter, sidebar);
     initChatCollapse(chatToggle);
+    // Takes over only below the narrow breakpoint, and hands back above it.
+    sidebarHooks.sheet = initMobileSheet(sidebar);
 
     return {
         chatMount: {
@@ -208,6 +227,7 @@ function buildSidebarLayout(appConfig, title) {
             header,
             footer,
             footerRight,
+            linksAbsorbed,
         },
         menuMountId: 'sidebar-layers-pane',
     };

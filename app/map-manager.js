@@ -15,6 +15,7 @@
 import { extractHashFromUrl, buildFillColorExpression, buildFlatFillColorExpression, rewriteValueColumn, PALETTES, buildHeightExpression, buildFlatHeightExpression, defaultExtrusionMaxHeight } from './hex-layer-helpers.js';
 import { deriveCategoricalLegend, deriveContinuousLegend, primaryColorValue } from './legend-helpers.js';
 import { mountOverlay, SLOT } from './overlay-rail.js';
+import { ensurePanelActions } from './panel-actions.js';
 
 const BASEMAPS = {
     natgeo: {
@@ -1605,21 +1606,26 @@ export class MapManager {
         const basemapSection = document.createElement('div');
         basemapSection.className = 'menu-section';
 
-        // Basemap header: "BASEMAP" label + globe icon button inline
-        const basemapHeader = document.createElement('div');
-        basemapHeader.className = 'menu-section-header';
-        const basemapTitle = document.createElement('label');
-        basemapTitle.className = 'section-title';
-        basemapTitle.textContent = 'Basemap';
+        // Map-wide controls: globe projection and send-to-back. Built here
+        // but mounted below the layer list (see ensurePanelActions at the
+        // end of this method), with the other panel actions — they act on
+        // the whole map, so they belong with the actions, not above the
+        // basemap row they have nothing to do with.
         const globeBtn = document.createElement('button');
         globeBtn.id = 'globe-btn';
-        globeBtn.className = 'globe-btn' + (this._globeEnabled ? ' active' : '');
+        globeBtn.className = 'panel-btn globe-btn' + (this._globeEnabled ? ' active' : '');
         globeBtn.title = 'Toggle globe view';
         globeBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>`;
+        globeBtn.append(' Globe');
         globeBtn.addEventListener('click', () => this.setProjection(this._globeEnabled ? 'mercator' : 'globe'));
-        basemapHeader.appendChild(basemapTitle);
-        basemapHeader.appendChild(globeBtn);
-        basemapSection.appendChild(basemapHeader);
+
+        const cycleBtn = document.createElement('button');
+        cycleBtn.id = 'cycle-top-layer';
+        cycleBtn.className = 'panel-btn';
+        cycleBtn.title = 'Send the topmost visible layer to the back';
+        cycleBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5 5.5 5.5 0 0 1-5.5 5.5H11"/></svg>';
+        cycleBtn.append(' Layer to back');
+        cycleBtn.addEventListener('click', () => this.sendTopVisibleLayerToBack());
 
         const btnGroup = document.createElement('div');
         btnGroup.className = 'basemap-toggle-group';
@@ -1643,22 +1649,7 @@ export class MapManager {
         const overlaysSection = document.createElement('div');
         overlaysSection.className = 'menu-section';
 
-        // Overlays header: "OVERLAYS" label + send-to-back button inline,
-        // right next to the layer stack the button reorders.
-        const overlaysHeader = document.createElement('div');
-        overlaysHeader.className = 'menu-section-header';
-        const overlaysTitle = document.createElement('label');
-        overlaysTitle.className = 'section-title';
-        overlaysTitle.textContent = 'Overlays';
-        const cycleBtn = document.createElement('button');
-        cycleBtn.id = 'cycle-top-layer';
-        cycleBtn.className = 'menu-header-btn';
-        cycleBtn.title = 'Send the topmost visible layer to the back';
-        cycleBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5 5.5 5.5 0 0 1-5.5 5.5H11"/></svg>';
-        cycleBtn.addEventListener('click', () => this.sendTopVisibleLayerToBack());
-        overlaysHeader.appendChild(overlaysTitle);
-        overlaysHeader.appendChild(cycleBtn);
-        overlaysSection.appendChild(overlaysHeader);
+        // No heading: the layer list below is self-evidently the overlays.
 
         const layerControls = document.createElement('div');
         layerControls.id = 'layer-controls-container';
@@ -1667,6 +1658,11 @@ export class MapManager {
         menuBody.appendChild(overlaysSection);
 
         container.appendChild(menuBody);
+
+        // The actions row sits under the layer list. Globe and send-back go
+        // in first so they precede the data actions (upload, export) that
+        // mount into the same row later.
+        ensurePanelActions(layerControls).append(globeBtn, cycleBtn);
 
         this._refreshCycleBtnState();
     }

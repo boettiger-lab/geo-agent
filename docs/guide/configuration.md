@@ -21,6 +21,8 @@ Client apps configure GLEN via `layers-input.json`. All fields except `catalog` 
 | `catalog_index_threshold` | No | Dataset count above which the front-loaded catalog switches to a compact index (id + title + one-line summary + layer ids) to shrink the cold prompt; full descriptions/paths then arrive on demand via `get_schema`. Default: `8`. Set very high (e.g. `9999`) to always front-load the full catalog. |
 | `client_header_hosts` | No | Host suffixes that receive the `X-Client: geo-agent/<ref>` attribution header (for proxy log analysis). Default: `["nrp-nautilus.io"]`. The header is **only** sent to these hosts — never to bring-your-own external endpoints, where a custom header could trip CORS and block requests. Override only if your proxy runs on a different host. |
 | `links` | No | Optional links shown in the chat UI — see below. |
+| `header` | No | App chrome band across the top — logos and top-level nav. Off unless configured. See below. |
+| `theme` | No | Chrome colour scheme — a mode string, or an object that also sets brand colours. See below. |
 
 ## View
 
@@ -541,6 +543,272 @@ see the full map first.
 
 The legend and H3/draw buttons remain free-floating overlays on the map in
 both modes.
+
+## App header
+
+A chrome band across the top of the page, carrying deployment identity (logos,
+app title) and top-level navigation.
+
+> **On by default.** Every app in the fleet carries the DSE mark, so with no
+> `header` block you still get the band, the DSE logo and a Contact link. An
+> app bumping its pin past this version **will gain a header it did not ask
+> for** — opt out with `"header": { "enabled": false }`.
+
+**Three logo slots, left to right:**
+
+| Slot | Default | Who sets it |
+|---|---|---|
+| `brand` | the GLEN mark | fleet-wide; leave it alone |
+| `partner` | *none* | the app, if it has a partner organisation |
+| `institution` | the DSE mark | fleet-wide; leave it alone |
+
+Both defaults resolve from the same pinned ref the app loaded the library from,
+so they need no configuration and no URL to maintain. Either can be cleared
+(`"brand": null`, `"institution": []`).
+
+The **partner slot keeps its width even when empty**, so the DSE mark lands in
+the same place whether or not an app has a partner — without that the header
+visibly reflows from one app to the next. The reserved gap collapses below
+700px, where it would only push the marks off screen.
+
+> The shipped GLEN mark is a **placeholder** — a hexagon with the wordmark
+> inside — standing in until a real one exists.
+
+The split it introduces: *app-level* things (who made this, what else there is
+to read) belong in the header; *map-level* things (legend, sliders, hex
+controls) belong on the map, in the [overlay rail](#map-overlay-rail-and-stacking-order).
+
+```json
+{
+  "header": {
+    "enabled": true,
+    "mode": "scrim",
+    "title": "Protected Areas Explorer",
+    "brand":   { "src": "https://example.org/dse.svg", "alt": "DSE", "href": "https://dse.berkeley.edu/" },
+    "partner": { "src": "https://example.org/partner.svg", "alt": "Partner org" }
+  }
+}
+```
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `enabled` | boolean | `true` | Render the band. Set `false` to opt out entirely. |
+| `mode` | string | `"solid"` | `"solid"` is an opaque band with a separating edge, and the map starts below it. `"scrim"` floats a translucent band over a full-bleed map, costing no map area — but note it sits directly against the browser's own chrome, which can read as one bar. An unrecognised value falls back to `"solid"`. |
+| `title` | string | `sidebar.title` | Text beside the logos. Hidden on narrow viewports, where the logos carry identity. |
+| `brand` | object | GLEN mark | Leading logo. `{ src, src_dark, alt, href }`; `src` is required or the logo is skipped, and `href` is optional (without one the image is not a link). `null` clears it. |
+| `partner` | object or array | *none* | The app's own partner organisation. Same shape as `brand`; an array shows several. The slot reserves its width when empty. |
+| `institution` | object or array | DSE mark | Trailing mark, after the partner. `[]` clears it. |
+| `nav` | array | derived | Top-level links — see below. |
+
+No logo images ship with the library; `src` is always a URL the app supplies.
+
+A logo is an image, so it cannot follow the [theme](#theme): a white-knockout
+mark vanishes on a light bar and a black one vanishes on a dark bar.
+
+**Most apps should not bother with two.** Pick `light` or `dark`, supply the
+one logo that suits it, and stop there — `src_dark` is optional and exists for
+the cases that genuinely need it. A mark that carries its own background, like
+a badge or a filled tile, needs no variant at all and works in either theme.
+
+The exception is **`theme: "auto"`**, which follows the viewer's OS setting and
+changes at runtime — a single logo will be wrong half the time there, so an app
+using `auto` does need both. Supply the pair and the right one shows
+automatically, with no reload:
+
+```json
+"brand": {
+  "src":      "https://cdn.jsdelivr.net/gh/boettiger-lab/geo-agent@v3.29.0/app/assets/dse-logo-black.png",
+  "src_dark": "https://cdn.jsdelivr.net/gh/boettiger-lab/geo-agent@v3.29.0/app/assets/dse-logo-white.png",
+  "alt":      "Eric and Wendy Schmidt Center for Data Science & Environment",
+  "href":     "https://dse.berkeley.edu/"
+}
+```
+
+The DSE mark ships with the library in both variants (`app/assets/`), so apps
+can reference it from the CDN at their pinned ref. Prefer hosting a copy of a
+*partner's* mark too, rather than hotlinking their site, which can change or
+block the request.
+
+### Nav
+
+If `header.nav` is omitted, the nav is **derived from the existing top-level
+`links` block**, so an app that already configures `links` gets a nav for free,
+in the familiar order:
+
+| From | Becomes |
+|---|---|
+| `links.docs` | **About** |
+| `links.github` | **GitHub** |
+| `links.carbon` | **Carbon** (the NRP LLM carbon dashboard; set a string to point elsewhere) |
+| `links.contact` | **Contact us** — the one entry present **by default**, pointing at `mailto:dse@berkeley.edu`. Give a full URL, or a bare address which is normalised to a `mailto:`. Set `false` to drop it. |
+
+Because Contact defaults on, enabling the header always yields at least one
+nav entry. The mailto opens in the same tab, so no blank one is left behind.
+
+When a nav is rendered, the chat footer **stops** showing those same links, so
+they appear once rather than twice.
+
+To take control, give an explicit list. It wins outright, and `[]` suppresses
+the derived nav entirely:
+
+```json
+"header": {
+  "enabled": true,
+  "nav": [
+    { "label": "About",   "href": "https://example.org/about" },
+    { "label": "Methods", "href": "/methods", "external": false },
+    { "label": "GitHub",  "href": "https://github.com/org/app" }
+  ]
+}
+```
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `label` | string | — | **Required.** Link text. |
+| `href` | string | — | **Required.** Entries missing either field are skipped. |
+| `external` | boolean | `true` | Open in a new tab with `rel="noopener noreferrer"`. Set `false` for a same-page route. |
+| `icon` | string | — | `"github"` or `"leaf"`, drawn before the label. Unknown names are ignored. |
+| `variant` | string | — | Styling hook: adds `.app-header-link--<variant>` for an app's own CSS. No built-in variants. |
+
+### Layout effects
+
+Enabling the header sets a `--app-header-h` custom property (`0px` when there
+is no header, so dependent rules can be written unconditionally). It is the
+64px band plus `env(safe-area-inset-top)`, so notched phones and browsers whose
+UI eats into the viewport get real clearance rather than controls hugging the
+top edge.
+
+- The **sidebar** always starts below the band, in both modes.
+- The **map** starts below it only in `solid` mode; under a `scrim` it stays
+  full-bleed.
+- The floating-mode **layer panel** is pushed down by the full offset.
+- **MapLibre's controls** (zoom, geocoder, draw) are measured from the map, so
+  they only need nudging in `scrim` mode — in `solid` mode the map already
+  starts below the band.
+- In `scrim` mode the band is click-through except for its own controls, so the
+  empty middle does not steal map interaction.
+
+### Narrow viewports
+
+Below 700px the nav row and the title are replaced — not compressed — by a menu
+button that opens a full-viewport takeover listing the same entries. It closes
+on the button, the ✕, Escape, or choosing a link.
+
+## Mobile layout
+
+Below 700px the sidebar stops being a side panel and becomes a **bottom
+sheet**. Nothing to configure; it applies automatically in sidebar mode.
+
+Three detents:
+
+| Detent | Height | Reads as |
+|---|---|---|
+| peek | ~96px | a full-screen map |
+| half | 50vh | map above, panel below |
+| full | viewport minus the header | a full-screen panel |
+
+`half` is why this is a sheet rather than a set of full-screen tabs: toggling a
+layer or asking a question is *about* the map, and if the panel covers it you
+act blind and check afterwards.
+
+**Gestures never touch the map.** Horizontal drag over the map is pan and pinch
+is zoom — MapLibre keeps all of it. The sheet moves only from its own handle:
+drag it, or tap it to cycle detents. A **Layers / Legend / Chat** tab strip
+switches panes with a tap; choosing a tab from `peek` opens the sheet to `half`
+rather than relabelling a closed panel.
+
+The handle is a real button, so the keyboard gets the same moves (↑ / ↓ change
+detent).
+
+**Map overlays move into the sheet.** Stacked over a phone-sized map, the
+legend, reactive sliders and hex controls cover most of it, so on mobile they
+dock into the sheet as the **Legend** pane instead and the map stays a map. The
+tab hides itself when there is nothing in it — an app with no legend and no
+sliders sees only Layers and Chat.
+
+## Theme
+
+Colours the **chrome shell** — the header band, the sidebar surface, hairlines,
+the chat bubbles inside the sidebar, and the backdrop behind the globe.
+
+```json
+{ "theme": "dark" }
+```
+
+| Value | Effect |
+|---|---|
+| `"light"` | Default. What the sidebar has always looked like, so bumping a pin does not change an app's colours. |
+| `"dark"` | Dark chrome. |
+| `"auto"` | Follows the viewer's `prefers-color-scheme`, live — switching the OS setting does not need a reload. |
+
+### Brand colours
+
+For anything past light and dark, give `theme` an object. `mode` picks the
+palette to start from and the rest recolours it — no CSS needed:
+
+```json
+{
+  "theme": {
+    "mode": "dark",
+    "primary": "#7a5cff",
+    "surface": "#1b1533",
+    "text": "#f2edff",
+    "backdrop": "#120e26"
+  }
+}
+```
+
+| Key | Recolours |
+|---|---|
+| `mode` | Which palette to start from: `light` (default), `dark`, `auto`. |
+| `primary` | Buttons, checkboxes, sliders, the send button — every control. Hover and selected states are derived from it, so this one key moves the whole set. |
+| `surface` | The chrome surface: header band and sidebar. |
+| `text` | Primary text on that surface. |
+| `panel` | Floating panels over the map (legend, sliders, charts). |
+| `backdrop` | The area behind the globe, under the hex texture. |
+
+Values may be hex, `rgb()`, `hsl()` or a named colour. Anything else is
+ignored rather than written into the page.
+
+Derived states use CSS `color-mix()` against the palette's own direction —
+darker on light, lighter on dark — so `mode: "auto"` still gets it right when
+the viewer switches their OS setting, with no reload.
+
+For a token the named keys do not reach, use the escape hatch:
+
+```json
+{ "theme": { "mode": "dark", "tokens": { "--chrome-carbon": "#a5d6a7" } } }
+```
+
+Token names are listed in `style.css` under *Theme tokens*. They are internal,
+so treat them as less stable than the named keys above.
+
+The header and sidebar deliberately share one palette and meet flush: the
+header's drop shadow is carried on a pseudo-element that stops at the sidebar
+edge, so it reads as a raised bar over the map while the two chrome surfaces
+join without a seam. The inset tracks `--sidebar-width`, so it stays correct
+through a sidebar resize or collapse.
+
+**What is not themed yet:** syntax highlighting inside code blocks (that comes
+from the highlight.js stylesheet in `index.html`), the legend and other
+map-overlay panels, and the floating chat panel — which keeps its own dark
+glass treatment, since it sits on the map rather than on a chrome surface.
+
+Apps needing finer control can override the `--chrome-*` and `--chat-*` custom
+properties directly; they are defined on `:root` and per theme class in
+`style.css`.
+
+### Map backdrop
+
+Wherever no tile covers the canvas — most visibly the space around the globe in
+globe projection, which used to be bare white — the map shows a themed backdrop
+with a faint hexagonal texture, a nod to the H3 grid the analytics are built on.
+It is deliberately low-contrast so it reads as texture rather than as data.
+Override `--map-void-bg` and `--map-void-pattern` to change or remove it:
+
+```css
+:root { --map-void-pattern: none; }
+```
 
 ## Links
 
