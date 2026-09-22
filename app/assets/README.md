@@ -10,7 +10,7 @@ https://cdn.jsdelivr.net/gh/boettiger-lab/geo-agent@<ref>/app/assets/<file>
 
 | File | Use |
 |---|---|
-| `glen-logo.svg` | GLEN mark for **light** backgrounds. **Placeholder** — a hexagon with the wordmark inside, until a real one exists |
+| `glen-logo.svg` | GLEN mark for **light** backgrounds. **Placeholder** until a real one exists |
 | `glen-logo-white.svg` | Same, knockout, for **dark** backgrounds |
 | `favicon.svg` | Browser-tab icon. **Placeholder** — a plain hexagon, nodding to the H3 grid, until GLEN has a mark |
 | `dse-mark.png` | Monogram — "DSE" + sprout, no wordmark. Legible small; **light** backgrounds |
@@ -58,3 +58,14 @@ Downstream apps link it from their `index.html`:
 ```
 
 An app with its own branding should point this at its own icon instead.
+
+## GLEN mark
+
+A **regular** hexagon — the H3 motif — with a `G` inside, and the wordmark
+beside it. The wordmark sits outside the hexagon deliberately: inside a regular
+hexagon it renders around 8px at the header's 28px height, which cannot be
+read, and stretching the hexagon to make room stops it being a hexagon.
+
+`test/glen-logo.test.js` asserts the six edges and six radii are equal, so that
+trade cannot be quietly re-made. It is a placeholder; replace both variants
+together when a real mark exists.
