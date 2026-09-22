@@ -43,6 +43,17 @@ can be judged as a deployed app would show them:
   partner slot, standing for a sister organisation. It is a self-contained
   badge with its own dark background, so it needs no light/dark variant.
 
+## Editing the fixture
+
+`layers-input.json` is generated with `json.dumps(..., indent=2)` and kept a
+fixed point of it, so a programmatic edit that round-trips through JSON
+produces a diff of only what changed.
+
+That is worth preserving. A file in any other layout, round-tripped through a
+formatter, reformats wholesale — one session turned a six-line addition into a
+577-line diff that way. Nothing catches it: the tests still pass, and the churn
+only shows up in review.
+
 ## Variants
 
 `preview/variants/<name>.json` is a **shallow patch** over the base fixture,
