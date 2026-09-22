@@ -1,7 +1,69 @@
 import { describe, it, expect } from 'vitest';
 import {
-    buildDuckdbSetupSql, PUBLIC_S3_ENDPOINT, scrubCredentials,
+    buildDuckdbSetupSql, resolveExportConfig, PUBLIC_S3_ENDPOINT, scrubCredentials,
 } from '../app/chat-ui.js';
+
+describe('resolveExportConfig', () => {
+    it('defaults to enabled at the public endpoint when unconfigured', () => {
+        expect(resolveExportConfig()).toEqual({
+            enabled: true, s3Endpoint: PUBLIC_S3_ENDPOINT,
+        });
+        expect(resolveExportConfig({})).toEqual({
+            enabled: true, s3Endpoint: PUBLIC_S3_ENDPOINT,
+        });
+    });
+
+    it('opts out via the block', () => {
+        expect(resolveExportConfig({ export: { enabled: false } }).enabled).toBe(false);
+    });
+
+    it('opts out via the shorthand', () => {
+        expect(resolveExportConfig({ export: false }).enabled).toBe(false);
+    });
+
+    it('treats a stringified false from config.json as off', () => {
+        // k8s-generated config.json can hand us "false" rather than false.
+        expect(resolveExportConfig({ export: 'false' }).enabled).toBe(false);
+        expect(resolveExportConfig({ export: { enabled: 'false' } }).enabled).toBe(false);
+    });
+
+    it('stays enabled for every other spelling', () => {
+        expect(resolveExportConfig({ export: {} }).enabled).toBe(true);
+        expect(resolveExportConfig({ export: true }).enabled).toBe(true);
+        expect(resolveExportConfig({ export: { enabled: true } }).enabled).toBe(true);
+    });
+
+    it('takes the endpoint from the block', () => {
+        expect(resolveExportConfig({ export: { public_s3_endpoint: 'minio.example.org' } }))
+            .toEqual({ enabled: true, s3Endpoint: 'minio.example.org' });
+    });
+
+    it('still honours the older flat key', () => {
+        expect(resolveExportConfig({ public_s3_endpoint: 'minio.example.org' }).s3Endpoint)
+            .toBe('minio.example.org');
+    });
+
+    it('prefers the block over the flat key when both are set', () => {
+        const cfg = {
+            public_s3_endpoint: 'old.example.org',
+            export: { public_s3_endpoint: 'new.example.org' },
+        };
+        expect(resolveExportConfig(cfg).s3Endpoint).toBe('new.example.org');
+    });
+
+    it('normalises a scheme or trailing slash from either spelling', () => {
+        expect(resolveExportConfig({ export: { public_s3_endpoint: 'https://a.example.org/' } })
+            .s3Endpoint).toBe('a.example.org');
+        expect(resolveExportConfig({ public_s3_endpoint: 'http://b.example.org//' })
+            .s3Endpoint).toBe('b.example.org');
+    });
+
+    it('keeps the endpoint resolved even when the export is off', () => {
+        // A disabled export still resolves a sane endpoint, so nothing
+        // downstream has to special-case the off state.
+        expect(resolveExportConfig({ export: false }).s3Endpoint).toBe(PUBLIC_S3_ENDPOINT);
+    });
+});
 
 describe('buildDuckdbSetupSql', () => {
     it('loads httpfs and creates an s3 secret at the public endpoint', () => {

@@ -14,6 +14,54 @@
 export const PUBLIC_S3_ENDPOINT = 's3-west.nrp-nautilus.io';
 
 /**
+ * Strip a scheme and any trailing slashes from an S3 host, so a config that
+ * spells the endpoint as a URL still produces a valid `ENDPOINT '…'`.
+ *
+ * @param {string} endpoint
+ * @returns {string}
+ */
+function normalizeS3Host(endpoint) {
+    return String(endpoint || PUBLIC_S3_ENDPOINT)
+        .replace(/^https?:\/\//, '')
+        .replace(/\/+$/, '');
+}
+
+/**
+ * Resolve the app's export settings.
+ *
+ * Shape in `layers-input.json` (or the deploy-time `config.json`, which wins):
+ *
+ * ```json
+ * "export": { "enabled": false }
+ * "export": { "public_s3_endpoint": "minio.example.org" }
+ * "export": false
+ * ```
+ *
+ * Opt-*out*: absent config means the export is on, which is what the public
+ * apps want. Private deployments turn it off, because the credential scrub
+ * strips exactly what their exported queries would need — the recipient gets
+ * a document whose code cannot run.
+ *
+ * `public_s3_endpoint` as a flat top-level key is the older spelling (#367)
+ * and is still honoured, with the block winning when both are set.
+ *
+ * @param {object} [config] - merged app config
+ * @returns {{ enabled: boolean, s3Endpoint: string }}
+ */
+export function resolveExportConfig(config = {}) {
+    // Deploy-time config.json arrives from k8s, where a boolean can land as
+    // the string "false"; treat both spellings as off.
+    const isOff = (v) => v === false || v === 'false';
+
+    const block = config?.export;
+    const blk = (block && typeof block === 'object') ? block : {};
+    const enabled = !isOff(block) && !isOff(blk.enabled);
+    const endpoint = blk.public_s3_endpoint || config?.public_s3_endpoint || PUBLIC_S3_ENDPOINT;
+
+    return { enabled, s3Endpoint: normalizeS3Host(endpoint) };
+}
+
+/**
  * DuckDB preamble that points `s3://` URLs at the public endpoint
  * anonymously, so every query in an exported transcript re-runs verbatim
  * outside the cluster.
@@ -32,7 +80,7 @@ export const PUBLIC_S3_ENDPOINT = 's3-west.nrp-nautilus.io';
  * @returns {string} SQL to run once before the transcript's queries
  */
 export function buildDuckdbSetupSql(endpoint = PUBLIC_S3_ENDPOINT) {
-    const host = String(endpoint || PUBLIC_S3_ENDPOINT).replace(/^https?:\/\//, '').replace(/\/+$/, '');
+    const host = normalizeS3Host(endpoint);
     return `INSTALL httpfs; LOAD httpfs;
 
 CREATE OR REPLACE SECRET public_s3 (
@@ -215,6 +263,9 @@ export class ChatUI {
     constructor(agent, config, mount, mapManager = null) {
         this.agent = agent;
         this.config = config;
+        // Export settings (opt-out + endpoint), resolved once — initExportButton
+        // needs them before any DOM is built.
+        this.exportConfig = resolveExportConfig(config);
         this.mapManager = mapManager;
         this.busy = false;
 
@@ -313,7 +364,7 @@ export class ChatUI {
         // Reasoning on/off toggle (shown only for reasoning-capable models)
         this.initReasoningToggle();
 
-        // Export-to-HTML button (always shown)
+        // Export-to-HTML button (unless the app opted out)
         this.initExportButton();
 
         // Optional header/footer links (github, docs, carbon)
@@ -720,6 +771,10 @@ export class ChatUI {
     /* ------------------------------------------------------------------ */
 
     initExportButton() {
+        // Opt-out apps get no button at all, rather than a disabled one —
+        // nothing left for a console to re-enable.
+        if (!this.exportConfig?.enabled) return;
+
         const footer = this.footerRightEl;
         if (!footer) return;
 
@@ -1207,7 +1262,7 @@ export class ChatUI {
 
         // Setup block: the SQL in the transcript is left untouched (globs and all),
         // so the export carries the preamble that makes those paths resolve.
-        const setupHost = this.config?.public_s3_endpoint || PUBLIC_S3_ENDPOINT;
+        const setupHost = (this.exportConfig || resolveExportConfig(this.config)).s3Endpoint;
         const setupSql = buildDuckdbSetupSql(setupHost);
 
         const html =

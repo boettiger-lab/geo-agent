@@ -800,11 +800,27 @@ The checkpoint is the only per-turn cap on tool use. Setting a value to `0` remo
 
 ## Chat export
 
-A 💾 save button in the chat footer saves the current conversation as a self-contained HTML document you can share or print. The button is disabled until the first user message and enables automatically after. It is always present; the one optional key tunes what the saved file says about re-running its queries.
+A 💾 save button in the chat footer saves the current conversation as a self-contained HTML document you can share or print. The button is disabled until the first user message and enables automatically after.
+
+The export is **on by default** — the public apps are the common case. Configure it with an `export` block in `layers-input.json` (or the deploy-time `config.json`, which wins):
+
+```json
+"export": {
+  "enabled": true,
+  "public_s3_endpoint": "s3-west.nrp-nautilus.io"
+}
+```
 
 | Key | Type | Default | Description |
 |---|---|---|---|
-| `public_s3_endpoint` | string | `s3-west.nrp-nautilus.io` | S3 host used by the export's DuckDB setup block. Set it when an app's data lives on other storage that is anonymously readable. A scheme or trailing slash is stripped. |
+| `enabled` | boolean | `true` | `false` removes the save button entirely — it is never created, not merely disabled. |
+| `public_s3_endpoint` | string | `s3-west.nrp-nautilus.io` | S3 host for the export's DuckDB setup block. Set it when an app's data lives on other anonymously-readable storage. A scheme or trailing slash is stripped. |
+
+`"export": false` is shorthand for `{"enabled": false}`, and a stringified `"false"` from a generated `config.json` counts as off. `public_s3_endpoint` as a top-level key is the older spelling and still works; the block wins when both are set.
+
+::: tip Private deployments should opt out
+For an app serving private data the export is worse than useless. The credential scrub (below) strips exactly what the exported queries would need to reach that data, so the recipient gets a document whose code cannot run — while the transcript still narrates what the data holds. Set `"export": false`.
+:::
 
 The saved file mirrors what the user sees in the live chat: user prompts, assistant prose, and tool-call rows with collapsible SQL and result blocks, plus the **map as it stood when Save was clicked** (see below).
 
@@ -824,7 +840,7 @@ Two guarantees apply to the export:
     );
     ```
 
-    Run it once per DuckDB session and every query in the transcript works as written. The secret carries no credentials — an omitted `KEY_ID`/`SECRET` means unsigned requests, which is what public buckets want. Apps on other storage set `public_s3_endpoint` (above); private buckets are out of scope, since the credentials that would reach them are scrubbed.
+    Run it once per DuckDB session and every query in the transcript works as written. The secret carries no credentials — an omitted `KEY_ID`/`SECRET` means unsigned requests, which is what public buckets want. Apps on other storage set `export.public_s3_endpoint` (above); private buckets are out of scope, since the credentials that would reach them are scrubbed.
 
 - **Credential scrubbing.** On top of the live-chat redaction described in the agent-loop docs, the export pass replaces credential-shaped tokens with `[REDACTED]` — DuckDB `CREATE SECRET` key/value pairs, AWS access keys (`aws_access_key_id`, `aws_secret_access_key`), `Authorization: Bearer …` tokens, and pre-signed-URL `X-Amz-Signature` / `X-Amz-Credential` / `X-Amz-Security-Token` query parameters. This scrubbing also covers the embedded map state (below).
 
