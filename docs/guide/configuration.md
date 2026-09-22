@@ -850,6 +850,20 @@ Two guarantees apply to the export:
 Earlier versions rewrote each `s3://bucket/key` to `https://s3-west.nrp-nautilus.io/bucket/key`. That silently broke every globbed path — and the catalog globs routinely, appending `/**` to partitioned assets and carrying hive patterns such as `h0=*/data_0.parquet` straight from STAC. Expanding a glob needs object listing, which the S3 API provides and plain HTTP does not, so DuckDB answered with *"Globs (`*`) for generic HTTP file is are not supported"*. Pointing DuckDB at the public endpoint, instead of editing the query, also keeps the transcript honest: what you read is what ran.
 :::
 
+### Printing, and PDF
+
+There is no PDF export, deliberately: a PDF generator means a new dependency and a flattened map for an artifact the browser already produces. What was missing was the print stylesheet, so the export now carries one, and **Print / Save as PDF** in the document's header hands off to the browser's own print dialog.
+
+Three things the stylesheet handles, each of which quietly ruined a printed export before:
+
+- **Collapsed `<details>` print empty.** Every query and result in the transcript lives in one, so a naive print-to-PDF dropped the entire analysis. The document opens them for the print run and closes them again afterwards — bound to `beforeprint`/`afterprint` rather than to the button, so <kbd>Ctrl</kbd>+<kbd>P</kbd> behaves identically.
+- **Page breaks.** Turns, queries, results and the map are `break-inside: avoid`, so a query never splits across a page boundary.
+- **Scroll boxes.** Tool output is capped to a screenful on screen; on paper it prints in full.
+
+The **Report style** checkbox beside the button prints the prose, the answers and the map without the tool machinery or the setup block — the version for a board packet rather than a colleague reproducing the work. It affects the printed output only; the document on screen is unchanged.
+
+The map prints as it appears, because the embedded map sets `preserveDrawingBuffer` — without it a WebGL canvas can print blank.
+
 ### Code in R, Python or SQL
 
 Most people who receive one of these files can drive R or Python and do not write SQL — and both languages hand SQL to DuckDB in three lines, which is the part nobody knows. So the saved document carries every query in all three languages, with a **Show code as** toggle in its header that switches the whole document at once. The choice is remembered for the next export the reader opens.

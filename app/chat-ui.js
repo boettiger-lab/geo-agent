@@ -226,6 +226,38 @@ const EXPORT_CODE_LANG_SCRIPT = `<script>
 <\/script>`;
 
 /**
+ * Inline script for the exported document: printing. Two jobs — the report /
+ * full choice, and opening collapsed `<details>` for the print run.
+ *
+ * The second one is not cosmetic: every query and result in the transcript
+ * lives in a `<details>`, and a closed one prints empty, so a naive
+ * print-to-PDF silently drops the analysis. Bound to the print events rather
+ * than to our own button, because most people press Ctrl+P.
+ */
+const EXPORT_PRINT_SCRIPT = `<script>
+(function () {
+  var check = document.getElementById('export-report-style');
+  if (check) {
+    check.addEventListener('change', function () {
+      document.body.setAttribute('data-print', check.checked ? 'report' : 'full');
+    });
+  }
+  var reopened = [];
+  window.addEventListener('beforeprint', function () {
+    reopened = [];
+    var closed = document.querySelectorAll('details:not([open])');
+    for (var i = 0; i < closed.length; i++) { reopened.push(closed[i]); closed[i].open = true; }
+  });
+  window.addEventListener('afterprint', function () {
+    for (var i = 0; i < reopened.length; i++) reopened[i].open = false;
+    reopened = [];
+  });
+  var btn = document.querySelector('.export-print-btn');
+  if (btn) btn.addEventListener('click', function () { window.print(); });
+})();
+<\/script>`;
+
+/**
  * Defense-in-depth credential scrub. Replaces credential-shaped tokens with
  * `[REDACTED]`. Each pattern requires a quoted value or structured
  * delimiter, so false positives in prose are unlikely.
@@ -1507,15 +1539,22 @@ export class ChatUI {
 <style>${css}</style>
 ${mapEmbed.headTags}
 </head>
-<body data-code-lang="${codeLang}">
+<body data-code-lang="${codeLang}" data-print="full">
 <header class="export-header">
   <h1>GLEN chat transcript</h1>
   <p>Exported ${this.escapeHtml(exportedAt)} — <a href="${appUrlAttr}">${this.escapeHtml(appTitle)}</a></p>
   <p class="export-note">The queries below are the ones the agent ran, verbatim. To re-run them
      outside the cluster, run the setup block first; it points <code>s3://</code> paths at the
      public endpoint (<code>${this.escapeHtml(setupHost)}</code>) with anonymous access.</p>
-  <div class="code-lang-toggle" role="group" aria-label="Show code as">
-    <span class="code-lang-label">Show code as</span>${langButtons}
+  <div class="export-controls">
+    <div class="code-lang-toggle" role="group" aria-label="Show code as">
+      <span class="code-lang-label">Show code as</span>${langButtons}
+    </div>
+    <div class="export-print-controls">
+      <label class="export-print-report"><input type="checkbox" id="export-report-style">
+        Report style — print without code</label>
+      <button type="button" class="export-print-btn">Print / Save as PDF</button>
+    </div>
   </div>
 </header>
 <section class="export-setup">
@@ -1527,6 +1566,7 @@ ${mapEmbed.headTags}
 ${mapEmbed.body}
 <main id="chat-messages">${clone.innerHTML}</main>
 ${EXPORT_CODE_LANG_SCRIPT}
+${EXPORT_PRINT_SCRIPT}
 </body>
 </html>`;
 
@@ -1675,7 +1715,15 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-
 .welcome-message { background: #f9fafb; padding: 8px 10px; border-radius: 6px;
                    font-size: 13px; color: #6b7280; }
 .welcome-examples { display: none; }
-.code-lang-toggle { display: flex; align-items: center; gap: 6px; margin: 8px 0 0; }
+.export-controls { display: flex; flex-wrap: wrap; align-items: center;
+                   justify-content: space-between; gap: 8px; margin: 8px 0 0; }
+.export-print-controls { display: flex; align-items: center; gap: 8px; font-size: 12px;
+                         color: #6b7280; }
+.export-print-report { display: flex; align-items: center; gap: 4px; cursor: pointer; }
+.export-print-btn { font: inherit; font-size: 12px; padding: 2px 10px; cursor: pointer;
+                    border: 1px solid #d1d5db; border-radius: 4px; background: #fff;
+                    color: #374151; }
+.code-lang-toggle { display: flex; align-items: center; gap: 6px; margin: 0; }
 .code-lang-label { font-size: 12px; color: #6b7280; }
 .code-lang-toggle button { font: inherit; font-size: 12px; padding: 2px 10px; cursor: pointer;
                            border: 1px solid #d1d5db; border-radius: 4px; background: #fff;
@@ -1723,6 +1771,26 @@ body[data-view="map"] .export-map-note,
 body[data-view="map"] .export-embed { display: none; }
 body[data-view="map"] .export-map-section { margin: 0; }
 body[data-view="map"] .export-map { height: 100vh; border: 0; border-radius: 0; }
+
+/* Print: the export is a document people hand to a board or a funder, so
+   printing it has to come out as a document. */
+@media print {
+  body { max-width: none; margin: 0; padding: 0; }
+  .export-controls, .export-embed { display: none !important; }
+  .export-header { border-bottom: 1px solid #999; }
+  a { color: inherit; text-decoration: none; }
+  /* Never split a query, a result or a turn across a page. */
+  .agent-turn, .agent-turn-row, .tool-call-item, .tool-result-item,
+  .sql-detail, .code-variants, pre, .export-setup,
+  .export-map-section, .chat-message { break-inside: avoid; }
+  /* Screen scroll boxes become full text on paper. */
+  .tool-output { max-height: none; overflow: visible; }
+  .export-map { height: 420px; }
+  .agent-turn > summary, .agent-turn-row-summary, .sql-detail summary { color: #444; }
+  /* Report style: the prose, the answers and the map — none of the machinery. */
+  body[data-print="report"] .agent-turn,
+  body[data-print="report"] .export-setup { display: none !important; }
+}
 `;
     }
 

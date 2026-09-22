@@ -198,3 +198,48 @@ describe('exported document: embed affordance (#368 §2)', () => {
         expect(html).toContain('preserveDrawingBuffer: true');
     });
 });
+
+describe('exported document: printing (#368 §1)', () => {
+    it('opens collapsed details for the print run, and closes them after', () => {
+        const doc = openExport(exportWith({ messagesHtml: oneQuery }));
+        const details = doc.querySelector('details.sql-detail');
+        expect(details.open).toBe(false);
+
+        // Bound to the events, not to our button, so Ctrl+P behaves the same.
+        window.dispatchEvent(new window.Event('beforeprint'));
+        expect(details.open).toBe(true);
+        window.dispatchEvent(new window.Event('afterprint'));
+        expect(details.open).toBe(false);
+    });
+
+    it('leaves details the reader opened alone', () => {
+        const doc = openExport(exportWith({ messagesHtml: oneQuery }));
+        const details = doc.querySelector('details.sql-detail');
+        details.open = true;
+        window.dispatchEvent(new window.Event('beforeprint'));
+        window.dispatchEvent(new window.Event('afterprint'));
+        expect(details.open).toBe(true);
+    });
+
+    it('switches to report style from the checkbox', () => {
+        const doc = openExport(exportWith({ messagesHtml: oneQuery }));
+        expect(doc.body.dataset.print).toBe('full');
+        const check = doc.getElementById('export-report-style');
+        check.checked = true;
+        check.dispatchEvent(new window.Event('change'));
+        expect(doc.body.dataset.print).toBe('report');
+        check.checked = false;
+        check.dispatchEvent(new window.Event('change'));
+        expect(doc.body.dataset.print).toBe('full');
+    });
+
+    it('carries print rules for the traps that make a printed export useless', () => {
+        const html = exportWith({ messagesHtml: oneQuery, mapState: MAP_STATE });
+        const css = /<style>([\s\S]*?)<\/style>/.exec(html)[1];
+        const print = /@media print \{([\s\S]*)\}/.exec(css)[1];
+        expect(print).toContain('break-inside: avoid');       // queries split across pages
+        expect(print).toContain('max-height: none');          // scroll boxes clipped to a screenful
+        expect(print).toContain('.export-controls');          // controls on paper
+        expect(print).toContain('data-print="report"');       // the report variant
+    });
+});
