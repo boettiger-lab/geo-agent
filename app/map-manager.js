@@ -1557,6 +1557,7 @@ export class MapManager {
         }
         document.querySelectorAll('.basemap-btn').forEach(btn => {
             btn.classList.toggle('active', btn.dataset.basemap === name);
+            btn.setAttribute('aria-pressed', String(btn.dataset.basemap === name));
         });
     }
 
@@ -1568,7 +1569,10 @@ export class MapManager {
         this._globeEnabled = type === 'globe';
         this.map.setProjection({ type });
         const btn = document.getElementById('globe-btn');
-        if (btn) btn.classList.toggle('active', this._globeEnabled);
+        if (btn) {
+            btn.classList.toggle('active', this._globeEnabled);
+            btn.setAttribute('aria-pressed', String(this._globeEnabled));
+        }
     }
 
     /**
@@ -1615,6 +1619,7 @@ export class MapManager {
         globeBtn.id = 'globe-btn';
         globeBtn.className = 'panel-btn globe-btn' + (this._globeEnabled ? ' active' : '');
         globeBtn.title = 'Toggle globe view';
+        globeBtn.setAttribute('aria-pressed', String(this._globeEnabled));
         globeBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>`;
         globeBtn.append(' Globe');
         globeBtn.addEventListener('click', () => this.setProjection(this._globeEnabled ? 'mercator' : 'globe'));
@@ -1638,6 +1643,7 @@ export class MapManager {
             const btn = document.createElement('button');
             btn.className = 'basemap-btn' + (key === this._currentBasemap ? ' active' : '');
             btn.dataset.basemap = key;
+            btn.setAttribute('aria-pressed', String(key === this._currentBasemap));
             btn.textContent = label;
             btn.addEventListener('click', () => this.setBasemap(key));
             btnGroup.appendChild(btn);

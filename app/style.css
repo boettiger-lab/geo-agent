@@ -58,7 +58,6 @@ body.theme-light {
     --control-bg-hover: color-mix(in srgb, var(--control-bg) 88%, var(--control-mix-target));
     --control-border: transparent;
     --control-fg: #ffffff;
-    --control-active-bg: color-mix(in srgb, var(--control-bg) 68%, var(--control-mix-target));
     --control-active-border: transparent;
     --control-accent: #2f6fd0;
     --control-disabled-bg: #ccd6e6;
@@ -108,7 +107,6 @@ body.theme-dark {
     --control-bg-hover: color-mix(in srgb, var(--control-bg) 88%, var(--control-mix-target));
     --control-border: transparent;
     --control-fg: #eaf1fb;
-    --control-active-bg: color-mix(in srgb, var(--control-bg) 72%, var(--control-mix-target));
     --control-active-border: transparent;
     --control-accent: #5b8fd6;
     --control-disabled-bg: #26344d;
@@ -161,7 +159,6 @@ body.theme-dark {
         --control-bg-hover: color-mix(in srgb, var(--control-bg) 88%, var(--control-mix-target));
         --control-border: transparent;
         --control-fg: #eaf1fb;
-        --control-active-bg: color-mix(in srgb, var(--control-bg) 72%, var(--control-mix-target));
         --control-active-border: transparent;
         --control-accent: #5b8fd6;
         --control-disabled-bg: #26344d;
@@ -590,8 +587,6 @@ body.has-app-header:not(.app-header-solid) .maplibregl-ctrl-top-right {
 }
 
 .basemap-btn.active {
-    background: var(--control-active-bg);
-    border-color: var(--control-active-border);
     font-weight: 600;
 }
 
@@ -833,12 +828,6 @@ details.layer-group:not([open]) .layer-group-title::before {
     transition: background 0.15s, opacity 0.15s;
 }
 
-/* Selected — the current basemap, globe mode on. */
-.basemap-btn.active,
-.panel-btn.active {
-    background: var(--control-active-bg);
-    border-color: var(--control-active-border);
-}
 
 /* Checkboxes and range sliders (the layer toggles and the year slider) take
    the same blue, so the whole panel agrees. */
@@ -863,6 +852,32 @@ details.layer-group:not([open]) .layer-group-title::before {
 .basemap-btn:hover,
 .panel-btn:not(:disabled):hover {
     background: var(--control-bg-hover);
+}
+
+/* Toggles — basemap, globe, hex grid — read their state from colour, so
+   they cannot share the action colour in both states. On is the full
+   control colour; off takes the disabled pair, the same colour a
+   send-to-back with nothing to send wears. An off toggle stays clickable,
+   so it keeps the pointer and gets a hover nudge toward the on colour.
+   Keyed on aria-pressed, which the buttons carry for screen readers anyway,
+   so the visible and announced state cannot drift apart. */
+.basemap-btn[aria-pressed="false"],
+.panel-btn[aria-pressed="false"] {
+    background: var(--control-disabled-bg);
+    color: var(--control-disabled-fg);
+}
+
+.basemap-btn[aria-pressed="false"]:hover,
+.panel-btn[aria-pressed="false"]:not(:disabled):hover {
+    background: color-mix(in srgb, var(--control-disabled-bg) 75%, var(--control-bg));
+    color: var(--control-fg);
+}
+
+.basemap-btn[aria-pressed="true"],
+.panel-btn[aria-pressed="true"] {
+    background: var(--control-bg);
+    color: var(--control-fg);
+    border-color: var(--control-active-border);
 }
 
 .upload-status {
