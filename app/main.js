@@ -129,39 +129,45 @@ async function main() {
             outlineOpacity: 0.35,
         });
 
-        // Create toggle button
+        // Toggle button, off by default. A map-wide control like the globe,
+        // so it sits beside the globe in the panel's action row; the rail
+        // is only the fallback when there is no layer panel to hold it.
         const btn = document.createElement('button');
         btn.id = 'h3-toggle';
+        btn.className = 'panel-btn';
         btn.title = 'Toggle H3 hex grid';
-        btn.setAttribute('aria-label', 'Toggle H3 hex grid');
         btn.setAttribute('aria-pressed', 'false');
-        btn.innerHTML = '⬡';
-        mountOverlay(btn, SLOT.HEX_TOGGLE);
+        btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M12 2.5 20.2 7.25v9.5L12 21.5 3.8 16.75v-9.5z"/></svg>';
+        btn.append(' Hex grid');
+        const globeBtn = document.getElementById('globe-btn');
+        if (globeBtn) globeBtn.after(btn);
+        else mountOverlay(btn, SLOT.HEX_TOGGLE);
 
-        // Resolution badge (hidden until active)
+        // Resolution readout. Stays on the map: it describes what is drawn
+        // there, and the rail is where map state goes. Mounted only while the
+        // grid is on, so an idle rail is empty — the mobile sheet hides its
+        // Legend tab on exactly that.
         const badge = document.createElement('span');
         badge.id = 'h3-res-badge';
-        badge.style.display = 'none';
-        mountOverlay(badge, SLOT.HEX_BADGE);
 
         let h3Active = false;
         btn.addEventListener('click', () => {
             h3Active = !h3Active;
             btn.setAttribute('aria-pressed', String(h3Active));
+            btn.classList.toggle('active', h3Active);
             if (h3Active) {
                 h3Layer.start();
-                btn.classList.add('active');
-                badge.style.display = '';
+                mountOverlay(badge, SLOT.HEX_BADGE);
             } else {
                 h3Layer.stop();
-                btn.classList.remove('active');
-                badge.style.display = 'none';
+                badge.remove();
             }
         });
 
         // Update badge on hex refresh
         window.addEventListener('h3update', (e) => {
-            badge.textContent = `${e.detail.resolution}`;
+            // Labelled, since it no longer sits beside the toggle it belongs to.
+            badge.textContent = `H3 res ${e.detail.resolution}`;
         });
 
         console.log('[main] H3 grid toggle ready');

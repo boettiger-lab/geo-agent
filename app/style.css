@@ -791,11 +791,23 @@ details.layer-group:not([open]) .layer-group-title::before {
 /* Row of panel-level actions (Upload, Save) under the layer list. They sit
    side by side and size to their content rather than each spanning the
    panel — a full-width button reads as a section, not a control. */
+/* A grid rather than a wrapping flex row, so buttons line up in columns
+   instead of drifting to whatever width their labels happen to be. Three
+   across at most; below ~3 × 7.5rem the columns drop to two rather than
+   squeezing labels. */
 .panel-actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-    margin: 8px 0 6px;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(max(7.5rem, calc((100% - 2 * 8px) / 3)), 1fr));
+    gap: 8px;
+    margin: 10px 0 8px;
+}
+
+.panel-actions > .panel-btn,
+.panel-actions > .upload-btn {
+    width: 100%;
+    min-width: 0;
+    min-height: 32px;
+    padding: 6px 10px;
 }
 
 /* One button. Everything that is clickable in a panel — basemap, globe,
@@ -1094,38 +1106,6 @@ details.layer-group:not([open]) .layer-group-title::before {
 
 #legend-content::-webkit-scrollbar-thumb:hover {
     background: var(--panel-fg-muted);
-}
-
-/* H3 hex grid toggle */
-#h3-toggle {
-    width: 32px;
-    height: 32px;
-    border-radius: 6px;
-    border: 1px solid var(--panel-line);
-    background: var(--panel-bg);
-    -webkit-backdrop-filter: blur(10px);
-    backdrop-filter: blur(10px);
-    box-shadow: 0 1px 3px var(--panel-shadow);
-    font-size: 18px;
-    line-height: 1;
-    color: var(--panel-fg-muted);
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: background-color 0.2s, color 0.2s, border-color 0.2s;
-    padding: 0;
-}
-
-#h3-toggle:hover {
-    background: var(--panel-bg-strong);
-    color: var(--panel-fg-muted);
-}
-
-#h3-toggle.active {
-    background: var(--control-focus-bg);
-    color: var(--control-focus-fg);
-    border-color: var(--control-focus-fg);
 }
 
 /* Hover tooltip */

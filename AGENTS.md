@@ -14,7 +14,7 @@ Core library for map-based applications with LLM-powered data analysis. Interact
 - `main.js` — Bootstrap: loads config, initializes catalog → map → tools → agent → UI
 - `dataset-catalog.js` — Fetches STAC collections, builds unified records
 - `map-manager.js` — Creates MapLibre map, manages layers/filters/styles
-- `overlay-rail.js` — Shared bottom-left rail every map-scoped overlay panel mounts into (legend, sliders, hex controls). New floating panels go here, not onto `document.body` with their own anchors.
+- `overlay-rail.js` — Shared bottom-left rail every map-scoped overlay panel mounts into (legend, sliders, H3 resolution badge). New floating panels go here, not onto `document.body` with their own anchors.
 - `app-header.js` — Optional app chrome band (logos, top-level nav) in `scrim` or `solid` mode. App-level UI goes here; map-scoped controls go in the overlay rail.
 - `mobile-sheet.js` — Below 700px the sidebar becomes a bottom sheet with peek/half/full detents. No gesture is bound to the map.
 - `icons.js` — The few inline SVGs shared by the header nav and the chat footer links.

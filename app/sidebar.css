@@ -414,7 +414,8 @@ body.sidebar-mode.sidebar-collapsed #sidebar-show-btn {
     body.sheet-mode:not([data-sheet-tab="legend"]) #map-overlay-rail,
     body.sheet-mode:not([data-sheet-tab="chat"]) #chat-messages,
     body.sheet-mode:not([data-sheet-tab="chat"]) #chat-input-container,
-    body.sheet-mode:not([data-sheet-tab="chat"]) #sidebar-footer {
+    body.sheet-mode:not([data-sheet-tab="chat"]) #sidebar-footer,
+    body.sheet-mode:not([data-sheet-tab="chat"]) #api-settings-panel {
         display: none;
     }
 
@@ -429,6 +430,13 @@ body.sidebar-mode.sidebar-collapsed #sidebar-show-btn {
         max-height: none;
         overflow-y: auto;
         overscroll-behavior: contain;
+    }
+
+    /* The desktop pane's padding is scoped out of sheet mode along with its
+       splitter sizing, so restore the gutter here — without it the layer
+       list and action buttons sit flush against the screen edge. */
+    body.sidebar-mode.sheet-mode #sidebar-layers-pane {
+        padding: 8px 16px 16px;
     }
 
     /* Input and footer keep their place at the bottom of the sheet. */

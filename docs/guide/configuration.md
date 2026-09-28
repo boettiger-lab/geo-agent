@@ -1179,8 +1179,7 @@ Trade-offs, by design:
 Not a config block — background for apps that ship their own CSS overrides.
 
 Every panel that floats over the map bottom-left — the legend, reactive-parameter
-sliders, trajectory playback controls, and the H3 hex toggle and resolution badge —
-mounts into a single container, `#map-overlay-rail`. The rail is a bottom-anchored
+sliders, trajectory playback controls, and the H3 resolution badge — mounts into a single container, `#map-overlay-rail`. The rail is a bottom-anchored
 flex column, so panels queue above one another in a fixed order instead of each
 anchoring itself to the same corner. Adding or removing a panel reflows the rest
 automatically.
@@ -1193,11 +1192,13 @@ construction time. Panels overlapped whenever they didn't know about each other
 **What this means for custom CSS:**
 
 - Panels inside the rail are `position: static`. Overriding `bottom`, `left` or
-  `z-index` on `#legend`, `.reactive-controls`, `.anim-controls`, `#h3-toggle` or
+  `z-index` on `#legend`, `.reactive-controls`, `.anim-controls` or
   `#h3-res-badge` no longer does anything — the rail places them. Such rules are
   inert rather than broken, so a stale workaround does no harm, but it can be deleted.
 - Sizing and appearance overrides (`max-width`, colors, fonts, padding) still apply
   normally.
+- The H3 hex-grid toggle is no longer a floating map button. It is a **Hex grid**
+  button in the layer panel's action row, beside **Globe**, and is off by default.
 - To reposition the group as a whole, style `#map-overlay-rail` itself.
 
 Stacking across the whole app uses a named scale defined on `:root` in `style.css`,
