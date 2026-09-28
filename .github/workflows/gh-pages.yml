@@ -125,15 +125,38 @@ jobs:
 
           # An index, so a reviewer handed the bare /preview/ URL can find
           # whichever branch they were sent.
+          #
+          # It lists each branch's variants and any extra HTML staged beside
+          # the app, not just the branch root. A branch root is always the
+          # live app, so a feature whose artifact is a separate page — an
+          # exported document, say — looks absent from the index even when it
+          # is published. Everything staged should be reachable from here.
           {
             echo '<!doctype html><meta charset=utf-8><title>Previews</title>'
-            echo '<style>body{font:16px/1.5 system-ui,sans-serif;margin:3rem auto;max-width:34rem;padding:0 1rem}'
-            echo 'li{margin:.4rem 0}code{color:#666}</style>'
+            echo '<style>body{font:16px/1.5 system-ui,sans-serif;margin:3rem auto;max-width:36rem;padding:0 1rem}'
+            echo 'h1{font-size:1.4rem}li{margin:.5rem 0}code{color:#666;font-size:.85em}'
+            echo 'ul ul{margin:.2rem 0 0;font-size:.92em}</style>'
             echo '<h1>Branch previews</h1><ul>'
             for branch in $branches; do
               slug=$(printf '%s' "${branch#preview/}" | tr -c 'A-Za-z0-9._-' '-')
-              [ -d "$PREVIEW_ROOT/$slug" ] || continue
-              echo "<li><a href=\"./$slug/\">$slug</a> &mdash; <code>$branch</code></li>"
+              dir="$PREVIEW_ROOT/$slug"
+              [ -d "$dir" ] || continue
+              echo "<li><a href=\"./$slug/\">$slug</a> &mdash; <code>$branch</code>"
+              echo '<ul>'
+              # Variants: a subdirectory that is itself an app.
+              for v in "$dir"/*/; do
+                [ -f "$v/index.html" ] || continue
+                vname=$(basename "$v")
+                echo "<li><a href=\"./$slug/$vname/\">$vname</a> &mdash; variant</li>"
+              done
+              # Extra pages staged from preview/, e.g. an exported document.
+              for f in "$dir"/*.html; do
+                [ -e "$f" ] || continue
+                fname=$(basename "$f")
+                [ "$fname" = "index.html" ] && continue
+                echo "<li><a href=\"./$slug/$fname\">$fname</a> &mdash; page</li>"
+              done
+              echo '</ul></li>'
             done
             echo '</ul>'
           } > "$PREVIEW_ROOT/index.html"
