@@ -617,15 +617,16 @@ automatically, with no reload:
 
 ```json
 "brand": {
-  "src":      "https://cdn.jsdelivr.net/gh/boettiger-lab/geo-agent@v3.29.0/app/assets/dse-logo-black.png",
-  "src_dark": "https://cdn.jsdelivr.net/gh/boettiger-lab/geo-agent@v3.29.0/app/assets/dse-logo-white.png",
+  "src":      "https://cdn.jsdelivr.net/gh/boettiger-lab/geo-agent@v3.30.0/app/assets/dse-logo-black.png",
+  "src_dark": "https://cdn.jsdelivr.net/gh/boettiger-lab/geo-agent@v3.30.0/app/assets/dse-logo-white.png",
   "alt":      "Eric and Wendy Schmidt Center for Data Science & Environment",
   "href":     "https://dse.berkeley.edu/"
 }
 ```
 
 The DSE mark ships with the library in both variants (`app/assets/`), so apps
-can reference it from the CDN at their pinned ref. Prefer hosting a copy of a
+can reference it from the CDN at their pinned ref — `v3.30.0` or later, the
+first release that carries these files. Prefer hosting a copy of a
 *partner's* mark too, rather than hotlinking their site, which can change or
 block the request.
 
