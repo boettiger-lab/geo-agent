@@ -1,0 +1,25 @@
+{
+  "theme": "dark",
+  "header": {
+    "enabled": true,
+    "mode": "solid",
+    "title": "GLEN Layout preview",
+    "partner": {
+      "src": "bosl-logo.svg",
+      "alt": "Benioff Ocean Science Laboratory",
+      "href": "https://bosl.ucsb.edu/"
+    },
+    "institution": [
+      {
+        "src": "wide-wordmark.svg",
+        "alt": "Example Coastal Institute (placeholder)"
+      },
+      {
+        "src": "assets/dse-mark.png",
+        "src_dark": "assets/dse-mark-white.png",
+        "alt": "Eric and Wendy Schmidt Center for Data Science & Environment at Berkeley",
+        "href": "https://dse.berkeley.edu/"
+      }
+    ]
+  }
+}
