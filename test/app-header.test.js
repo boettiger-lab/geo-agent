@@ -107,6 +107,8 @@ describe('resolveHeaderConfig', () => {
             expect(cfg.nav[2].icon).toBe('leaf');
             expect(cfg.nav[2].variant).toBeNull();
             expect(cfg.nav[1].icon).toBe('github');
+            // Every derived entry has an icon, so the row reads as one set.
+            expect(cfg.nav.map(n => n.icon)).toEqual(['info', 'github', 'leaf', 'mail']);
         });
 
         it('lets carbon be a string to override the default dashboard', () => {
@@ -428,9 +430,11 @@ describe('nav icons', () => {
     });
 
     it('leaves entries without an icon as plain labels', () => {
-        buildAppHeader({ header: { enabled: true } }, document);   // Contact only
+        buildAppHeader({
+            header: { enabled: true, nav: [{ label: 'Plain', href: 'https://p.example' }] },
+        }, document);
         const a = document.querySelector('#app-header-nav a');
-        expect(a.textContent.trim()).toBe('Contact us');
+        expect(a.textContent.trim()).toBe('Plain');
         expect(a.querySelector('svg')).toBeNull();
     });
 

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { githubIcon, leafIcon } from '../app/icons.js';
+import { githubIcon, leafIcon, infoIcon, mailIcon } from '../app/icons.js';
 
 /**
  * These sit inside themed chrome, so they have to follow the text colour.
@@ -7,7 +7,10 @@ import { githubIcon, leafIcon } from '../app/icons.js';
  * black — invisible-ish on a dark header while the leaf beside it adapted
  * correctly. Nothing in the markup says "this is wrong", hence the test.
  */
-const ICONS = [['githubIcon', githubIcon], ['leafIcon', leafIcon]];
+const ICONS = [
+    ['githubIcon', githubIcon], ['leafIcon', leafIcon],
+    ['infoIcon', infoIcon], ['mailIcon', mailIcon],
+];
 
 describe.each(ICONS)('%s', (_name, icon) => {
     const svg = icon(14);
