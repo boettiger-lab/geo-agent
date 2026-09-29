@@ -498,6 +498,55 @@ body.has-app-header:not(.app-header-solid) .maplibregl-ctrl-top-right {
     border-bottom: 1px solid var(--chrome-line);
 }
 
+/* When the band runs short, the title gives way first and the logos next;
+   the nav links and the menu button never do. Images in a flex row keep
+   their natural width unless told otherwise, so without this a partner plus
+   two institution marks overflowed the end zone and ran under the menu
+   button (#381). Each wrapper and each image may shrink, down to a floor;
+   object-fit keeps a squeezed mark in proportion. */
+.app-header-end {
+    flex: 1 1 auto;
+    justify-content: flex-end;
+}
+
+/* A large shrink weight, so the brand zone — really its title, which
+   ellipsizes — absorbs a shortfall before any logo is squeezed. */
+.app-header-brand {
+    flex-shrink: 100;
+}
+
+#app-header-nav,
+#app-header-menu-btn {
+    flex: 0 0 auto;
+}
+
+.app-header-brand > *,
+.app-header-end > .app-header-logo-link,
+.app-header-end > .app-header-logo-pair,
+.app-header-end > .app-header-logo,
+.app-header-partner-slot > *,
+.app-header-logo-link > *,
+.app-header-logo-pair > * {
+    flex: 0 1 auto;
+    /* A floor, so a compact mark stays legible while a wide wordmark,
+       which shrinks in proportion to its width, gives up most of the room. */
+    min-width: 24px;
+}
+
+.app-header-title {
+    min-width: 0;
+}
+
+/* The leading mark holds its size; within the brand zone only the title
+   gives. */
+.app-header-brand > :not(.app-header-title) {
+    flex-shrink: 0;
+}
+
+.app-header-partner-slot {
+    flex-shrink: 1;
+}
+
 @media (max-width: 700px) {
     #app-header-nav {
         display: none;
@@ -508,6 +557,27 @@ body.has-app-header:not(.app-header-solid) .maplibregl-ctrl-top-right {
     /* The title is the first thing to go; the logos carry identity. */
     .app-header-title {
         display: none;
+    }
+    #app-header {
+        gap: 10px;
+        padding: 0 12px;
+    }
+    .app-header-brand,
+    .app-header-end {
+        gap: 10px;
+    }
+    /* Smaller marks, and a hard cap on any one of them, so a wide wordmark
+       cannot claim most of a phone's band. */
+    .app-header-logo {
+        height: 22px;
+    }
+    .app-header-logo--partner,
+    .app-header-logo--institution {
+        height: 20px;
+        max-width: 96px;
+    }
+    .app-header-partner-slot {
+        min-width: 0;
     }
 }
 
