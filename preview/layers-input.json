@@ -11,8 +11,8 @@
     "default_endpoint": "https://openrouter.ai/api/v1",
     "models": [
       {
-        "value": "anthropic/claude-sonnet-5",
-        "label": "Claude Sonnet 5"
+        "value": "~deepseek/deepseek-v4-flash-latest",
+        "label": "DeepSeek V4 Flash Latest"
       },
       {
         "value": "google/gemini-3.5-flash-lite",
@@ -21,6 +21,14 @@
       {
         "value": "z-ai/glm-5.2",
         "label": "GLM-5.2"
+      },
+      {
+        "value": "anthropic/claude-sonnet-5",
+        "label": "Claude Sonnet 5"
+      },
+      {
+        "value": "moonshotai/kimi-k3",
+        "label": "Kimi 3"
       }
     ]
   },
@@ -53,8 +61,13 @@
     "carbon": true
   },
   "welcome": {
-    "message": "Layout preview build \u2014 a fixture for eyeballing browser-bound UI on an unmerged branch. Add your own API key with the gear icon to try the chat and the microphone.",
-    "examples": []
+    "message": "Layout preview of this branch. Add your own OpenRouter key with the gear icon to try the chat \u2014 the model list and example questions match geo-agent-template.",
+    "examples": [
+      "How many acres of GAP Status 1 land does California have?",
+      "What's the average irrecoverable carbon in California's GAP 1+2 protected lands?",
+      "Find the top 5 states by conservation easement acreage.",
+      "Color the fee lands by management type and tell me the top 3 management agencies by acreage."
+    ]
   },
   "collections": [
     {

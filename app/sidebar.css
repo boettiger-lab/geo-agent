@@ -537,6 +537,17 @@ body.sidebar-mode .chat-message.tool-block {
     background: var(--chat-tool-bg);
 }
 
+/* Errors: body text in the chat colour on a faint red wash, with the red
+   carried by the edge. chat.css draws dark-red text on a red tint, which on
+   the dark palette was red on near-black — unreadable exactly when the
+   message matters (an LLM 402, a failed query). */
+body.sidebar-mode .chat-message.error {
+    background: color-mix(in srgb, var(--danger-fg) 12%, transparent);
+    color: var(--chat-fg);
+    border-left: 3px solid var(--danger-fg);
+    overflow-wrap: anywhere;
+}
+
 /* The user's own message takes the control colour, so it follows the
    palette and a `theme.primary` override like every other blue here. */
 body.sidebar-mode .chat-message.user {
