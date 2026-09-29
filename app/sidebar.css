@@ -537,6 +537,84 @@ body.sidebar-mode .chat-message.tool-block {
     background: var(--chat-tool-bg);
 }
 
+/* The user's own message takes the control colour, so it follows the
+   palette and a `theme.primary` override like every other blue here. */
+body.sidebar-mode .chat-message.user {
+    background: var(--control-bg);
+    color: var(--control-fg);
+}
+
+/* The welcome message sits on the sidebar itself, not in a bubble: a bubble
+   holding a row of pill buttons was three nested surfaces before the first
+   question. The examples are outline chips — one line, no fill of their own. */
+body.sidebar-mode .chat-message.welcome-message {
+    background: transparent;
+    color: var(--chat-fg);
+    max-width: none;
+    padding-left: 2px;
+    padding-right: 2px;
+}
+
+body.sidebar-mode .welcome-example-btn {
+    background: transparent;
+    border: 1px solid var(--chrome-line);
+    color: var(--chat-fg);
+    font-family: inherit;
+}
+
+body.sidebar-mode .welcome-example-btn:hover {
+    background: var(--chrome-accent-wash);
+    border-color: var(--control-accent);
+}
+
+/* Timeline and tool labels: chat.css hard-codes a navy that disappears on
+   the dark palette. */
+body.sidebar-mode .agent-turn-row-summary,
+body.sidebar-mode .query-summary-btn,
+body.sidebar-mode .tool-call-item strong,
+body.sidebar-mode .tool-result-item strong {
+    color: var(--chat-accent-fg);
+}
+
+body.sidebar-mode .query-summary-btn::before {
+    border-left-color: var(--chat-accent-fg);
+}
+
+body.sidebar-mode .agent-turn-row-summary:hover {
+    background: var(--chrome-hover);
+}
+
+/* The rest of the timeline hard-codes light-palette text: near-black for
+   an expanded tool's arguments and reasoning (so a query's SQL was
+   invisible on dark), and greys for the turn summary and status rows. */
+body.sidebar-mode .agent-turn-row-body,
+body.sidebar-mode .tool-reasoning {
+    color: var(--chat-fg);
+}
+
+body.sidebar-mode .agent-turn > .agent-turn-summary,
+body.sidebar-mode .agent-turn-row.thinking,
+body.sidebar-mode .agent-turn-row .row-status:not(.done):not(.error),
+body.sidebar-mode .agent-turn-row.reasoning > .agent-turn-row-summary {
+    color: var(--chrome-fg-muted);
+}
+
+body.sidebar-mode .agent-turn-row-body pre {
+    background: var(--chat-code-bg);
+    padding: 6px 8px;
+    border-radius: 4px;
+    overflow-x: auto;
+}
+
+/* One scrollbar treatment for everything that scrolls in the sidebar — the
+   layer list had none and showed the browser's white bar on dark. The
+   standard properties are inherited, cover Firefox, and in Chromium take
+   over from the ::-webkit-scrollbar rules for the chat pane. */
+body.sidebar-mode #sidebar {
+    scrollbar-color: var(--chrome-line) transparent;
+    scrollbar-width: thin;
+}
+
 body.sidebar-mode #chat-footer .footer-link {
     color: var(--chrome-fg-muted);
 }
