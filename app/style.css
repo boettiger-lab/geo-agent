@@ -200,6 +200,10 @@ body.theme-dark {
 body {
     margin: 0;
     padding: 0;
+    /* The sidebar layout had no font of its own — only the floating chat
+       declared one — so it fell back to the browser default, which is a
+       serif on most desktops. Same system stack the floating chat uses. */
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
     /* 0 unless app-header.js enables the band, so every `top` below is
        written the same way whether or not there is a header. */
     --app-header-h: 0px;
