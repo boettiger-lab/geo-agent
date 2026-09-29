@@ -271,6 +271,7 @@ class DrawButtonControl {
         btn.id = 'draw-toggle';
         btn.type = 'button';
         btn.title = 'Draw a region on the map';
+        btn.setAttribute('aria-label', 'Draw a region on the map');
         // Pentagon SVG icon
         btn.innerHTML = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" ' +
             'stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +

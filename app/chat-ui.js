@@ -5,6 +5,10 @@
  * Renders collapsible tool-call blocks (VSCode Copilot-inspired).
  */
 
+import { CARBON_DASHBOARD_URL } from './app-header.js';
+import { ensurePanelActions } from './panel-actions.js';
+import { githubIcon, leafIcon } from './icons.js';
+
 /**
  * Default public (anonymous) S3 endpoint for the exported setup block.
  * Mirrors the host that `dataset-catalog.js` strips when it converts asset
@@ -532,6 +536,8 @@ export class ChatUI {
         this.headerEl = mount.header;
         this.footerEl = mount.footer;
         this.footerRightEl = mount.footerRight;
+        // True when the app header already renders `links` as top-level nav.
+        this.linksAbsorbed = Boolean(mount.linksAbsorbed);
         this.modelSelector = mount.footerRight.querySelector('#model-selector');
 
         // Voice input state. The voice + transcriber modules are loaded
@@ -571,6 +577,7 @@ export class ChatUI {
         this.abandonBtn.type = 'button';
         this.abandonBtn.textContent = '✕';
         this.abandonBtn.title = 'Discard the paused work and start fresh';
+        this.abandonBtn.setAttribute('aria-label', 'Discard the paused work and start fresh');
         this.abandonBtn.hidden = true;
         this.abandonBtn.addEventListener('click', () => this.abandonSuspendedTurn());
         this.sendBtn.parentNode.insertBefore(this.abandonBtn, this.sendBtn);
@@ -789,6 +796,9 @@ export class ChatUI {
     initLinks() {
         const links = this.config.links;
         if (!links) return;
+        // The app header renders the same links as top-level nav when one is
+        // configured; showing them here too would duplicate every entry.
+        if (this.linksAbsorbed) return;
 
         // All links live in the footer-left zone in both floating and sidebar
         // modes. The header is kept link-free.
@@ -802,12 +812,12 @@ export class ChatUI {
 
         if (links.carbon) {
             const a = document.createElement('a');
-            a.href = 'https://carbon-api.nrp-nautilus.io/';
+            a.href = typeof links.carbon === 'string' ? links.carbon : CARBON_DASHBOARD_URL;
             a.target = '_blank';
             a.rel = 'noopener noreferrer';
             a.className = 'footer-link carbon-link';
             a.title = 'Carbon dashboard — energy use for this deployment';
-            a.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19.2 2.96a1 1 0 0 1 1.8.66c.4 5.85-1.18 12.96-9 16.4"/><path d="M2 21c0-3 1.85-5.36 5.08-6"/></svg>`;
+            a.innerHTML = leafIcon(15);
             footer.prepend(a);
         }
 
@@ -818,7 +828,7 @@ export class ChatUI {
             a.rel = 'noopener noreferrer';
             a.className = 'footer-link github-link';
             a.title = 'Source code';
-            a.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path fill-rule="evenodd" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>`;
+            a.innerHTML = githubIcon(16);
             footer.prepend(a);
         }
 
@@ -1028,13 +1038,19 @@ export class ChatUI {
         // nothing left for a console to re-enable.
         if (!this.exportConfig?.enabled) return;
 
-        const footer = this.footerRightEl;
-        if (!footer) return;
+        // Prefer the layer panel's action row, so Export sits beside Upload
+        // rather than alone in the footer. Falls back to the footer when
+        // there is no layer panel (floating mode, or a headless harness).
+        const controls = document.getElementById('layer-controls-container');
+        const row = controls ? ensurePanelActions(controls) : null;
+        const host = row || this.footerRightEl;
+        if (!host) return;
 
         const btn = document.createElement('button');
         btn.id = 'export-btn';
+        btn.className = row ? 'panel-btn' : '';
         btn.title = 'Save this conversation as a self-contained HTML document you can share or print.';
-        btn.textContent = '💾';
+        btn.textContent = row ? '\u{1F4BE} Export Map' : '\u{1F4BE}';
         btn.disabled = true;
 
         btn.addEventListener('click', () => {
@@ -1042,7 +1058,8 @@ export class ChatUI {
             this.exportHtml();
         });
 
-        footer.prepend(btn);
+        if (row) host.appendChild(btn);
+        else host.prepend(btn);
         this._exportBtn = btn;
 
         // Observe messagesEl for the first real turn appearing; enable once

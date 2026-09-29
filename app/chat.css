@@ -900,7 +900,7 @@ details[open]>.query-summary-btn::before {
     color: #7c3aed;
 }
 
-#export-btn {
+#chat-footer #export-btn {
     background: none;
     border: none;
     border-radius: 4px;
@@ -915,11 +915,11 @@ details[open]>.query-summary-btn::before {
     transition: opacity 0.15s, filter 0.15s, background-color 0.15s;
 }
 
-#export-btn:hover:not(:disabled) {
+#chat-footer #export-btn:hover:not(:disabled) {
     background: rgba(0, 0, 0, 0.06);
 }
 
-#export-btn:disabled {
+#chat-footer #export-btn:disabled {
     opacity: 0.35;
     filter: grayscale(1);
     cursor: not-allowed;
