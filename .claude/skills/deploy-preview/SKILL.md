@@ -124,7 +124,14 @@ To exercise the step for real, run it in a throwaway clone.
 - **Not the client integration path.** The preview serves `app/` in place via
   relative imports, so it does *not* exercise CDN pinning or the runtime config
   merge. A change touching those needs a real downstream pin instead.
-- **Clean up.** Delete the `preview/*` ref once the PR merges.
+- **Keep previews up after merge.** Partners review them to decide whether
+  to adopt a change or ask for more, so a merged PR's preview stays live.
+  Don't delete the `preview/*` ref when the PR merges; point it at `main`
+  instead (`git push -f origin origin/main:preview/<name>`) so it shows what
+  shipped. Delete one only when asked.
+- **Reuse the preview's name for follow-up work.** A fix to a feature
+  already under review goes to that feature's existing `preview/<name>`, so
+  the URL partners already have keeps working. Don't mint a new name per PR.
 
 ## Do not reach into a downstream app
 
