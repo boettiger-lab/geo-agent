@@ -39,6 +39,8 @@
    what the sidebar has always been. */
 :root,
 body.theme-light {
+    /* Native controls and scrollbars follow the palette too. */
+    color-scheme: light;
     --chrome-bg: #f8f9fa;
     --chrome-bg-raised: #ffffff;
     --chrome-fg: #1a1a2e;
@@ -80,6 +82,8 @@ body.theme-light {
     --chat-tool-bg: rgba(245, 248, 255, 0.6);
     --chat-thinking-bg: rgba(173, 216, 230, 0.35);
     --chat-thinking-fg: #2c5282;
+    /* Timeline labels, tool names and disclosure arrows in the chat. */
+    --chat-accent-fg: #2c5282;
     --chat-input-bg: rgba(255, 255, 255, 0.45);
     --chat-input-bg-focus: rgba(255, 255, 255, 0.65);
     --danger-fg: #c0392b;
@@ -88,6 +92,7 @@ body.theme-light {
 }
 
 body.theme-dark {
+    color-scheme: dark;
     --chrome-bg: #111b2e;
     --chrome-bg-raised: #1b2740;
     --chrome-fg: #e8eef7;
@@ -129,6 +134,7 @@ body.theme-dark {
     --chat-tool-bg: rgba(255, 255, 255, 0.05);
     --chat-thinking-bg: rgba(56, 120, 160, 0.25);
     --chat-thinking-fg: #bfdbfe;
+    --chat-accent-fg: #a9c8f5;
     --chat-input-bg: rgba(255, 255, 255, 0.08);
     --chat-input-bg-focus: rgba(255, 255, 255, 0.14);
     --danger-fg: #ff8a80;
@@ -140,6 +146,7 @@ body.theme-dark {
    it as its own class instead of resolving it to light or dark at boot. */
 @media (prefers-color-scheme: dark) {
     body.theme-auto {
+        color-scheme: dark;
         --chrome-bg: #111b2e;
         --chrome-bg-raised: #1b2740;
         --chrome-fg: #e8eef7;
@@ -181,6 +188,7 @@ body.theme-dark {
         --chat-tool-bg: rgba(255, 255, 255, 0.05);
         --chat-thinking-bg: rgba(56, 120, 160, 0.25);
         --chat-thinking-fg: #bfdbfe;
+        --chat-accent-fg: #a9c8f5;
         --chat-input-bg: rgba(255, 255, 255, 0.08);
         --chat-input-bg-focus: rgba(255, 255, 255, 0.14);
         --danger-fg: #ff8a80;

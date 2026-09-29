@@ -25,7 +25,7 @@
  * Logos are supplied by config as URLs; this module ships no image assets.
  */
 
-import { githubIcon, leafIcon } from './icons.js';
+import { githubIcon, leafIcon, infoIcon, mailIcon } from './icons.js';
 
 /** Carbon dashboard for NRP-hosted LLM usage, shown as a nav entry. */
 export const CARBON_DASHBOARD_URL = 'https://carbon-api.nrp-nautilus.io/';
@@ -221,7 +221,7 @@ function resolveNav(header, links) {
     // Contact, which is the one entry that appears by default rather than
     // only when configured. Set `links.contact` to false to drop it.
     const derived = [];
-    if (l.docs) derived.push({ label: 'About', href: safeHref(l.docs) });
+    if (l.docs) derived.push({ label: 'About', href: safeHref(l.docs), icon: 'info' });
     if (l.github) derived.push({ label: 'GitHub', href: safeHref(l.github), icon: 'github' });
     if (l.carbon) {
         derived.push({
@@ -234,6 +234,7 @@ function resolveNav(header, links) {
         derived.push({
             label: 'Contact us',
             href: safeHref(contactHref(l.contact)),
+            icon: 'mail',
             // A mailto: opens a mail client, so a new tab would leave a blank
             // one behind.
             external: false,
@@ -371,7 +372,9 @@ function buildMobileMenu(doc, items) {
     return { button, panel };
 }
 
-const ICONS = { github: githubIcon, leaf: leafIcon };
+// Every derived nav entry carries one, so the row reads as a set rather
+// than two decorated links among plain ones.
+const ICONS = { github: githubIcon, leaf: leafIcon, info: infoIcon, mail: mailIcon };
 
 function navLink(doc, item, className) {
     const a = el(doc, 'a', { class: className, href: item.href });
