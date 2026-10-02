@@ -1191,3 +1191,70 @@ describe('DatasetCatalog `sidebar` panel-membership flag (#352)', () => {
         warn.mockRestore();
     });
 });
+
+describe('DatasetCatalog toggle_group (#349)', () => {
+    let cat;
+    beforeEach(() => { cat = new DatasetCatalog(); cat.titilerUrl = 'https://titiler.example'; });
+
+    const cog = (href) => ({ type: 'image/tiff; application=geotiff', href });
+
+    it('carries toggle_group onto raster, vector and versioned layers', () => {
+        const collection = stacCollection({
+            assets: {
+                conus: cog('https://x/conus.tif'),
+                y1: cog('https://x/y1.tif'),
+                tiles: { type: 'application/vnd.pmtiles', href: 'https://x/t.pmtiles' },
+            },
+        });
+        const layers = cat.extractMapLayers(collection, {}, [
+            { key: 'conus', assetId: 'conus', config: { toggle_group: '  WHP 2023 ' } },
+            { key: 'mtbs', assetId: 'mtbs', config: { toggle_group: 'MTBS', versions: [{ label: '1984', asset_id: 'y1' }] } },
+            { key: 'tiles', assetId: 'tiles', config: { toggle_group: 'Vec' } },
+        ]);
+        expect(layers.map(l => l.toggleGroup)).toEqual(['WHP 2023', 'MTBS', 'Vec']);
+    });
+
+    it('treats a missing, blank or non-string toggle_group as none', () => {
+        const collection = stacCollection({ assets: { a: cog('https://x/a.tif') } });
+        const layers = cat.extractMapLayers(collection, {}, [
+            { key: 'a1', assetId: 'a', config: {} },
+            { key: 'a2', assetId: 'a', config: { toggle_group: '   ' } },
+            { key: 'a3', assetId: 'a', config: { toggle_group: { name: 'x' } } },
+        ]);
+        expect(layers.map(l => l.toggleGroup)).toEqual([null, null, null]);
+    });
+
+    it('passes toggleGroup through getMapLayerConfigs while each member keeps its own rescale', () => {
+        cat.datasets.set('whp-conus', {
+            id: 'whp-conus', title: 'C', columns: [],
+            mapLayers: [{ assetId: 'cog', layerType: 'raster', title: 'WHP (CONUS)', cogUrl: 'https://x/c.tif',
+                colormap: 'reds', rescale: '0,2000', toggleGroup: 'WHP 2023' }],
+        });
+        cat.datasets.set('whp-ak', {
+            id: 'whp-ak', title: 'A', columns: [],
+            mapLayers: [{ assetId: 'cog', layerType: 'raster', title: 'WHP (AK)', cogUrl: 'https://x/a.tif',
+                colormap: 'reds', rescale: '0,9000', toggleGroup: 'WHP 2023' }],
+        });
+        const [c, a] = cat.getMapLayerConfigs();
+        expect(c.toggleGroup).toBe('WHP 2023');
+        expect(a.toggleGroup).toBe('WHP 2023');
+        expect(c.source.tiles[0]).toContain('rescale=0,2000');
+        expect(a.source.tiles[0]).toContain('rescale=0,9000');
+    });
+
+    it('omits toggleGroup (null) for layers that declare none', () => {
+        cat.datasets.set('demo', {
+            id: 'demo', title: 'Demo', columns: [],
+            mapLayers: [{ assetId: 'p', layerType: 'vector', title: 'P', url: 'https://x/p.pmtiles', sourceLayer: 'p' }],
+        });
+        expect(cat.getMapLayerConfigs()[0].toggleGroup).toBeNull();
+    });
+
+    it('tells the agent which layers share a panel checkbox', () => {
+        cat.datasets.set('whp', {
+            id: 'whp', title: 'WHP', description: '', provider: '', columns: [], childIds: [], parquetAssets: [],
+            mapLayers: [{ assetId: 'cog', title: 'WHP (CONUS)', layerType: 'raster', toggleGroup: 'WHP 2023' }],
+        });
+        expect(cat.generatePromptCatalog()).toContain('[toggle group "WHP 2023"');
+    });
+});
