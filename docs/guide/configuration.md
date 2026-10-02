@@ -104,6 +104,7 @@ Each entry in `assets` may be a **bare string** (the STAC asset key, loaded with
 | `tooltip_fields` | array | Feature property names shown in the hover tooltip. |
 | `group` | string | Overrides the collection-level `group` for this specific layer. |
 | `sidebar` | boolean | Overrides the collection-level `sidebar` for this specific layer. Default: inherited, which is `true` unless the collection sets otherwise — see [Layers outside the panel](#layers-outside-the-panel). |
+| `toggle_group` | string | Layers sharing this value get **one** panel row whose checkbox drives all of them. The value is the row's label. See [Toggle groups](#toggle-groups). |
 | `legend_type` | string | `"categorical"` for a discrete swatch legend (see `legend_classes`), or `"continuous"` for a graduated colorbar (see below). |
 | `legend_classes` | array | `{ label, color }` entries describing the discrete legend swatches. Required when `legend_type` is `"categorical"` on a vector layer — vectors have no STAC `classification:classes` to derive from. |
 | `legend_label` | string | Unit/axis label shown next to the colorbar end values (e.g. `"species"`). Applies to `"continuous"` legends. |
@@ -158,12 +159,13 @@ The agent closes that last gap with `set_legend`, which names the classes (`{"1"
 | `legend_type` | string | `"categorical"` to use STAC `classification:classes` color codes for a discrete legend. |
 | `group` | string | Overrides the collection-level `group` for this specific layer. |
 | `sidebar` | boolean | Overrides the collection-level `sidebar` for this specific layer — see [Layers outside the panel](#layers-outside-the-panel). |
+| `toggle_group` | string | Layers sharing this value get **one** panel row whose checkbox drives all of them. See [Toggle groups](#toggle-groups). |
 
 ## Asset config — GeoJSON
 
 STAC assets with MIME type `application/geo+json` (or an `.geojson` href) are loaded as MapLibre GeoJSON sources. This is the simplest path for small vector datasets — no PMTiles build step required, just host a `.geojson` file alongside the STAC collection.
 
-GeoJSON assets accept the same config fields as PMTiles vectors (`display_name`, `visible`, `default_style`, `outline_style`, `layer_type`, `default_filter`, `tooltip_fields`, `group`, `sidebar`). They also work with [versioned assets](#versioned-assets) and [animated trajectories](#animated-trajectory-layers).
+GeoJSON assets accept the same config fields as PMTiles vectors (`display_name`, `visible`, `default_style`, `outline_style`, `layer_type`, `default_filter`, `tooltip_fields`, `group`, `sidebar`, `toggle_group`). They also work with [versioned assets](#versioned-assets) and [animated trajectories](#animated-trajectory-layers).
 
 ```json
 {
@@ -427,6 +429,44 @@ When a dataset has multiple related assets that differ along one axis (resolutio
 | `default_version` | string | Label of the version to show by default. Falls back to the first entry if not found. |
 
 Switching versions swaps the visible map layer without adding or removing panel entries. All per-asset config options (`default_style`, `default_filter`, `colormap`, etc.) apply uniformly to every version. Works for both PMTiles (vector) and COG (raster) assets; all versions must share the same layer type.
+
+## Toggle groups
+
+Some variables ship as two layers that are halves of one map, typically a CONUS raster and an
+Alaska raster published as separate STAC collections with different `rescale` stretches. Give each
+half the same `toggle_group` and the panel shows **one** row that turns both on and off:
+
+```json
+"collections": [
+  { "collection_id": "whp-2023-continuous-conus",
+    "assets": [{ "id": "whp-2023-continuous-conus-cog", "display_name": "Wildfire hazard index (CONUS)",
+                 "rescale": "0,2000", "group": "Fuels & fire",
+                 "toggle_group": "Wildfire hazard index · WHP 2023" }] },
+  { "collection_id": "whp-2023-continuous-ak",
+    "assets": [{ "id": "whp-2023-continuous-ak-cog", "display_name": "Wildfire hazard index (Alaska)",
+                 "rescale": "0,9000", "group": "Fuels & fire",
+                 "toggle_group": "Wildfire hazard index · WHP 2023" }] }
+]
+```
+
+- **Only the panel row is shared.** Each member is still its own layer, with its own source,
+  `colormap`/`rescale` and `layer_id`. Use separate stretches when the halves' value ranges
+  differ; one shared colorbar would misstate one of them.
+- **Legends merge only when identical.** Visible members whose legends would draw the same thing
+  (same classes and colours, or same colormap, `rescale` and `legend_label`) share one legend
+  entry titled with the `toggle_group` value. Members whose legends differ keep their own entries,
+  titled with their `display_name`. Give the members the same `group` so those entries sit under
+  one heading.
+- The row sits where the first member's row would have been, and the `toggle_group` value is its
+  label. Members can be in different collections.
+- The agent can still show one half on its own (`show_layer` on one member). The row's checkbox
+  then shows as **indeterminate**. Ticking it turns every member on.
+- **Versioned members** (e.g. a year dropdown on each half) share one dropdown built from all the
+  members' version labels. Picking a label switches every member that has it. A member with no
+  version under that label is hidden, and the row names it ("1985 not available for: …"), rather
+  than drawing a different year under the same label. It comes back when a label it has is picked.
+- A `toggle_group` with only one panel member (e.g. the other is `sidebar: false`) renders as that
+  member's normal row.
 
 ## Layer paint order
 

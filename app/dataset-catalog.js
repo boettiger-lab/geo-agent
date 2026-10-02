@@ -355,6 +355,12 @@ export class DatasetCatalog {
                 // overrides the collection-level `sidebar`; null inherits it.
                 const assetSidebar = typeof config.sidebar === 'boolean' ? config.sidebar : null;
 
+                // Shared panel row (#349): layers with the same `toggle_group`
+                // render as one checkbox that drives every member. Each member
+                // stays its own layer — own source, stretch and legend entry.
+                const toggleGroup = typeof config.toggle_group === 'string' && config.toggle_group.trim()
+                    ? config.toggle_group.trim() : null;
+
                 // ── Versioned asset: multiple STAC assets behind one logical layer ──
                 if (config.versions && Array.isArray(config.versions)) {
                     const versions = [];
@@ -410,6 +416,7 @@ export class DatasetCatalog {
                         layerType,
                         group: assetGroup,
                         sidebar: assetSidebar,
+                        toggleGroup,
                         title: config.display_name || collection.title || key,
                         description: versions[defaultIndex].description || '',
                         defaultStyle: config.default_style || null,
@@ -447,6 +454,7 @@ export class DatasetCatalog {
                         layerType: 'vector',
                         group: assetGroup,
                         sidebar: assetSidebar,
+                        toggleGroup,
                         title: config.display_name || asset.title || assetId,
                         url: asset.href,
                         sourceLayer: asset['vector:layers']?.[0] || asset['pmtiles:layer'] || assetId,
@@ -471,6 +479,7 @@ export class DatasetCatalog {
                         layerType: 'raster',
                         group: assetGroup,
                         sidebar: assetSidebar,
+                        toggleGroup,
                         title: config.display_name || asset.title || assetId,
                         cogUrl: asset.href,
                         colormap: config.colormap || options.colormap || 'reds',
@@ -503,6 +512,7 @@ export class DatasetCatalog {
                         sourceType: 'geojson',
                         group: assetGroup,
                         sidebar: assetSidebar,
+                        toggleGroup,
                         title: config.display_name || asset.title || assetId,
                         url: asset.href,
                         description: asset.description || '',
@@ -841,6 +851,9 @@ export class DatasetCatalog {
                         const labels = ml.versions.map(v => v.label).join(', ');
                         layerLine += ` [versions: ${labels}]`;
                     }
+                    if (ml.toggleGroup) {
+                        layerLine += ` [toggle group "${ml.toggleGroup}": one panel checkbox shows/hides every member together]`;
+                    }
                     if (ml.defaultFilter) {
                         layerLine += ` [default filter: ${JSON.stringify(ml.defaultFilter)}]`;
                     }
@@ -1010,6 +1023,7 @@ export class DatasetCatalog {
                         group: ml.group || ds.group,
                         groupCollapsed: ds.groupCollapsed || false,
                         sidebar,
+                        toggleGroup: ml.toggleGroup || null,
                         displayName: ml.title,
                         type: ml.layerType,
                         paint: ml.defaultStyle || (ml.layerType === 'raster'
@@ -1049,6 +1063,7 @@ export class DatasetCatalog {
                         group: ml.group || ds.group,
                         groupCollapsed: ds.groupCollapsed || false,
                         sidebar,
+                        toggleGroup: ml.toggleGroup || null,
                         displayName: ml.title,
                         type: 'vector',
                         sourceId: sharedSourceId,
@@ -1098,6 +1113,7 @@ export class DatasetCatalog {
                         group: ml.group || ds.group,
                         groupCollapsed: ds.groupCollapsed || false,
                         sidebar,
+                        toggleGroup: ml.toggleGroup || null,
                         displayName: ml.title,
                         type: 'raster',
                         defaultVisible: ml.defaultVisible || false,
