@@ -1009,6 +1009,13 @@ details.layer-group:not([open]) .layer-group-title::before {
     color: var(--panel-fg);
 }
 
+/* Toggle-group row (#349): names members with no data for the selected version */
+.toggle-group-note {
+    margin: 3px 0 0 22px;
+    font-size: 11px;
+    color: var(--panel-fg-muted);
+}
+
 /* Glass effect for species richness dropdown */
 #species-taxon {
     background: var(--control-bg) !important;

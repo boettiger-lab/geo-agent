@@ -306,6 +306,7 @@ export class MapManager {
                 group: group || null,
                 groupCollapsed: groupCollapsed || false,
                 sidebar: sidebar !== false,
+                toggleGroup: config.toggleGroup || null,
                 displayName,
                 type,
                 sourceLayer: versionStates[config.defaultVersionIndex].sourceLayer,
@@ -408,6 +409,7 @@ export class MapManager {
             group: group || null,
             groupCollapsed: groupCollapsed || false,
             sidebar: sidebar !== false,
+            toggleGroup: config.toggleGroup || null,
             displayName,
             type,
             sourceLayer: sourceLayer || null,
@@ -628,6 +630,7 @@ export class MapManager {
         if (state.outlineLayerId) this.map.setLayoutProperty(state.outlineLayerId, 'visibility', 'visible');
         if (state.control) state.control.setVisible(true);
         if (this._hasLegend(state)) this._showLegend(layerId);
+        this._syncToggleGroupLegends(layerId);
         return { success: true, layer: layerId, displayName: state.displayName, visible: true };
     }
 
@@ -649,6 +652,7 @@ export class MapManager {
         if (state.outlineLayerId) this.map.setLayoutProperty(state.outlineLayerId, 'visibility', 'none');
         if (state.control) state.control.setVisible(false);
         if (this._hasLegend(state)) this._hideLegend(layerId);
+        this._syncToggleGroupLegends(layerId);
         return { success: true, layer: layerId, displayName: state.displayName, visible: false };
     }
 
@@ -1224,7 +1228,11 @@ export class MapManager {
         };
     }
 
-    /** Update a layer's row in the layer panel after a rename. */
+    /**
+     * Update a layer's row in the layer panel after a rename. A toggle-group
+     * member (#349) has no row of its own, so renaming it leaves the shared
+     * row's label alone; its legend entry carries the new title.
+     */
     _renameLayerControl(layerId, name) {
         const safeId = layerId.replace(/\//g, '-');
         const row = document.getElementById(`layer-item-${safeId}`);
@@ -1694,12 +1702,27 @@ export class MapManager {
         // grouping means a group whose members are all panel-hidden never
         // gets a key, so no empty <details> heading is rendered, and
         // `entries[0]` below is always a surviving entry.
+        //
+        // Toggle groups (#349): panel members sharing a `toggleGroup` collapse
+        // into one row, placed where the first member's row would have been.
+        // Later members get no entry of their own. A group left with a single
+        // panel member is dropped and that member renders as a normal row.
         const groups = new Map();
+        this._toggleGroups = new Map();
         for (const [layerId, state] of this.layers) {
             if (state.sidebar === false) continue;
+            const tgName = state.toggleGroup;
+            if (tgName) {
+                const tg = this._toggleGroups.get(tgName);
+                if (tg) { tg.members.push(layerId); continue; }
+                this._toggleGroups.set(tgName, { name: tgName, members: [layerId] });
+            }
             const key = state.group || '';
             if (!groups.has(key)) groups.set(key, []);
             groups.get(key).push([layerId, state]);
+        }
+        for (const [name, tg] of this._toggleGroups) {
+            if (tg.members.length < 2) this._toggleGroups.delete(name);
         }
 
         for (const [groupName, entries] of groups) {
@@ -1722,8 +1745,202 @@ export class MapManager {
             }
 
             for (const [layerId, state] of entries) {
-                itemContainer.appendChild(this._createLayerItem(layerId, state));
+                const tg = state.toggleGroup && this._toggleGroups.get(state.toggleGroup);
+                itemContainer.appendChild(tg
+                    ? this._createToggleGroupItem(tg)
+                    : this._createLayerItem(layerId, state));
             }
+        }
+
+        // Bring versioned members onto the row's starting label, so a member
+        // configured with a different default_version can't leave the row
+        // showing two years at once.
+        for (const tg of this._toggleGroups.values()) {
+            if (tg.label != null) this.switchToggleGroupVersion(tg.name, tg.label);
+        }
+    }
+
+    /**
+     * Build the single panel row for a toggle group (#349): one checkbox that
+     * shows/hides every member, plus — when members are versioned — one
+     * dropdown that keeps their versions in step. Members remain independent
+     * layers with their own sources, stretches and legend entries; only the
+     * panel row is shared.
+     *
+     * The checkbox is tri-state: checked when every member that has the
+     * selected version is on, unchecked when none is, and indeterminate when
+     * the agent has turned on only some of them (e.g. "show only Alaska").
+     * @param {Object} tg - entry from this._toggleGroups
+     * @returns {HTMLElement} the `.layer-item` wrapper
+     */
+    _createToggleGroupItem(tg) {
+        const safeId = `tg-${tg.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
+        const wrapper = document.createElement('div');
+        wrapper.className = 'layer-item layer-toggle-group';
+        wrapper.id = `layer-item-${safeId}`;
+        wrapper.dataset.toggleGroup = tg.name;
+
+        const label = document.createElement('label');
+        label.className = 'layer-toggle';
+
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.id = `toggle-${safeId}`;
+        checkbox.addEventListener('change', () => {
+            this._setToggleGroupVisible(tg, checkbox.checked);
+            this._refreshCycleBtnState();
+        });
+
+        const span = document.createElement('span');
+        span.textContent = tg.name;
+
+        label.appendChild(checkbox);
+        label.appendChild(span);
+        wrapper.appendChild(label);
+        tg.checkbox = checkbox;
+
+        // One dropdown over the union of the members' version labels.
+        const labels = this._toggleGroupLabels(tg);
+        const firstVersioned = tg.members
+            .map(id => this.layers.get(id))
+            .find(st => st?.versions?.length > 1);
+        tg.label = firstVersioned
+            ? firstVersioned.versions[firstVersioned.activeVersionIndex].label
+            : null;
+        if (labels.length > 1) {
+            const select = document.createElement('select');
+            select.className = 'version-select';
+            select.id = `version-${safeId}`;
+            for (const l of labels) {
+                const opt = document.createElement('option');
+                opt.value = l;
+                opt.textContent = l;
+                if (l === tg.label) opt.selected = true;
+                select.appendChild(opt);
+            }
+            select.addEventListener('change', () => {
+                this.switchToggleGroupVersion(tg.name, select.value);
+                this._refreshCycleBtnState();
+            });
+            wrapper.appendChild(select);
+            tg.select = select;
+        }
+
+        // Says which members have no data for the selected version, so a
+        // half-drawn map isn't mistaken for the whole one.
+        const note = document.createElement('div');
+        note.className = 'toggle-group-note';
+        note.hidden = true;
+        wrapper.appendChild(note);
+        tg.note = note;
+
+        this._syncToggleGroupRow(tg);
+        return wrapper;
+    }
+
+    /**
+     * Union of a toggle group's version labels, in member order: each label a
+     * later member adds is placed right after its predecessor in that member's
+     * own list, so a member with a year the first one lacks slots in where it
+     * belongs rather than at the end.
+     */
+    _toggleGroupLabels(tg) {
+        const merged = [];
+        for (const id of tg.members) {
+            const versions = this.layers.get(id)?.versions;
+            if (!versions) continue;
+            let insertAt = 0;
+            for (const v of versions) {
+                const at = merged.indexOf(v.label);
+                if (at >= 0) { insertAt = at + 1; continue; }
+                merged.splice(insertAt, 0, v.label);
+                insertAt++;
+            }
+        }
+        return merged;
+    }
+
+    /** Whether a toggle-group member has data for the row's selected version. */
+    _toggleGroupMemberHasLabel(state, label) {
+        if (label == null || !state.versions?.length) return true;
+        return state.versions.some(v => v.label === label);
+    }
+
+    /** Show or hide every member of a toggle group from its shared checkbox. */
+    _setToggleGroupVisible(tg, visible) {
+        for (const id of tg.members) {
+            const state = this.layers.get(id);
+            if (!state) continue;
+            if (visible && this._toggleGroupMemberHasLabel(state, tg.label)) {
+                state.toggleGroupHiddenForVersion = false;
+                this.showLayer(id);
+            } else {
+                // A member lacking the selected version stays off, but is
+                // remembered so picking a version it has brings it back.
+                state.toggleGroupHiddenForVersion = visible;
+                this.hideLayer(id);
+            }
+        }
+        this._syncToggleGroupRow(tg);
+    }
+
+    /**
+     * Move every versioned member of a toggle group to the version `label`.
+     * A member without that version is hidden, and the row's note says so —
+     * the alternative, keeping its nearest version, would draw a map whose
+     * halves are from different years under one label.
+     * @param {string} name - toggle group name
+     * @param {string} label - version label
+     * @returns {Object} Result
+     */
+    switchToggleGroupVersion(name, label) {
+        const tg = this._toggleGroups?.get(name);
+        if (!tg) return { success: false, error: `Unknown toggle group: ${name}` };
+        tg.label = label;
+        if (tg.select) tg.select.value = label;
+
+        const unavailable = [];
+        for (const id of tg.members) {
+            const state = this.layers.get(id);
+            if (!state?.versions?.length) continue;
+            const idx = state.versions.findIndex(v => v.label === label);
+            if (idx < 0) {
+                unavailable.push(id);
+                if (state.visible) {
+                    state.toggleGroupHiddenForVersion = true;
+                    this.hideLayer(id);
+                }
+                continue;
+            }
+            this.switchVersion(id, idx);
+            if (state.toggleGroupHiddenForVersion && !state.visible) {
+                state.toggleGroupHiddenForVersion = false;
+                this.showLayer(id);
+            }
+        }
+        this._syncToggleGroupRow(tg);
+        return { success: true, toggle_group: name, version: label, unavailable };
+    }
+
+    /** Refresh a toggle-group row's checkbox and note from member state. */
+    _syncToggleGroupRow(tg) {
+        const states = tg.members.map(id => this.layers.get(id)).filter(Boolean);
+        const available = states.filter(st => this._toggleGroupMemberHasLabel(st, tg.label));
+        const missing = states.filter(st => !this._toggleGroupMemberHasLabel(st, tg.label));
+
+        const anyOn = states.some(st => st.visible);
+        const allOn = available.length > 0
+            && available.every(st => st.visible)
+            && !missing.some(st => st.visible);
+        if (tg.checkbox) {
+            tg.checkbox.checked = allOn;
+            tg.checkbox.indeterminate = anyOn && !allOn;
+        }
+        if (tg.note) {
+            tg.note.textContent = missing.length
+                ? `${tg.label} not available for: ${missing.map(st => st.displayName).join(', ')}`
+                : '';
+            tg.note.hidden = missing.length === 0;
         }
     }
 
@@ -1830,6 +2047,15 @@ export class MapManager {
     syncCheckbox(layerId) {
         const state = this.layers.get(layerId);
         if (!state) return;
+        const tg = state.toggleGroup && this._toggleGroups?.get(state.toggleGroup);
+        if (tg) {
+            // The agent set this member directly, so it's no longer one the
+            // row hid for lacking a version.
+            state.toggleGroupHiddenForVersion = false;
+            this._syncToggleGroupRow(tg);
+            this._refreshCycleBtnState();
+            return;
+        }
         const checkbox = document.getElementById(`toggle-${layerId.replace(/\//g, '-')}`);
         if (checkbox) checkbox.checked = state.visible;
         this._refreshCycleBtnState();
@@ -1990,6 +2216,7 @@ export class MapManager {
     _refreshLegend(layerId) {
         this._dropLegendItem(layerId);
         this._showLegendIfVisible(layerId);
+        this._syncToggleGroupLegends(layerId);
     }
 
     /**
@@ -2272,7 +2499,12 @@ export class MapManager {
         this._legendEl.style.display = '';
 
         if (this._legendItems.has(layerId)) {
-            this._legendItems.get(layerId).style.display = '';
+            const share = this._legendShare(layerId);
+            if (share.owner !== layerId) { this._hideLegend(layerId); return; }
+            const cached = this._legendItems.get(layerId);
+            const heading = cached.querySelector('h4');
+            if (heading) heading.textContent = share.title;
+            cached.style.display = '';
             if (state.group) this._legendParentFor(state); // re-show group wrapper
             return;
         }
@@ -2385,8 +2617,72 @@ export class MapManager {
             item.appendChild(labels);
         }
 
+        // Decided after the await above, so a sibling shown meanwhile counts.
+        const share = this._legendShare(layerId);
+        const heading = item.querySelector('h4');
+        if (heading) heading.textContent = share.title;
+
         this._legendParentFor(state).appendChild(item);
         this._legendItems.set(layerId, item);
+        if (share.owner !== layerId) this._hideLegend(layerId);
+    }
+
+    /**
+     * What a layer's legend would draw, as a comparable string, or null when
+     * it can't be shared (hex legends relabel per zoom). Mirrors the branches
+     * of `_showLegend`.
+     */
+    _legendSignature(state) {
+        const unit = state.legendLabel || null;
+        const categorical = this._categoricalLegend(state);
+        if (categorical) {
+            return JSON.stringify(['categorical', unit, categorical.classes.map(c =>
+                [c.name || `Class ${c.value}`, c['color-hint'] || c.color_hint || null])]);
+        }
+        if (state.legendType === 'continuous') {
+            const cv = this._continuousVectorLegend(state);
+            if (cv) return JSON.stringify(['continuous', unit, cv.colors, cv.range]);
+        }
+        if (state.legendType === 'hex') return null;
+        return JSON.stringify(['colorbar', unit, state.colormap || 'reds', state.rescale || '0,1']);
+    }
+
+    /**
+     * Toggle groups (#349): visible members whose legends would draw the same
+     * thing (same classes and colours, or same colormap and range) share one
+     * section, owned by the first of them and titled with the group name.
+     * Members whose legends differ, such as CONUS and Alaska stretches, keep
+     * their own sections, since one colorbar would misstate one of them.
+     * @returns {{owner: string, title: string}}
+     */
+    _legendShare(layerId) {
+        const state = this.layers.get(layerId);
+        const tg = state?.toggleGroup && this._toggleGroups?.get(state.toggleGroup);
+        const sig = tg ? this._legendSignature(state) : null;
+        if (!sig) return { owner: layerId, title: state?.displayName };
+        const peers = tg.members.filter(id => {
+            if (id === layerId) return true;
+            const st = this.layers.get(id);
+            return st?.visible && this._hasLegend(st) && this._legendSignature(st) === sig;
+        });
+        return { owner: peers[0], title: peers.length > 1 ? tg.name : state.displayName };
+    }
+
+    /**
+     * Re-decide which members of a layer's toggle group own a legend section,
+     * after one of them was shown, hidden, restyled or switched version.
+     */
+    _syncToggleGroupLegends(layerId) {
+        const state = this.layers.get(layerId);
+        const tg = state?.toggleGroup && this._toggleGroups?.get(state.toggleGroup);
+        if (!tg || !this._legendItems) return;
+        for (const id of tg.members) {
+            const st = this.layers.get(id);
+            // A visible member with no section yet has its render in flight,
+            // and `_showLegend` makes the same decision when it lands.
+            if (!st?.visible || !this._hasLegend(st) || !this._legendItems.has(id)) continue;
+            this._showLegend(id);   // cached path: synchronous, shows or hides
+        }
     }
 
     _hideLegend(layerId) {
