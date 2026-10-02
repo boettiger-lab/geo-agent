@@ -24,6 +24,7 @@ Core library for map-based applications with LLM-powered data analysis. Interact
 - `mcp-client.js` — MCP transport wrapper (connect once, lazy reconnect)
 - `agent.js` — LLM orchestration loop (agentic tool-use cycle)
 - `chat-ui.js` — Chat UI with collapsible tool-call blocks
+- `export-report.js` — The exported session report: builds a Quarto-style HTML document from the session record ChatUI keeps (no DOM). Also holds the export helpers (setup block, R/Python wrappers, credential scrub, map embed).
 
 ## Design decisions
 
@@ -186,6 +187,7 @@ When a PR touches a covered module, expect tests to change too. When it touches 
 | `app/mcp-client.js` | 99% | `test/mcp-client.test.js` — connect / reconnect / callTool retry / resources / prompts |
 | `app/tool-registry.js` | 98% | `test/tool-registry.test.js` — registration, dispatch, argsRewriter, schema cleaning |
 | `app/map-tools.js` | 98% | `test/map-tools.test.js` — local-tool execute paths, get_schema MCP delegate |
+| `app/export-report.js` | 99% | `test/export-report.test.js`, `test/chat-export*.test.js` — step classification, report shape, disclosure, the ChatUI session record. Regenerate `preview/sample-export.html` after a change. |
 | `app/dataset-catalog.js` | 89% | `test/dataset-catalog.test.js` — STAC parsing, layer config shape, prompt rendering |
 | `app/agent.js` | 48% | `test/agent-retry.test.js` — retry / abort / timeout. The conversation loop is uncovered (tested manually). |
 | `app/main.js` | 0% | Bootstrap — verify by loading the app locally. |

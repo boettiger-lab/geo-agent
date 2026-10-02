@@ -1,0 +1,1625 @@
+{
+ "turns": [
+  {
+   "prompt": "what are the top 30% of us h8 hexes in terms of equal weight carbon, mobi score, that are not gap 1 or gap 2 (normalize)",
+   "steps": [
+    {
+     "name": "get_schema",
+     "args": {
+      "dataset_id": "irrecoverable-carbon"
+     },
+     "success": true,
+     "source": "local",
+     "result": "**Irrecoverable Earth: Carbon Reserves (v2, 2025 release)**\nCollection ID: `irrecoverable-carbon`\ncollection_url: `https://s3-west.nrp-nautilus.io/public-carbon/stac-collection.json`\nGlobal carbon storage mapping irrecoverable carbon (stocks that, if lost, cannot be recovered by 2050), manageable carbon, and vulnerable carbon (nested pools: manageable ⊃ vulnerable ⊃ irrecoverable). Derived from the Conservation International v2 (2025) update of Noon et al. (2022, Nature Sustainability), Zenodo 17645053. Irrecoverable covers 2018, 2022, 2023, 2024; vulnerable and manageable cover 2010, 2018, 2024. (Irrecoverable 2010 is not included — the Zenodo source TIFF is corrupt.) Source rasters are ~300 m carbon DENSITY in Mg C ha⁻¹ on a WGS84 grid, provided here as Cloud-Optimized GeoTIFFs (the COG assets, unchanged from source) and as H3 resolution-9 hexagonal parquet.\n\nHEX `carbon` = TOTAL carbon in Mg C (tonnes) per H3 cell, obtained by area-integrating the source density: each ~300 m pixel's density (Mg C/ha) is multiplied by the pixel's ground area (latitude-dependent on the WGS84 grid) and apportioned to the H3 cells it overlaps, giving exactly ONE row per h9 cell. SUM(carbon) over hex rows is therefore directly valid as a carbon TOTAL — no GROUP BY or dedup. Parent resolutions 8,7,6,5 are columns (h8…h5); h0 is the hive partition key.\n\nVALIDATION (data-workflows #330): hex SUM(carbon) matches an independent full-resolution area-integral of the source COG to a uniform +0.22% on every layer (a benign H3-cell-area vs exact-pixel discretization offset). These straight area-integrals run ~2–3% above Conservation International's published committed-loss headline figures — e.g. irrecoverable 2024 = 131.9 Gt C here vs CI's 128.0 Gt; CI corrected the original 2018 baseline from 139.1 to 135.3 Gt. The per-year series is therefore NOT strictly monotonic in a raw integral (e.g. irrecoverable rises slightly 2023→2024), reflecting the shipped density rasters rather than CI's account\n... (truncated)"
+    },
+    {
+     "name": "get_schema",
+     "args": {
+      "dataset_id": "mobi-species-richness-all"
+     },
+     "success": true,
+     "source": "local",
+     "result": "**MOBI Species Richness (All Taxa)**\nCollection ID: `mobi-species-richness-all`\ncollection_url: `https://s3-west.nrp-nautilus.io/public-mobi/mobi-species-richness-all/stac-collection.json`\nMap of Biodiversity Importance (MOBI) — total species richness across all modeled taxa, aggregated to H3 resolution 8 hexagonal cells (~0.74 km² each). MOBI integrates NatureServe habitat models for ~2,400 imperiled and endemic species of vertebrates, invertebrates, and plants across the contiguous United States. For each H3 cell this layer reports the maximum modeled species richness (count of species with predicted suitable habitat) among the source-raster pixels covering the cell, computed by area-weighted exact-extract aggregation with the `max` reducer (one row per cell; the peak, not the average, so coarse-resolution rollups via GROUP BY + MAX preserve hotspots). Produced by NatureServe.\n\nSQL data (use with `query` tool):\n  - MOBI Species Richness — H3 Hex Parquet (resolution 8, exact-extract max): `read_parquet('s3://public-mobi/mobi-species-richness-all/hex/h0=*/data_0.parquet')`\n    - h3:native_resolution: 8\n    - h3:parent_resolutions: [7, 6, 5, 0]\n    - columns: `species_richness` (float), `h8` (uint64), `h7` (uint64), `h6` (uint64), `h5` (uint64), `h0` (int64)\n\nColumn descriptions (shared across the assets above):\n    - `species_richness` (float) — Maximum modeled species richness (count of species with predicted suitable habitat) among source-raster pixels covering this cell, via area-weighted exact-extract with the `max` reducer. One row per cell — query directly, no GROUP BY needed. Integer-valued, range 0–32. To view at a coarser resolution, GROUP BY h7 (or h6/h5) and take MAX(species_richness) — MAX-of-MAX preserves the hotspot; never AVG/SUM across the rollup.\n    - `h8` (uint64) — H3 cell index at resolution 8 (native resolution; one row per h8 cell).\n    - `h7` (uint64) — H3 cell index at resolution 7 (parent of h8; rollup key).\n    - `h6` (uint64) — H3 cell in\n... (truncated)"
+    },
+    {
+     "name": "get_schema",
+     "args": {
+      "dataset_id": "pad-us-4.1-combined"
+     },
+     "success": true,
+     "source": "local",
+     "result": "**PAD-US 4.1 Combined - All Protection Types**\nCollection ID: `pad-us-4.1-combined`\ncollection_url: `https://s3-west.nrp-nautilus.io/public-padus/padus-4-1/combined/stac-collection.json`\nThe Protected Areas Database of the United States (PAD-US) 4.1 Combined layer integrates all protection types (fee ownership, easements, proclamation boundaries, marine areas, and designations) into a comprehensive national inventory of 656,986 protected areas. Managed by USGS Gap Analysis Project (GAP), this authoritative dataset combines federal, state, local, and private conservation lands indexed by H3 hexagons. Most features are at resolution 10 (~15m² cells), with 20 extremely complex geometries at resolution 8 (~0.74 km² cells). IMPORTANT: Features may overlap - a single location can have multiple protection types. Overlapping features produce duplicate hex rows — use SELECT DISTINCT h8, h0 before joining to avoid double-counting. Area column (GIS_Acres) stores the source polygon's total area repeated on every hex row; never SUM it on hex data — compute area from hex count instead.\n\nSQL data (use with `query` tool):\n  - GeoParquet file with all 656,986 protected areas: `read_parquet('s3://public-padus/padus-4-1/combined.parquet')`\n    - Cloud-native GeoParquet format optimized for analytical queries. Use with DuckDB, Polars, pandas, or any GeoParquet-compatible tool. Geometries in EPSG:4326.\n    - columns: `_cng_fid` (int64), `FeatClass` (string), `Category` (string), `Own_Type` (string), `Own_Name` (string), `Loc_Own` (string), `Mang_Type` (string), `Mang_Name` (string), `Loc_Mang` (string), `Des_Tp` (string), `Loc_Ds` (string), `Unit_Nm` (string), `Loc_Nm` (string), `State_Nm` (string), `Agg_Src` (string), `GIS_Src` (string), `Src_Date` (string), `GIS_Acres` (int32), `Source_PAID` (string), `WDPA_Cd` (int32), `Pub_Access` (string), `Access_Src` (string), `Access_Dt` (string), `GAP_Sts` (string), `GAPCdSrc` (string), `GAPCdDt` (string), `IUCN_Cat` (string), `IUCNCtSrc` (stri\n... (truncated)"
+    },
+    {
+     "name": "query",
+     "args": {
+      "sql_query": "WITH mobi AS (\n  SELECT h8, h0, species_richness\n  FROM read_parquet('s3://public-mobi/mobi-species-richness-all/hex/h0=*/data_0.parquet', hive_partitioning = true)\n  WHERE species_richness IS NOT NULL\n),\ncarbon_h8 AS (\n  SELECT c.h8, c.h0, SUM(c.carbon) AS carbon_total\n  FROM read_parquet('s3://public-carbon/irrecoverable-carbon-2024/hex/h0=*/data_0.parquet', hive_partitioning = true) c\n  SEMI JOIN mobi m ON c.h8 = m.h8 AND c.h0 = m.h0\n  WHERE c.carbon IS NOT NULL AND NOT isnan(c.carbon)\n  GROUP BY c.h8, c.h0\n),\ngap12 AS (\n  SELECT DISTINCT h8, h0\n  FROM read_parquet('s3://public-padus/padus-4-1/combined/hex/h0=*/data_0.parquet', hive_partitioning = true)\n  WHERE GAP_Sts IN ('1', '2')\n),\ncombined AS (\n  SELECT m.h8, m.h0, m.species_richness, c.carbon_total\n  FROM mobi m\n  JOIN carbon_h8 c ON m.h8 = c.h8 AND m.h0 = c.h0\n  ANTI JOIN gap12 g ON m.h8 = g.h8 AND m.h0 = g.h0\n),\nnormalized AS (\n  SELECT \n    h8, h0, species_richness, carbon_total,\n    (species_richness - MIN(species_richness) OVER ()) / NULLIF(MAX(species_richness) OVER () - MIN(species_richness) OVER (), 0) AS mobi_norm,\n    (carbon_total - MIN(carbon_total) OVER ()) / NULLIF(MAX(carbon_total) OVER () - MIN(carbon_total) OVER (), 0) AS carbon_norm\n  FROM combined\n),\nscored AS (\n  SELECT \n    h8, h0, species_richness, carbon_total,\n    (mobi_norm + carbon_norm) / 2.0 AS combined_score\n  FROM normalized\n)\nSELECT \n  COUNT(*) AS total_hexes,\n  MIN(combined_score) AS min_score,\n  MAX(combined_score) AS max_score,\n  AVG(combined_score) AS avg_score,\n  quantile(combined_score, 0.70) AS p70_threshold,\n  MIN(species_richness) AS min_mobi,\n  MAX(species_richness) AS max_mobi,\n  MIN(carbon_total) AS min_carbon,\n  MAX(carbon_total) AS max_carbon\nFROM scored;"
+     },
+     "success": true,
+     "source": "remote",
+     "result": "|   total_hexes | min_score   | max_score    | avg_score     | p70_threshold   | min_mobi   | max_mobi   | min_carbon   | max_carbon   |\n|--------------:|:------------|:-------------|:--------------|:----------------|:-----------|:-----------|:-------------|:-------------|\n|       9238348 | 0           | 0.5638503891 | 0.04415103347 | 0.06129718948   | 0          | 32         | 0            | 28341.98819  |",
+     "sqlQuery": "WITH mobi AS (\n  SELECT h8, h0, species_richness\n  FROM read_parquet('s3://public-mobi/mobi-species-richness-all/hex/h0=*/data_0.parquet', hive_partitioning = true)\n  WHERE species_richness IS NOT NULL\n),\ncarbon_h8 AS (\n  SELECT c.h8, c.h0, SUM(c.carbon) AS carbon_total\n  FROM read_parquet('s3://public-carbon/irrecoverable-carbon-2024/hex/h0=*/data_0.parquet', hive_partitioning = true) c\n  SEMI JOIN mobi m ON c.h8 = m.h8 AND c.h0 = m.h0\n  WHERE c.carbon IS NOT NULL AND NOT isnan(c.carbon)\n  GROUP BY c.h8, c.h0\n),\ngap12 AS (\n  SELECT DISTINCT h8, h0\n  FROM read_parquet('s3://public-padus/padus-4-1/combined/hex/h0=*/data_0.parquet', hive_partitioning = true)\n  WHERE GAP_Sts IN ('1', '2')\n),\ncombined AS (\n  SELECT m.h8, m.h0, m.species_richness, c.carbon_total\n  FROM mobi m\n  JOIN carbon_h8 c ON m.h8 = c.h8 AND m.h0 = c.h0\n  ANTI JOIN gap12 g ON m.h8 = g.h8 AND m.h0 = g.h0\n),\nnormalized AS (\n  SELECT \n    h8, h0, species_richness, carbon_total,\n    (species_richness - MIN(species_richness) OVER ()) / NULLIF(MAX(species_richness) OVER () - MIN(species_richness) OVER (), 0) AS mobi_norm,\n    (carbon_total - MIN(carbon_total) OVER ()) / NULLIF(MAX(carbon_total) OVER () - MIN(carbon_total) OVER (), 0) AS carbon_norm\n  FROM combined\n),\nscored AS (\n  SELECT \n    h8, h0, species_richness, carbon_total,\n    (mobi_norm + carbon_norm) / 2.0 AS combined_score\n  FROM normalized\n)\nSELECT \n  COUNT(*) AS total_hexes,\n  MIN(combined_score) AS min_score,\n  MAX(combined_score) AS max_score,\n  AVG(combined_score) AS avg_score,\n  quantile(combined_score, 0.70) AS p70_threshold,\n  MIN(species_richness) AS min_mobi,\n  MAX(species_richness) AS max_mobi,\n  MIN(carbon_total) AS min_carbon,\n  MAX(carbon_total) AS max_carbon\nFROM scored;"
+    },
+    {
+     "name": "register_hex_tiles",
+     "args": {
+      "sql_query": "WITH mobi AS (\n  SELECT h8, h0, species_richness\n  FROM read_parquet('s3://public-mobi/mobi-species-richness-all/hex/h0=*/data_0.parquet', hive_partitioning = true)\n  WHERE species_richness IS NOT NULL\n),\ncarbon_h8 AS (\n  SELECT c.h8, c.h0, SUM(c.carbon) AS carbon_total\n  FROM read_parquet('s3://public-carbon/irrecoverable-carbon-2024/hex/h0=*/data_0.parquet', hive_partitioning = true) c\n  SEMI JOIN mobi m ON c.h8 = m.h8 AND c.h0 = m.h0\n  WHERE c.carbon IS NOT NULL AND NOT isnan(c.carbon)\n  GROUP BY c.h8, c.h0\n),\ngap12 AS (\n  SELECT DISTINCT h8, h0\n  FROM read_parquet('s3://public-padus/padus-4-1/combined/hex/h0=*/data_0.parquet', hive_partitioning = true)\n  WHERE GAP_Sts IN ('1', '2')\n),\ncombined AS (\n  SELECT m.h8, m.h0,\n    (m.species_richness / 32.0 + c.carbon_total / 28341.98819) / 2.0 AS combined_score\n  FROM mobi m\n  JOIN carbon_h8 c ON m.h8 = c.h8 AND m.h0 = c.h0\n  ANTI JOIN gap12 g ON m.h8 = g.h8 AND m.h0 = g.h0\n)\nSELECT h8, combined_score\nFROM combined\nWHERE combined_score >= 0.06129718948",
+      "agg": "AVG",
+      "color_scale": "log",
+      "layer_style": "fill"
+     },
+     "success": true,
+     "source": "remote",
+     "result": "{\n  \"hash\": \"3c1465ee6e894dd5\",\n  \"tile_url_template\": \"https://duckdb-mcp.nrp-nautilus.io/tiles/hex/3c1465ee6e894dd5/{z}/{x}/{y}.pbf\",\n  \"status\": \"running\"\n}",
+     "sqlQuery": "WITH mobi AS (\n  SELECT h8, h0, species_richness\n  FROM read_parquet('s3://public-mobi/mobi-species-richness-all/hex/h0=*/data_0.parquet', hive_partitioning = true)\n  WHERE species_richness IS NOT NULL\n),\ncarbon_h8 AS (\n  SELECT c.h8, c.h0, SUM(c.carbon) AS carbon_total\n  FROM read_parquet('s3://public-carbon/irrecoverable-carbon-2024/hex/h0=*/data_0.parquet', hive_partitioning = true) c\n  SEMI JOIN mobi m ON c.h8 = m.h8 AND c.h0 = m.h0\n  WHERE c.carbon IS NOT NULL AND NOT isnan(c.carbon)\n  GROUP BY c.h8, c.h0\n),\ngap12 AS (\n  SELECT DISTINCT h8, h0\n  FROM read_parquet('s3://public-padus/padus-4-1/combined/hex/h0=*/data_0.parquet', hive_partitioning = true)\n  WHERE GAP_Sts IN ('1', '2')\n),\ncombined AS (\n  SELECT m.h8, m.h0,\n    (m.species_richness / 32.0 + c.carbon_total / 28341.98819) / 2.0 AS combined_score\n  FROM mobi m\n  JOIN carbon_h8 c ON m.h8 = c.h8 AND m.h0 = c.h0\n  ANTI JOIN gap12 g ON m.h8 = g.h8 AND m.h0 = g.h0\n)\nSELECT h8, combined_score\nFROM combined\nWHERE combined_score >= 0.06129718948"
+    },
+    {
+     "name": "get_hex_tile_status",
+     "args": {
+      "hash": "3c1465ee6e894dd5",
+      "wait_seconds": 30
+     },
+     "success": true,
+     "source": "remote",
+     "result": "{\n  \"hash\": \"3c1465ee6e894dd5\",\n  \"tile_url_template\": \"https://duckdb-mcp.nrp-nautilus.io/tiles/hex/3c1465ee6e894dd5/{z}/{x}/{y}.pbf\",\n  \"status\": \"running\",\n  \"elapsed_seconds\": 38.5\n}"
+    },
+    {
+     "name": "get_hex_tile_status",
+     "args": {
+      "hash": "3c1465ee6e894dd5",
+      "wait_seconds": 30
+     },
+     "success": true,
+     "source": "remote",
+     "result": "{\n  \"hash\": \"3c1465ee6e894dd5\",\n  \"tile_url_template\": \"https://duckdb-mcp.nrp-nautilus.io/tiles/hex/3c1465ee6e894dd5/{z}/{x}/{y}.pbf\",\n  \"status\": \"done\",\n  \"bounds\": [\n    -124.72767854808644,\n    24.550531479033406,\n    -67.11138415118738,\n    49.007878026010225\n  ],\n  \"finest_res\": 8,\n  \"min_res\": 2,\n  \"zoom_offset\": 2,\n  \"value_columns\": [\n    \"combined_score\"\n  ],\n  \"value_stats\": {\n    \"combined_score\": {\n      \"by_res\": {\n        \"2\": {\n          \"min\": 0.06300853503121273,\n          \"max\": 0.2614799627908353,\n          \"mean\": 0.09542878436550603\n        },\n        \"3\": {\n          \"min\": 0.061870841538592125,\n          \"max\": 0.26591335268459937,\n          \"mean\": 0.09001642615039768\n        },\n        \"4\": {\n          \"min\": 0.061509545000567906,\n          \"max\": 0.3157476545891986,\n          \"mean\": 0.08924018135919407\n        },\n        \"5\": {\n          \"min\": 0.061302084912362075,\n          \"max\": 0.37228272668022544,\n          \"mean\": 0.09029589283691486\n        },\n        \"6\": {\n          \"min\": 0.061298221004414385,\n          \"max\": 0.5155148253612151,\n          \"mean\": 0.09254286270476583\n        },\n        \"7\": {\n          \"min\": 0.06129772781696348,\n          \"max\": 0.5281333462551301,\n          \"mean\": 0.09615766538224027\n        },\n        \"8\": {\n          \"min\": 0.06129723260903406,\n          \"max\": 0.5638503890988464,\n          \"mean\": 0.10101636534814741\n        }\n      },\n      \"suggested_scale\": \"linear\"\n    }\n  },\n  \"layer_name\": \"layer\",\n  \"feature_count_finest\": 2771504,\n  \"source\": {\n    \"type\": \"vector\",\n    \"tiles\": [\n      \"https://duckdb-mcp.nrp-nautilus.io/tiles/hex/3c1465ee6e894dd5/{z}/{x}/{y}.pbf\"\n    ],\n    \"minzoom\": 0,\n    \"maxzoom\": 14\n  },\n  \"layer\": {\n    \"type\": \"fill\",\n    \"source-layer\": \"layer\",\n    \"paint\": {\n      \"fill-color\": [\n        \"interpolate\",\n        [\n          \"linear\"\n        ],\n        [\n          \"get\",\n          \"combined_score\"\n        ],\n        0.06129723260903406,\n        \"#440154\",\n        0.1618\n... (truncated)"
+    },
+    {
+     "name": "add_hex_tile_layer",
+     "args": {
+      "tile_url": "https://duckdb-mcp.nrp-nautilus.io/tiles/hex/3c1465ee6e894dd5/{z}/{x}/{y}.pbf",
+      "value_column": "combined_score",
+      "display_name": "Top 30% Combined Score (Carbon + MOBI, excl. GAP 1/2)",
+      "palette": "viridis",
+      "opacity": 0.7,
+      "fit_bounds": true
+     },
+     "success": true,
+     "source": "local",
+     "result": "{\"success\":true,\"layer_id\":\"hex-3c1465ee6e894dd5\",\"display_name\":\"Top 30% Combined Score (Carbon + MOBI, excl. GAP 1/2)\",\"value_column\":\"combined_score\",\"bounds\":[-124.72767854808644,24.550531479033406,-67.11138415118738,49.007878026010225],\"already_exists\":false}"
+    },
+    {
+     "name": "set_legend",
+     "args": {
+      "layer_id": "hex-3c1465ee6e894dd5",
+      "title": "Top 30% Priority Hexes (Carbon + Biodiversity)",
+      "units": "combined normalized score (0–1)"
+     },
+     "success": true,
+     "source": "local",
+     "result": "{\"success\":true,\"layer\":\"hex-3c1465ee6e894dd5\",\"displayName\":\"Top 30% Priority Hexes (Carbon + Biodiversity)\",\"legend\":{\"type\":\"hex\",\"rendered\":true,\"units\":\"combined normalized score (0–1)\"}}"
+    }
+   ],
+   "answer": "The map is now displaying the **top 30% of US h8 hexes** by a combined, equal-weight score of irrecoverable carbon and MOBI species richness, excluding areas already protected under GAP Status 1 or 2.\n\nHere's a summary of the methodology and results:\n\n### Methodology\n\n1.  **Irrecoverable Carbon (2024)**: Aggregated from native h9 resolution to h8 by SUMming total carbon (Mg C) per cell\n2.  **MOBI Species Richness**: Used directly at h8 (max species count per cell, range 0–32)\n3.  **Exclusion**: Removed all h8 cells overlapping any PAD-US feature with `GAP_Sts` = '1' or '2' (permanently protected for biodiversity)\n4.  **Normalization**: Min-max normalized both variables to 0–1 (min = 0 for both; max = 32 for MOBI, 28,342 Mg C for carbon)\n5.  **Combined score**: Equal weight average → `(mobi_norm + carbon_norm) / 2`\n6.  **Top 30% filter**: Kept cells with combined score ≥ 0.0613 (the 70th percentile)\n\n### Key Numbers\n\n| Metric                               | Value                 |\n|--------------------------------------|-----------------------|\n| Total eligible hexes (excl. GAP 1/2) | 9,238,348             |\n| Top 30% hexes shown on map           | 2,771,504             |\n| Combined score range (top 30%)       | 0.061 – 0.564         |\n| Coverage                             | Contiguous US (CONUS) |\n\n### What the map shows\n\nThe **viridis color ramp** (dark purple → yellow) indicates combined priority score — yellow hexes are the highest-priority cells with both high irrecoverable carbon stocks and high species richness that are **not** already under strict biodiversity protection (GAP 1/2). These represent potential conservation opportunity areas where both climate and biodiversity values converge.",
+   "status": "done"
+  },
+  {
+   "prompt": "what NCLD land cover is represented here?",
+   "steps": [
+    {
+     "name": "get_schema",
+     "args": {
+      "dataset_id": "nlcd"
+     },
+     "success": true,
+     "source": "local",
+     "result": "**Annual NLCD Land Cover & Land-Cover Change, CONUS 1985-2025 (Collection 1.2)**\nCollection ID: `nlcd`\ncollection_url: `https://s3-west.nrp-nautilus.io/public-land-cover/nlcd/stac-collection.json`\nAnnual National Land Cover Database (NLCD), MRLC/USGS **Collection 1.2 (C1V2)**, conterminous US, 30 m. A single consistent-version time series across 19 map years (1985, 1990, 1994, 1996, 1998, 2000, 2005, 2010, then annual 2015-2025) so cross-year change is valid. Per-year visualization COGs (`nlcd-cog-<year>`, the app year/versions dropdown) plus two unified, hive-partitioned H3 hex products keyed by a `year` column: **mode** (dominant class, `nlcd-hex`) and **per-class fractional coverage** (`nlcd-hex-fractions`). Source rasters reprojected from Albers (EPSG:5070) to WGS84 with nearest-neighbor (class codes preserved) and aggregated to H3 res 10 (parents 9,8,7,6,5,0). nodata = 250.\n\n**Land-cover change** is derived, not a separate product: it is a self-join on the H3 cell across any two years of the hex (the grid is identical across years), and any two per-year COGs can be differenced directly. No baked multi-year transition raster is published, so the consumer chooses the interval rather than inheriting one.\n\n**Timing caveat (important for event studies):** Annual NLCD is a growing-season composite, so a map year reflects conditions during that year's growing season. For events dated late in the calendar year, the first *clean* post-event year is the following map year (e.g. an event in Dec 2017 first appears in the 2018 layer, not 2017). Land cover also lags policy by years (lease -> permit -> disturbance), so a single post-event year may show little change either way. Most NLCD change in shrub-steppe regions is reshuffling among Shrub/Grassland/Forest; well pads, mines, fire scars, and development are the clearest class flips.\n\nSQL data (use with `query` tool):\n  - Annual NLCD land cover — H3 hex (mode), all years: `read_parquet('s3://public-land-cover/nlcd/hex/year\n... (truncated)"
+    },
+    {
+     "name": "get_schema",
+     "args": {
+      "dataset_id": "irrecoverable-carbon"
+     },
+     "success": true,
+     "source": "local",
+     "result": "**Irrecoverable Earth: Carbon Reserves (v2, 2025 release)**\nCollection ID: `irrecoverable-carbon`\ncollection_url: `https://s3-west.nrp-nautilus.io/public-carbon/stac-collection.json`\nGlobal carbon storage mapping irrecoverable carbon (stocks that, if lost, cannot be recovered by 2050), manageable carbon, and vulnerable carbon (nested pools: manageable ⊃ vulnerable ⊃ irrecoverable). Derived from the Conservation International v2 (2025) update of Noon et al. (2022, Nature Sustainability), Zenodo 17645053. Irrecoverable covers 2018, 2022, 2023, 2024; vulnerable and manageable cover 2010, 2018, 2024. (Irrecoverable 2010 is not included — the Zenodo source TIFF is corrupt.) Source rasters are ~300 m carbon DENSITY in Mg C ha⁻¹ on a WGS84 grid, provided here as Cloud-Optimized GeoTIFFs (the COG assets, unchanged from source) and as H3 resolution-9 hexagonal parquet.\n\nHEX `carbon` = TOTAL carbon in Mg C (tonnes) per H3 cell, obtained by area-integrating the source density: each ~300 m pixel's density (Mg C/ha) is multiplied by the pixel's ground area (latitude-dependent on the WGS84 grid) and apportioned to the H3 cells it overlaps, giving exactly ONE row per h9 cell. SUM(carbon) over hex rows is therefore directly valid as a carbon TOTAL — no GROUP BY or dedup. Parent resolutions 8,7,6,5 are columns (h8…h5); h0 is the hive partition key.\n\nVALIDATION (data-workflows #330): hex SUM(carbon) matches an independent full-resolution area-integral of the source COG to a uniform +0.22% on every layer (a benign H3-cell-area vs exact-pixel discretization offset). These straight area-integrals run ~2–3% above Conservation International's published committed-loss headline figures — e.g. irrecoverable 2024 = 131.9 Gt C here vs CI's 128.0 Gt; CI corrected the original 2018 baseline from 139.1 to 135.3 Gt. The per-year series is therefore NOT strictly monotonic in a raw integral (e.g. irrecoverable rises slightly 2023→2024), reflecting the shipped density rasters rather than CI's account\n... (truncated)"
+    },
+    {
+     "name": "get_schema",
+     "args": {
+      "dataset_id": "mobi-species-richness-all"
+     },
+     "success": true,
+     "source": "local",
+     "result": "**MOBI Species Richness (All Taxa)**\nCollection ID: `mobi-species-richness-all`\ncollection_url: `https://s3-west.nrp-nautilus.io/public-mobi/mobi-species-richness-all/stac-collection.json`\nMap of Biodiversity Importance (MOBI) — total species richness across all modeled taxa, aggregated to H3 resolution 8 hexagonal cells (~0.74 km² each). MOBI integrates NatureServe habitat models for ~2,400 imperiled and endemic species of vertebrates, invertebrates, and plants across the contiguous United States. For each H3 cell this layer reports the maximum modeled species richness (count of species with predicted suitable habitat) among the source-raster pixels covering the cell, computed by area-weighted exact-extract aggregation with the `max` reducer (one row per cell; the peak, not the average, so coarse-resolution rollups via GROUP BY + MAX preserve hotspots). Produced by NatureServe.\n\nSQL data (use with `query` tool):\n  - MOBI Species Richness — H3 Hex Parquet (resolution 8, exact-extract max): `read_parquet('s3://public-mobi/mobi-species-richness-all/hex/h0=*/data_0.parquet')`\n    - h3:native_resolution: 8\n    - h3:parent_resolutions: [7, 6, 5, 0]\n    - columns: `species_richness` (float), `h8` (uint64), `h7` (uint64), `h6` (uint64), `h5` (uint64), `h0` (int64)\n\nColumn descriptions (shared across the assets above):\n    - `species_richness` (float) — Maximum modeled species richness (count of species with predicted suitable habitat) among source-raster pixels covering this cell, via area-weighted exact-extract with the `max` reducer. One row per cell — query directly, no GROUP BY needed. Integer-valued, range 0–32. To view at a coarser resolution, GROUP BY h7 (or h6/h5) and take MAX(species_richness) — MAX-of-MAX preserves the hotspot; never AVG/SUM across the rollup.\n    - `h8` (uint64) — H3 cell index at resolution 8 (native resolution; one row per h8 cell).\n    - `h7` (uint64) — H3 cell index at resolution 7 (parent of h8; rollup key).\n    - `h6` (uint64) — H3 cell in\n... (truncated)"
+    },
+    {
+     "name": "get_schema",
+     "args": {
+      "dataset_id": "pad-us-4.1-combined"
+     },
+     "success": true,
+     "source": "local",
+     "result": "**PAD-US 4.1 Combined - All Protection Types**\nCollection ID: `pad-us-4.1-combined`\ncollection_url: `https://s3-west.nrp-nautilus.io/public-padus/padus-4-1/combined/stac-collection.json`\nThe Protected Areas Database of the United States (PAD-US) 4.1 Combined layer integrates all protection types (fee ownership, easements, proclamation boundaries, marine areas, and designations) into a comprehensive national inventory of 656,986 protected areas. Managed by USGS Gap Analysis Project (GAP), this authoritative dataset combines federal, state, local, and private conservation lands indexed by H3 hexagons. Most features are at resolution 10 (~15m² cells), with 20 extremely complex geometries at resolution 8 (~0.74 km² cells). IMPORTANT: Features may overlap - a single location can have multiple protection types. Overlapping features produce duplicate hex rows — use SELECT DISTINCT h8, h0 before joining to avoid double-counting. Area column (GIS_Acres) stores the source polygon's total area repeated on every hex row; never SUM it on hex data — compute area from hex count instead.\n\nSQL data (use with `query` tool):\n  - GeoParquet file with all 656,986 protected areas: `read_parquet('s3://public-padus/padus-4-1/combined.parquet')`\n    - Cloud-native GeoParquet format optimized for analytical queries. Use with DuckDB, Polars, pandas, or any GeoParquet-compatible tool. Geometries in EPSG:4326.\n    - columns: `_cng_fid` (int64), `FeatClass` (string), `Category` (string), `Own_Type` (string), `Own_Name` (string), `Loc_Own` (string), `Mang_Type` (string), `Mang_Name` (string), `Loc_Mang` (string), `Des_Tp` (string), `Loc_Ds` (string), `Unit_Nm` (string), `Loc_Nm` (string), `State_Nm` (string), `Agg_Src` (string), `GIS_Src` (string), `Src_Date` (string), `GIS_Acres` (int32), `Source_PAID` (string), `WDPA_Cd` (int32), `Pub_Access` (string), `Access_Src` (string), `Access_Dt` (string), `GAP_Sts` (string), `GAPCdSrc` (string), `GAPCdDt` (string), `IUCN_Cat` (string), `IUCNCtSrc` (stri\n... (truncated)"
+    },
+    {
+     "name": "query",
+     "args": {
+      "sql_query": "WITH mobi AS (\n  SELECT h8, h0, species_richness\n  FROM read_parquet('s3://public-mobi/mobi-species-richness-all/hex/h0=*/data_0.parquet')\n  WHERE species_richness > 0\n),\ncarbon_h8 AS (\n  SELECT c.h8, c.h0, SUM(c.carbon) AS total_carbon\n  FROM read_parquet('s3://public-carbon/irrecoverable-carbon-2024/hex/h0=*/data_0.parquet') c\n  SEMI JOIN mobi m ON c.h8 = m.h8 AND c.h0 = m.h0\n  WHERE c.carbon > 0\n  GROUP BY c.h8, c.h0\n),\ngap12 AS (\n  SELECT DISTINCT h8, h0\n  FROM read_parquet('s3://public-padus/padus-4-1/combined/hex/h0=*/data_0.parquet')\n  WHERE GAP_Sts IN ('1', '2')\n),\neligible AS (\n  SELECT c.h8, c.h0, c.total_carbon, m.species_richness\n  FROM carbon_h8 c\n  JOIN mobi m ON c.h8 = m.h8 AND c.h0 = m.h0\n  ANTI JOIN gap12 g USING (h8, h0)\n),\nnormed AS (\n  SELECT h8, h0,\n    total_carbon / MAX(total_carbon) OVER () AS carbon_norm,\n    species_richness / MAX(species_richness) OVER () AS mobi_norm\n  FROM eligible\n),\nscored AS (\n  SELECT h8, h0,\n    (carbon_norm + mobi_norm) / 2.0 AS score,\n    PERCENT_RANK() OVER (ORDER BY (carbon_norm + mobi_norm) / 2.0) AS pct\n  FROM normed\n),\ntop30 AS (\n  SELECT h8, h0 FROM scored WHERE pct >= 0.70\n)\nSELECT n.nlcd,\n  SUM(n.frac * h3_cell_area(n.h10, 'km^2')) AS area_km2\nFROM read_parquet('s3://public-land-cover/nlcd/hex-fractions/year=2024/h0=*/data_0.parquet') n\nSEMI JOIN top30 t ON n.h8 = t.h8 AND n.h0 = t.h0\nWHERE n.nlcd <> 250\nGROUP BY n.nlcd\nORDER BY area_km2 DESC;"
+     },
+     "success": true,
+     "source": "remote",
+     "result": "SQL Error: Binder Error: Ambiguous reference to column name \"h8\" (use: \"c.h8\" or \"m.h8\")",
+     "sqlQuery": "WITH mobi AS (\n  SELECT h8, h0, species_richness\n  FROM read_parquet('s3://public-mobi/mobi-species-richness-all/hex/h0=*/data_0.parquet')\n  WHERE species_richness > 0\n),\ncarbon_h8 AS (\n  SELECT c.h8, c.h0, SUM(c.carbon) AS total_carbon\n  FROM read_parquet('s3://public-carbon/irrecoverable-carbon-2024/hex/h0=*/data_0.parquet') c\n  SEMI JOIN mobi m ON c.h8 = m.h8 AND c.h0 = m.h0\n  WHERE c.carbon > 0\n  GROUP BY c.h8, c.h0\n),\ngap12 AS (\n  SELECT DISTINCT h8, h0\n  FROM read_parquet('s3://public-padus/padus-4-1/combined/hex/h0=*/data_0.parquet')\n  WHERE GAP_Sts IN ('1', '2')\n),\neligible AS (\n  SELECT c.h8, c.h0, c.total_carbon, m.species_richness\n  FROM carbon_h8 c\n  JOIN mobi m ON c.h8 = m.h8 AND c.h0 = m.h0\n  ANTI JOIN gap12 g USING (h8, h0)\n),\nnormed AS (\n  SELECT h8, h0,\n    total_carbon / MAX(total_carbon) OVER () AS carbon_norm,\n    species_richness / MAX(species_richness) OVER () AS mobi_norm\n  FROM eligible\n),\nscored AS (\n  SELECT h8, h0,\n    (carbon_norm + mobi_norm) / 2.0 AS score,\n    PERCENT_RANK() OVER (ORDER BY (carbon_norm + mobi_norm) / 2.0) AS pct\n  FROM normed\n),\ntop30 AS (\n  SELECT h8, h0 FROM scored WHERE pct >= 0.70\n)\nSELECT n.nlcd,\n  SUM(n.frac * h3_cell_area(n.h10, 'km^2')) AS area_km2\nFROM read_parquet('s3://public-land-cover/nlcd/hex-fractions/year=2024/h0=*/data_0.parquet') n\nSEMI JOIN top30 t ON n.h8 = t.h8 AND n.h0 = t.h0\nWHERE n.nlcd <> 250\nGROUP BY n.nlcd\nORDER BY area_km2 DESC;"
+    },
+    {
+     "name": "query",
+     "args": {
+      "sql_query": "WITH mobi AS (\n  SELECT h8, h0, species_richness\n  FROM read_parquet('s3://public-mobi/mobi-species-richness-all/hex/h0=*/data_0.parquet')\n  WHERE species_richness > 0\n),\ncarbon_h8 AS (\n  SELECT c.h8, c.h0, SUM(c.carbon) AS total_carbon\n  FROM read_parquet('s3://public-carbon/irrecoverable-carbon-2024/hex/h0=*/data_0.parquet') c\n  SEMI JOIN mobi m ON c.h8 = m.h8 AND c.h0 = m.h0\n  WHERE c.carbon > 0\n  GROUP BY c.h8, c.h0\n),\ngap12 AS (\n  SELECT DISTINCT h8, h0\n  FROM read_parquet('s3://public-padus/padus-4-1/combined/hex/h0=*/data_0.parquet')\n  WHERE GAP_Sts IN ('1', '2')\n),\neligible AS (\n  SELECT c.h8 AS h8, c.h0 AS h0, c.total_carbon, m.species_richness\n  FROM carbon_h8 c\n  JOIN mobi m ON c.h8 = m.h8 AND c.h0 = m.h0\n  ANTI JOIN gap12 g ON c.h8 = g.h8 AND c.h0 = g.h0\n),\nnormed AS (\n  SELECT h8, h0,\n    total_carbon / MAX(total_carbon) OVER () AS carbon_norm,\n    species_richness / MAX(species_richness) OVER () AS mobi_norm\n  FROM eligible\n),\nscored AS (\n  SELECT h8, h0,\n    (carbon_norm + mobi_norm) / 2.0 AS score,\n    PERCENT_RANK() OVER (ORDER BY (carbon_norm + mobi_norm) / 2.0) AS pct\n  FROM normed\n),\ntop30 AS (\n  SELECT h8, h0 FROM scored WHERE pct >= 0.70\n)\nSELECT n.nlcd,\n  SUM(n.frac * h3_cell_area(n.h10, 'km^2')) AS area_km2\nFROM read_parquet('s3://public-land-cover/nlcd/hex-fractions/year=2024/h0=*/data_0.parquet') n\nSEMI JOIN top30 t ON n.h8 = t.h8 AND n.h0 = t.h0\nWHERE n.nlcd <> 250\nGROUP BY n.nlcd\nORDER BY area_km2 DESC;"
+     },
+     "success": true,
+     "source": "remote",
+     "result": "|   nlcd | area_km2     |\n|-------:|:-------------|\n|     41 | 252157.3411  |\n|     42 | 104010.0436  |\n|     81 | 78489.62827  |\n|     90 | 77418.24195  |\n|     43 | 65953.84554  |\n|     21 | 42417.84612  |\n|     52 | 40111.05011  |\n|     71 | 23354.90334  |\n|     82 | 22640.40548  |\n|     22 | 20873.61377  |\n|     95 | 16042.83696  |\n|     11 | 13934.5628   |\n|     23 | 7121.023503  |\n|     31 | 2818.142576  |\n|     24 | 1461.250474  |\n|     12 | 0.1129486034 |",
+     "sqlQuery": "WITH mobi AS (\n  SELECT h8, h0, species_richness\n  FROM read_parquet('s3://public-mobi/mobi-species-richness-all/hex/h0=*/data_0.parquet')\n  WHERE species_richness > 0\n),\ncarbon_h8 AS (\n  SELECT c.h8, c.h0, SUM(c.carbon) AS total_carbon\n  FROM read_parquet('s3://public-carbon/irrecoverable-carbon-2024/hex/h0=*/data_0.parquet') c\n  SEMI JOIN mobi m ON c.h8 = m.h8 AND c.h0 = m.h0\n  WHERE c.carbon > 0\n  GROUP BY c.h8, c.h0\n),\ngap12 AS (\n  SELECT DISTINCT h8, h0\n  FROM read_parquet('s3://public-padus/padus-4-1/combined/hex/h0=*/data_0.parquet')\n  WHERE GAP_Sts IN ('1', '2')\n),\neligible AS (\n  SELECT c.h8 AS h8, c.h0 AS h0, c.total_carbon, m.species_richness\n  FROM carbon_h8 c\n  JOIN mobi m ON c.h8 = m.h8 AND c.h0 = m.h0\n  ANTI JOIN gap12 g ON c.h8 = g.h8 AND c.h0 = g.h0\n),\nnormed AS (\n  SELECT h8, h0,\n    total_carbon / MAX(total_carbon) OVER () AS carbon_norm,\n    species_richness / MAX(species_richness) OVER () AS mobi_norm\n  FROM eligible\n),\nscored AS (\n  SELECT h8, h0,\n    (carbon_norm + mobi_norm) / 2.0 AS score,\n    PERCENT_RANK() OVER (ORDER BY (carbon_norm + mobi_norm) / 2.0) AS pct\n  FROM normed\n),\ntop30 AS (\n  SELECT h8, h0 FROM scored WHERE pct >= 0.70\n)\nSELECT n.nlcd,\n  SUM(n.frac * h3_cell_area(n.h10, 'km^2')) AS area_km2\nFROM read_parquet('s3://public-land-cover/nlcd/hex-fractions/year=2024/h0=*/data_0.parquet') n\nSEMI JOIN top30 t ON n.h8 = t.h8 AND n.h0 = t.h0\nWHERE n.nlcd <> 250\nGROUP BY n.nlcd\nORDER BY area_km2 DESC;"
+    },
+    {
+     "name": "query",
+     "args": {
+      "sql_query": "WITH mobi AS (\n  SELECT h8, h0, species_richness\n  FROM read_parquet('s3://public-mobi/mobi-species-richness-all/hex/h0=*/data_0.parquet')\n  WHERE species_richness > 0\n),\ncarbon_h8 AS (\n  SELECT c.h8, c.h0, SUM(c.carbon) AS total_carbon\n  FROM read_parquet('s3://public-carbon/irrecoverable-carbon-2024/hex/h0=*/data_0.parquet') c\n  SEMI JOIN mobi m ON c.h8 = m.h8 AND c.h0 = m.h0\n  WHERE c.carbon > 0\n  GROUP BY c.h8, c.h0\n),\ngap12 AS (\n  SELECT DISTINCT h8, h0\n  FROM read_parquet('s3://public-padus/padus-4-1/combined/hex/h0=*/data_0.parquet')\n  WHERE GAP_Sts IN ('1', '2')\n),\neligible AS (\n  SELECT c.h8 AS h8, c.h0 AS h0, c.total_carbon, m.species_richness\n  FROM carbon_h8 c\n  JOIN mobi m ON c.h8 = m.h8 AND c.h0 = m.h0\n  ANTI JOIN gap12 g ON c.h8 = g.h8 AND c.h0 = g.h0\n),\nnormed AS (\n  SELECT h8, h0,\n    total_carbon / MAX(total_carbon) OVER () AS carbon_norm,\n    species_richness / MAX(species_richness) OVER () AS mobi_norm\n  FROM eligible\n),\nscored AS (\n  SELECT h8, h0,\n    (carbon_norm + mobi_norm) / 2.0 AS score,\n    PERCENT_RANK() OVER (ORDER BY (carbon_norm + mobi_norm) / 2.0) AS pct\n  FROM normed\n),\ntop30 AS (\n  SELECT h8, h0 FROM scored WHERE pct >= 0.70\n),\nclass_area AS (\n  SELECT n.nlcd,\n    SUM(n.frac * h3_cell_area(n.h10, 'km^2')) AS area_km2\n  FROM read_parquet('s3://public-land-cover/nlcd/hex-fractions/year=2024/h0=*/data_0.parquet') n\n  SEMI JOIN top30 t ON n.h8 = t.h8 AND n.h0 = t.h0\n  WHERE n.nlcd <> 250\n  GROUP BY n.nlcd\n)\nSELECT\n  nlcd,\n  CASE nlcd\n    WHEN 11 THEN 'Open Water'\n    WHEN 12 THEN 'Perennial Ice/Snow'\n    WHEN 21 THEN 'Developed, Open Space'\n    WHEN 22 THEN 'Developed, Low Intensity'\n    WHEN 23 THEN 'Developed, Medium Intensity'\n    WHEN 24 THEN 'Developed, High Intensity'\n    WHEN 31 THEN 'Barren Land'\n    WHEN 41 THEN 'Deciduous Forest'\n    WHEN 42 THEN 'Evergreen Forest'\n    WHEN 43 THEN 'Mixed Forest'\n    WHEN 52 THEN 'Shrub/Scrub'\n    WHEN 71 THEN 'Herbaceous (Grassland)'\n    WHEN 81 THEN 'Hay/Pasture'\n    WHEN 82 THEN 'Cultivated Crops'\n    WHEN 90 THEN 'Woody Wetlands'\n    WHEN 95 THEN 'Emergent Herbaceous Wetlands'\n  END AS land_cover_class,\n  ROUND(area_km2, 1) AS area_km2,\n  ROUND(100.0 * area_km2 / SUM(area_km2) OVER (), 2) AS pct_of_total\nFROM class_area\nORDER BY area_km2 DESC;"
+     },
+     "success": true,
+     "source": "remote",
+     "result": "|   nlcd | land_cover_class             | area_km2   | pct_of_total   |\n|-------:|:-----------------------------|:-----------|:---------------|\n|     41 | Deciduous Forest             | 252157.3   | 32.8           |\n|     42 | Evergreen Forest             | 104010     | 13.53          |\n|     81 | Hay/Pasture                  | 78489.6    | 10.21          |\n|     90 | Woody Wetlands               | 77418.2    | 10.07          |\n|     43 | Mixed Forest                 | 65953.8    | 8.58           |\n|     21 | Developed, Open Space        | 42417.8    | 5.52           |\n|     52 | Shrub/Scrub                  | 40111.1    | 5.22           |\n|     71 | Herbaceous (Grassland)       | 23354.9    | 3.04           |\n|     82 | Cultivated Crops             | 22640.4    | 2.94           |\n|     22 | Developed, Low Intensity     | 20873.6    | 2.72           |\n|     95 | Emergent Herbaceous Wetlands | 16042.8    | 2.09           |\n|     11 | Open Water                   | 13934.6    | 1.81           |\n|     23 | Developed, Medium Intensity  | 7121       | 0.93           |\n|     31 | Barren Land                  | 2818.1     | 0.37           |\n|     24 | Developed, High Intensity    | 1461.3     | 0.19           |\n|     12 | Perennial Ice/Snow           | 0.1        | 0              |",
+     "sqlQuery": "WITH mobi AS (\n  SELECT h8, h0, species_richness\n  FROM read_parquet('s3://public-mobi/mobi-species-richness-all/hex/h0=*/data_0.parquet')\n  WHERE species_richness > 0\n),\ncarbon_h8 AS (\n  SELECT c.h8, c.h0, SUM(c.carbon) AS total_carbon\n  FROM read_parquet('s3://public-carbon/irrecoverable-carbon-2024/hex/h0=*/data_0.parquet') c\n  SEMI JOIN mobi m ON c.h8 = m.h8 AND c.h0 = m.h0\n  WHERE c.carbon > 0\n  GROUP BY c.h8, c.h0\n),\ngap12 AS (\n  SELECT DISTINCT h8, h0\n  FROM read_parquet('s3://public-padus/padus-4-1/combined/hex/h0=*/data_0.parquet')\n  WHERE GAP_Sts IN ('1', '2')\n),\neligible AS (\n  SELECT c.h8 AS h8, c.h0 AS h0, c.total_carbon, m.species_richness\n  FROM carbon_h8 c\n  JOIN mobi m ON c.h8 = m.h8 AND c.h0 = m.h0\n  ANTI JOIN gap12 g ON c.h8 = g.h8 AND c.h0 = g.h0\n),\nnormed AS (\n  SELECT h8, h0,\n    total_carbon / MAX(total_carbon) OVER () AS carbon_norm,\n    species_richness / MAX(species_richness) OVER () AS mobi_norm\n  FROM eligible\n),\nscored AS (\n  SELECT h8, h0,\n    (carbon_norm + mobi_norm) / 2.0 AS score,\n    PERCENT_RANK() OVER (ORDER BY (carbon_norm + mobi_norm) / 2.0) AS pct\n  FROM normed\n),\ntop30 AS (\n  SELECT h8, h0 FROM scored WHERE pct >= 0.70\n),\nclass_area AS (\n  SELECT n.nlcd,\n    SUM(n.frac * h3_cell_area(n.h10, 'km^2')) AS area_km2\n  FROM read_parquet('s3://public-land-cover/nlcd/hex-fractions/year=2024/h0=*/data_0.parquet') n\n  SEMI JOIN top30 t ON n.h8 = t.h8 AND n.h0 = t.h0\n  WHERE n.nlcd <> 250\n  GROUP BY n.nlcd\n)\nSELECT\n  nlcd,\n  CASE nlcd\n    WHEN 11 THEN 'Open Water'\n    WHEN 12 THEN 'Perennial Ice/Snow'\n    WHEN 21 THEN 'Developed, Open Space'\n    WHEN 22 THEN 'Developed, Low Intensity'\n    WHEN 23 THEN 'Developed, Medium Intensity'\n    WHEN 24 THEN 'Developed, High Intensity'\n    WHEN 31 THEN 'Barren Land'\n    WHEN 41 THEN 'Deciduous Forest'\n    WHEN 42 THEN 'Evergreen Forest'\n    WHEN 43 THEN 'Mixed Forest'\n    WHEN 52 THEN 'Shrub/Scrub'\n    WHEN 71 THEN 'Herbaceous (Grassland)'\n    WHEN 81 THEN 'Hay/Pasture'\n    WHEN 82 THEN 'Cultivated Crops'\n    WHEN 90 THEN 'Woody Wetlands'\n    WHEN 95 THEN 'Emergent Herbaceous Wetlands'\n  END AS land_cover_class,\n  ROUND(area_km2, 1) AS area_km2,\n  ROUND(100.0 * area_km2 / SUM(area_km2) OVER (), 2) AS pct_of_total\nFROM class_area\nORDER BY area_km2 DESC;"
+    }
+   ],
+   "answer": "Here's the NLCD land cover composition (2024) for the top 30% combined-score hexes:\n\n### NLCD Land Cover in the Top 30% Priority Hexes\n\n| NLCD Code | Land Cover Class             | Area (km²) | % of Total |\n|----------:|------------------------------|-----------:|-----------:|\n|        41 | **Deciduous Forest**         |    252,157 | **32.80%** |\n|        42 | **Evergreen Forest**         |    104,010 | **13.53%** |\n|        81 | Hay/Pasture                  |     78,490 |     10.21% |\n|        90 | **Woody Wetlands**           |     77,418 | **10.07%** |\n|        43 | **Mixed Forest**             |     65,954 |  **8.58%** |\n|        21 | Developed, Open Space        |     42,418 |      5.52% |\n|        52 | Shrub/Scrub                  |     40,111 |      5.22% |\n|        71 | Herbaceous (Grassland)       |     23,355 |      3.04% |\n|        82 | Cultivated Crops             |     22,640 |      2.94% |\n|        22 | Developed, Low Intensity     |     20,874 |      2.72% |\n|        95 | Emergent Herbaceous Wetlands |     16,043 |      2.09% |\n|        11 | Open Water                   |     13,935 |      1.81% |\n|        23 | Developed, Medium Intensity  |      7,121 |      0.93% |\n|        31 | Barren Land                  |      2,818 |      0.37% |\n|        24 | Developed, High Intensity    |      1,461 |      0.19% |\n|        12 | Perennial Ice/Snow           |        0.1 |        ~0% |\n\n**Total area: ~769,000 km²**\n\n### Key Takeaways\n\n- **Forests dominate** — Deciduous (32.8%), Evergreen (13.5%), and Mixed (8.6%) forest together account for **~55%** of the top-priority area. This aligns with both high irrecoverable carbon storage (forest biomass and soils) and high species richness (forest habitat diversity).\n\n- **Wetlands are disproportionately represented** — Woody Wetlands (10.1%) and Emergent Herbaceous Wetlands (2.1%) together make up **~12%**, well above their typical CONUS land cover share. Wetlands are critical for both carbon sequestration and biodiversity, which drives their high combined scores.\n\n- **Agricultural lands** (Hay/Pasture + Cultivated Crops) account for **~13%**, suggesting some priority areas overlap with working lands — potential conservation easement or sustainable agriculture opportunities.\n\n- **Developed land** is relatively low at **~9.4%** (mostly open-space development), reflecting that the highest-value carbon + biodiversity cells tend to be in less-urbanized landscapes.\n\n- **Shrub/Scrub and Grassland** together account for **~8.3%**, representing arid and semi-arid ecosystems that may have lower carbon but high species richness (especially in the Southwest).",
+   "status": "done"
+  }
+ ],
+ "mapState": {
+  "center": [
+   -103.73478922672035,
+   38.75941410345673
+  ],
+  "zoom": 4.913368116585589,
+  "bearing": 0,
+  "pitch": 0,
+  "projection": "globe",
+  "style": {
+   "version": 8,
+   "glyphs": "https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf",
+   "projection": {
+    "type": "globe"
+   },
+   "sources": {
+    "natgeo": {
+     "type": "raster",
+     "tiles": [
+      "https://services.arcgisonline.com/ArcGIS/rest/services/NatGeo_World_Map/MapServer/tile/{z}/{y}/{x}"
+     ],
+     "tileSize": 256,
+     "maxzoom": 16,
+     "attribution": "Tiles &copy; Esri &mdash; National Geographic, Esri, DeLorme, NAVTEQ, UNEP-WCMC, USGS, NASA, ESA, METI, NRCAN, GEBCO, NOAA"
+    },
+    "satellite": {
+     "type": "raster",
+     "tiles": [
+      "https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+     ],
+     "tileSize": 256,
+     "maxzoom": 19,
+     "attribution": "Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community"
+    },
+    "plain": {
+     "type": "raster",
+     "tiles": [
+      "https://services.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}"
+     ],
+     "tileSize": 256,
+     "maxzoom": 16,
+     "attribution": "Tiles &copy; Esri &mdash; Esri, HERE, Garmin, &copy; OpenStreetMap contributors, and the GIS user community"
+    },
+    "plain-labels": {
+     "type": "raster",
+     "tiles": [
+      "https://services.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Reference/MapServer/tile/{z}/{y}/{x}"
+     ],
+     "tileSize": 256,
+     "maxzoom": 16,
+     "attribution": ""
+    },
+    "src-landvote-landvote-pmtiles": {
+     "type": "vector",
+     "url": "pmtiles://https://s3-west.nrp-nautilus.io/public-tpl/landvote.pmtiles"
+    },
+    "src-wetlands-nwi-nwi-pmtiles": {
+     "type": "vector",
+     "url": "pmtiles://https://s3-west.nrp-nautilus.io/public-wetlands/nwi-v2.pmtiles"
+    },
+    "src-epa-sab-v3-cws-sab-cws-pmtiles": {
+     "type": "vector",
+     "url": "pmtiles://https://s3-west.nrp-nautilus.io/public-epa-water/epa-sab-v3/cws.pmtiles"
+    },
+    "src-irrecoverable-carbon-v2-irrecoverable-2024-cog": {
+     "type": "raster",
+     "tiles": [
+      "https://titiler.nrp-nautilus.io/cog/tiles/WebMercatorQuad/{z}/{x}/{y}.png?url=https%3A%2F%2Fs3-west.nrp-nautilus.io%2Fpublic-carbon%2Fv2%2Fcogs%2Firrecoverable_c_total_2024.tif&colormap_name=reds&rescale=0,150"
+     ],
+     "tileSize": 256
+    },
+    "src-svi-2022-county-pmtiles": {
+     "type": "vector",
+     "url": "pmtiles://https://s3-west.nrp-nautilus.io/public-social-vulnerability/2022/SVI2022_US_county.pmtiles"
+    },
+    "src-svi-2022-tract-pmtiles": {
+     "type": "vector",
+     "url": "pmtiles://https://s3-west.nrp-nautilus.io/public-social-vulnerability/2022/SVI2022_US_tract.pmtiles"
+    },
+    "src-census-2024-cd-cd-pmtiles": {
+     "type": "vector",
+     "url": "pmtiles://https://s3-west.nrp-nautilus.io/public-census/census-2024/cd.pmtiles"
+    },
+    "src-census-2025-sldl-sldl-pmtiles": {
+     "type": "vector",
+     "url": "pmtiles://https://s3-west.nrp-nautilus.io/public-census/census-2025/sldl.pmtiles"
+    },
+    "src-census-2025-sldu-sldu-pmtiles": {
+     "type": "vector",
+     "url": "pmtiles://https://s3-west.nrp-nautilus.io/public-census/census-2025/sldu.pmtiles"
+    },
+    "src-conservation-almanac-2024-sites-conservation-almanac-2024-sites-pmtiles": {
+     "type": "vector",
+     "url": "pmtiles://https://s3-west.nrp-nautilus.io/public-tpl/conservation-almanac-2024-sites.pmtiles"
+    },
+    "src-parkserve-2025-parks-parks-pmtiles": {
+     "type": "vector",
+     "url": "pmtiles://https://s3-west.nrp-nautilus.io/public-tpl/parkserve-2025/parks.pmtiles"
+    },
+    "src-parkserve-2025-service-areas-service-areas-pmtiles": {
+     "type": "vector",
+     "url": "pmtiles://https://s3-west.nrp-nautilus.io/public-tpl/parkserve-2025/service-areas.pmtiles"
+    },
+    "src-pad-us-4-1-combined-combined-pmtiles": {
+     "type": "vector",
+     "url": "pmtiles://https://s3-west.nrp-nautilus.io/public-padus/padus-4-1/combined.pmtiles"
+    },
+    "src-usfws-critical-habitat-final-final-pmtiles": {
+     "type": "vector",
+     "url": "pmtiles://https://s3-west.nrp-nautilus.io/public-usfws/critical-habitat/final.pmtiles"
+    },
+    "src-usfws-critical-habitat-proposed-proposed-pmtiles": {
+     "type": "vector",
+     "url": "pmtiles://https://s3-west.nrp-nautilus.io/public-usfws/critical-habitat/proposed.pmtiles"
+    },
+    "src-nlcd-nlcd-cog-2024": {
+     "type": "raster",
+     "tiles": [
+      "https://titiler.nrp-nautilus.io/cog/tiles/WebMercatorQuad/{z}/{x}/{y}.png?url=https%3A%2F%2Fs3-west.nrp-nautilus.io%2Fpublic-land-cover%2Fnlcd%2Fnlcd-2024-cog.tif&colormap=%7B%2211%22%3A%5B70%2C107%2C159%2C255%5D%2C%2212%22%3A%5B209%2C222%2C248%2C255%5D%2C%2221%22%3A%5B222%2C197%2C197%2C255%5D%2C%2222%22%3A%5B217%2C146%2C130%2C255%5D%2C%2223%22%3A%5B235%2C0%2C0%2C255%5D%2C%2224%22%3A%5B171%2C0%2C0%2C255%5D%2C%2231%22%3A%5B179%2C172%2C159%2C255%5D%2C%2241%22%3A%5B104%2C171%2C95%2C255%5D%2C%2242%22%3A%5B28%2C95%2C44%2C255%5D%2C%2243%22%3A%5B181%2C197%2C143%2C255%5D%2C%2252%22%3A%5B204%2C184%2C121%2C255%5D%2C%2271%22%3A%5B223%2C223%2C194%2C255%5D%2C%2281%22%3A%5B220%2C217%2C57%2C255%5D%2C%2282%22%3A%5B171%2C108%2C40%2C255%5D%2C%2290%22%3A%5B184%2C217%2C235%2C255%5D%2C%2295%22%3A%5B108%2C159%2C184%2C255%5D%2C%22250%22%3A%5B0%2C0%2C0%2C255%5D%7D&nodata=250"
+     ],
+     "tileSize": 256
+    },
+    "src-ghs-pop-2020-ghs-pop-2020-cog": {
+     "type": "raster",
+     "tiles": [
+      "https://titiler.nrp-nautilus.io/cog/tiles/WebMercatorQuad/{z}/{x}/{y}.png?url=https%3A%2F%2Fs3-west.nrp-nautilus.io%2Fpublic-population%2Fraw%2Fghs-pop-2020-cog.tif&colormap_name=magma&rescale=0,200&nodata=0"
+     ],
+     "tileSize": 256
+    },
+    "src-census-2024-county-county-pmtiles": {
+     "type": "vector",
+     "url": "pmtiles://https://s3-west.nrp-nautilus.io/public-census/census-2024/county.pmtiles"
+    },
+    "src-acs-2020-2024-blockgroup-blockgroup-pmtiles": {
+     "type": "vector",
+     "url": "pmtiles://https://s3-west.nrp-nautilus.io/public-census/acs-2020-2024/blockgroup.pmtiles"
+    },
+    "src-federal-trails-2026-federal-trails-2026-pmtiles": {
+     "type": "vector",
+     "url": "pmtiles://https://s3-west.nrp-nautilus.io/public-trails/federal-trails-2026.pmtiles"
+    },
+    "src-usgs-fires-2021-combined-combined-pmtiles": {
+     "type": "vector",
+     "url": "pmtiles://https://s3-west.nrp-nautilus.io/public-fire/usgs-fires-2021/combined.pmtiles"
+    },
+    "src-mobi-species-richness-all-species-richness-all-cog": {
+     "type": "raster",
+     "tiles": [
+      "https://titiler.nrp-nautilus.io/cog/tiles/WebMercatorQuad/{z}/{x}/{y}.png?url=https%3A%2F%2Fs3-west.nrp-nautilus.io%2Fpublic-mobi%2Fmobi-species-richness-all-cog.tif&colormap_name=viridis&rescale=0,32"
+     ],
+     "tileSize": 256
+    },
+    "src-usgs-ungulate-migration-ranges-ungulate-ranges-pmtiles": {
+     "type": "vector",
+     "url": "pmtiles://https://s3-west.nrp-nautilus.io/public-usgs-ungulate-migration/ungulate-ranges.pmtiles"
+    },
+    "src-american-rivers-wild-scenic-designated-wild-scenic-designated-pmtiles": {
+     "type": "vector",
+     "url": "pmtiles://https://s3-west.nrp-nautilus.io/public-rivers/american-rivers/wild-scenic-designated.pmtiles"
+    },
+    "src-usgs-wbd-hu8-hu8-pmtiles": {
+     "type": "vector",
+     "url": "pmtiles://https://s3-west.nrp-nautilus.io/public-usgs-wbd/wbd/hu8.pmtiles"
+    },
+    "src-flood-hazard-flood-hazard-pmtiles": {
+     "type": "vector",
+     "url": "pmtiles://https://s3-west.nrp-nautilus.io/public-hazard/flood-hazard.pmtiles"
+    },
+    "src-sea-level-rise-sea-level-rise-pmtiles": {
+     "type": "vector",
+     "url": "pmtiles://https://s3-west.nrp-nautilus.io/public-hazard/sea-level-rise.pmtiles"
+    },
+    "src-silvis-wui-2020-wui-2020-pmtiles": {
+     "type": "vector",
+     "url": "pmtiles://https://s3-west.nrp-nautilus.io/public-wui/wui-2020.pmtiles"
+    },
+    "src-mappinginequality-mappinginequality-pmtiles": {
+     "type": "vector",
+     "url": "pmtiles://https://s3-west.nrp-nautilus.io/public-mappinginequality/mappinginequality.pmtiles"
+    },
+    "hex-3c1465ee6e894dd5": {
+     "type": "vector",
+     "tiles": [
+      "https://duckdb-mcp.nrp-nautilus.io/tiles/hex/3c1465ee6e894dd5/{z}/{x}/{y}.pbf"
+     ],
+     "minzoom": 0,
+     "maxzoom": 14
+    }
+   },
+   "layers": [
+    {
+     "id": "natgeo-base",
+     "type": "raster",
+     "source": "natgeo",
+     "layout": {
+      "visibility": "none"
+     }
+    },
+    {
+     "id": "satellite-base",
+     "type": "raster",
+     "source": "satellite",
+     "layout": {
+      "visibility": "none"
+     }
+    },
+    {
+     "id": "plain-base",
+     "type": "raster",
+     "source": "plain",
+     "layout": {
+      "visibility": "visible"
+     }
+    },
+    {
+     "id": "plain-overlay",
+     "type": "raster",
+     "source": "plain-labels",
+     "layout": {
+      "visibility": "visible"
+     }
+    },
+    {
+     "id": "layer-landvote-landvote-pmtiles",
+     "type": "fill",
+     "source": "src-landvote-landvote-pmtiles",
+     "source-layer": "landvote",
+     "filter": [
+      "all",
+      [
+       "!=",
+       [
+        "get",
+        "jurisdiction"
+       ],
+       "State"
+      ],
+      [
+       ">=",
+       [
+        "get",
+        "year"
+       ],
+       2010
+      ]
+     ],
+     "layout": {
+      "visibility": "none"
+     },
+     "paint": {
+      "fill-color": [
+       "match",
+       [
+        "get",
+        "status"
+       ],
+       "Pass",
+       "#1B5E20",
+       "Pass*",
+       "#2E7D32",
+       "Fail",
+       "#C62828",
+       "#9E9E9E"
+      ],
+      "fill-opacity": 0.5
+     }
+    },
+    {
+     "id": "layer-landvote-landvote-pmtiles-outline",
+     "type": "line",
+     "source": "src-landvote-landvote-pmtiles",
+     "source-layer": "landvote",
+     "filter": [
+      "all",
+      [
+       "!=",
+       [
+        "get",
+        "jurisdiction"
+       ],
+       "State"
+      ],
+      [
+       ">=",
+       [
+        "get",
+        "year"
+       ],
+       2010
+      ]
+     ],
+     "layout": {
+      "visibility": "none"
+     },
+     "paint": {
+      "line-color": "#424242",
+      "line-width": 0.8
+     }
+    },
+    {
+     "id": "layer-wetlands-nwi-nwi-pmtiles",
+     "type": "fill",
+     "source": "src-wetlands-nwi-nwi-pmtiles",
+     "source-layer": "nwi-v2",
+     "layout": {
+      "visibility": "none"
+     },
+     "paint": {
+      "fill-color": [
+       "match",
+       [
+        "get",
+        "WETLAND_TYPE"
+       ],
+       "Riverine",
+       "#1565C0",
+       "Freshwater Emergent Wetland",
+       "#4DB6AC",
+       "Freshwater Forested/Shrub Wetland",
+       "#2E7D32",
+       "Freshwater Pond",
+       "#00ACC1",
+       "Estuarine and Marine Wetland",
+       "#6A1B9A",
+       "Lake",
+       "#0D47A1",
+       "Estuarine and Marine Deepwater",
+       "#283593",
+       "#9E9E9E"
+      ],
+      "fill-opacity": 0.6
+     }
+    },
+    {
+     "id": "layer-wetlands-nwi-nwi-pmtiles-outline",
+     "type": "line",
+     "source": "src-wetlands-nwi-nwi-pmtiles",
+     "source-layer": "nwi-v2",
+     "layout": {
+      "visibility": "none"
+     },
+     "paint": {
+      "line-color": "rgba(0,0,0,0.4)",
+      "line-width": 0.5
+     }
+    },
+    {
+     "id": "layer-epa-sab-v3-cws-sab-cws-pmtiles",
+     "type": "fill",
+     "source": "src-epa-sab-v3-cws-sab-cws-pmtiles",
+     "source-layer": "cws",
+     "layout": {
+      "visibility": "none"
+     },
+     "paint": {
+      "fill-color": [
+       "match",
+       [
+        "get",
+        "Pop_Cat_5"
+       ],
+       "<=500",
+       "#E3F2FD",
+       "501-3,300",
+       "#90CAF9",
+       "3,301-10,000",
+       "#42A5F5",
+       "10,001-100,000",
+       "#1976D2",
+       ">100,000",
+       "#0D47A1",
+       "#9E9E9E"
+      ],
+      "fill-opacity": 0.5
+     }
+    },
+    {
+     "id": "layer-epa-sab-v3-cws-sab-cws-pmtiles-outline",
+     "type": "line",
+     "source": "src-epa-sab-v3-cws-sab-cws-pmtiles",
+     "source-layer": "cws",
+     "layout": {
+      "visibility": "none"
+     },
+     "paint": {
+      "line-color": "#0D47A1",
+      "line-width": 0.4
+     }
+    },
+    {
+     "id": "layer-irrecoverable-carbon-v2-irrecoverable-2024-cog",
+     "type": "raster",
+     "source": "src-irrecoverable-carbon-v2-irrecoverable-2024-cog",
+     "layout": {
+      "visibility": "none"
+     },
+     "paint": {
+      "raster-opacity": 0.7
+     }
+    },
+    {
+     "id": "layer-svi-2022-county-pmtiles",
+     "type": "fill",
+     "source": "src-svi-2022-county-pmtiles",
+     "source-layer": "svi",
+     "layout": {
+      "visibility": "none"
+     },
+     "paint": {
+      "fill-color": [
+       "interpolate",
+       [
+        "linear"
+       ],
+       [
+        "get",
+        "RPL_THEMES"
+       ],
+       0,
+       "#1A9641",
+       0.25,
+       "#A6D96A",
+       0.5,
+       "#FFFFBF",
+       0.75,
+       "#FDAE61",
+       1,
+       "#D7191C"
+      ],
+      "fill-opacity": 0.7
+     }
+    },
+    {
+     "id": "layer-svi-2022-county-pmtiles-outline",
+     "type": "line",
+     "source": "src-svi-2022-county-pmtiles",
+     "source-layer": "svi",
+     "layout": {
+      "visibility": "none"
+     },
+     "paint": {
+      "line-color": "#555555",
+      "line-width": 0.5
+     }
+    },
+    {
+     "id": "layer-svi-2022-tract-pmtiles",
+     "type": "fill",
+     "source": "src-svi-2022-tract-pmtiles",
+     "source-layer": "svi",
+     "layout": {
+      "visibility": "none"
+     },
+     "paint": {
+      "fill-color": [
+       "interpolate",
+       [
+        "linear"
+       ],
+       [
+        "get",
+        "RPL_THEMES"
+       ],
+       0,
+       "#1A9641",
+       0.25,
+       "#A6D96A",
+       0.5,
+       "#FFFFBF",
+       0.75,
+       "#FDAE61",
+       1,
+       "#D7191C"
+      ],
+      "fill-opacity": 0.7
+     }
+    },
+    {
+     "id": "layer-svi-2022-tract-pmtiles-outline",
+     "type": "line",
+     "source": "src-svi-2022-tract-pmtiles",
+     "source-layer": "svi",
+     "layout": {
+      "visibility": "none"
+     },
+     "paint": {
+      "line-color": "#555555",
+      "line-width": 0.5
+     }
+    },
+    {
+     "id": "layer-census-2024-cd-cd-pmtiles",
+     "type": "fill",
+     "source": "src-census-2024-cd-cd-pmtiles",
+     "source-layer": "cd",
+     "layout": {
+      "visibility": "none"
+     },
+     "paint": {
+      "fill-color": "#1565C0",
+      "fill-opacity": 0.05
+     }
+    },
+    {
+     "id": "layer-census-2024-cd-cd-pmtiles-outline",
+     "type": "line",
+     "source": "src-census-2024-cd-cd-pmtiles",
+     "source-layer": "cd",
+     "layout": {
+      "visibility": "none"
+     },
+     "paint": {
+      "line-color": "#1565C0",
+      "line-width": 1.5
+     }
+    },
+    {
+     "id": "layer-census-2025-sldl-sldl-pmtiles",
+     "type": "fill",
+     "source": "src-census-2025-sldl-sldl-pmtiles",
+     "source-layer": "sldl",
+     "layout": {
+      "visibility": "none"
+     },
+     "paint": {
+      "fill-color": "#6A1B9A",
+      "fill-opacity": 0.05
+     }
+    },
+    {
+     "id": "layer-census-2025-sldl-sldl-pmtiles-outline",
+     "type": "line",
+     "source": "src-census-2025-sldl-sldl-pmtiles",
+     "source-layer": "sldl",
+     "layout": {
+      "visibility": "none"
+     },
+     "paint": {
+      "line-color": "#6A1B9A",
+      "line-width": 1.5
+     }
+    },
+    {
+     "id": "layer-census-2025-sldu-sldu-pmtiles",
+     "type": "fill",
+     "source": "src-census-2025-sldu-sldu-pmtiles",
+     "source-layer": "sldu",
+     "layout": {
+      "visibility": "none"
+     },
+     "paint": {
+      "fill-color": "#BF360C",
+      "fill-opacity": 0.05
+     }
+    },
+    {
+     "id": "layer-census-2025-sldu-sldu-pmtiles-outline",
+     "type": "line",
+     "source": "src-census-2025-sldu-sldu-pmtiles",
+     "source-layer": "sldu",
+     "layout": {
+      "visibility": "none"
+     },
+     "paint": {
+      "line-color": "#BF360C",
+      "line-width": 1.5
+     }
+    },
+    {
+     "id": "layer-conservation-almanac-2024-sites-conservation-almanac-2024-sites-pmtiles",
+     "type": "fill",
+     "source": "src-conservation-almanac-2024-sites-conservation-almanac-2024-sites-pmtiles",
+     "source-layer": "conservation-almanac-2024-sites",
+     "layout": {
+      "visibility": "none"
+     },
+     "paint": {
+      "fill-color": [
+       "match",
+       [
+        "get",
+        "purchase_type"
+       ],
+       "FSP",
+       "#2E7D32",
+       "ESM",
+       "#1565C0",
+       "FNE",
+       "#6A1B9A",
+       "OTH",
+       "#E65100",
+       "#9E9E9E"
+      ],
+      "fill-opacity": 0.6
+     }
+    },
+    {
+     "id": "layer-conservation-almanac-2024-sites-conservation-almanac-2024-sites-pmtiles-outline",
+     "type": "line",
+     "source": "src-conservation-almanac-2024-sites-conservation-almanac-2024-sites-pmtiles",
+     "source-layer": "conservation-almanac-2024-sites",
+     "layout": {
+      "visibility": "none"
+     },
+     "paint": {
+      "line-color": "rgba(0,0,0,0.4)",
+      "line-width": 0.5
+     }
+    },
+    {
+     "id": "layer-parkserve-2025-parks-parks-pmtiles",
+     "type": "fill",
+     "source": "src-parkserve-2025-parks-parks-pmtiles",
+     "source-layer": "parks",
+     "layout": {
+      "visibility": "none"
+     },
+     "paint": {
+      "fill-color": [
+       "match",
+       [
+        "get",
+        "park_owner_type"
+       ],
+       "MUNI",
+       "#2E7D32",
+       "CNTY",
+       "#1565C0",
+       "STATE",
+       "#6A1B9A",
+       "FED",
+       "#00695C",
+       [
+        "SPECIAL_DIST",
+        "SPECIAL_DISTRICT",
+        "DIST"
+       ],
+       "#EF6C00",
+       "NONPROFIT",
+       "#AD1457",
+       [
+        "PRIV",
+        "HOA"
+       ],
+       "#F9A825",
+       "TRIB",
+       "#D84315",
+       "#9E9E9E"
+      ],
+      "fill-opacity": 0.6
+     }
+    },
+    {
+     "id": "layer-parkserve-2025-parks-parks-pmtiles-outline",
+     "type": "line",
+     "source": "src-parkserve-2025-parks-parks-pmtiles",
+     "source-layer": "parks",
+     "layout": {
+      "visibility": "none"
+     },
+     "paint": {
+      "line-color": "#1B5E20",
+      "line-width": 0.3
+     }
+    },
+    {
+     "id": "layer-parkserve-2025-service-areas-service-areas-pmtiles",
+     "type": "fill",
+     "source": "src-parkserve-2025-service-areas-service-areas-pmtiles",
+     "source-layer": "service-areas",
+     "layout": {
+      "visibility": "none"
+     },
+     "paint": {
+      "fill-color": "#43A047",
+      "fill-opacity": 0.25
+     }
+    },
+    {
+     "id": "layer-parkserve-2025-service-areas-service-areas-pmtiles-outline",
+     "type": "line",
+     "source": "src-parkserve-2025-service-areas-service-areas-pmtiles",
+     "source-layer": "service-areas",
+     "layout": {
+      "visibility": "none"
+     },
+     "paint": {
+      "line-color": "#2E7D32",
+      "line-width": 0.4
+     }
+    },
+    {
+     "id": "layer-pad-us-4.1-combined-combined-pmtiles",
+     "type": "fill",
+     "source": "src-pad-us-4-1-combined-combined-pmtiles",
+     "source-layer": "combined",
+     "layout": {
+      "visibility": "none"
+     },
+     "paint": {
+      "fill-color": [
+       "match",
+       [
+        "get",
+        "Own_Type"
+       ],
+       "FED",
+       "#1565C0",
+       "STAT",
+       "#2E7D32",
+       "LOC",
+       "#6A1B9A",
+       "JNT",
+       "#00838F",
+       "DIST",
+       "#EF6C00",
+       "NGO",
+       "#AD1457",
+       "PVT",
+       "#F9A825",
+       "TRIB",
+       "#D84315",
+       "#9E9E9E"
+      ],
+      "fill-opacity": 0.5
+     }
+    },
+    {
+     "id": "layer-pad-us-4.1-combined-combined-pmtiles-outline",
+     "type": "line",
+     "source": "src-pad-us-4-1-combined-combined-pmtiles",
+     "source-layer": "combined",
+     "layout": {
+      "visibility": "none"
+     },
+     "paint": {
+      "line-color": "#424242",
+      "line-width": 0.5
+     }
+    },
+    {
+     "id": "layer-usfws-critical-habitat-final-final-pmtiles",
+     "type": "fill",
+     "source": "src-usfws-critical-habitat-final-final-pmtiles",
+     "source-layer": "final",
+     "layout": {
+      "visibility": "none"
+     },
+     "paint": {
+      "fill-color": "#00695C",
+      "fill-opacity": 0.4
+     }
+    },
+    {
+     "id": "layer-usfws-critical-habitat-final-final-pmtiles-outline",
+     "type": "line",
+     "source": "src-usfws-critical-habitat-final-final-pmtiles",
+     "source-layer": "final",
+     "layout": {
+      "visibility": "none"
+     },
+     "paint": {
+      "line-color": "#004D40",
+      "line-width": 0.5
+     }
+    },
+    {
+     "id": "layer-usfws-critical-habitat-proposed-proposed-pmtiles",
+     "type": "fill",
+     "source": "src-usfws-critical-habitat-proposed-proposed-pmtiles",
+     "source-layer": "proposed",
+     "layout": {
+      "visibility": "none"
+     },
+     "paint": {
+      "fill-color": "#EF6C00",
+      "fill-opacity": 0.4
+     }
+    },
+    {
+     "id": "layer-usfws-critical-habitat-proposed-proposed-pmtiles-outline",
+     "type": "line",
+     "source": "src-usfws-critical-habitat-proposed-proposed-pmtiles",
+     "source-layer": "proposed",
+     "layout": {
+      "visibility": "none"
+     },
+     "paint": {
+      "line-color": "#BF360C",
+      "line-width": 0.5
+     }
+    },
+    {
+     "id": "layer-nlcd-nlcd-cog-2024",
+     "type": "raster",
+     "source": "src-nlcd-nlcd-cog-2024",
+     "layout": {
+      "visibility": "none"
+     },
+     "paint": {
+      "raster-opacity": 0.7
+     }
+    },
+    {
+     "id": "layer-ghs-pop-2020-ghs-pop-2020-cog",
+     "type": "raster",
+     "source": "src-ghs-pop-2020-ghs-pop-2020-cog",
+     "layout": {
+      "visibility": "none"
+     },
+     "paint": {
+      "raster-opacity": 0.7
+     }
+    },
+    {
+     "id": "layer-census-2024-county-county-pmtiles",
+     "type": "fill",
+     "source": "src-census-2024-county-county-pmtiles",
+     "source-layer": "county",
+     "layout": {
+      "visibility": "none"
+     },
+     "paint": {
+      "fill-color": "#4E342E",
+      "fill-opacity": 0.05
+     }
+    },
+    {
+     "id": "layer-census-2024-county-county-pmtiles-outline",
+     "type": "line",
+     "source": "src-census-2024-county-county-pmtiles",
+     "source-layer": "county",
+     "layout": {
+      "visibility": "none"
+     },
+     "paint": {
+      "line-color": "#4E342E",
+      "line-width": 1
+     }
+    },
+    {
+     "id": "layer-acs-2020-2024-blockgroup-blockgroup-pmtiles",
+     "type": "fill",
+     "source": "src-acs-2020-2024-blockgroup-blockgroup-pmtiles",
+     "source-layer": "blockgroup",
+     "layout": {
+      "visibility": "none"
+     },
+     "paint": {
+      "fill-color": [
+       "interpolate",
+       [
+        "linear"
+       ],
+       [
+        "get",
+        "MHHI"
+       ],
+       25000,
+       "#D7191C",
+       50000,
+       "#FDAE61",
+       75000,
+       "#FFFFBF",
+       100000,
+       "#A6D96A",
+       150000,
+       "#1A9641"
+      ],
+      "fill-opacity": 0.7
+     }
+    },
+    {
+     "id": "layer-acs-2020-2024-blockgroup-blockgroup-pmtiles-outline",
+     "type": "line",
+     "source": "src-acs-2020-2024-blockgroup-blockgroup-pmtiles",
+     "source-layer": "blockgroup",
+     "layout": {
+      "visibility": "none"
+     },
+     "paint": {
+      "line-color": "rgba(0,0,0,0.4)",
+      "line-width": 0.5
+     }
+    },
+    {
+     "id": "layer-federal-trails-2026-federal-trails-2026-pmtiles",
+     "type": "line",
+     "source": "src-federal-trails-2026-federal-trails-2026-pmtiles",
+     "source-layer": "federal-trails-2026",
+     "layout": {
+      "visibility": "none"
+     },
+     "paint": {
+      "line-color": [
+       "match",
+       [
+        "get",
+        "nts_designation"
+       ],
+       "PCT",
+       "#1565C0",
+       "AT",
+       "#2E7D32",
+       "CDT",
+       "#E65100",
+       "NCT",
+       "#6A1B9A",
+       [
+        "PNT",
+        "ANT",
+        "FNST",
+        "IANST",
+        "NTNST",
+        "PHT",
+        "NST"
+       ],
+       "#AD1457",
+       [
+        "ANZA",
+        "INHT",
+        "PENHT",
+        "OSNHT"
+       ],
+       "#5D4037",
+       "NRT",
+       "#00838F",
+       "#9E9E9E"
+      ],
+      "line-width": [
+       "match",
+       [
+        "get",
+        "nts_designation"
+       ],
+       [
+        "PCT",
+        "AT",
+        "CDT",
+        "NCT",
+        "PNT",
+        "ANT",
+        "FNST",
+        "IANST",
+        "NTNST",
+        "PHT",
+        "NST"
+       ],
+       2.2,
+       [
+        "ANZA",
+        "INHT",
+        "PENHT",
+        "OSNHT"
+       ],
+       1.8,
+       "NRT",
+       1.2,
+       0.6
+      ],
+      "line-opacity": 0.85
+     }
+    },
+    {
+     "id": "layer-usgs-fires-2021-combined-combined-pmtiles",
+     "type": "fill",
+     "source": "src-usgs-fires-2021-combined-combined-pmtiles",
+     "source-layer": "combined",
+     "filter": [
+      "==",
+      [
+       "get",
+       "Assigned_Fire_Type"
+      ],
+      "Wildfire"
+     ],
+     "layout": {
+      "visibility": "none"
+     },
+     "paint": {
+      "fill-color": [
+       "interpolate",
+       [
+        "linear"
+       ],
+       [
+        "get",
+        "Fire_Year"
+       ],
+       1900,
+       "#FFF59D",
+       1960,
+       "#FFB74D",
+       1990,
+       "#E64A19",
+       2010,
+       "#B71C1C",
+       2021,
+       "#4A148C"
+      ],
+      "fill-opacity": 0.55
+     }
+    },
+    {
+     "id": "layer-usgs-fires-2021-combined-combined-pmtiles-outline",
+     "type": "line",
+     "source": "src-usgs-fires-2021-combined-combined-pmtiles",
+     "source-layer": "combined",
+     "filter": [
+      "==",
+      [
+       "get",
+       "Assigned_Fire_Type"
+      ],
+      "Wildfire"
+     ],
+     "layout": {
+      "visibility": "none"
+     },
+     "paint": {
+      "line-color": "#3E2723",
+      "line-width": 0.3
+     }
+    },
+    {
+     "id": "layer-mobi-species-richness-all-species-richness-all-cog",
+     "type": "raster",
+     "source": "src-mobi-species-richness-all-species-richness-all-cog",
+     "layout": {
+      "visibility": "none"
+     },
+     "paint": {
+      "raster-opacity": 0.7
+     }
+    },
+    {
+     "id": "layer-usgs-ungulate-migration-ranges-ungulate-ranges-pmtiles",
+     "type": "fill",
+     "source": "src-usgs-ungulate-migration-ranges-ungulate-ranges-pmtiles",
+     "source-layer": "ungulate-ranges",
+     "layout": {
+      "visibility": "none"
+     },
+     "paint": {
+      "fill-color": [
+       "match",
+       [
+        "get",
+        "data_type"
+       ],
+       "Corridors",
+       "#E65100",
+       "Stopovers",
+       "#C62828",
+       "WinterRange",
+       "#1565C0",
+       "AnnualRange",
+       "#2E7D32",
+       "#9E9E9E"
+      ],
+      "fill-opacity": 0.45
+     }
+    },
+    {
+     "id": "layer-usgs-ungulate-migration-ranges-ungulate-ranges-pmtiles-outline",
+     "type": "line",
+     "source": "src-usgs-ungulate-migration-ranges-ungulate-ranges-pmtiles",
+     "source-layer": "ungulate-ranges",
+     "layout": {
+      "visibility": "none"
+     },
+     "paint": {
+      "line-color": "#3E2723",
+      "line-width": 0.3
+     }
+    },
+    {
+     "id": "layer-american-rivers-wild-scenic-designated-wild-scenic-designated-pmtiles",
+     "type": "line",
+     "source": "src-american-rivers-wild-scenic-designated-wild-scenic-designated-pmtiles",
+     "source-layer": "wild-scenic-designated",
+     "layout": {
+      "visibility": "none"
+     },
+     "paint": {
+      "line-color": [
+       "match",
+       [
+        "get",
+        "CLASSIFICA"
+       ],
+       "Wild",
+       "#1B5E20",
+       "Scenic",
+       "#1565C0",
+       "Recreational",
+       "#EF6C00",
+       "#00838F"
+      ],
+      "line-width": 1.8,
+      "line-opacity": 0.9
+     }
+    },
+    {
+     "id": "layer-usgs-wbd-hu8-hu8-pmtiles",
+     "type": "fill",
+     "source": "src-usgs-wbd-hu8-hu8-pmtiles",
+     "source-layer": "hu8",
+     "layout": {
+      "visibility": "none"
+     },
+     "paint": {
+      "fill-color": "#0097A7",
+      "fill-opacity": 0.05
+     }
+    },
+    {
+     "id": "layer-usgs-wbd-hu8-hu8-pmtiles-outline",
+     "type": "line",
+     "source": "src-usgs-wbd-hu8-hu8-pmtiles",
+     "source-layer": "hu8",
+     "layout": {
+      "visibility": "none"
+     },
+     "paint": {
+      "line-color": "#00838F",
+      "line-width": 0.8
+     }
+    },
+    {
+     "id": "layer-flood-hazard-flood-hazard-pmtiles",
+     "type": "fill",
+     "source": "src-flood-hazard-flood-hazard-pmtiles",
+     "source-layer": "flood-hazard",
+     "layout": {
+      "visibility": "none"
+     },
+     "paint": {
+      "fill-color": [
+       "match",
+       [
+        "get",
+        "FLD_ZONE"
+       ],
+       [
+        "A",
+        "AE",
+        "AH",
+        "AO",
+        "A99"
+       ],
+       "#1565C0",
+       [
+        "V",
+        "VE"
+       ],
+       "#6A1B9A",
+       "X",
+       "#B0BEC5",
+       "D",
+       "#FFD54F",
+       "#CFD8DC"
+      ],
+      "fill-opacity": 0.45
+     }
+    },
+    {
+     "id": "layer-flood-hazard-flood-hazard-pmtiles-outline",
+     "type": "line",
+     "source": "src-flood-hazard-flood-hazard-pmtiles",
+     "source-layer": "flood-hazard",
+     "layout": {
+      "visibility": "none"
+     },
+     "paint": {
+      "line-color": "rgba(0,0,0,0.4)",
+      "line-width": 0.5
+     }
+    },
+    {
+     "id": "layer-sea-level-rise-sea-level-rise-pmtiles",
+     "type": "fill",
+     "source": "src-sea-level-rise-sea-level-rise-pmtiles",
+     "source-layer": "sea-level-rise",
+     "layout": {
+      "visibility": "none"
+     },
+     "paint": {
+      "fill-color": "#0277BD",
+      "fill-opacity": 0.5
+     }
+    },
+    {
+     "id": "layer-sea-level-rise-sea-level-rise-pmtiles-outline",
+     "type": "line",
+     "source": "src-sea-level-rise-sea-level-rise-pmtiles",
+     "source-layer": "sea-level-rise",
+     "layout": {
+      "visibility": "none"
+     },
+     "paint": {
+      "line-color": "rgba(0,0,0,0.4)",
+      "line-width": 0.5
+     }
+    },
+    {
+     "id": "layer-silvis-wui-2020-wui-2020-pmtiles",
+     "type": "fill",
+     "source": "src-silvis-wui-2020-wui-2020-pmtiles",
+     "source-layer": "wui-2020",
+     "layout": {
+      "visibility": "none"
+     },
+     "paint": {
+      "fill-color": [
+       "match",
+       [
+        "get",
+        "WUICLASS2020"
+       ],
+       [
+        "High_Dens_Interface",
+        "Med_Dens_Interface",
+        "Low_Dens_Interface"
+       ],
+       "#E65100",
+       [
+        "High_Dens_Intermix",
+        "Med_Dens_Intermix",
+        "Low_Dens_Intermix"
+       ],
+       "#AD1457",
+       "rgba(0,0,0,0)"
+      ],
+      "fill-opacity": 0.6
+     }
+    },
+    {
+     "id": "layer-silvis-wui-2020-wui-2020-pmtiles-outline",
+     "type": "line",
+     "source": "src-silvis-wui-2020-wui-2020-pmtiles",
+     "source-layer": "wui-2020",
+     "layout": {
+      "visibility": "none"
+     },
+     "paint": {
+      "line-color": "rgba(0,0,0,0.4)",
+      "line-width": 0.5
+     }
+    },
+    {
+     "id": "layer-mappinginequality-mappinginequality-pmtiles",
+     "type": "fill",
+     "source": "src-mappinginequality-mappinginequality-pmtiles",
+     "source-layer": "redlining",
+     "layout": {
+      "visibility": "none"
+     },
+     "paint": {
+      "fill-color": [
+       "match",
+       [
+        "get",
+        "grade"
+       ],
+       "A",
+       "#4CAF50",
+       "B",
+       "#2196F3",
+       "C",
+       "#FFC107",
+       "D",
+       "#E53935",
+       "#9E9E9E"
+      ],
+      "fill-opacity": 0.6
+     }
+    },
+    {
+     "id": "layer-mappinginequality-mappinginequality-pmtiles-outline",
+     "type": "line",
+     "source": "src-mappinginequality-mappinginequality-pmtiles",
+     "source-layer": "redlining",
+     "layout": {
+      "visibility": "none"
+     },
+     "paint": {
+      "line-color": "#424242",
+      "line-width": 0.3
+     }
+    },
+    {
+     "id": "hex-3c1465ee6e894dd5",
+     "type": "fill",
+     "source": "hex-3c1465ee6e894dd5",
+     "source-layer": "layer",
+     "layout": {
+      "visibility": "visible"
+     },
+     "paint": {
+      "fill-color": [
+       "case",
+       [
+        "==",
+        [
+         "get",
+         "combined_score"
+        ],
+        null
+       ],
+       "rgba(0,0,0,0)",
+       [
+        "match",
+        [
+         "get",
+         "res"
+        ],
+        2,
+        [
+         "interpolate",
+         [
+          "linear"
+         ],
+         [
+          "get",
+          "combined_score"
+         ],
+         0.06300853503121273,
+         "#440154",
+         0.162244248911024,
+         "#21918c",
+         0.2614799627908353,
+         "#fde725"
+        ],
+        3,
+        [
+         "interpolate",
+         [
+          "linear"
+         ],
+         [
+          "get",
+          "combined_score"
+         ],
+         0.061870841538592125,
+         "#440154",
+         0.16389209711159575,
+         "#21918c",
+         0.26591335268459937,
+         "#fde725"
+        ],
+        4,
+        [
+         "interpolate",
+         [
+          "linear"
+         ],
+         [
+          "get",
+          "combined_score"
+         ],
+         0.061509545000567906,
+         "#440154",
+         0.18862859979488328,
+         "#21918c",
+         0.3157476545891986,
+         "#fde725"
+        ],
+        5,
+        [
+         "interpolate",
+         [
+          "linear"
+         ],
+         [
+          "get",
+          "combined_score"
+         ],
+         0.061302084912362075,
+         "#440154",
+         0.21679240579629375,
+         "#21918c",
+         0.37228272668022544,
+         "#fde725"
+        ],
+        6,
+        [
+         "interpolate",
+         [
+          "linear"
+         ],
+         [
+          "get",
+          "combined_score"
+         ],
+         0.061298221004414385,
+         "#440154",
+         0.28840652318281473,
+         "#21918c",
+         0.5155148253612151,
+         "#fde725"
+        ],
+        7,
+        [
+         "interpolate",
+         [
+          "linear"
+         ],
+         [
+          "get",
+          "combined_score"
+         ],
+         0.06129772781696348,
+         "#440154",
+         0.2947155370360468,
+         "#21918c",
+         0.5281333462551301,
+         "#fde725"
+        ],
+        8,
+        [
+         "interpolate",
+         [
+          "linear"
+         ],
+         [
+          "get",
+          "combined_score"
+         ],
+         0.06129723260903406,
+         "#440154",
+         0.31257381085394026,
+         "#21918c",
+         0.5638503890988464,
+         "#fde725"
+        ],
+        "rgba(0,0,0,0)"
+       ]
+      ],
+      "fill-opacity": 0.7,
+      "fill-outline-color": "rgba(0,0,0,0.15)"
+     }
+    }
+   ]
+  }
+ }
+}
