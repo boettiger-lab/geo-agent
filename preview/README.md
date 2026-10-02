@@ -139,7 +139,7 @@ broke something.
 
 ## The sample export
 
-`preview/sample-export.html` is a **real exported transcript**, published with
+`preview/sample-export.html` is a **real exported session report**, published with
 the rest of a branch's preview at
 `https://boettiger-lab.github.io/geo-agent/preview/<branch>/sample-export.html`.
 
@@ -159,6 +159,9 @@ it is stubbed — so the committed HTML is byte-for-byte what a user's download
 contains. It lives in `tools/` because the staging step publishes `preview/*`
 at depth 1, and a build script served next to the app is noise.
 
-The transcript is a fixture, but **the numbers in it are real**: every query in
-it was run against the public bucket and the output pasted back. A sample
-carrying invented figures would be worse than no sample.
+The session is a fixture, but **the numbers in it are real**. It is the TPL
+Protected Lands Explorer session of 2026-10-01, rebuilt from that day's chat
+export into `tools/sample-session.json`: prompts, calls, SQL, results, answers
+and the final map, verbatim. A sample carrying invented figures would be worse
+than no sample. The one thing that export did not record is the model (#388
+adds it), so the fixture uses the TPL app's configured default.

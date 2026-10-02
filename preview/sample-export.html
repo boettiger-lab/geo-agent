@@ -2,105 +2,122 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>GLEN chat — 2026-09-22 04:35</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="generator" content="GLEN">
+<title>TPL — Protected Lands Explorer — session report, 2026-10-02</title>
 <style>
-body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-       max-width: 900px; margin: 1rem auto; padding: 0 1rem; color: #1a1a2e; line-height: 1.5; }
-.export-header { border-bottom: 1px solid #ddd; padding-bottom: 0.75rem; margin-bottom: 1rem; }
-.export-header h1 { margin: 0 0 0.25rem; font-size: 1.25rem; }
-.export-header p { margin: 0.25rem 0; color: #555; font-size: 13px; }
-.export-note { font-size: 12px; color: #6b7280; background: #f3f4f6;
-               padding: 6px 10px; border-radius: 4px; }
-.chat-message { padding: 8px 10px; margin: 6px 0; border-radius: 6px; font-size: 14px; }
-.chat-message.user { background: #e0f2fe; }
-.chat-message.assistant { background: #f9fafb; }
-.chat-message.system { background: #fff7ed; color: #92400e; font-size: 12px; font-style: italic; }
-.chat-message.error { background: #fef2f2; color: #991b1b; font-size: 12px; }
-.chat-message pre { background: #1e293b; color: #e2e8f0; padding: 8px; border-radius: 4px;
-                    overflow-x: auto; font-size: 12px; }
-.chat-message code { background: rgba(0,0,0,0.05); padding: 1px 4px; border-radius: 3px;
-                     font-size: 12px; }
-.chat-message pre code { background: transparent; padding: 0; color: inherit; }
-.chat-message table { border-collapse: collapse; margin: 6px 0; font-size: 12px; }
-.chat-message th, .chat-message td { border: 1px solid #ddd; padding: 4px 8px; }
-.chat-message th { background: #f3f4f6; }
-.agent-turn { margin: 8px 0; border: 1px solid #e5e7eb; border-radius: 6px;
-              padding: 4px 8px; }
-.agent-turn > summary { cursor: pointer; font-size: 12px; color: #2c5282;
-                        padding: 2px 4px; list-style: none; }
-.agent-turn > summary::-webkit-details-marker { display: none; }
-.agent-turn-row { font-size: 12px; margin: 2px 0; }
-.agent-turn-row-summary { padding: 2px 6px; cursor: pointer; list-style: none;
-                          display: flex; align-items: center; gap: 6px; color: #2c5282; }
-.agent-turn-row-summary::-webkit-details-marker { display: none; }
-.agent-turn-row-body { padding: 4px 10px 6px 24px; font-size: 12px; color: #1a1a2e; }
-.tool-call-item, .tool-result-item { margin: 4px 0; }
-.tool-call-item strong, .tool-result-item strong { font-weight: 600; color: #374151; }
-.row-status.done { color: #28a745; font-weight: 600; }
-.row-status.error { color: #dc3545; font-weight: 600; }
-.sql-detail summary { cursor: pointer; color: #2c5282; font-size: 11px;
-                      padding: 2px 0; list-style: none; }
-.sql-detail summary::-webkit-details-marker { display: none; }
-.sql-detail summary::before { content: '▸ '; }
-.sql-detail[open] summary::before { content: '▾ '; }
-.sql-detail pre { background: #1e293b; color: #e2e8f0; padding: 8px;
-                  border-radius: 4px; overflow-x: auto; font-size: 11px;
-                  white-space: pre-wrap; word-break: break-word; }
-.tool-output { background: #f9fafb; padding: 6px; border-radius: 3px;
-               font-size: 11px; white-space: pre-wrap; word-break: break-word;
-               max-height: 400px; overflow-y: auto; }
-.tool-tag { font-size: 10px; padding: 1px 5px; border-radius: 3px;
-            background: #e5e7eb; color: #374151; margin-left: 4px; }
-.tool-tag.remote { background: #dbeafe; color: #1e40af; }
-.welcome-message { background: #f9fafb; padding: 8px 10px; border-radius: 6px;
-                   font-size: 13px; color: #6b7280; }
-.welcome-examples { display: none; }
-.export-controls { display: flex; flex-wrap: wrap; align-items: center;
-                   justify-content: space-between; gap: 8px; margin: 8px 0 0; }
-.export-print-controls { display: flex; align-items: center; gap: 8px; font-size: 12px;
-                         color: #6b7280; }
+:root { --fg: #212529; --muted: #6c757d; --rule: #dee2e6; --code-bg: #f6f8fa;
+        --accent: #2c5282; --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        --mono: SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; }
+* { box-sizing: border-box; }
+html { background: #fff; }
+body { font-family: var(--font); color: var(--fg); background: #fff; line-height: 1.6; font-size: 16px;
+       max-width: 860px; margin: 0 auto; padding: 2rem 16px 4rem; }
+a { color: var(--accent); }
+code { font-family: var(--mono); font-size: 0.875em; }
+p code, li code, td code { background: rgba(0,0,0,0.04); padding: 0.1em 0.3em; border-radius: 3px; }
+
+.report-header { margin-bottom: 1.5rem; }
+.report-title { font-size: 2.1rem; line-height: 1.2; margin: 0 0 0.25rem; font-weight: 600; }
+.report-subtitle { color: var(--muted); margin: 0 0 1rem; font-size: 1.05rem; }
+.report-disclosure { border-left: 4px solid #0d6efd; background: #f3f7ff; padding: 0.6rem 0.9rem;
+                     border-radius: 0 4px 4px 0; font-size: 0.92rem; margin: 0 0 1rem; }
+.report-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; font-size: 13px; }
+.report-controls button { font: inherit; font-size: 12px; padding: 3px 10px; cursor: pointer;
+                          border: 1px solid #ced4da; background: #fff; color: #495057; }
+.code-fold-toggle, .code-lang-toggle { display: flex; align-items: center; }
+.code-fold-toggle button:first-child, .code-lang-toggle button:nth-child(2) { border-radius: 4px 0 0 4px; }
+.code-fold-toggle button:last-child, .code-lang-toggle button:last-child { border-radius: 0 4px 4px 0; }
+.code-fold-toggle button + button, .code-lang-toggle button + button { border-left: 0; }
+.code-lang-label { color: var(--muted); margin-right: 6px; }
+.code-lang-toggle button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
+.export-print-controls { display: flex; align-items: center; gap: 8px; color: var(--muted); margin-left: auto; }
 .export-print-report { display: flex; align-items: center; gap: 4px; cursor: pointer; }
-.export-print-btn { font: inherit; font-size: 12px; padding: 2px 10px; cursor: pointer;
-                    border: 1px solid #d1d5db; border-radius: 4px; background: #fff;
-                    color: #374151; }
-.code-lang-toggle { display: flex; align-items: center; gap: 6px; margin: 0; }
-.code-lang-label { font-size: 12px; color: #6b7280; }
-.code-lang-toggle button { font: inherit; font-size: 12px; padding: 2px 10px; cursor: pointer;
-                           border: 1px solid #d1d5db; border-radius: 4px; background: #fff;
-                           color: #374151; }
-.code-lang-toggle button[aria-pressed="true"] { background: #2c5282; border-color: #2c5282;
-                                                color: #fff; }
-.code-variant { display: none; }
+.export-print-btn { border-radius: 4px; }
+
+.report-toc { font-size: 0.9rem; border: 1px solid var(--rule); border-radius: 6px; padding: 0.6rem 1rem; margin: 0 0 1.5rem; }
+.report-toc-title { font-weight: 600; margin: 0 0 0.25rem; }
+.report-toc ol { margin: 0; padding-left: 1.4rem; }
+.report-toc li { margin: 0.15rem 0; }
+.report-toc a { text-decoration: none; }
+.report-toc a:hover { text-decoration: underline; }
+.report-toc-log { list-style: none; margin-left: -1.4rem !important; margin-top: 0.4rem !important; }
+@media (min-width: 1360px) {
+  .report-toc { position: fixed; top: 2rem; left: calc(50% - 430px - 270px); width: 240px;
+                border: 0; border-left: 1px solid var(--rule); border-radius: 0; padding: 0 0 0 1rem;
+                max-height: calc(100vh - 4rem); overflow-y: auto; }
+}
+
+/* Code chunks: folded by default, like R Markdown's code_folding: hide. */
+.chunk { margin: 1rem 0; }
+details.chunk-code > summary { cursor: pointer; list-style: none; color: var(--muted); font-size: 0.85rem;
+                               display: inline-flex; align-items: center; gap: 6px; padding: 2px 0; user-select: none; }
+details.chunk-code > summary::-webkit-details-marker { display: none; }
+details.chunk-code > summary::before { content: '▸'; font-size: 0.8em; }
+details.chunk-code[open] > summary::before { content: '▾'; }
+.chunk-tool { font-family: var(--mono); font-size: 0.8rem; color: #868e96; }
+.code-variant { display: none; margin: 0.35rem 0 0; background: var(--code-bg); border-left: 3px solid var(--rule);
+                padding: 0.75rem 1rem; overflow-x: auto; font-size: 0.82rem; line-height: 1.45; }
 body[data-code-lang="sql"] .code-variant[data-lang="sql"],
 body[data-code-lang="r"] .code-variant[data-lang="r"],
 body[data-code-lang="python"] .code-variant[data-lang="python"] { display: block; }
-.export-setup { margin: 0 0 1rem; border: 1px solid #e5e7eb; border-radius: 6px;
-                padding: 8px 10px; }
-.export-setup-title { font-size: 1rem; margin: 0 0 0.5rem; }
-.export-setup .code-variant { background: #1e293b; color: #e2e8f0; padding: 8px; border-radius: 4px;
-                    overflow-x: auto; font-size: 12px; }
-.export-setup-note { font-size: 12px; color: #6b7280; margin: 6px 0 0; }
-.export-map-section { margin: 0 0 1rem; }
-.export-map-title { font-size: 1rem; margin: 0 0 0.5rem; }
-.export-map { width: 100%; height: 480px; border: 1px solid #ddd; border-radius: 6px; }
-.export-map-note { font-size: 12px; color: #6b7280; margin: 6px 0 0; }
+.chunk-output { margin: 0.5rem 0 0; overflow-x: auto; }
+pre.chunk-output { padding: 0.5rem 1rem; border: 1px solid var(--rule); border-radius: 4px; font-size: 0.82rem;
+                   white-space: pre-wrap; word-break: break-word; max-height: 24rem; overflow-y: auto; }
+.chunk-output table, .report-prose table { border-collapse: collapse; font-size: 0.85rem; margin: 0.5rem 0; }
+.chunk-output th, .chunk-output td, .report-prose th, .report-prose td { border-bottom: 1px solid var(--rule); padding: 0.3rem 0.75rem; text-align: left; }
+.chunk-output th, .report-prose th { border-bottom: 2px solid #adb5bd; font-weight: 600; }
+.chunk-output td { font-family: var(--mono); font-size: 0.8rem; }
+.chunk-more, .chunk-effect { color: var(--muted); font-size: 0.85rem; margin: 0.35rem 0 0; }
+
+/* Sections */
+.report-section { margin: 2.5rem 0 0; }
+.report-section h2 { font-size: 1.4rem; font-weight: 600; line-height: 1.3; margin: 0 0 0.25rem;
+                     padding-bottom: 0.3rem; border-bottom: 1px solid var(--rule); }
+.q-num { color: var(--muted); font-weight: 400; }
+.report-meta, .report-consulted, .report-map-step { color: var(--muted); font-size: 0.85rem; margin: 0.35rem 0; }
+.report-map-step::before { content: '◆ '; color: #adb5bd; }
+.report-prose { margin-top: 1.25rem; }
+.report-prose h1, .report-prose h2, .report-prose h3 { font-size: 1.1rem; margin: 1.25rem 0 0.5rem; border: 0; }
+.report-note { color: var(--muted); font-style: italic; font-size: 0.9rem; }
+.report-note.error { color: #b02a37; }
+.report-setup { margin: 0 0 1.5rem; }
+.report-setup-note { color: var(--muted); font-size: 0.85rem; margin: 0.35rem 0 0; }
+
+/* The map, as the report's figure. */
+.export-map-section { margin: 0 0 1.5rem; }
+.export-map-title { font-size: 1rem; font-weight: 600; margin: 0 0 0.5rem; }
+.export-map { width: 100%; height: 480px; border: 1px solid var(--rule); border-radius: 4px; }
+.export-map-note { font-size: 0.82rem; color: var(--muted); margin: 6px 0 0; }
 .export-map-error { padding: 1rem; color: #991b1b; font-size: 13px; }
 .export-embed { margin: 8px 0 0; }
 .export-embed-toggle { font: inherit; font-size: 12px; padding: 4px 10px; cursor: pointer;
-                       border: 1px solid #d1d5db; border-radius: 4px; background: #fff;
-                       color: #2c5282; }
+                       border: 1px solid #ced4da; border-radius: 4px; background: #fff; color: var(--accent); }
 .export-embed-toggle[aria-expanded="true"] { background: #eef2ff; border-color: #c7d2fe; }
-.export-embed-help { border: 1px solid #e5e7eb; border-radius: 6px; padding: 10px 12px;
-                     margin: 8px 0 0; font-size: 13px; background: #f9fafb; }
+.export-embed-help { border: 1px solid var(--rule); border-radius: 6px; padding: 10px 12px;
+                     margin: 8px 0 0; font-size: 13px; background: #f8f9fa; }
 .export-embed-help ol { margin: 8px 0; padding-left: 20px; }
 .export-embed-help li { margin: 6px 0; }
-.export-embed-snippet { background: #1e293b; color: #e2e8f0; padding: 8px; border-radius: 4px;
-                        overflow-x: auto; font-size: 11px; white-space: pre-wrap;
-                        word-break: break-word; margin: 6px 0; }
+.export-embed-snippet { background: var(--code-bg); padding: 8px; border-radius: 4px; overflow-x: auto;
+                        font-size: 11px; white-space: pre-wrap; word-break: break-word; margin: 6px 0; }
 .export-embed-copy { font: inherit; font-size: 11px; padding: 2px 8px; cursor: pointer;
-                     border: 1px solid #d1d5db; border-radius: 4px; background: #fff;
-                     color: #374151; }
-.export-embed-note { font-size: 12px; color: #6b7280; margin: 8px 0 0; }
+                     border: 1px solid #ced4da; border-radius: 4px; background: #fff; color: #495057; }
+.export-embed-note { font-size: 12px; color: var(--muted); margin: 8px 0 0; }
+
+/* Appendix */
+.report-appendix { margin: 3.5rem 0 0; padding-top: 1rem; border-top: 2px solid var(--rule); }
+.report-appendix h2 { font-size: 1.2rem; margin: 0 0 0.25rem; }
+.report-appendix-note { color: var(--muted); font-size: 0.85rem; }
+.log-turn { border: 1px solid var(--rule); border-radius: 4px; margin: 0.5rem 0; padding: 0.4rem 0.75rem; }
+.log-turn > summary { cursor: pointer; font-size: 0.9rem; }
+.log-call { margin: 0.75rem 0; font-size: 0.8rem; }
+.log-call.failed .log-call-name { color: #b02a37; }
+.log-call-name { margin: 0 0 0.25rem; }
+.log-tag { font-size: 10px; padding: 1px 5px; border-radius: 3px; background: #dbeafe; color: #1e40af; }
+.log-args, .log-result { background: var(--code-bg); padding: 0.4rem 0.6rem; margin: 0.25rem 0; overflow-x: auto;
+                         white-space: pre-wrap; word-break: break-word; max-height: 18rem; overflow-y: auto; font-size: 0.75rem; }
+.log-note { color: var(--muted); font-size: 0.8rem; font-style: italic; margin: 0.25rem 0; }
+.report-colophon { margin-top: 3rem; padding-top: 0.75rem; border-top: 1px solid var(--rule); color: var(--muted); font-size: 0.8rem; }
 
 /* '#map' view: the same file, stripped to the map, which is what the embed
    snippet points an iframe at. */
@@ -112,24 +129,26 @@ body[data-view="map"] .export-embed { display: none; }
 body[data-view="map"] .export-map-section { margin: 0; }
 body[data-view="map"] .export-map { height: 100vh; border: 0; border-radius: 0; }
 
-/* Print: the export is a document people hand to a board or a funder, so
-   printing it has to come out as a document. */
+@media (max-width: 600px) {
+  body { padding-top: 1rem; font-size: 15px; }
+  .report-title { font-size: 1.6rem; }
+  .export-print-controls { margin-left: 0; }
+}
+
+/* Print: the report goes to a board or a funder, so it prints as a document. */
 @media print {
   body { max-width: none; margin: 0; padding: 0; }
-  .export-controls, .export-embed { display: none !important; }
-  .export-header { border-bottom: 1px solid #999; }
+  .report-controls, .export-embed, .report-toc { display: none !important; }
   a { color: inherit; text-decoration: none; }
-  /* Never split a query, a result or a turn across a page. */
-  .agent-turn, .agent-turn-row, .tool-call-item, .tool-result-item,
-  .sql-detail, .code-variants, pre, .export-setup,
-  .export-map-section, .chat-message { break-inside: avoid; }
-  /* Screen scroll boxes become full text on paper. */
-  .tool-output { max-height: none; overflow: visible; }
+  .chunk, .code-variants, pre, .export-map-section, .report-prose table, .log-call { break-inside: avoid; }
+  .report-section h2 { break-after: avoid; }
+  pre.chunk-output, .log-args, .log-result { max-height: none; overflow: visible; }
   .export-map { height: 420px; }
-  .agent-turn > summary, .agent-turn-row-summary, .sql-detail summary { color: #444; }
-  /* Report style: the prose, the answers and the map — none of the machinery. */
-  body[data-print="report"] .agent-turn,
-  body[data-print="report"] .export-setup { display: none !important; }
+  details.chunk-code > summary::before { content: ''; }
+  /* Print without code: the questions, answers, outputs and map. */
+  body[data-print="report"] details.chunk-code,
+  body[data-print="report"] .report-setup,
+  body[data-print="report"] .report-appendix { display: none !important; }
 }
 </style>
 <link href="https://unpkg.com/maplibre-gl@5.22.0/dist/maplibre-gl.css" rel="stylesheet" crossorigin="anonymous">
@@ -137,49 +156,52 @@ body[data-view="map"] .export-map { height: 100vh; border: 0; border-radius: 0; 
 <script src="https://unpkg.com/pmtiles@3.0.7/dist/pmtiles.js" crossorigin="anonymous"></script>
 </head>
 <body data-code-lang="sql" data-print="full">
-<header class="export-header">
-  <h1>GLEN chat transcript</h1>
-  <p>Exported 9/22/2026, 4:35:10 AM — <a href="https://boettiger-lab.github.io/geo-agent/preview/">GLEN</a></p>
-  <p class="export-note">The queries below are the ones the agent ran, verbatim. To re-run them
-     outside the cluster, run the setup block first; it points <code>s3://</code> paths at the
-     public endpoint (<code>s3-west.nrp-nautilus.io</code>) with anonymous access.</p>
-  <div class="export-controls">
+<header class="report-header">
+  <h1 class="report-title">TPL — Protected Lands Explorer</h1>
+  <p class="report-subtitle">Analysis session · October 1, 2026</p>
+  <aside class="report-disclosure">
+    Outputs generated with <a href="https://boettiger-lab.github.io/geo-agent/">GLEN</a> using GLM-5.2 (OpenRouter) (<code>z-ai/glm-5.2</code>) on October 1, 2026.
+    The code below is exactly what the agent ran; the text around it was written by the model —
+    check it against the code and its output.
+  </aside>
+  <div class="report-controls">
+    <div class="code-fold-toggle" role="group" aria-label="Code">
+      <button type="button" data-code-all="show">Show all code</button><button type="button" data-code-all="hide">Hide all code</button>
+    </div>
     <div class="code-lang-toggle" role="group" aria-label="Show code as">
-      <span class="code-lang-label">Show code as</span><button type="button" data-set-lang="sql" aria-pressed="true">SQL</button><button type="button" data-set-lang="r" aria-pressed="false">R</button><button type="button" data-set-lang="python" aria-pressed="false">Python</button>
+      <span class="code-lang-label">Code as</span><button type="button" data-set-lang="sql" aria-pressed="true">SQL</button><button type="button" data-set-lang="r" aria-pressed="false">R</button><button type="button" data-set-lang="python" aria-pressed="false">Python</button>
     </div>
     <div class="export-print-controls">
-      <label class="export-print-report"><input type="checkbox" id="export-report-style">
-        Report style — print without code</label>
+      <label class="export-print-report"><input type="checkbox" id="export-report-style"> Print without code</label>
       <button type="button" class="export-print-btn">Print / Save as PDF</button>
     </div>
   </div>
 </header>
-<section class="export-setup">
-  <h2 class="export-setup-title">Run this first</h2>
-  <pre class="code-variant" data-lang="sql"><code class="language-sql">INSTALL httpfs; LOAD httpfs;
+<nav class="report-toc" aria-label="Contents"><p class="report-toc-title">Contents</p><ol><li><a href="#q-1">what are the top 30% of us h8 hexes in terms of equal weight ca…</a></li><li><a href="#q-2">what NCLD land cover is represented here?</a></li><li class="report-toc-log"><a href="#session-log">Session log</a></li></ol></nav>
+<section class="report-setup" id="setup">
+  <details class="chunk-code"><summary>Code <span class="chunk-tool">setup</span></summary><div class="code-variants"><pre class="code-variant" data-lang="sql"><code class="language-sql">INSTALL httpfs; LOAD httpfs;
 
 CREATE OR REPLACE SECRET public_s3 (
     TYPE s3,
     PROVIDER config,
-    ENDPOINT 's3-west.nrp-nautilus.io',
-    URL_STYLE 'path',
+    ENDPOINT &#39;s3-west.nrp-nautilus.io&#39;,
+    URL_STYLE &#39;path&#39;,
     USE_SSL true
-);</code></pre>
-  <pre class="code-variant" data-lang="r"><code class="language-r"># install.packages("duckdb")        # first time only
+);</code></pre><pre class="code-variant" data-lang="r"><code class="language-r"># install.packages(&quot;duckdb&quot;)        # first time only
 library(duckdb)
 
 con &lt;- dbConnect(duckdb())
-# invisible() keeps dbExecute's row count from printing at the console
-invisible(dbExecute(con, "INSTALL httpfs; LOAD httpfs;"))
-invisible(dbExecute(con, "CREATE OR REPLACE SECRET public_s3 (TYPE s3, PROVIDER config, ENDPOINT 's3-west.nrp-nautilus.io', URL_STYLE 'path', USE_SSL true);"))</code></pre>
-  <pre class="code-variant" data-lang="python"><code class="language-python"># pip install duckdb pandas          # first time only
+# invisible() keeps dbExecute&#39;s row count from printing at the console
+invisible(dbExecute(con, &quot;INSTALL httpfs; LOAD httpfs;&quot;))
+invisible(dbExecute(con, &quot;CREATE OR REPLACE SECRET public_s3 (TYPE s3, PROVIDER config, ENDPOINT &#39;s3-west.nrp-nautilus.io&#39;, URL_STYLE &#39;path&#39;, USE_SSL true);&quot;))</code></pre><pre class="code-variant" data-lang="python"><code class="language-python"># pip install duckdb pandas          # first time only
 import duckdb
 
 con = duckdb.connect()
-con.execute("INSTALL httpfs; LOAD httpfs;")
-con.execute("CREATE OR REPLACE SECRET public_s3 (TYPE s3, PROVIDER config, ENDPOINT 's3-west.nrp-nautilus.io', URL_STYLE 'path', USE_SSL true);")</code></pre>
-  <p class="export-setup-note">One time per session, then every query in this transcript runs as
-     written. Public buckets only — private data is not reachable this way.</p>
+con.execute(&quot;INSTALL httpfs; LOAD httpfs;&quot;)
+con.execute(&quot;CREATE OR REPLACE SECRET public_s3 (TYPE s3, PROVIDER config, ENDPOINT &#39;s3-west.nrp-nautilus.io&#39;, URL_STYLE &#39;path&#39;, USE_SSL true);&quot;)</code></pre></div></details>
+  <p class="report-setup-note">To re-run this analysis yourself, run the setup chunk once: it points <code>s3://</code> paths at the
+     public endpoint (<code>s3-west.nrp-nautilus.io</code>) with anonymous access.
+     Public buckets only — private data is not reachable this way.</p>
 </section>
 <section class="export-map-section">
   <h2 class="export-map-title">Map at time of export</h2>
@@ -193,10 +215,10 @@ con.execute("CREATE OR REPLACE SECRET public_s3 (TYPE s3, PROVIDER config, ENDPO
       <p>This map can go on your own website. It is one self-contained file — no server, no
          account, no build step.</p>
       <ol>
-        <li>Send this file (<code>glen-chat-2026-09-22-0435.html</code>) to whoever looks after your website and
+        <li>Send this file (<code>glen-session-2026-10-02-1402.html</code>) to whoever looks after your website and
             ask them to upload it. Any web host will do.</li>
         <li>Ask them to paste this where the map should appear:
-          <pre class="export-embed-snippet"><code>&lt;iframe src=&quot;glen-chat-2026-09-22-0435.html#map&quot; width=&quot;100%&quot; height=&quot;480&quot;
+          <pre class="export-embed-snippet"><code>&lt;iframe src=&quot;glen-session-2026-10-02-1402.html#map&quot; width=&quot;100%&quot; height=&quot;480&quot;
         style=&quot;border:0&quot; loading=&quot;lazy&quot; title=&quot;Map&quot;&gt;&lt;/iframe&gt;</code></pre>
           <button type="button" class="export-embed-copy">Copy snippet</button>
         </li>
@@ -210,7 +232,7 @@ con.execute("CREATE OR REPLACE SECRET public_s3 (TYPE s3, PROVIDER config, ENDPO
          and private or signed layers will not appear.</p>
     </div>
   </div>
-  <script type="application/json" id="export-map-state">{"center":[-119.9,37.1],"zoom":5.2,"bearing":0,"pitch":0,"projection":"mercator","style":{"version":8,"glyphs":"https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf","sources":{"natgeo":{"type":"raster","tiles":["https://services.arcgisonline.com/ArcGIS/rest/services/NatGeo_World_Map/MapServer/tile/{z}/{y}/{x}"],"tileSize":256,"maxzoom":16,"attribution":"Tiles &copy; Esri &mdash; National Geographic, Esri, DeLorme, NAVTEQ, UNEP-WCMC, USGS, NASA, ESA, METI, NRCAN, GEBCO, NOAA"},"cpad-holdings":{"type":"vector","url":"pmtiles://https://s3-west.nrp-nautilus.io/public-cpad/cpad-2025b-holdings.pmtiles"}},"layers":[{"id":"natgeo-base","type":"raster","source":"natgeo"},{"id":"cpad-holdings-fill","type":"fill","source":"cpad-holdings","source-layer":"cpad-2025b-holdings","paint":{"fill-color":"#2e7d32","fill-opacity":0.45}},{"id":"cpad-holdings-line","type":"line","source":"cpad-holdings","source-layer":"cpad-2025b-holdings","paint":{"line-color":"#1b5e20","line-width":0.3}}]}}</script>
+  <script type="application/json" id="export-map-state">{"center":[-103.73478922672035,38.75941410345673],"zoom":4.913368116585589,"bearing":0,"pitch":0,"projection":"globe","style":{"version":8,"glyphs":"https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf","projection":{"type":"globe"},"sources":{"natgeo":{"type":"raster","tiles":["https://services.arcgisonline.com/ArcGIS/rest/services/NatGeo_World_Map/MapServer/tile/{z}/{y}/{x}"],"tileSize":256,"maxzoom":16,"attribution":"Tiles &copy; Esri &mdash; National Geographic, Esri, DeLorme, NAVTEQ, UNEP-WCMC, USGS, NASA, ESA, METI, NRCAN, GEBCO, NOAA"},"satellite":{"type":"raster","tiles":["https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"],"tileSize":256,"maxzoom":19,"attribution":"Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community"},"plain":{"type":"raster","tiles":["https://services.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}"],"tileSize":256,"maxzoom":16,"attribution":"Tiles &copy; Esri &mdash; Esri, HERE, Garmin, &copy; OpenStreetMap contributors, and the GIS user community"},"plain-labels":{"type":"raster","tiles":["https://services.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Reference/MapServer/tile/{z}/{y}/{x}"],"tileSize":256,"maxzoom":16,"attribution":""},"src-landvote-landvote-pmtiles":{"type":"vector","url":"pmtiles://https://s3-west.nrp-nautilus.io/public-tpl/landvote.pmtiles"},"src-wetlands-nwi-nwi-pmtiles":{"type":"vector","url":"pmtiles://https://s3-west.nrp-nautilus.io/public-wetlands/nwi-v2.pmtiles"},"src-epa-sab-v3-cws-sab-cws-pmtiles":{"type":"vector","url":"pmtiles://https://s3-west.nrp-nautilus.io/public-epa-water/epa-sab-v3/cws.pmtiles"},"src-irrecoverable-carbon-v2-irrecoverable-2024-cog":{"type":"raster","tiles":["https://titiler.nrp-nautilus.io/cog/tiles/WebMercatorQuad/{z}/{x}/{y}.png?url=https%3A%2F%2Fs3-west.nrp-nautilus.io%2Fpublic-carbon%2Fv2%2Fcogs%2Firrecoverable_c_total_2024.tif&colormap_name=reds&rescale=0,150"],"tileSize":256},"src-svi-2022-county-pmtiles":{"type":"vector","url":"pmtiles://https://s3-west.nrp-nautilus.io/public-social-vulnerability/2022/SVI2022_US_county.pmtiles"},"src-svi-2022-tract-pmtiles":{"type":"vector","url":"pmtiles://https://s3-west.nrp-nautilus.io/public-social-vulnerability/2022/SVI2022_US_tract.pmtiles"},"src-census-2024-cd-cd-pmtiles":{"type":"vector","url":"pmtiles://https://s3-west.nrp-nautilus.io/public-census/census-2024/cd.pmtiles"},"src-census-2025-sldl-sldl-pmtiles":{"type":"vector","url":"pmtiles://https://s3-west.nrp-nautilus.io/public-census/census-2025/sldl.pmtiles"},"src-census-2025-sldu-sldu-pmtiles":{"type":"vector","url":"pmtiles://https://s3-west.nrp-nautilus.io/public-census/census-2025/sldu.pmtiles"},"src-conservation-almanac-2024-sites-conservation-almanac-2024-sites-pmtiles":{"type":"vector","url":"pmtiles://https://s3-west.nrp-nautilus.io/public-tpl/conservation-almanac-2024-sites.pmtiles"},"src-parkserve-2025-parks-parks-pmtiles":{"type":"vector","url":"pmtiles://https://s3-west.nrp-nautilus.io/public-tpl/parkserve-2025/parks.pmtiles"},"src-parkserve-2025-service-areas-service-areas-pmtiles":{"type":"vector","url":"pmtiles://https://s3-west.nrp-nautilus.io/public-tpl/parkserve-2025/service-areas.pmtiles"},"src-pad-us-4-1-combined-combined-pmtiles":{"type":"vector","url":"pmtiles://https://s3-west.nrp-nautilus.io/public-padus/padus-4-1/combined.pmtiles"},"src-usfws-critical-habitat-final-final-pmtiles":{"type":"vector","url":"pmtiles://https://s3-west.nrp-nautilus.io/public-usfws/critical-habitat/final.pmtiles"},"src-usfws-critical-habitat-proposed-proposed-pmtiles":{"type":"vector","url":"pmtiles://https://s3-west.nrp-nautilus.io/public-usfws/critical-habitat/proposed.pmtiles"},"src-nlcd-nlcd-cog-2024":{"type":"raster","tiles":["https://titiler.nrp-nautilus.io/cog/tiles/WebMercatorQuad/{z}/{x}/{y}.png?url=https%3A%2F%2Fs3-west.nrp-nautilus.io%2Fpublic-land-cover%2Fnlcd%2Fnlcd-2024-cog.tif&colormap=%7B%2211%22%3A%5B70%2C107%2C159%2C255%5D%2C%2212%22%3A%5B209%2C222%2C248%2C255%5D%2C%2221%22%3A%5B222%2C197%2C197%2C255%5D%2C%2222%22%3A%5B217%2C146%2C130%2C255%5D%2C%2223%22%3A%5B235%2C0%2C0%2C255%5D%2C%2224%22%3A%5B171%2C0%2C0%2C255%5D%2C%2231%22%3A%5B179%2C172%2C159%2C255%5D%2C%2241%22%3A%5B104%2C171%2C95%2C255%5D%2C%2242%22%3A%5B28%2C95%2C44%2C255%5D%2C%2243%22%3A%5B181%2C197%2C143%2C255%5D%2C%2252%22%3A%5B204%2C184%2C121%2C255%5D%2C%2271%22%3A%5B223%2C223%2C194%2C255%5D%2C%2281%22%3A%5B220%2C217%2C57%2C255%5D%2C%2282%22%3A%5B171%2C108%2C40%2C255%5D%2C%2290%22%3A%5B184%2C217%2C235%2C255%5D%2C%2295%22%3A%5B108%2C159%2C184%2C255%5D%2C%22250%22%3A%5B0%2C0%2C0%2C255%5D%7D&nodata=250"],"tileSize":256},"src-ghs-pop-2020-ghs-pop-2020-cog":{"type":"raster","tiles":["https://titiler.nrp-nautilus.io/cog/tiles/WebMercatorQuad/{z}/{x}/{y}.png?url=https%3A%2F%2Fs3-west.nrp-nautilus.io%2Fpublic-population%2Fraw%2Fghs-pop-2020-cog.tif&colormap_name=magma&rescale=0,200&nodata=0"],"tileSize":256},"src-census-2024-county-county-pmtiles":{"type":"vector","url":"pmtiles://https://s3-west.nrp-nautilus.io/public-census/census-2024/county.pmtiles"},"src-acs-2020-2024-blockgroup-blockgroup-pmtiles":{"type":"vector","url":"pmtiles://https://s3-west.nrp-nautilus.io/public-census/acs-2020-2024/blockgroup.pmtiles"},"src-federal-trails-2026-federal-trails-2026-pmtiles":{"type":"vector","url":"pmtiles://https://s3-west.nrp-nautilus.io/public-trails/federal-trails-2026.pmtiles"},"src-usgs-fires-2021-combined-combined-pmtiles":{"type":"vector","url":"pmtiles://https://s3-west.nrp-nautilus.io/public-fire/usgs-fires-2021/combined.pmtiles"},"src-mobi-species-richness-all-species-richness-all-cog":{"type":"raster","tiles":["https://titiler.nrp-nautilus.io/cog/tiles/WebMercatorQuad/{z}/{x}/{y}.png?url=https%3A%2F%2Fs3-west.nrp-nautilus.io%2Fpublic-mobi%2Fmobi-species-richness-all-cog.tif&colormap_name=viridis&rescale=0,32"],"tileSize":256},"src-usgs-ungulate-migration-ranges-ungulate-ranges-pmtiles":{"type":"vector","url":"pmtiles://https://s3-west.nrp-nautilus.io/public-usgs-ungulate-migration/ungulate-ranges.pmtiles"},"src-american-rivers-wild-scenic-designated-wild-scenic-designated-pmtiles":{"type":"vector","url":"pmtiles://https://s3-west.nrp-nautilus.io/public-rivers/american-rivers/wild-scenic-designated.pmtiles"},"src-usgs-wbd-hu8-hu8-pmtiles":{"type":"vector","url":"pmtiles://https://s3-west.nrp-nautilus.io/public-usgs-wbd/wbd/hu8.pmtiles"},"src-flood-hazard-flood-hazard-pmtiles":{"type":"vector","url":"pmtiles://https://s3-west.nrp-nautilus.io/public-hazard/flood-hazard.pmtiles"},"src-sea-level-rise-sea-level-rise-pmtiles":{"type":"vector","url":"pmtiles://https://s3-west.nrp-nautilus.io/public-hazard/sea-level-rise.pmtiles"},"src-silvis-wui-2020-wui-2020-pmtiles":{"type":"vector","url":"pmtiles://https://s3-west.nrp-nautilus.io/public-wui/wui-2020.pmtiles"},"src-mappinginequality-mappinginequality-pmtiles":{"type":"vector","url":"pmtiles://https://s3-west.nrp-nautilus.io/public-mappinginequality/mappinginequality.pmtiles"},"hex-3c1465ee6e894dd5":{"type":"vector","tiles":["https://duckdb-mcp.nrp-nautilus.io/tiles/hex/3c1465ee6e894dd5/{z}/{x}/{y}.pbf"],"minzoom":0,"maxzoom":14}},"layers":[{"id":"natgeo-base","type":"raster","source":"natgeo","layout":{"visibility":"none"}},{"id":"satellite-base","type":"raster","source":"satellite","layout":{"visibility":"none"}},{"id":"plain-base","type":"raster","source":"plain","layout":{"visibility":"visible"}},{"id":"plain-overlay","type":"raster","source":"plain-labels","layout":{"visibility":"visible"}},{"id":"layer-landvote-landvote-pmtiles","type":"fill","source":"src-landvote-landvote-pmtiles","source-layer":"landvote","filter":["all",["!=",["get","jurisdiction"],"State"],[">=",["get","year"],2010]],"layout":{"visibility":"none"},"paint":{"fill-color":["match",["get","status"],"Pass","#1B5E20","Pass*","#2E7D32","Fail","#C62828","#9E9E9E"],"fill-opacity":0.5}},{"id":"layer-landvote-landvote-pmtiles-outline","type":"line","source":"src-landvote-landvote-pmtiles","source-layer":"landvote","filter":["all",["!=",["get","jurisdiction"],"State"],[">=",["get","year"],2010]],"layout":{"visibility":"none"},"paint":{"line-color":"#424242","line-width":0.8}},{"id":"layer-wetlands-nwi-nwi-pmtiles","type":"fill","source":"src-wetlands-nwi-nwi-pmtiles","source-layer":"nwi-v2","layout":{"visibility":"none"},"paint":{"fill-color":["match",["get","WETLAND_TYPE"],"Riverine","#1565C0","Freshwater Emergent Wetland","#4DB6AC","Freshwater Forested/Shrub Wetland","#2E7D32","Freshwater Pond","#00ACC1","Estuarine and Marine Wetland","#6A1B9A","Lake","#0D47A1","Estuarine and Marine Deepwater","#283593","#9E9E9E"],"fill-opacity":0.6}},{"id":"layer-wetlands-nwi-nwi-pmtiles-outline","type":"line","source":"src-wetlands-nwi-nwi-pmtiles","source-layer":"nwi-v2","layout":{"visibility":"none"},"paint":{"line-color":"rgba(0,0,0,0.4)","line-width":0.5}},{"id":"layer-epa-sab-v3-cws-sab-cws-pmtiles","type":"fill","source":"src-epa-sab-v3-cws-sab-cws-pmtiles","source-layer":"cws","layout":{"visibility":"none"},"paint":{"fill-color":["match",["get","Pop_Cat_5"],"\u003c=500","#E3F2FD","501-3,300","#90CAF9","3,301-10,000","#42A5F5","10,001-100,000","#1976D2",">100,000","#0D47A1","#9E9E9E"],"fill-opacity":0.5}},{"id":"layer-epa-sab-v3-cws-sab-cws-pmtiles-outline","type":"line","source":"src-epa-sab-v3-cws-sab-cws-pmtiles","source-layer":"cws","layout":{"visibility":"none"},"paint":{"line-color":"#0D47A1","line-width":0.4}},{"id":"layer-irrecoverable-carbon-v2-irrecoverable-2024-cog","type":"raster","source":"src-irrecoverable-carbon-v2-irrecoverable-2024-cog","layout":{"visibility":"none"},"paint":{"raster-opacity":0.7}},{"id":"layer-svi-2022-county-pmtiles","type":"fill","source":"src-svi-2022-county-pmtiles","source-layer":"svi","layout":{"visibility":"none"},"paint":{"fill-color":["interpolate",["linear"],["get","RPL_THEMES"],0,"#1A9641",0.25,"#A6D96A",0.5,"#FFFFBF",0.75,"#FDAE61",1,"#D7191C"],"fill-opacity":0.7}},{"id":"layer-svi-2022-county-pmtiles-outline","type":"line","source":"src-svi-2022-county-pmtiles","source-layer":"svi","layout":{"visibility":"none"},"paint":{"line-color":"#555555","line-width":0.5}},{"id":"layer-svi-2022-tract-pmtiles","type":"fill","source":"src-svi-2022-tract-pmtiles","source-layer":"svi","layout":{"visibility":"none"},"paint":{"fill-color":["interpolate",["linear"],["get","RPL_THEMES"],0,"#1A9641",0.25,"#A6D96A",0.5,"#FFFFBF",0.75,"#FDAE61",1,"#D7191C"],"fill-opacity":0.7}},{"id":"layer-svi-2022-tract-pmtiles-outline","type":"line","source":"src-svi-2022-tract-pmtiles","source-layer":"svi","layout":{"visibility":"none"},"paint":{"line-color":"#555555","line-width":0.5}},{"id":"layer-census-2024-cd-cd-pmtiles","type":"fill","source":"src-census-2024-cd-cd-pmtiles","source-layer":"cd","layout":{"visibility":"none"},"paint":{"fill-color":"#1565C0","fill-opacity":0.05}},{"id":"layer-census-2024-cd-cd-pmtiles-outline","type":"line","source":"src-census-2024-cd-cd-pmtiles","source-layer":"cd","layout":{"visibility":"none"},"paint":{"line-color":"#1565C0","line-width":1.5}},{"id":"layer-census-2025-sldl-sldl-pmtiles","type":"fill","source":"src-census-2025-sldl-sldl-pmtiles","source-layer":"sldl","layout":{"visibility":"none"},"paint":{"fill-color":"#6A1B9A","fill-opacity":0.05}},{"id":"layer-census-2025-sldl-sldl-pmtiles-outline","type":"line","source":"src-census-2025-sldl-sldl-pmtiles","source-layer":"sldl","layout":{"visibility":"none"},"paint":{"line-color":"#6A1B9A","line-width":1.5}},{"id":"layer-census-2025-sldu-sldu-pmtiles","type":"fill","source":"src-census-2025-sldu-sldu-pmtiles","source-layer":"sldu","layout":{"visibility":"none"},"paint":{"fill-color":"#BF360C","fill-opacity":0.05}},{"id":"layer-census-2025-sldu-sldu-pmtiles-outline","type":"line","source":"src-census-2025-sldu-sldu-pmtiles","source-layer":"sldu","layout":{"visibility":"none"},"paint":{"line-color":"#BF360C","line-width":1.5}},{"id":"layer-conservation-almanac-2024-sites-conservation-almanac-2024-sites-pmtiles","type":"fill","source":"src-conservation-almanac-2024-sites-conservation-almanac-2024-sites-pmtiles","source-layer":"conservation-almanac-2024-sites","layout":{"visibility":"none"},"paint":{"fill-color":["match",["get","purchase_type"],"FSP","#2E7D32","ESM","#1565C0","FNE","#6A1B9A","OTH","#E65100","#9E9E9E"],"fill-opacity":0.6}},{"id":"layer-conservation-almanac-2024-sites-conservation-almanac-2024-sites-pmtiles-outline","type":"line","source":"src-conservation-almanac-2024-sites-conservation-almanac-2024-sites-pmtiles","source-layer":"conservation-almanac-2024-sites","layout":{"visibility":"none"},"paint":{"line-color":"rgba(0,0,0,0.4)","line-width":0.5}},{"id":"layer-parkserve-2025-parks-parks-pmtiles","type":"fill","source":"src-parkserve-2025-parks-parks-pmtiles","source-layer":"parks","layout":{"visibility":"none"},"paint":{"fill-color":["match",["get","park_owner_type"],"MUNI","#2E7D32","CNTY","#1565C0","STATE","#6A1B9A","FED","#00695C",["SPECIAL_DIST","SPECIAL_DISTRICT","DIST"],"#EF6C00","NONPROFIT","#AD1457",["PRIV","HOA"],"#F9A825","TRIB","#D84315","#9E9E9E"],"fill-opacity":0.6}},{"id":"layer-parkserve-2025-parks-parks-pmtiles-outline","type":"line","source":"src-parkserve-2025-parks-parks-pmtiles","source-layer":"parks","layout":{"visibility":"none"},"paint":{"line-color":"#1B5E20","line-width":0.3}},{"id":"layer-parkserve-2025-service-areas-service-areas-pmtiles","type":"fill","source":"src-parkserve-2025-service-areas-service-areas-pmtiles","source-layer":"service-areas","layout":{"visibility":"none"},"paint":{"fill-color":"#43A047","fill-opacity":0.25}},{"id":"layer-parkserve-2025-service-areas-service-areas-pmtiles-outline","type":"line","source":"src-parkserve-2025-service-areas-service-areas-pmtiles","source-layer":"service-areas","layout":{"visibility":"none"},"paint":{"line-color":"#2E7D32","line-width":0.4}},{"id":"layer-pad-us-4.1-combined-combined-pmtiles","type":"fill","source":"src-pad-us-4-1-combined-combined-pmtiles","source-layer":"combined","layout":{"visibility":"none"},"paint":{"fill-color":["match",["get","Own_Type"],"FED","#1565C0","STAT","#2E7D32","LOC","#6A1B9A","JNT","#00838F","DIST","#EF6C00","NGO","#AD1457","PVT","#F9A825","TRIB","#D84315","#9E9E9E"],"fill-opacity":0.5}},{"id":"layer-pad-us-4.1-combined-combined-pmtiles-outline","type":"line","source":"src-pad-us-4-1-combined-combined-pmtiles","source-layer":"combined","layout":{"visibility":"none"},"paint":{"line-color":"#424242","line-width":0.5}},{"id":"layer-usfws-critical-habitat-final-final-pmtiles","type":"fill","source":"src-usfws-critical-habitat-final-final-pmtiles","source-layer":"final","layout":{"visibility":"none"},"paint":{"fill-color":"#00695C","fill-opacity":0.4}},{"id":"layer-usfws-critical-habitat-final-final-pmtiles-outline","type":"line","source":"src-usfws-critical-habitat-final-final-pmtiles","source-layer":"final","layout":{"visibility":"none"},"paint":{"line-color":"#004D40","line-width":0.5}},{"id":"layer-usfws-critical-habitat-proposed-proposed-pmtiles","type":"fill","source":"src-usfws-critical-habitat-proposed-proposed-pmtiles","source-layer":"proposed","layout":{"visibility":"none"},"paint":{"fill-color":"#EF6C00","fill-opacity":0.4}},{"id":"layer-usfws-critical-habitat-proposed-proposed-pmtiles-outline","type":"line","source":"src-usfws-critical-habitat-proposed-proposed-pmtiles","source-layer":"proposed","layout":{"visibility":"none"},"paint":{"line-color":"#BF360C","line-width":0.5}},{"id":"layer-nlcd-nlcd-cog-2024","type":"raster","source":"src-nlcd-nlcd-cog-2024","layout":{"visibility":"none"},"paint":{"raster-opacity":0.7}},{"id":"layer-ghs-pop-2020-ghs-pop-2020-cog","type":"raster","source":"src-ghs-pop-2020-ghs-pop-2020-cog","layout":{"visibility":"none"},"paint":{"raster-opacity":0.7}},{"id":"layer-census-2024-county-county-pmtiles","type":"fill","source":"src-census-2024-county-county-pmtiles","source-layer":"county","layout":{"visibility":"none"},"paint":{"fill-color":"#4E342E","fill-opacity":0.05}},{"id":"layer-census-2024-county-county-pmtiles-outline","type":"line","source":"src-census-2024-county-county-pmtiles","source-layer":"county","layout":{"visibility":"none"},"paint":{"line-color":"#4E342E","line-width":1}},{"id":"layer-acs-2020-2024-blockgroup-blockgroup-pmtiles","type":"fill","source":"src-acs-2020-2024-blockgroup-blockgroup-pmtiles","source-layer":"blockgroup","layout":{"visibility":"none"},"paint":{"fill-color":["interpolate",["linear"],["get","MHHI"],25000,"#D7191C",50000,"#FDAE61",75000,"#FFFFBF",100000,"#A6D96A",150000,"#1A9641"],"fill-opacity":0.7}},{"id":"layer-acs-2020-2024-blockgroup-blockgroup-pmtiles-outline","type":"line","source":"src-acs-2020-2024-blockgroup-blockgroup-pmtiles","source-layer":"blockgroup","layout":{"visibility":"none"},"paint":{"line-color":"rgba(0,0,0,0.4)","line-width":0.5}},{"id":"layer-federal-trails-2026-federal-trails-2026-pmtiles","type":"line","source":"src-federal-trails-2026-federal-trails-2026-pmtiles","source-layer":"federal-trails-2026","layout":{"visibility":"none"},"paint":{"line-color":["match",["get","nts_designation"],"PCT","#1565C0","AT","#2E7D32","CDT","#E65100","NCT","#6A1B9A",["PNT","ANT","FNST","IANST","NTNST","PHT","NST"],"#AD1457",["ANZA","INHT","PENHT","OSNHT"],"#5D4037","NRT","#00838F","#9E9E9E"],"line-width":["match",["get","nts_designation"],["PCT","AT","CDT","NCT","PNT","ANT","FNST","IANST","NTNST","PHT","NST"],2.2,["ANZA","INHT","PENHT","OSNHT"],1.8,"NRT",1.2,0.6],"line-opacity":0.85}},{"id":"layer-usgs-fires-2021-combined-combined-pmtiles","type":"fill","source":"src-usgs-fires-2021-combined-combined-pmtiles","source-layer":"combined","filter":["==",["get","Assigned_Fire_Type"],"Wildfire"],"layout":{"visibility":"none"},"paint":{"fill-color":["interpolate",["linear"],["get","Fire_Year"],1900,"#FFF59D",1960,"#FFB74D",1990,"#E64A19",2010,"#B71C1C",2021,"#4A148C"],"fill-opacity":0.55}},{"id":"layer-usgs-fires-2021-combined-combined-pmtiles-outline","type":"line","source":"src-usgs-fires-2021-combined-combined-pmtiles","source-layer":"combined","filter":["==",["get","Assigned_Fire_Type"],"Wildfire"],"layout":{"visibility":"none"},"paint":{"line-color":"#3E2723","line-width":0.3}},{"id":"layer-mobi-species-richness-all-species-richness-all-cog","type":"raster","source":"src-mobi-species-richness-all-species-richness-all-cog","layout":{"visibility":"none"},"paint":{"raster-opacity":0.7}},{"id":"layer-usgs-ungulate-migration-ranges-ungulate-ranges-pmtiles","type":"fill","source":"src-usgs-ungulate-migration-ranges-ungulate-ranges-pmtiles","source-layer":"ungulate-ranges","layout":{"visibility":"none"},"paint":{"fill-color":["match",["get","data_type"],"Corridors","#E65100","Stopovers","#C62828","WinterRange","#1565C0","AnnualRange","#2E7D32","#9E9E9E"],"fill-opacity":0.45}},{"id":"layer-usgs-ungulate-migration-ranges-ungulate-ranges-pmtiles-outline","type":"line","source":"src-usgs-ungulate-migration-ranges-ungulate-ranges-pmtiles","source-layer":"ungulate-ranges","layout":{"visibility":"none"},"paint":{"line-color":"#3E2723","line-width":0.3}},{"id":"layer-american-rivers-wild-scenic-designated-wild-scenic-designated-pmtiles","type":"line","source":"src-american-rivers-wild-scenic-designated-wild-scenic-designated-pmtiles","source-layer":"wild-scenic-designated","layout":{"visibility":"none"},"paint":{"line-color":["match",["get","CLASSIFICA"],"Wild","#1B5E20","Scenic","#1565C0","Recreational","#EF6C00","#00838F"],"line-width":1.8,"line-opacity":0.9}},{"id":"layer-usgs-wbd-hu8-hu8-pmtiles","type":"fill","source":"src-usgs-wbd-hu8-hu8-pmtiles","source-layer":"hu8","layout":{"visibility":"none"},"paint":{"fill-color":"#0097A7","fill-opacity":0.05}},{"id":"layer-usgs-wbd-hu8-hu8-pmtiles-outline","type":"line","source":"src-usgs-wbd-hu8-hu8-pmtiles","source-layer":"hu8","layout":{"visibility":"none"},"paint":{"line-color":"#00838F","line-width":0.8}},{"id":"layer-flood-hazard-flood-hazard-pmtiles","type":"fill","source":"src-flood-hazard-flood-hazard-pmtiles","source-layer":"flood-hazard","layout":{"visibility":"none"},"paint":{"fill-color":["match",["get","FLD_ZONE"],["A","AE","AH","AO","A99"],"#1565C0",["V","VE"],"#6A1B9A","X","#B0BEC5","D","#FFD54F","#CFD8DC"],"fill-opacity":0.45}},{"id":"layer-flood-hazard-flood-hazard-pmtiles-outline","type":"line","source":"src-flood-hazard-flood-hazard-pmtiles","source-layer":"flood-hazard","layout":{"visibility":"none"},"paint":{"line-color":"rgba(0,0,0,0.4)","line-width":0.5}},{"id":"layer-sea-level-rise-sea-level-rise-pmtiles","type":"fill","source":"src-sea-level-rise-sea-level-rise-pmtiles","source-layer":"sea-level-rise","layout":{"visibility":"none"},"paint":{"fill-color":"#0277BD","fill-opacity":0.5}},{"id":"layer-sea-level-rise-sea-level-rise-pmtiles-outline","type":"line","source":"src-sea-level-rise-sea-level-rise-pmtiles","source-layer":"sea-level-rise","layout":{"visibility":"none"},"paint":{"line-color":"rgba(0,0,0,0.4)","line-width":0.5}},{"id":"layer-silvis-wui-2020-wui-2020-pmtiles","type":"fill","source":"src-silvis-wui-2020-wui-2020-pmtiles","source-layer":"wui-2020","layout":{"visibility":"none"},"paint":{"fill-color":["match",["get","WUICLASS2020"],["High_Dens_Interface","Med_Dens_Interface","Low_Dens_Interface"],"#E65100",["High_Dens_Intermix","Med_Dens_Intermix","Low_Dens_Intermix"],"#AD1457","rgba(0,0,0,0)"],"fill-opacity":0.6}},{"id":"layer-silvis-wui-2020-wui-2020-pmtiles-outline","type":"line","source":"src-silvis-wui-2020-wui-2020-pmtiles","source-layer":"wui-2020","layout":{"visibility":"none"},"paint":{"line-color":"rgba(0,0,0,0.4)","line-width":0.5}},{"id":"layer-mappinginequality-mappinginequality-pmtiles","type":"fill","source":"src-mappinginequality-mappinginequality-pmtiles","source-layer":"redlining","layout":{"visibility":"none"},"paint":{"fill-color":["match",["get","grade"],"A","#4CAF50","B","#2196F3","C","#FFC107","D","#E53935","#9E9E9E"],"fill-opacity":0.6}},{"id":"layer-mappinginequality-mappinginequality-pmtiles-outline","type":"line","source":"src-mappinginequality-mappinginequality-pmtiles","source-layer":"redlining","layout":{"visibility":"none"},"paint":{"line-color":"#424242","line-width":0.3}},{"id":"hex-3c1465ee6e894dd5","type":"fill","source":"hex-3c1465ee6e894dd5","source-layer":"layer","layout":{"visibility":"visible"},"paint":{"fill-color":["case",["==",["get","combined_score"],null],"rgba(0,0,0,0)",["match",["get","res"],2,["interpolate",["linear"],["get","combined_score"],0.06300853503121273,"#440154",0.162244248911024,"#21918c",0.2614799627908353,"#fde725"],3,["interpolate",["linear"],["get","combined_score"],0.061870841538592125,"#440154",0.16389209711159575,"#21918c",0.26591335268459937,"#fde725"],4,["interpolate",["linear"],["get","combined_score"],0.061509545000567906,"#440154",0.18862859979488328,"#21918c",0.3157476545891986,"#fde725"],5,["interpolate",["linear"],["get","combined_score"],0.061302084912362075,"#440154",0.21679240579629375,"#21918c",0.37228272668022544,"#fde725"],6,["interpolate",["linear"],["get","combined_score"],0.061298221004414385,"#440154",0.28840652318281473,"#21918c",0.5155148253612151,"#fde725"],7,["interpolate",["linear"],["get","combined_score"],0.06129772781696348,"#440154",0.2947155370360468,"#21918c",0.5281333462551301,"#fde725"],8,["interpolate",["linear"],["get","combined_score"],0.06129723260903406,"#440154",0.31257381085394026,"#21918c",0.5638503890988464,"#fde725"],"rgba(0,0,0,0)"]],"fill-opacity":0.7,"fill-outline-color":"rgba(0,0,0,0.15)"}}]}}</script>
   <script>
   (function () {
     var el = document.getElementById('export-map');
@@ -290,137 +312,1465 @@ con.execute("CREATE OR REPLACE SECRET public_s3 (TYPE s3, PROVIDER config, ENDPO
   })();
   </script>
 </section>
-<main id="chat-messages"><div class="chat-message user">Which California counties hold the most protected land?</div><details class="agent-turn done"><summary class="agent-turn-summary"><span class="agent-turn-icon done">✓</span><span class="agent-turn-label">1 step · 0.0s</span></summary><div class="agent-turn-body"><details class="agent-turn-row tool done" data-iter="1"><summary class="agent-turn-row-summary"><span class="row-icon">⚙</span><span class="row-label">query</span><span class="row-status done">✓</span></summary><div class="agent-turn-row-body"><div class="tool-call-item"><strong>query</strong><details class="sql-detail"><summary>Query</summary><div class="code-variants"><pre class="code-variant" data-lang="sql"><code class="language-sql">SELECT COUNTY,
-       round(sum(ACRES)) AS protected_acres,
-       count(*)          AS holdings
-FROM read_parquet('s3://public-cpad/cpad-2025b-holdings.parquet')
-GROUP BY COUNTY
-ORDER BY protected_acres DESC
-LIMIT 6</code></pre><pre class="code-variant" data-lang="r"><code class="language-r">df &lt;- dbGetQuery(con, r"(
-SELECT COUNTY,
-       round(sum(ACRES)) AS protected_acres,
-       count(*)          AS holdings
-FROM read_parquet('s3://public-cpad/cpad-2025b-holdings.parquet')
-GROUP BY COUNTY
-ORDER BY protected_acres DESC
-LIMIT 6
-)")</code></pre><pre class="code-variant" data-lang="python"><code class="language-python">df = con.sql(r"""
-SELECT COUNTY,
-       round(sum(ACRES)) AS protected_acres,
-       count(*)          AS holdings
-FROM read_parquet('s3://public-cpad/cpad-2025b-holdings.parquet')
-GROUP BY COUNTY
-ORDER BY protected_acres DESC
-LIMIT 6
-""").df()</code></pre></div></details></div><div class="tool-results-list"><div class="tool-result-item"><strong>✓ query</strong> <span class="tool-tag remote">MCP</span><details class="sql-detail"><summary>Query</summary><div class="code-variants"><pre class="code-variant" data-lang="sql"><code class="language-sql">SELECT COUNTY,
-       round(sum(ACRES)) AS protected_acres,
-       count(*)          AS holdings
-FROM read_parquet('s3://public-cpad/cpad-2025b-holdings.parquet')
-GROUP BY COUNTY
-ORDER BY protected_acres DESC
-LIMIT 6</code></pre><pre class="code-variant" data-lang="r"><code class="language-r">df &lt;- dbGetQuery(con, r"(
-SELECT COUNTY,
-       round(sum(ACRES)) AS protected_acres,
-       count(*)          AS holdings
-FROM read_parquet('s3://public-cpad/cpad-2025b-holdings.parquet')
-GROUP BY COUNTY
-ORDER BY protected_acres DESC
-LIMIT 6
-)")</code></pre><pre class="code-variant" data-lang="python"><code class="language-python">df = con.sql(r"""
-SELECT COUNTY,
-       round(sum(ACRES)) AS protected_acres,
-       count(*)          AS holdings
-FROM read_parquet('s3://public-cpad/cpad-2025b-holdings.parquet')
-GROUP BY COUNTY
-ORDER BY protected_acres DESC
-LIMIT 6
-""").df()</code></pre></div></details><pre class="tool-output"><code>COUNTY          | protected_acres | holdings
-----------------+-----------------+---------
-San Bernardino  |       8538419.0 |    24181
-Inyo            |       5978897.0 |     3092
-Riverside       |       2970879.0 |    15584
-Siskiyou        |       2587554.0 |     5744
-Mono            |       1882239.0 |     4018
-Lassen          |       1770843.0 |     1311
+<main class="report-body">
+<section class="report-section" id="q-1">
+<h2><span class="q-num">1.</span> what are the top 30% of us h8 hexes in terms of equal weight carbon, mobi score, that are not gap 1 or gap 2 (normalize)</h2>
+<p class="report-meta">9 tool calls</p>
 
-6 rows</code></pre></div></div></div></details></div></details><div class="chat-message assistant"><p><strong>San Bernardino County leads by a wide margin</strong> — 8.5 million protected acres, nearly a third more than every other county in the top six combined would suggest at first glance.</p>
-<table>
+<p class="report-consulted">Consulted schemas for <code>irrecoverable-carbon</code>, <code>mobi-species-richness-all</code>, <code>pad-us-4.1-combined</code>; <code>get_hex_tile_status</code> ×2.</p>
+<div class="chunk" data-tool="query">
+<details class="chunk-code"><summary>Code <span class="chunk-tool">query</span></summary><div class="code-variants"><pre class="code-variant" data-lang="sql"><code class="language-sql">WITH mobi AS (
+  SELECT h8, h0, species_richness
+  FROM read_parquet(&#39;s3://public-mobi/mobi-species-richness-all/hex/h0=*/data_0.parquet&#39;, hive_partitioning = true)
+  WHERE species_richness IS NOT NULL
+),
+carbon_h8 AS (
+  SELECT c.h8, c.h0, SUM(c.carbon) AS carbon_total
+  FROM read_parquet(&#39;s3://public-carbon/irrecoverable-carbon-2024/hex/h0=*/data_0.parquet&#39;, hive_partitioning = true) c
+  SEMI JOIN mobi m ON c.h8 = m.h8 AND c.h0 = m.h0
+  WHERE c.carbon IS NOT NULL AND NOT isnan(c.carbon)
+  GROUP BY c.h8, c.h0
+),
+gap12 AS (
+  SELECT DISTINCT h8, h0
+  FROM read_parquet(&#39;s3://public-padus/padus-4-1/combined/hex/h0=*/data_0.parquet&#39;, hive_partitioning = true)
+  WHERE GAP_Sts IN (&#39;1&#39;, &#39;2&#39;)
+),
+combined AS (
+  SELECT m.h8, m.h0, m.species_richness, c.carbon_total
+  FROM mobi m
+  JOIN carbon_h8 c ON m.h8 = c.h8 AND m.h0 = c.h0
+  ANTI JOIN gap12 g ON m.h8 = g.h8 AND m.h0 = g.h0
+),
+normalized AS (
+  SELECT 
+    h8, h0, species_richness, carbon_total,
+    (species_richness - MIN(species_richness) OVER ()) / NULLIF(MAX(species_richness) OVER () - MIN(species_richness) OVER (), 0) AS mobi_norm,
+    (carbon_total - MIN(carbon_total) OVER ()) / NULLIF(MAX(carbon_total) OVER () - MIN(carbon_total) OVER (), 0) AS carbon_norm
+  FROM combined
+),
+scored AS (
+  SELECT 
+    h8, h0, species_richness, carbon_total,
+    (mobi_norm + carbon_norm) / 2.0 AS combined_score
+  FROM normalized
+)
+SELECT 
+  COUNT(*) AS total_hexes,
+  MIN(combined_score) AS min_score,
+  MAX(combined_score) AS max_score,
+  AVG(combined_score) AS avg_score,
+  quantile(combined_score, 0.70) AS p70_threshold,
+  MIN(species_richness) AS min_mobi,
+  MAX(species_richness) AS max_mobi,
+  MIN(carbon_total) AS min_carbon,
+  MAX(carbon_total) AS max_carbon
+FROM scored;</code></pre><pre class="code-variant" data-lang="r"><code class="language-r">df &lt;- dbGetQuery(con, r&quot;(
+WITH mobi AS (
+  SELECT h8, h0, species_richness
+  FROM read_parquet(&#39;s3://public-mobi/mobi-species-richness-all/hex/h0=*/data_0.parquet&#39;, hive_partitioning = true)
+  WHERE species_richness IS NOT NULL
+),
+carbon_h8 AS (
+  SELECT c.h8, c.h0, SUM(c.carbon) AS carbon_total
+  FROM read_parquet(&#39;s3://public-carbon/irrecoverable-carbon-2024/hex/h0=*/data_0.parquet&#39;, hive_partitioning = true) c
+  SEMI JOIN mobi m ON c.h8 = m.h8 AND c.h0 = m.h0
+  WHERE c.carbon IS NOT NULL AND NOT isnan(c.carbon)
+  GROUP BY c.h8, c.h0
+),
+gap12 AS (
+  SELECT DISTINCT h8, h0
+  FROM read_parquet(&#39;s3://public-padus/padus-4-1/combined/hex/h0=*/data_0.parquet&#39;, hive_partitioning = true)
+  WHERE GAP_Sts IN (&#39;1&#39;, &#39;2&#39;)
+),
+combined AS (
+  SELECT m.h8, m.h0, m.species_richness, c.carbon_total
+  FROM mobi m
+  JOIN carbon_h8 c ON m.h8 = c.h8 AND m.h0 = c.h0
+  ANTI JOIN gap12 g ON m.h8 = g.h8 AND m.h0 = g.h0
+),
+normalized AS (
+  SELECT 
+    h8, h0, species_richness, carbon_total,
+    (species_richness - MIN(species_richness) OVER ()) / NULLIF(MAX(species_richness) OVER () - MIN(species_richness) OVER (), 0) AS mobi_norm,
+    (carbon_total - MIN(carbon_total) OVER ()) / NULLIF(MAX(carbon_total) OVER () - MIN(carbon_total) OVER (), 0) AS carbon_norm
+  FROM combined
+),
+scored AS (
+  SELECT 
+    h8, h0, species_richness, carbon_total,
+    (mobi_norm + carbon_norm) / 2.0 AS combined_score
+  FROM normalized
+)
+SELECT 
+  COUNT(*) AS total_hexes,
+  MIN(combined_score) AS min_score,
+  MAX(combined_score) AS max_score,
+  AVG(combined_score) AS avg_score,
+  quantile(combined_score, 0.70) AS p70_threshold,
+  MIN(species_richness) AS min_mobi,
+  MAX(species_richness) AS max_mobi,
+  MIN(carbon_total) AS min_carbon,
+  MAX(carbon_total) AS max_carbon
+FROM scored;
+)&quot;)</code></pre><pre class="code-variant" data-lang="python"><code class="language-python">df = con.sql(r&quot;&quot;&quot;
+WITH mobi AS (
+  SELECT h8, h0, species_richness
+  FROM read_parquet(&#39;s3://public-mobi/mobi-species-richness-all/hex/h0=*/data_0.parquet&#39;, hive_partitioning = true)
+  WHERE species_richness IS NOT NULL
+),
+carbon_h8 AS (
+  SELECT c.h8, c.h0, SUM(c.carbon) AS carbon_total
+  FROM read_parquet(&#39;s3://public-carbon/irrecoverable-carbon-2024/hex/h0=*/data_0.parquet&#39;, hive_partitioning = true) c
+  SEMI JOIN mobi m ON c.h8 = m.h8 AND c.h0 = m.h0
+  WHERE c.carbon IS NOT NULL AND NOT isnan(c.carbon)
+  GROUP BY c.h8, c.h0
+),
+gap12 AS (
+  SELECT DISTINCT h8, h0
+  FROM read_parquet(&#39;s3://public-padus/padus-4-1/combined/hex/h0=*/data_0.parquet&#39;, hive_partitioning = true)
+  WHERE GAP_Sts IN (&#39;1&#39;, &#39;2&#39;)
+),
+combined AS (
+  SELECT m.h8, m.h0, m.species_richness, c.carbon_total
+  FROM mobi m
+  JOIN carbon_h8 c ON m.h8 = c.h8 AND m.h0 = c.h0
+  ANTI JOIN gap12 g ON m.h8 = g.h8 AND m.h0 = g.h0
+),
+normalized AS (
+  SELECT 
+    h8, h0, species_richness, carbon_total,
+    (species_richness - MIN(species_richness) OVER ()) / NULLIF(MAX(species_richness) OVER () - MIN(species_richness) OVER (), 0) AS mobi_norm,
+    (carbon_total - MIN(carbon_total) OVER ()) / NULLIF(MAX(carbon_total) OVER () - MIN(carbon_total) OVER (), 0) AS carbon_norm
+  FROM combined
+),
+scored AS (
+  SELECT 
+    h8, h0, species_richness, carbon_total,
+    (mobi_norm + carbon_norm) / 2.0 AS combined_score
+  FROM normalized
+)
+SELECT 
+  COUNT(*) AS total_hexes,
+  MIN(combined_score) AS min_score,
+  MAX(combined_score) AS max_score,
+  AVG(combined_score) AS avg_score,
+  quantile(combined_score, 0.70) AS p70_threshold,
+  MIN(species_richness) AS min_mobi,
+  MAX(species_richness) AS max_mobi,
+  MIN(carbon_total) AS min_carbon,
+  MAX(carbon_total) AS max_carbon
+FROM scored;
+&quot;&quot;&quot;).df()</code></pre></div></details>
+<div class="chunk-output"><table>
 <thead>
 <tr>
-<th>County</th>
-<th align="right">Protected acres</th>
-<th align="right">Holdings</th>
+<th align="right">total_hexes</th>
+<th align="left">min_score</th>
+<th align="left">max_score</th>
+<th align="left">avg_score</th>
+<th align="left">p70_threshold</th>
+<th align="left">min_mobi</th>
+<th align="left">max_mobi</th>
+<th align="left">min_carbon</th>
+<th align="left">max_carbon</th>
 </tr>
 </thead>
 <tbody><tr>
-<td>San Bernardino</td>
-<td align="right">8,538,419</td>
-<td align="right">24,181</td>
-</tr>
-<tr>
-<td>Inyo</td>
-<td align="right">5,978,897</td>
-<td align="right">3,092</td>
-</tr>
-<tr>
-<td>Riverside</td>
-<td align="right">2,970,879</td>
-<td align="right">15,584</td>
-</tr>
-<tr>
-<td>Siskiyou</td>
-<td align="right">2,587,554</td>
-<td align="right">5,744</td>
-</tr>
-<tr>
-<td>Mono</td>
-<td align="right">1,882,239</td>
-<td align="right">4,018</td>
-</tr>
-<tr>
-<td>Lassen</td>
-<td align="right">1,770,843</td>
-<td align="right">1,311</td>
+<td align="right">9238348</td>
+<td align="left">0</td>
+<td align="left">0.5638503891</td>
+<td align="left">0.04415103347</td>
+<td align="left">0.06129718948</td>
+<td align="left">0</td>
+<td align="left">32</td>
+<td align="left">0</td>
+<td align="left">28341.98819</td>
 </tr>
 </tbody></table>
-<p>Note the difference in <em>holding counts</em>: Inyo reaches 6 million acres across 3,092 holdings, while Riverside needs 15,584 holdings for half that. Desert and mountain counties are protected in large federal blocks; coastal and valley counties in many small parcels.</p>
-</div><div class="chat-message user">How does mammal species richness vary across the hex grid? Shade the protected areas darker while you are at it.</div><details class="agent-turn done"><summary class="agent-turn-summary"><span class="agent-turn-icon done">✓</span><span class="agent-turn-label">1 step · 0.0s</span></summary><div class="agent-turn-body"><details class="agent-turn-row tool done" data-iter="2"><summary class="agent-turn-row-summary"><span class="row-icon">⚙</span><span class="row-label">query, set_layer_style</span><span class="row-status done">✓</span></summary><div class="agent-turn-row-body"><div class="tool-call-item"><strong>query</strong><details class="sql-detail"><summary>Query</summary><div class="code-variants"><pre class="code-variant" data-lang="sql"><code class="language-sql">SELECT round(avg(mammals_sr), 1) AS mean_species,
-       max(mammals_sr)            AS max_species,
-       count(*)                   AS hex_cells
-FROM read_parquet('s3://public-iucn/hex/mammals_sr/h0=*/data_0.parquet')</code></pre><pre class="code-variant" data-lang="r"><code class="language-r">df &lt;- dbGetQuery(con, r"(
-SELECT round(avg(mammals_sr), 1) AS mean_species,
-       max(mammals_sr)            AS max_species,
-       count(*)                   AS hex_cells
-FROM read_parquet('s3://public-iucn/hex/mammals_sr/h0=*/data_0.parquet')
-)")</code></pre><pre class="code-variant" data-lang="python"><code class="language-python">df = con.sql(r"""
-SELECT round(avg(mammals_sr), 1) AS mean_species,
-       max(mammals_sr)            AS max_species,
-       count(*)                   AS hex_cells
-FROM read_parquet('s3://public-iucn/hex/mammals_sr/h0=*/data_0.parquet')
-""").df()</code></pre></div></details></div><div class="tool-call-item"><strong>set_layer_style</strong><pre><code>{
-  "layer": "cpad-holdings",
-  "fill_color": "#1b5e20",
-  "fill_opacity": 0.55
-}</code></pre></div><div class="tool-results-list"><div class="tool-result-item"><strong>✓ query</strong> <span class="tool-tag remote">MCP</span><details class="sql-detail"><summary>Query</summary><div class="code-variants"><pre class="code-variant" data-lang="sql"><code class="language-sql">SELECT round(avg(mammals_sr), 1) AS mean_species,
-       max(mammals_sr)            AS max_species,
-       count(*)                   AS hex_cells
-FROM read_parquet('s3://public-iucn/hex/mammals_sr/h0=*/data_0.parquet')</code></pre><pre class="code-variant" data-lang="r"><code class="language-r">df &lt;- dbGetQuery(con, r"(
-SELECT round(avg(mammals_sr), 1) AS mean_species,
-       max(mammals_sr)            AS max_species,
-       count(*)                   AS hex_cells
-FROM read_parquet('s3://public-iucn/hex/mammals_sr/h0=*/data_0.parquet')
-)")</code></pre><pre class="code-variant" data-lang="python"><code class="language-python">df = con.sql(r"""
-SELECT round(avg(mammals_sr), 1) AS mean_species,
-       max(mammals_sr)            AS max_species,
-       count(*)                   AS hex_cells
-FROM read_parquet('s3://public-iucn/hex/mammals_sr/h0=*/data_0.parquet')
-""").df()</code></pre></div></details><pre class="tool-output"><code>mean_species | max_species | hex_cells
--------------+-------------+----------
-        31.1 |       213.0 |  1964322
+</div>
+</div>
+<div class="chunk" data-tool="register_hex_tiles">
+<details class="chunk-code"><summary>Code <span class="chunk-tool">register_hex_tiles</span></summary><div class="code-variants"><pre class="code-variant" data-lang="sql"><code class="language-sql">WITH mobi AS (
+  SELECT h8, h0, species_richness
+  FROM read_parquet(&#39;s3://public-mobi/mobi-species-richness-all/hex/h0=*/data_0.parquet&#39;, hive_partitioning = true)
+  WHERE species_richness IS NOT NULL
+),
+carbon_h8 AS (
+  SELECT c.h8, c.h0, SUM(c.carbon) AS carbon_total
+  FROM read_parquet(&#39;s3://public-carbon/irrecoverable-carbon-2024/hex/h0=*/data_0.parquet&#39;, hive_partitioning = true) c
+  SEMI JOIN mobi m ON c.h8 = m.h8 AND c.h0 = m.h0
+  WHERE c.carbon IS NOT NULL AND NOT isnan(c.carbon)
+  GROUP BY c.h8, c.h0
+),
+gap12 AS (
+  SELECT DISTINCT h8, h0
+  FROM read_parquet(&#39;s3://public-padus/padus-4-1/combined/hex/h0=*/data_0.parquet&#39;, hive_partitioning = true)
+  WHERE GAP_Sts IN (&#39;1&#39;, &#39;2&#39;)
+),
+combined AS (
+  SELECT m.h8, m.h0,
+    (m.species_richness / 32.0 + c.carbon_total / 28341.98819) / 2.0 AS combined_score
+  FROM mobi m
+  JOIN carbon_h8 c ON m.h8 = c.h8 AND m.h0 = c.h0
+  ANTI JOIN gap12 g ON m.h8 = g.h8 AND m.h0 = g.h0
+)
+SELECT h8, combined_score
+FROM combined
+WHERE combined_score &gt;= 0.06129718948</code></pre><pre class="code-variant" data-lang="r"><code class="language-r">df &lt;- dbGetQuery(con, r&quot;(
+WITH mobi AS (
+  SELECT h8, h0, species_richness
+  FROM read_parquet(&#39;s3://public-mobi/mobi-species-richness-all/hex/h0=*/data_0.parquet&#39;, hive_partitioning = true)
+  WHERE species_richness IS NOT NULL
+),
+carbon_h8 AS (
+  SELECT c.h8, c.h0, SUM(c.carbon) AS carbon_total
+  FROM read_parquet(&#39;s3://public-carbon/irrecoverable-carbon-2024/hex/h0=*/data_0.parquet&#39;, hive_partitioning = true) c
+  SEMI JOIN mobi m ON c.h8 = m.h8 AND c.h0 = m.h0
+  WHERE c.carbon IS NOT NULL AND NOT isnan(c.carbon)
+  GROUP BY c.h8, c.h0
+),
+gap12 AS (
+  SELECT DISTINCT h8, h0
+  FROM read_parquet(&#39;s3://public-padus/padus-4-1/combined/hex/h0=*/data_0.parquet&#39;, hive_partitioning = true)
+  WHERE GAP_Sts IN (&#39;1&#39;, &#39;2&#39;)
+),
+combined AS (
+  SELECT m.h8, m.h0,
+    (m.species_richness / 32.0 + c.carbon_total / 28341.98819) / 2.0 AS combined_score
+  FROM mobi m
+  JOIN carbon_h8 c ON m.h8 = c.h8 AND m.h0 = c.h0
+  ANTI JOIN gap12 g ON m.h8 = g.h8 AND m.h0 = g.h0
+)
+SELECT h8, combined_score
+FROM combined
+WHERE combined_score &gt;= 0.06129718948
+)&quot;)</code></pre><pre class="code-variant" data-lang="python"><code class="language-python">df = con.sql(r&quot;&quot;&quot;
+WITH mobi AS (
+  SELECT h8, h0, species_richness
+  FROM read_parquet(&#39;s3://public-mobi/mobi-species-richness-all/hex/h0=*/data_0.parquet&#39;, hive_partitioning = true)
+  WHERE species_richness IS NOT NULL
+),
+carbon_h8 AS (
+  SELECT c.h8, c.h0, SUM(c.carbon) AS carbon_total
+  FROM read_parquet(&#39;s3://public-carbon/irrecoverable-carbon-2024/hex/h0=*/data_0.parquet&#39;, hive_partitioning = true) c
+  SEMI JOIN mobi m ON c.h8 = m.h8 AND c.h0 = m.h0
+  WHERE c.carbon IS NOT NULL AND NOT isnan(c.carbon)
+  GROUP BY c.h8, c.h0
+),
+gap12 AS (
+  SELECT DISTINCT h8, h0
+  FROM read_parquet(&#39;s3://public-padus/padus-4-1/combined/hex/h0=*/data_0.parquet&#39;, hive_partitioning = true)
+  WHERE GAP_Sts IN (&#39;1&#39;, &#39;2&#39;)
+),
+combined AS (
+  SELECT m.h8, m.h0,
+    (m.species_richness / 32.0 + c.carbon_total / 28341.98819) / 2.0 AS combined_score
+  FROM mobi m
+  JOIN carbon_h8 c ON m.h8 = c.h8 AND m.h0 = c.h0
+  ANTI JOIN gap12 g ON m.h8 = g.h8 AND m.h0 = g.h0
+)
+SELECT h8, combined_score
+FROM combined
+WHERE combined_score &gt;= 0.06129718948
+&quot;&quot;&quot;).df()</code></pre></div></details>
+<p class="chunk-effect">→ Rendered on the map as hex tiles.</p>
+</div>
+<p class="report-map-step">Map — add hex tile layer: Top 30% Combined Score (Carbon + MOBI, excl. GAP 1/2)</p>
+<p class="report-map-step">Map — set legend: Top 30% Priority Hexes (Carbon + Biodiversity)</p>
+<div class="report-prose"><p>The map is now displaying the <strong>top 30% of US h8 hexes</strong> by a combined, equal-weight score of irrecoverable carbon and MOBI species richness, excluding areas already protected under GAP Status 1 or 2.</p>
+<p>Here's a summary of the methodology and results:</p>
+<h3>Methodology</h3>
+<ol>
+<li><strong>Irrecoverable Carbon (2024)</strong>: Aggregated from native h9 resolution to h8 by SUMming total carbon (Mg C) per cell</li>
+<li><strong>MOBI Species Richness</strong>: Used directly at h8 (max species count per cell, range 0–32)</li>
+<li><strong>Exclusion</strong>: Removed all h8 cells overlapping any PAD-US feature with <code>GAP_Sts</code> = '1' or '2' (permanently protected for biodiversity)</li>
+<li><strong>Normalization</strong>: Min-max normalized both variables to 0–1 (min = 0 for both; max = 32 for MOBI, 28,342 Mg C for carbon)</li>
+<li><strong>Combined score</strong>: Equal weight average → <code>(mobi_norm + carbon_norm) / 2</code></li>
+<li><strong>Top 30% filter</strong>: Kept cells with combined score ≥ 0.0613 (the 70th percentile)</li>
+</ol>
+<h3>Key Numbers</h3>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Total eligible hexes (excl. GAP 1/2)</td>
+<td>9,238,348</td>
+</tr>
+<tr>
+<td>Top 30% hexes shown on map</td>
+<td>2,771,504</td>
+</tr>
+<tr>
+<td>Combined score range (top 30%)</td>
+<td>0.061 – 0.564</td>
+</tr>
+<tr>
+<td>Coverage</td>
+<td>Contiguous US (CONUS)</td>
+</tr>
+</tbody></table>
+<h3>What the map shows</h3>
+<p>The <strong>viridis color ramp</strong> (dark purple → yellow) indicates combined priority score — yellow hexes are the highest-priority cells with both high irrecoverable carbon stocks and high species richness that are <strong>not</strong> already under strict biodiversity protection (GAP 1/2). These represent potential conservation opportunity areas where both climate and biodiversity values converge.</p>
+</div>
 
-1 row</code></pre></div><div class="tool-result-item"><strong>✓ set_layer_style</strong><pre class="tool-output"><code>Styled cpad-holdings: fill #1b5e20 at 0.55 opacity.</code></pre></div></div></div></details></div></details><div class="chat-message assistant"><p>Across all <strong>1,964,322</strong> H3 cells with data, mammal richness averages <strong>31.1 species</strong>, peaking at <strong>213</strong> in the wettest tropical cells. California's own cells sit well above the global mean without approaching that ceiling.</p>
-<p>The protected-area layer is now darker green, so the richness surface reads through it.</p>
-</div></main>
+
+</section>
+<section class="report-section" id="q-2">
+<h2><span class="q-num">2.</span> what NCLD land cover is represented here?</h2>
+<p class="report-meta">7 tool calls</p>
+
+<p class="report-consulted">Consulted schemas for <code>nlcd</code>, <code>irrecoverable-carbon</code>, <code>mobi-species-richness-all</code>, <code>pad-us-4.1-combined</code>.</p>
+<div class="chunk" data-tool="query">
+<details class="chunk-code"><summary>Code <span class="chunk-tool">query</span></summary><div class="code-variants"><pre class="code-variant" data-lang="sql"><code class="language-sql">WITH mobi AS (
+  SELECT h8, h0, species_richness
+  FROM read_parquet(&#39;s3://public-mobi/mobi-species-richness-all/hex/h0=*/data_0.parquet&#39;)
+  WHERE species_richness &gt; 0
+),
+carbon_h8 AS (
+  SELECT c.h8, c.h0, SUM(c.carbon) AS total_carbon
+  FROM read_parquet(&#39;s3://public-carbon/irrecoverable-carbon-2024/hex/h0=*/data_0.parquet&#39;) c
+  SEMI JOIN mobi m ON c.h8 = m.h8 AND c.h0 = m.h0
+  WHERE c.carbon &gt; 0
+  GROUP BY c.h8, c.h0
+),
+gap12 AS (
+  SELECT DISTINCT h8, h0
+  FROM read_parquet(&#39;s3://public-padus/padus-4-1/combined/hex/h0=*/data_0.parquet&#39;)
+  WHERE GAP_Sts IN (&#39;1&#39;, &#39;2&#39;)
+),
+eligible AS (
+  SELECT c.h8, c.h0, c.total_carbon, m.species_richness
+  FROM carbon_h8 c
+  JOIN mobi m ON c.h8 = m.h8 AND c.h0 = m.h0
+  ANTI JOIN gap12 g USING (h8, h0)
+),
+normed AS (
+  SELECT h8, h0,
+    total_carbon / MAX(total_carbon) OVER () AS carbon_norm,
+    species_richness / MAX(species_richness) OVER () AS mobi_norm
+  FROM eligible
+),
+scored AS (
+  SELECT h8, h0,
+    (carbon_norm + mobi_norm) / 2.0 AS score,
+    PERCENT_RANK() OVER (ORDER BY (carbon_norm + mobi_norm) / 2.0) AS pct
+  FROM normed
+),
+top30 AS (
+  SELECT h8, h0 FROM scored WHERE pct &gt;= 0.70
+)
+SELECT n.nlcd,
+  SUM(n.frac * h3_cell_area(n.h10, &#39;km^2&#39;)) AS area_km2
+FROM read_parquet(&#39;s3://public-land-cover/nlcd/hex-fractions/year=2024/h0=*/data_0.parquet&#39;) n
+SEMI JOIN top30 t ON n.h8 = t.h8 AND n.h0 = t.h0
+WHERE n.nlcd &lt;&gt; 250
+GROUP BY n.nlcd
+ORDER BY area_km2 DESC;</code></pre><pre class="code-variant" data-lang="r"><code class="language-r">df &lt;- dbGetQuery(con, r&quot;(
+WITH mobi AS (
+  SELECT h8, h0, species_richness
+  FROM read_parquet(&#39;s3://public-mobi/mobi-species-richness-all/hex/h0=*/data_0.parquet&#39;)
+  WHERE species_richness &gt; 0
+),
+carbon_h8 AS (
+  SELECT c.h8, c.h0, SUM(c.carbon) AS total_carbon
+  FROM read_parquet(&#39;s3://public-carbon/irrecoverable-carbon-2024/hex/h0=*/data_0.parquet&#39;) c
+  SEMI JOIN mobi m ON c.h8 = m.h8 AND c.h0 = m.h0
+  WHERE c.carbon &gt; 0
+  GROUP BY c.h8, c.h0
+),
+gap12 AS (
+  SELECT DISTINCT h8, h0
+  FROM read_parquet(&#39;s3://public-padus/padus-4-1/combined/hex/h0=*/data_0.parquet&#39;)
+  WHERE GAP_Sts IN (&#39;1&#39;, &#39;2&#39;)
+),
+eligible AS (
+  SELECT c.h8, c.h0, c.total_carbon, m.species_richness
+  FROM carbon_h8 c
+  JOIN mobi m ON c.h8 = m.h8 AND c.h0 = m.h0
+  ANTI JOIN gap12 g USING (h8, h0)
+),
+normed AS (
+  SELECT h8, h0,
+    total_carbon / MAX(total_carbon) OVER () AS carbon_norm,
+    species_richness / MAX(species_richness) OVER () AS mobi_norm
+  FROM eligible
+),
+scored AS (
+  SELECT h8, h0,
+    (carbon_norm + mobi_norm) / 2.0 AS score,
+    PERCENT_RANK() OVER (ORDER BY (carbon_norm + mobi_norm) / 2.0) AS pct
+  FROM normed
+),
+top30 AS (
+  SELECT h8, h0 FROM scored WHERE pct &gt;= 0.70
+)
+SELECT n.nlcd,
+  SUM(n.frac * h3_cell_area(n.h10, &#39;km^2&#39;)) AS area_km2
+FROM read_parquet(&#39;s3://public-land-cover/nlcd/hex-fractions/year=2024/h0=*/data_0.parquet&#39;) n
+SEMI JOIN top30 t ON n.h8 = t.h8 AND n.h0 = t.h0
+WHERE n.nlcd &lt;&gt; 250
+GROUP BY n.nlcd
+ORDER BY area_km2 DESC;
+)&quot;)</code></pre><pre class="code-variant" data-lang="python"><code class="language-python">df = con.sql(r&quot;&quot;&quot;
+WITH mobi AS (
+  SELECT h8, h0, species_richness
+  FROM read_parquet(&#39;s3://public-mobi/mobi-species-richness-all/hex/h0=*/data_0.parquet&#39;)
+  WHERE species_richness &gt; 0
+),
+carbon_h8 AS (
+  SELECT c.h8, c.h0, SUM(c.carbon) AS total_carbon
+  FROM read_parquet(&#39;s3://public-carbon/irrecoverable-carbon-2024/hex/h0=*/data_0.parquet&#39;) c
+  SEMI JOIN mobi m ON c.h8 = m.h8 AND c.h0 = m.h0
+  WHERE c.carbon &gt; 0
+  GROUP BY c.h8, c.h0
+),
+gap12 AS (
+  SELECT DISTINCT h8, h0
+  FROM read_parquet(&#39;s3://public-padus/padus-4-1/combined/hex/h0=*/data_0.parquet&#39;)
+  WHERE GAP_Sts IN (&#39;1&#39;, &#39;2&#39;)
+),
+eligible AS (
+  SELECT c.h8, c.h0, c.total_carbon, m.species_richness
+  FROM carbon_h8 c
+  JOIN mobi m ON c.h8 = m.h8 AND c.h0 = m.h0
+  ANTI JOIN gap12 g USING (h8, h0)
+),
+normed AS (
+  SELECT h8, h0,
+    total_carbon / MAX(total_carbon) OVER () AS carbon_norm,
+    species_richness / MAX(species_richness) OVER () AS mobi_norm
+  FROM eligible
+),
+scored AS (
+  SELECT h8, h0,
+    (carbon_norm + mobi_norm) / 2.0 AS score,
+    PERCENT_RANK() OVER (ORDER BY (carbon_norm + mobi_norm) / 2.0) AS pct
+  FROM normed
+),
+top30 AS (
+  SELECT h8, h0 FROM scored WHERE pct &gt;= 0.70
+)
+SELECT n.nlcd,
+  SUM(n.frac * h3_cell_area(n.h10, &#39;km^2&#39;)) AS area_km2
+FROM read_parquet(&#39;s3://public-land-cover/nlcd/hex-fractions/year=2024/h0=*/data_0.parquet&#39;) n
+SEMI JOIN top30 t ON n.h8 = t.h8 AND n.h0 = t.h0
+WHERE n.nlcd &lt;&gt; 250
+GROUP BY n.nlcd
+ORDER BY area_km2 DESC;
+&quot;&quot;&quot;).df()</code></pre></div></details>
+<pre class="chunk-output"><code>SQL Error: Binder Error: Ambiguous reference to column name &quot;h8&quot; (use: &quot;c.h8&quot; or &quot;m.h8&quot;)</code></pre>
+</div>
+<div class="chunk" data-tool="query">
+<details class="chunk-code"><summary>Code <span class="chunk-tool">query</span></summary><div class="code-variants"><pre class="code-variant" data-lang="sql"><code class="language-sql">WITH mobi AS (
+  SELECT h8, h0, species_richness
+  FROM read_parquet(&#39;s3://public-mobi/mobi-species-richness-all/hex/h0=*/data_0.parquet&#39;)
+  WHERE species_richness &gt; 0
+),
+carbon_h8 AS (
+  SELECT c.h8, c.h0, SUM(c.carbon) AS total_carbon
+  FROM read_parquet(&#39;s3://public-carbon/irrecoverable-carbon-2024/hex/h0=*/data_0.parquet&#39;) c
+  SEMI JOIN mobi m ON c.h8 = m.h8 AND c.h0 = m.h0
+  WHERE c.carbon &gt; 0
+  GROUP BY c.h8, c.h0
+),
+gap12 AS (
+  SELECT DISTINCT h8, h0
+  FROM read_parquet(&#39;s3://public-padus/padus-4-1/combined/hex/h0=*/data_0.parquet&#39;)
+  WHERE GAP_Sts IN (&#39;1&#39;, &#39;2&#39;)
+),
+eligible AS (
+  SELECT c.h8 AS h8, c.h0 AS h0, c.total_carbon, m.species_richness
+  FROM carbon_h8 c
+  JOIN mobi m ON c.h8 = m.h8 AND c.h0 = m.h0
+  ANTI JOIN gap12 g ON c.h8 = g.h8 AND c.h0 = g.h0
+),
+normed AS (
+  SELECT h8, h0,
+    total_carbon / MAX(total_carbon) OVER () AS carbon_norm,
+    species_richness / MAX(species_richness) OVER () AS mobi_norm
+  FROM eligible
+),
+scored AS (
+  SELECT h8, h0,
+    (carbon_norm + mobi_norm) / 2.0 AS score,
+    PERCENT_RANK() OVER (ORDER BY (carbon_norm + mobi_norm) / 2.0) AS pct
+  FROM normed
+),
+top30 AS (
+  SELECT h8, h0 FROM scored WHERE pct &gt;= 0.70
+)
+SELECT n.nlcd,
+  SUM(n.frac * h3_cell_area(n.h10, &#39;km^2&#39;)) AS area_km2
+FROM read_parquet(&#39;s3://public-land-cover/nlcd/hex-fractions/year=2024/h0=*/data_0.parquet&#39;) n
+SEMI JOIN top30 t ON n.h8 = t.h8 AND n.h0 = t.h0
+WHERE n.nlcd &lt;&gt; 250
+GROUP BY n.nlcd
+ORDER BY area_km2 DESC;</code></pre><pre class="code-variant" data-lang="r"><code class="language-r">df &lt;- dbGetQuery(con, r&quot;(
+WITH mobi AS (
+  SELECT h8, h0, species_richness
+  FROM read_parquet(&#39;s3://public-mobi/mobi-species-richness-all/hex/h0=*/data_0.parquet&#39;)
+  WHERE species_richness &gt; 0
+),
+carbon_h8 AS (
+  SELECT c.h8, c.h0, SUM(c.carbon) AS total_carbon
+  FROM read_parquet(&#39;s3://public-carbon/irrecoverable-carbon-2024/hex/h0=*/data_0.parquet&#39;) c
+  SEMI JOIN mobi m ON c.h8 = m.h8 AND c.h0 = m.h0
+  WHERE c.carbon &gt; 0
+  GROUP BY c.h8, c.h0
+),
+gap12 AS (
+  SELECT DISTINCT h8, h0
+  FROM read_parquet(&#39;s3://public-padus/padus-4-1/combined/hex/h0=*/data_0.parquet&#39;)
+  WHERE GAP_Sts IN (&#39;1&#39;, &#39;2&#39;)
+),
+eligible AS (
+  SELECT c.h8 AS h8, c.h0 AS h0, c.total_carbon, m.species_richness
+  FROM carbon_h8 c
+  JOIN mobi m ON c.h8 = m.h8 AND c.h0 = m.h0
+  ANTI JOIN gap12 g ON c.h8 = g.h8 AND c.h0 = g.h0
+),
+normed AS (
+  SELECT h8, h0,
+    total_carbon / MAX(total_carbon) OVER () AS carbon_norm,
+    species_richness / MAX(species_richness) OVER () AS mobi_norm
+  FROM eligible
+),
+scored AS (
+  SELECT h8, h0,
+    (carbon_norm + mobi_norm) / 2.0 AS score,
+    PERCENT_RANK() OVER (ORDER BY (carbon_norm + mobi_norm) / 2.0) AS pct
+  FROM normed
+),
+top30 AS (
+  SELECT h8, h0 FROM scored WHERE pct &gt;= 0.70
+)
+SELECT n.nlcd,
+  SUM(n.frac * h3_cell_area(n.h10, &#39;km^2&#39;)) AS area_km2
+FROM read_parquet(&#39;s3://public-land-cover/nlcd/hex-fractions/year=2024/h0=*/data_0.parquet&#39;) n
+SEMI JOIN top30 t ON n.h8 = t.h8 AND n.h0 = t.h0
+WHERE n.nlcd &lt;&gt; 250
+GROUP BY n.nlcd
+ORDER BY area_km2 DESC;
+)&quot;)</code></pre><pre class="code-variant" data-lang="python"><code class="language-python">df = con.sql(r&quot;&quot;&quot;
+WITH mobi AS (
+  SELECT h8, h0, species_richness
+  FROM read_parquet(&#39;s3://public-mobi/mobi-species-richness-all/hex/h0=*/data_0.parquet&#39;)
+  WHERE species_richness &gt; 0
+),
+carbon_h8 AS (
+  SELECT c.h8, c.h0, SUM(c.carbon) AS total_carbon
+  FROM read_parquet(&#39;s3://public-carbon/irrecoverable-carbon-2024/hex/h0=*/data_0.parquet&#39;) c
+  SEMI JOIN mobi m ON c.h8 = m.h8 AND c.h0 = m.h0
+  WHERE c.carbon &gt; 0
+  GROUP BY c.h8, c.h0
+),
+gap12 AS (
+  SELECT DISTINCT h8, h0
+  FROM read_parquet(&#39;s3://public-padus/padus-4-1/combined/hex/h0=*/data_0.parquet&#39;)
+  WHERE GAP_Sts IN (&#39;1&#39;, &#39;2&#39;)
+),
+eligible AS (
+  SELECT c.h8 AS h8, c.h0 AS h0, c.total_carbon, m.species_richness
+  FROM carbon_h8 c
+  JOIN mobi m ON c.h8 = m.h8 AND c.h0 = m.h0
+  ANTI JOIN gap12 g ON c.h8 = g.h8 AND c.h0 = g.h0
+),
+normed AS (
+  SELECT h8, h0,
+    total_carbon / MAX(total_carbon) OVER () AS carbon_norm,
+    species_richness / MAX(species_richness) OVER () AS mobi_norm
+  FROM eligible
+),
+scored AS (
+  SELECT h8, h0,
+    (carbon_norm + mobi_norm) / 2.0 AS score,
+    PERCENT_RANK() OVER (ORDER BY (carbon_norm + mobi_norm) / 2.0) AS pct
+  FROM normed
+),
+top30 AS (
+  SELECT h8, h0 FROM scored WHERE pct &gt;= 0.70
+)
+SELECT n.nlcd,
+  SUM(n.frac * h3_cell_area(n.h10, &#39;km^2&#39;)) AS area_km2
+FROM read_parquet(&#39;s3://public-land-cover/nlcd/hex-fractions/year=2024/h0=*/data_0.parquet&#39;) n
+SEMI JOIN top30 t ON n.h8 = t.h8 AND n.h0 = t.h0
+WHERE n.nlcd &lt;&gt; 250
+GROUP BY n.nlcd
+ORDER BY area_km2 DESC;
+&quot;&quot;&quot;).df()</code></pre></div></details>
+<div class="chunk-output"><table>
+<thead>
+<tr>
+<th align="right">nlcd</th>
+<th align="left">area_km2</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="right">41</td>
+<td align="left">252157.3411</td>
+</tr>
+<tr>
+<td align="right">42</td>
+<td align="left">104010.0436</td>
+</tr>
+<tr>
+<td align="right">81</td>
+<td align="left">78489.62827</td>
+</tr>
+<tr>
+<td align="right">90</td>
+<td align="left">77418.24195</td>
+</tr>
+<tr>
+<td align="right">43</td>
+<td align="left">65953.84554</td>
+</tr>
+<tr>
+<td align="right">21</td>
+<td align="left">42417.84612</td>
+</tr>
+<tr>
+<td align="right">52</td>
+<td align="left">40111.05011</td>
+</tr>
+<tr>
+<td align="right">71</td>
+<td align="left">23354.90334</td>
+</tr>
+<tr>
+<td align="right">82</td>
+<td align="left">22640.40548</td>
+</tr>
+<tr>
+<td align="right">22</td>
+<td align="left">20873.61377</td>
+</tr>
+<tr>
+<td align="right">95</td>
+<td align="left">16042.83696</td>
+</tr>
+<tr>
+<td align="right">11</td>
+<td align="left">13934.5628</td>
+</tr>
+<tr>
+<td align="right">23</td>
+<td align="left">7121.023503</td>
+</tr>
+<tr>
+<td align="right">31</td>
+<td align="left">2818.142576</td>
+</tr>
+<tr>
+<td align="right">24</td>
+<td align="left">1461.250474</td>
+</tr>
+<tr>
+<td align="right">12</td>
+<td align="left">0.1129486034</td>
+</tr>
+</tbody></table>
+</div>
+</div>
+<div class="chunk" data-tool="query">
+<details class="chunk-code"><summary>Code <span class="chunk-tool">query</span></summary><div class="code-variants"><pre class="code-variant" data-lang="sql"><code class="language-sql">WITH mobi AS (
+  SELECT h8, h0, species_richness
+  FROM read_parquet(&#39;s3://public-mobi/mobi-species-richness-all/hex/h0=*/data_0.parquet&#39;)
+  WHERE species_richness &gt; 0
+),
+carbon_h8 AS (
+  SELECT c.h8, c.h0, SUM(c.carbon) AS total_carbon
+  FROM read_parquet(&#39;s3://public-carbon/irrecoverable-carbon-2024/hex/h0=*/data_0.parquet&#39;) c
+  SEMI JOIN mobi m ON c.h8 = m.h8 AND c.h0 = m.h0
+  WHERE c.carbon &gt; 0
+  GROUP BY c.h8, c.h0
+),
+gap12 AS (
+  SELECT DISTINCT h8, h0
+  FROM read_parquet(&#39;s3://public-padus/padus-4-1/combined/hex/h0=*/data_0.parquet&#39;)
+  WHERE GAP_Sts IN (&#39;1&#39;, &#39;2&#39;)
+),
+eligible AS (
+  SELECT c.h8 AS h8, c.h0 AS h0, c.total_carbon, m.species_richness
+  FROM carbon_h8 c
+  JOIN mobi m ON c.h8 = m.h8 AND c.h0 = m.h0
+  ANTI JOIN gap12 g ON c.h8 = g.h8 AND c.h0 = g.h0
+),
+normed AS (
+  SELECT h8, h0,
+    total_carbon / MAX(total_carbon) OVER () AS carbon_norm,
+    species_richness / MAX(species_richness) OVER () AS mobi_norm
+  FROM eligible
+),
+scored AS (
+  SELECT h8, h0,
+    (carbon_norm + mobi_norm) / 2.0 AS score,
+    PERCENT_RANK() OVER (ORDER BY (carbon_norm + mobi_norm) / 2.0) AS pct
+  FROM normed
+),
+top30 AS (
+  SELECT h8, h0 FROM scored WHERE pct &gt;= 0.70
+),
+class_area AS (
+  SELECT n.nlcd,
+    SUM(n.frac * h3_cell_area(n.h10, &#39;km^2&#39;)) AS area_km2
+  FROM read_parquet(&#39;s3://public-land-cover/nlcd/hex-fractions/year=2024/h0=*/data_0.parquet&#39;) n
+  SEMI JOIN top30 t ON n.h8 = t.h8 AND n.h0 = t.h0
+  WHERE n.nlcd &lt;&gt; 250
+  GROUP BY n.nlcd
+)
+SELECT
+  nlcd,
+  CASE nlcd
+    WHEN 11 THEN &#39;Open Water&#39;
+    WHEN 12 THEN &#39;Perennial Ice/Snow&#39;
+    WHEN 21 THEN &#39;Developed, Open Space&#39;
+    WHEN 22 THEN &#39;Developed, Low Intensity&#39;
+    WHEN 23 THEN &#39;Developed, Medium Intensity&#39;
+    WHEN 24 THEN &#39;Developed, High Intensity&#39;
+    WHEN 31 THEN &#39;Barren Land&#39;
+    WHEN 41 THEN &#39;Deciduous Forest&#39;
+    WHEN 42 THEN &#39;Evergreen Forest&#39;
+    WHEN 43 THEN &#39;Mixed Forest&#39;
+    WHEN 52 THEN &#39;Shrub/Scrub&#39;
+    WHEN 71 THEN &#39;Herbaceous (Grassland)&#39;
+    WHEN 81 THEN &#39;Hay/Pasture&#39;
+    WHEN 82 THEN &#39;Cultivated Crops&#39;
+    WHEN 90 THEN &#39;Woody Wetlands&#39;
+    WHEN 95 THEN &#39;Emergent Herbaceous Wetlands&#39;
+  END AS land_cover_class,
+  ROUND(area_km2, 1) AS area_km2,
+  ROUND(100.0 * area_km2 / SUM(area_km2) OVER (), 2) AS pct_of_total
+FROM class_area
+ORDER BY area_km2 DESC;</code></pre><pre class="code-variant" data-lang="r"><code class="language-r">df &lt;- dbGetQuery(con, r&quot;(
+WITH mobi AS (
+  SELECT h8, h0, species_richness
+  FROM read_parquet(&#39;s3://public-mobi/mobi-species-richness-all/hex/h0=*/data_0.parquet&#39;)
+  WHERE species_richness &gt; 0
+),
+carbon_h8 AS (
+  SELECT c.h8, c.h0, SUM(c.carbon) AS total_carbon
+  FROM read_parquet(&#39;s3://public-carbon/irrecoverable-carbon-2024/hex/h0=*/data_0.parquet&#39;) c
+  SEMI JOIN mobi m ON c.h8 = m.h8 AND c.h0 = m.h0
+  WHERE c.carbon &gt; 0
+  GROUP BY c.h8, c.h0
+),
+gap12 AS (
+  SELECT DISTINCT h8, h0
+  FROM read_parquet(&#39;s3://public-padus/padus-4-1/combined/hex/h0=*/data_0.parquet&#39;)
+  WHERE GAP_Sts IN (&#39;1&#39;, &#39;2&#39;)
+),
+eligible AS (
+  SELECT c.h8 AS h8, c.h0 AS h0, c.total_carbon, m.species_richness
+  FROM carbon_h8 c
+  JOIN mobi m ON c.h8 = m.h8 AND c.h0 = m.h0
+  ANTI JOIN gap12 g ON c.h8 = g.h8 AND c.h0 = g.h0
+),
+normed AS (
+  SELECT h8, h0,
+    total_carbon / MAX(total_carbon) OVER () AS carbon_norm,
+    species_richness / MAX(species_richness) OVER () AS mobi_norm
+  FROM eligible
+),
+scored AS (
+  SELECT h8, h0,
+    (carbon_norm + mobi_norm) / 2.0 AS score,
+    PERCENT_RANK() OVER (ORDER BY (carbon_norm + mobi_norm) / 2.0) AS pct
+  FROM normed
+),
+top30 AS (
+  SELECT h8, h0 FROM scored WHERE pct &gt;= 0.70
+),
+class_area AS (
+  SELECT n.nlcd,
+    SUM(n.frac * h3_cell_area(n.h10, &#39;km^2&#39;)) AS area_km2
+  FROM read_parquet(&#39;s3://public-land-cover/nlcd/hex-fractions/year=2024/h0=*/data_0.parquet&#39;) n
+  SEMI JOIN top30 t ON n.h8 = t.h8 AND n.h0 = t.h0
+  WHERE n.nlcd &lt;&gt; 250
+  GROUP BY n.nlcd
+)
+SELECT
+  nlcd,
+  CASE nlcd
+    WHEN 11 THEN &#39;Open Water&#39;
+    WHEN 12 THEN &#39;Perennial Ice/Snow&#39;
+    WHEN 21 THEN &#39;Developed, Open Space&#39;
+    WHEN 22 THEN &#39;Developed, Low Intensity&#39;
+    WHEN 23 THEN &#39;Developed, Medium Intensity&#39;
+    WHEN 24 THEN &#39;Developed, High Intensity&#39;
+    WHEN 31 THEN &#39;Barren Land&#39;
+    WHEN 41 THEN &#39;Deciduous Forest&#39;
+    WHEN 42 THEN &#39;Evergreen Forest&#39;
+    WHEN 43 THEN &#39;Mixed Forest&#39;
+    WHEN 52 THEN &#39;Shrub/Scrub&#39;
+    WHEN 71 THEN &#39;Herbaceous (Grassland)&#39;
+    WHEN 81 THEN &#39;Hay/Pasture&#39;
+    WHEN 82 THEN &#39;Cultivated Crops&#39;
+    WHEN 90 THEN &#39;Woody Wetlands&#39;
+    WHEN 95 THEN &#39;Emergent Herbaceous Wetlands&#39;
+  END AS land_cover_class,
+  ROUND(area_km2, 1) AS area_km2,
+  ROUND(100.0 * area_km2 / SUM(area_km2) OVER (), 2) AS pct_of_total
+FROM class_area
+ORDER BY area_km2 DESC;
+)&quot;)</code></pre><pre class="code-variant" data-lang="python"><code class="language-python">df = con.sql(r&quot;&quot;&quot;
+WITH mobi AS (
+  SELECT h8, h0, species_richness
+  FROM read_parquet(&#39;s3://public-mobi/mobi-species-richness-all/hex/h0=*/data_0.parquet&#39;)
+  WHERE species_richness &gt; 0
+),
+carbon_h8 AS (
+  SELECT c.h8, c.h0, SUM(c.carbon) AS total_carbon
+  FROM read_parquet(&#39;s3://public-carbon/irrecoverable-carbon-2024/hex/h0=*/data_0.parquet&#39;) c
+  SEMI JOIN mobi m ON c.h8 = m.h8 AND c.h0 = m.h0
+  WHERE c.carbon &gt; 0
+  GROUP BY c.h8, c.h0
+),
+gap12 AS (
+  SELECT DISTINCT h8, h0
+  FROM read_parquet(&#39;s3://public-padus/padus-4-1/combined/hex/h0=*/data_0.parquet&#39;)
+  WHERE GAP_Sts IN (&#39;1&#39;, &#39;2&#39;)
+),
+eligible AS (
+  SELECT c.h8 AS h8, c.h0 AS h0, c.total_carbon, m.species_richness
+  FROM carbon_h8 c
+  JOIN mobi m ON c.h8 = m.h8 AND c.h0 = m.h0
+  ANTI JOIN gap12 g ON c.h8 = g.h8 AND c.h0 = g.h0
+),
+normed AS (
+  SELECT h8, h0,
+    total_carbon / MAX(total_carbon) OVER () AS carbon_norm,
+    species_richness / MAX(species_richness) OVER () AS mobi_norm
+  FROM eligible
+),
+scored AS (
+  SELECT h8, h0,
+    (carbon_norm + mobi_norm) / 2.0 AS score,
+    PERCENT_RANK() OVER (ORDER BY (carbon_norm + mobi_norm) / 2.0) AS pct
+  FROM normed
+),
+top30 AS (
+  SELECT h8, h0 FROM scored WHERE pct &gt;= 0.70
+),
+class_area AS (
+  SELECT n.nlcd,
+    SUM(n.frac * h3_cell_area(n.h10, &#39;km^2&#39;)) AS area_km2
+  FROM read_parquet(&#39;s3://public-land-cover/nlcd/hex-fractions/year=2024/h0=*/data_0.parquet&#39;) n
+  SEMI JOIN top30 t ON n.h8 = t.h8 AND n.h0 = t.h0
+  WHERE n.nlcd &lt;&gt; 250
+  GROUP BY n.nlcd
+)
+SELECT
+  nlcd,
+  CASE nlcd
+    WHEN 11 THEN &#39;Open Water&#39;
+    WHEN 12 THEN &#39;Perennial Ice/Snow&#39;
+    WHEN 21 THEN &#39;Developed, Open Space&#39;
+    WHEN 22 THEN &#39;Developed, Low Intensity&#39;
+    WHEN 23 THEN &#39;Developed, Medium Intensity&#39;
+    WHEN 24 THEN &#39;Developed, High Intensity&#39;
+    WHEN 31 THEN &#39;Barren Land&#39;
+    WHEN 41 THEN &#39;Deciduous Forest&#39;
+    WHEN 42 THEN &#39;Evergreen Forest&#39;
+    WHEN 43 THEN &#39;Mixed Forest&#39;
+    WHEN 52 THEN &#39;Shrub/Scrub&#39;
+    WHEN 71 THEN &#39;Herbaceous (Grassland)&#39;
+    WHEN 81 THEN &#39;Hay/Pasture&#39;
+    WHEN 82 THEN &#39;Cultivated Crops&#39;
+    WHEN 90 THEN &#39;Woody Wetlands&#39;
+    WHEN 95 THEN &#39;Emergent Herbaceous Wetlands&#39;
+  END AS land_cover_class,
+  ROUND(area_km2, 1) AS area_km2,
+  ROUND(100.0 * area_km2 / SUM(area_km2) OVER (), 2) AS pct_of_total
+FROM class_area
+ORDER BY area_km2 DESC;
+&quot;&quot;&quot;).df()</code></pre></div></details>
+<div class="chunk-output"><table>
+<thead>
+<tr>
+<th align="right">nlcd</th>
+<th align="left">land_cover_class</th>
+<th align="left">area_km2</th>
+<th align="left">pct_of_total</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="right">41</td>
+<td align="left">Deciduous Forest</td>
+<td align="left">252157.3</td>
+<td align="left">32.8</td>
+</tr>
+<tr>
+<td align="right">42</td>
+<td align="left">Evergreen Forest</td>
+<td align="left">104010</td>
+<td align="left">13.53</td>
+</tr>
+<tr>
+<td align="right">81</td>
+<td align="left">Hay/Pasture</td>
+<td align="left">78489.6</td>
+<td align="left">10.21</td>
+</tr>
+<tr>
+<td align="right">90</td>
+<td align="left">Woody Wetlands</td>
+<td align="left">77418.2</td>
+<td align="left">10.07</td>
+</tr>
+<tr>
+<td align="right">43</td>
+<td align="left">Mixed Forest</td>
+<td align="left">65953.8</td>
+<td align="left">8.58</td>
+</tr>
+<tr>
+<td align="right">21</td>
+<td align="left">Developed, Open Space</td>
+<td align="left">42417.8</td>
+<td align="left">5.52</td>
+</tr>
+<tr>
+<td align="right">52</td>
+<td align="left">Shrub/Scrub</td>
+<td align="left">40111.1</td>
+<td align="left">5.22</td>
+</tr>
+<tr>
+<td align="right">71</td>
+<td align="left">Herbaceous (Grassland)</td>
+<td align="left">23354.9</td>
+<td align="left">3.04</td>
+</tr>
+<tr>
+<td align="right">82</td>
+<td align="left">Cultivated Crops</td>
+<td align="left">22640.4</td>
+<td align="left">2.94</td>
+</tr>
+<tr>
+<td align="right">22</td>
+<td align="left">Developed, Low Intensity</td>
+<td align="left">20873.6</td>
+<td align="left">2.72</td>
+</tr>
+<tr>
+<td align="right">95</td>
+<td align="left">Emergent Herbaceous Wetlands</td>
+<td align="left">16042.8</td>
+<td align="left">2.09</td>
+</tr>
+<tr>
+<td align="right">11</td>
+<td align="left">Open Water</td>
+<td align="left">13934.6</td>
+<td align="left">1.81</td>
+</tr>
+<tr>
+<td align="right">23</td>
+<td align="left">Developed, Medium Intensity</td>
+<td align="left">7121</td>
+<td align="left">0.93</td>
+</tr>
+<tr>
+<td align="right">31</td>
+<td align="left">Barren Land</td>
+<td align="left">2818.1</td>
+<td align="left">0.37</td>
+</tr>
+<tr>
+<td align="right">24</td>
+<td align="left">Developed, High Intensity</td>
+<td align="left">1461.3</td>
+<td align="left">0.19</td>
+</tr>
+<tr>
+<td align="right">12</td>
+<td align="left">Perennial Ice/Snow</td>
+<td align="left">0.1</td>
+<td align="left">0</td>
+</tr>
+</tbody></table>
+</div>
+</div>
+<div class="report-prose"><p>Here's the NLCD land cover composition (2024) for the top 30% combined-score hexes:</p>
+<h3>NLCD Land Cover in the Top 30% Priority Hexes</h3>
+<table>
+<thead>
+<tr>
+<th align="right">NLCD Code</th>
+<th>Land Cover Class</th>
+<th align="right">Area (km²)</th>
+<th align="right">% of Total</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="right">41</td>
+<td><strong>Deciduous Forest</strong></td>
+<td align="right">252,157</td>
+<td align="right"><strong>32.80%</strong></td>
+</tr>
+<tr>
+<td align="right">42</td>
+<td><strong>Evergreen Forest</strong></td>
+<td align="right">104,010</td>
+<td align="right"><strong>13.53%</strong></td>
+</tr>
+<tr>
+<td align="right">81</td>
+<td>Hay/Pasture</td>
+<td align="right">78,490</td>
+<td align="right">10.21%</td>
+</tr>
+<tr>
+<td align="right">90</td>
+<td><strong>Woody Wetlands</strong></td>
+<td align="right">77,418</td>
+<td align="right"><strong>10.07%</strong></td>
+</tr>
+<tr>
+<td align="right">43</td>
+<td><strong>Mixed Forest</strong></td>
+<td align="right">65,954</td>
+<td align="right"><strong>8.58%</strong></td>
+</tr>
+<tr>
+<td align="right">21</td>
+<td>Developed, Open Space</td>
+<td align="right">42,418</td>
+<td align="right">5.52%</td>
+</tr>
+<tr>
+<td align="right">52</td>
+<td>Shrub/Scrub</td>
+<td align="right">40,111</td>
+<td align="right">5.22%</td>
+</tr>
+<tr>
+<td align="right">71</td>
+<td>Herbaceous (Grassland)</td>
+<td align="right">23,355</td>
+<td align="right">3.04%</td>
+</tr>
+<tr>
+<td align="right">82</td>
+<td>Cultivated Crops</td>
+<td align="right">22,640</td>
+<td align="right">2.94%</td>
+</tr>
+<tr>
+<td align="right">22</td>
+<td>Developed, Low Intensity</td>
+<td align="right">20,874</td>
+<td align="right">2.72%</td>
+</tr>
+<tr>
+<td align="right">95</td>
+<td>Emergent Herbaceous Wetlands</td>
+<td align="right">16,043</td>
+<td align="right">2.09%</td>
+</tr>
+<tr>
+<td align="right">11</td>
+<td>Open Water</td>
+<td align="right">13,935</td>
+<td align="right">1.81%</td>
+</tr>
+<tr>
+<td align="right">23</td>
+<td>Developed, Medium Intensity</td>
+<td align="right">7,121</td>
+<td align="right">0.93%</td>
+</tr>
+<tr>
+<td align="right">31</td>
+<td>Barren Land</td>
+<td align="right">2,818</td>
+<td align="right">0.37%</td>
+</tr>
+<tr>
+<td align="right">24</td>
+<td>Developed, High Intensity</td>
+<td align="right">1,461</td>
+<td align="right">0.19%</td>
+</tr>
+<tr>
+<td align="right">12</td>
+<td>Perennial Ice/Snow</td>
+<td align="right">0.1</td>
+<td align="right">~0%</td>
+</tr>
+</tbody></table>
+<p><strong>Total area: ~769,000 km²</strong></p>
+<h3>Key Takeaways</h3>
+<ul>
+<li><p><strong>Forests dominate</strong> — Deciduous (32.8%), Evergreen (13.5%), and Mixed (8.6%) forest together account for <strong>~55%</strong> of the top-priority area. This aligns with both high irrecoverable carbon storage (forest biomass and soils) and high species richness (forest habitat diversity).</p>
+</li>
+<li><p><strong>Wetlands are disproportionately represented</strong> — Woody Wetlands (10.1%) and Emergent Herbaceous Wetlands (2.1%) together make up <strong>~12%</strong>, well above their typical CONUS land cover share. Wetlands are critical for both carbon sequestration and biodiversity, which drives their high combined scores.</p>
+</li>
+<li><p><strong>Agricultural lands</strong> (Hay/Pasture + Cultivated Crops) account for <strong>~13%</strong>, suggesting some priority areas overlap with working lands — potential conservation easement or sustainable agriculture opportunities.</p>
+</li>
+<li><p><strong>Developed land</strong> is relatively low at <strong>~9.4%</strong> (mostly open-space development), reflecting that the highest-value carbon + biodiversity cells tend to be in less-urbanized landscapes.</p>
+</li>
+<li><p><strong>Shrub/Scrub and Grassland</strong> together account for <strong>~8.3%</strong>, representing arid and semi-arid ecosystems that may have lower carbon but high species richness (especially in the Southwest).</p>
+</li>
+</ul>
+</div>
+
+
+</section>
+</main>
+<section class="report-appendix" id="session-log">
+<h2>Session log</h2>
+<p class="report-appendix-note">Every tool call the agent made, in order, with its arguments and result — including the lookups and failed attempts the sections above leave out. Credentials are scrubbed; long results are cut.</p>
+<details class="log-turn" id="session-log-1" data-print-closed>
+<summary>1. what are the top 30% of us h8 hexes in terms of equal weight carbon, mobi score… — 9 calls</summary>
+<div class="log-call">
+<p class="log-call-name">✓ <code>get_schema</code></p>
+<pre class="log-args"><code>{
+  &quot;dataset_id&quot;: &quot;irrecoverable-carbon&quot;
+}</code></pre>
+<pre class="log-result"><code>**Irrecoverable Earth: Carbon Reserves (v2, 2025 release)**
+Collection ID: `irrecoverable-carbon`
+collection_url: `https://s3-west.nrp-nautilus.io/public-carbon/stac-collection.json`
+Global carbon storage mapping irrecoverable carbon (stocks that, if lost, cannot be recovered by 2050), manageable carbon, and vulnerable carbon (nested pools: manageable ⊃ vulnerable ⊃ irrecoverable). Derived from the Conservation International v2 (2025) update of Noon et al. (2022, Nature Sustainability), Zenodo 17645053. Irrecoverable covers 2018, 2022, 2023, 2024; vulnerable and manageable cover 2010, 2018, 2024. (Irrecoverable 2010 is not included — the Zenodo source TIFF is corrupt.) Source rasters are ~300 m carbon DENSITY in Mg C ha⁻¹ on a WGS84 grid, provided here as Cloud-Optimized GeoTIFFs (the COG assets, unchanged from source) and as H3 resolution-9 hexagonal parquet.
+
+HEX `carbon` = TOTAL carbon in Mg C (tonnes) per H3 cell, obtained by area-integrating the source density: each ~300 m pixel&#39;s density (Mg C/ha) is multiplied by the pixel&#39;s ground area (latitude-dependent on the WGS84 grid) and apportioned to the H3 cells it overlaps, giving exactly ONE row per h9 cell. SUM(carbon) over hex rows is therefore directly valid as a carbon TOTAL — no GROUP BY or dedup. Parent resolutions 8,7,6,5 are columns (h8…h5); h0 is the hive partition key.
+
+VALIDATION (data-workflows #330): hex SUM(carbon) matches an independent full-resolution area-integral of the source COG to a uniform +0.22% on every layer (a benign H3-cell-area vs exact-pixel discretization offset). These straight area-integrals run ~2–3% above Conservation International&#39;s published committed-loss headline figures — e.g. irrecoverable 2024 = 131.9 Gt C here vs CI&#39;s 128.0 Gt; CI corrected the original 2018 baseline from 139.1 to 135.3 Gt. The per-year series is therefore NOT strictly monotonic in a raw integral (e.g. irrecoverable rises slightly 2023→2024), reflecting the shipped density rasters rather than CI&#39;s account
+... (truncated)</code></pre>
+</div>
+<div class="log-call">
+<p class="log-call-name">✓ <code>get_schema</code></p>
+<pre class="log-args"><code>{
+  &quot;dataset_id&quot;: &quot;mobi-species-richness-all&quot;
+}</code></pre>
+<pre class="log-result"><code>**MOBI Species Richness (All Taxa)**
+Collection ID: `mobi-species-richness-all`
+collection_url: `https://s3-west.nrp-nautilus.io/public-mobi/mobi-species-richness-all/stac-collection.json`
+Map of Biodiversity Importance (MOBI) — total species richness across all modeled taxa, aggregated to H3 resolution 8 hexagonal cells (~0.74 km² each). MOBI integrates NatureServe habitat models for ~2,400 imperiled and endemic species of vertebrates, invertebrates, and plants across the contiguous United States. For each H3 cell this layer reports the maximum modeled species richness (count of species with predicted suitable habitat) among the source-raster pixels covering the cell, computed by area-weighted exact-extract aggregation with the `max` reducer (one row per cell; the peak, not the average, so coarse-resolution rollups via GROUP BY + MAX preserve hotspots). Produced by NatureServe.
+
+SQL data (use with `query` tool):
+  - MOBI Species Richness — H3 Hex Parquet (resolution 8, exact-extract max): `read_parquet(&#39;s3://public-mobi/mobi-species-richness-all/hex/h0=*/data_0.parquet&#39;)`
+    - h3:native_resolution: 8
+    - h3:parent_resolutions: [7, 6, 5, 0]
+    - columns: `species_richness` (float), `h8` (uint64), `h7` (uint64), `h6` (uint64), `h5` (uint64), `h0` (int64)
+
+Column descriptions (shared across the assets above):
+    - `species_richness` (float) — Maximum modeled species richness (count of species with predicted suitable habitat) among source-raster pixels covering this cell, via area-weighted exact-extract with the `max` reducer. One row per cell — query directly, no GROUP BY needed. Integer-valued, range 0–32. To view at a coarser resolution, GROUP BY h7 (or h6/h5) and take MAX(species_richness) — MAX-of-MAX preserves the hotspot; never AVG/SUM across the rollup.
+    - `h8` (uint64) — H3 cell index at resolution 8 (native resolution; one row per h8 cell).
+    - `h7` (uint64) — H3 cell index at resolution 7 (parent of h8; rollup key).
+    - `h6` (uint64) — H3 cell in
+... (truncated)</code></pre>
+</div>
+<div class="log-call">
+<p class="log-call-name">✓ <code>get_schema</code></p>
+<pre class="log-args"><code>{
+  &quot;dataset_id&quot;: &quot;pad-us-4.1-combined&quot;
+}</code></pre>
+<pre class="log-result"><code>**PAD-US 4.1 Combined - All Protection Types**
+Collection ID: `pad-us-4.1-combined`
+collection_url: `https://s3-west.nrp-nautilus.io/public-padus/padus-4-1/combined/stac-collection.json`
+The Protected Areas Database of the United States (PAD-US) 4.1 Combined layer integrates all protection types (fee ownership, easements, proclamation boundaries, marine areas, and designations) into a comprehensive national inventory of 656,986 protected areas. Managed by USGS Gap Analysis Project (GAP), this authoritative dataset combines federal, state, local, and private conservation lands indexed by H3 hexagons. Most features are at resolution 10 (~15m² cells), with 20 extremely complex geometries at resolution 8 (~0.74 km² cells). IMPORTANT: Features may overlap - a single location can have multiple protection types. Overlapping features produce duplicate hex rows — use SELECT DISTINCT h8, h0 before joining to avoid double-counting. Area column (GIS_Acres) stores the source polygon&#39;s total area repeated on every hex row; never SUM it on hex data — compute area from hex count instead.
+
+SQL data (use with `query` tool):
+  - GeoParquet file with all 656,986 protected areas: `read_parquet(&#39;s3://public-padus/padus-4-1/combined.parquet&#39;)`
+    - Cloud-native GeoParquet format optimized for analytical queries. Use with DuckDB, Polars, pandas, or any GeoParquet-compatible tool. Geometries in EPSG:4326.
+    - columns: `_cng_fid` (int64), `FeatClass` (string), `Category` (string), `Own_Type` (string), `Own_Name` (string), `Loc_Own` (string), `Mang_Type` (string), `Mang_Name` (string), `Loc_Mang` (string), `Des_Tp` (string), `Loc_Ds` (string), `Unit_Nm` (string), `Loc_Nm` (string), `State_Nm` (string), `Agg_Src` (string), `GIS_Src` (string), `Src_Date` (string), `GIS_Acres` (int32), `Source_PAID` (string), `WDPA_Cd` (int32), `Pub_Access` (string), `Access_Src` (string), `Access_Dt` (string), `GAP_Sts` (string), `GAPCdSrc` (string), `GAPCdDt` (string), `IUCN_Cat` (string), `IUCNCtSrc` (stri
+... (truncated)</code></pre>
+</div>
+<div class="log-call">
+<p class="log-call-name">✓ <code>query</code> <span class="log-tag">MCP</span></p>
+<pre class="log-args"><code>{
+  &quot;sql_query&quot;: &quot;WITH mobi AS (\n  SELECT h8, h0, species_richness\n  FROM read_parquet(&#39;s3://public-mobi/mobi-species-richness-all/hex/h0=*/data_0.parquet&#39;, hive_partitioning = true)\n  WHERE species_richness IS NOT NULL\n),\ncarbon_h8 AS (\n  SELECT c.h8, c.h0, SUM(c.carbon) AS carbon_total\n  FROM read_parquet(&#39;s3://public-carbon/irrecoverable-carbon-2024/hex/h0=*/data_0.parquet&#39;, hive_partitioning = true) c\n  SEMI JOIN mobi m ON c.h8 = m.h8 AND c.h0 = m.h0\n  WHERE c.carbon IS NOT NULL AND NOT isnan(c.carbon)\n  GROUP BY c.h8, c.h0\n),\ngap12 AS (\n  SELECT DISTINCT h8, h0\n  FROM read_parquet(&#39;s3://public-padus/padus-4-1/combined/hex/h0=*/data_0.parquet&#39;, hive_partitioning = true)\n  WHERE GAP_Sts IN (&#39;1&#39;, &#39;2&#39;)\n),\ncombined AS (\n  SELECT m.h8, m.h0, m.species_richness, c.carbon_total\n  FROM mobi m\n  JOIN carbon_h8 c ON m.h8 = c.h8 AND m.h0 = c.h0\n  ANTI JOIN gap12 g ON m.h8 = g.h8 AND m.h0 = g.h0\n),\nnormalized AS (\n  SELECT \n    h8, h0, species_richness, carbon_total,\n    (species_richness - MIN(species_richness) OVER ()) / NULLIF(MAX(species_richness) OVER () - MIN(species_richness) OVER (), 0) AS mobi_norm,\n    (carbon_total - MIN(carbon_total) OVER ()) / NULLIF(MAX(carbon_total) OVER () - MIN(carbon_total) OVER (), 0) AS carbon_norm\n  FROM combined\n),\nscored AS (\n  SELECT \n    h8, h0, species_richness, carbon_total,\n    (mobi_norm + carbon_norm) / 2.0 AS combined_score\n  FROM normalized\n)\nSELECT \n  COUNT(*) AS total_hexes,\n  MIN(combined_score) AS min_score,\n  MAX(combined_score) AS max_score,\n  AVG(combined_score) AS avg_score,\n  quantile(combined_score, 0.70) AS p70_threshold,\n  MIN(species_richness) AS min_mobi,\n  MAX(species_richness) AS max_mobi,\n  MIN(carbon_total) AS min_carbon,\n  MAX(carbon_total) AS max_carbon\nFROM scored;&quot;
+}</code></pre>
+<pre class="log-result"><code>|   total_hexes | min_score   | max_score    | avg_score     | p70_threshold   | min_mobi   | max_mobi   | min_carbon   | max_carbon   |
+|--------------:|:------------|:-------------|:--------------|:----------------|:-----------|:-----------|:-------------|:-------------|
+|       9238348 | 0           | 0.5638503891 | 0.04415103347 | 0.06129718948   | 0          | 32         | 0            | 28341.98819  |</code></pre>
+</div>
+<div class="log-call">
+<p class="log-call-name">✓ <code>register_hex_tiles</code> <span class="log-tag">MCP</span></p>
+<pre class="log-args"><code>{
+  &quot;sql_query&quot;: &quot;WITH mobi AS (\n  SELECT h8, h0, species_richness\n  FROM read_parquet(&#39;s3://public-mobi/mobi-species-richness-all/hex/h0=*/data_0.parquet&#39;, hive_partitioning = true)\n  WHERE species_richness IS NOT NULL\n),\ncarbon_h8 AS (\n  SELECT c.h8, c.h0, SUM(c.carbon) AS carbon_total\n  FROM read_parquet(&#39;s3://public-carbon/irrecoverable-carbon-2024/hex/h0=*/data_0.parquet&#39;, hive_partitioning = true) c\n  SEMI JOIN mobi m ON c.h8 = m.h8 AND c.h0 = m.h0\n  WHERE c.carbon IS NOT NULL AND NOT isnan(c.carbon)\n  GROUP BY c.h8, c.h0\n),\ngap12 AS (\n  SELECT DISTINCT h8, h0\n  FROM read_parquet(&#39;s3://public-padus/padus-4-1/combined/hex/h0=*/data_0.parquet&#39;, hive_partitioning = true)\n  WHERE GAP_Sts IN (&#39;1&#39;, &#39;2&#39;)\n),\ncombined AS (\n  SELECT m.h8, m.h0,\n    (m.species_richness / 32.0 + c.carbon_total / 28341.98819) / 2.0 AS combined_score\n  FROM mobi m\n  JOIN carbon_h8 c ON m.h8 = c.h8 AND m.h0 = c.h0\n  ANTI JOIN gap12 g ON m.h8 = g.h8 AND m.h0 = g.h0\n)\nSELECT h8, combined_score\nFROM combined\nWHERE combined_score &gt;= 0.06129718948&quot;,
+  &quot;agg&quot;: &quot;AVG&quot;,
+  &quot;color_scale&quot;: &quot;log&quot;,
+  &quot;layer_style&quot;: &quot;fill&quot;
+}</code></pre>
+<pre class="log-result"><code>{
+  &quot;hash&quot;: &quot;3c1465ee6e894dd5&quot;,
+  &quot;tile_url_template&quot;: &quot;https://duckdb-mcp.nrp-nautilus.io/tiles/hex/3c1465ee6e894dd5/{z}/{x}/{y}.pbf&quot;,
+  &quot;status&quot;: &quot;running&quot;
+}</code></pre>
+</div>
+<div class="log-call">
+<p class="log-call-name">✓ <code>get_hex_tile_status</code> <span class="log-tag">MCP</span></p>
+<pre class="log-args"><code>{
+  &quot;hash&quot;: &quot;3c1465ee6e894dd5&quot;,
+  &quot;wait_seconds&quot;: 30
+}</code></pre>
+<pre class="log-result"><code>{
+  &quot;hash&quot;: &quot;3c1465ee6e894dd5&quot;,
+  &quot;tile_url_template&quot;: &quot;https://duckdb-mcp.nrp-nautilus.io/tiles/hex/3c1465ee6e894dd5/{z}/{x}/{y}.pbf&quot;,
+  &quot;status&quot;: &quot;running&quot;,
+  &quot;elapsed_seconds&quot;: 38.5
+}</code></pre>
+</div>
+<div class="log-call">
+<p class="log-call-name">✓ <code>get_hex_tile_status</code> <span class="log-tag">MCP</span></p>
+<pre class="log-args"><code>{
+  &quot;hash&quot;: &quot;3c1465ee6e894dd5&quot;,
+  &quot;wait_seconds&quot;: 30
+}</code></pre>
+<pre class="log-result"><code>{
+  &quot;hash&quot;: &quot;3c1465ee6e894dd5&quot;,
+  &quot;tile_url_template&quot;: &quot;https://duckdb-mcp.nrp-nautilus.io/tiles/hex/3c1465ee6e894dd5/{z}/{x}/{y}.pbf&quot;,
+  &quot;status&quot;: &quot;done&quot;,
+  &quot;bounds&quot;: [
+    -124.72767854808644,
+    24.550531479033406,
+    -67.11138415118738,
+    49.007878026010225
+  ],
+  &quot;finest_res&quot;: 8,
+  &quot;min_res&quot;: 2,
+  &quot;zoom_offset&quot;: 2,
+  &quot;value_columns&quot;: [
+    &quot;combined_score&quot;
+  ],
+  &quot;value_stats&quot;: {
+    &quot;combined_score&quot;: {
+      &quot;by_res&quot;: {
+        &quot;2&quot;: {
+          &quot;min&quot;: 0.06300853503121273,
+          &quot;max&quot;: 0.2614799627908353,
+          &quot;mean&quot;: 0.09542878436550603
+        },
+        &quot;3&quot;: {
+          &quot;min&quot;: 0.061870841538592125,
+          &quot;max&quot;: 0.26591335268459937,
+          &quot;mean&quot;: 0.09001642615039768
+        },
+        &quot;4&quot;: {
+          &quot;min&quot;: 0.061509545000567906,
+          &quot;max&quot;: 0.3157476545891986,
+          &quot;mean&quot;: 0.08924018135919407
+        },
+        &quot;5&quot;: {
+          &quot;min&quot;: 0.061302084912362075,
+          &quot;max&quot;: 0.37228272668022544,
+          &quot;mean&quot;: 0.09029589283691486
+        },
+        &quot;6&quot;: {
+          &quot;min&quot;: 0.061298221004414385,
+          &quot;max&quot;: 0.5155148253612151,
+          &quot;mean&quot;: 0.09254286270476583
+        },
+        &quot;7&quot;: {
+          &quot;min&quot;: 0.06129772781696348,
+          &quot;max&quot;: 0.5281333462551301,
+          &quot;mean&quot;: 0.09615766538224027
+        },
+        &quot;8&quot;: {
+          &quot;min&quot;: 0.06129723260903406,
+          &quot;max&quot;: 0.5638503890988464,
+          &quot;mean&quot;: 0.10101636534814741
+        }
+      },
+      &quot;suggested_scale&quot;: &quot;linear&quot;
+    }
+  },
+  &quot;layer_name&quot;: &quot;layer&quot;,
+  &quot;feature_count_finest&quot;: 2771504,
+  &quot;source&quot;: {
+    &quot;type&quot;: &quot;vector&quot;,
+    &quot;tiles&quot;: [
+      &quot;https://duckdb-mcp.nrp-nautilus.io/tiles/hex/3c1465ee6e894dd5/{z}/{x}/{y}.pbf&quot;
+    ],
+    &quot;minzoom&quot;: 0,
+    &quot;maxzoom&quot;: 14
+  },
+  &quot;layer&quot;: {
+    &quot;type&quot;: &quot;fill&quot;,
+    &quot;source-layer&quot;: &quot;layer&quot;,
+    &quot;paint&quot;: {
+      &quot;fill-color&quot;: [
+        &quot;interpolate&quot;,
+        [
+          &quot;linear&quot;
+        ],
+        [
+          &quot;get&quot;,
+          &quot;combined_score&quot;
+        ],
+        0.06129723260903406,
+        &quot;#440154&quot;,
+        0.1618
+... (truncated)</code></pre>
+</div>
+<div class="log-call">
+<p class="log-call-name">✓ <code>add_hex_tile_layer</code></p>
+<pre class="log-args"><code>{
+  &quot;tile_url&quot;: &quot;https://duckdb-mcp.nrp-nautilus.io/tiles/hex/3c1465ee6e894dd5/{z}/{x}/{y}.pbf&quot;,
+  &quot;value_column&quot;: &quot;combined_score&quot;,
+  &quot;display_name&quot;: &quot;Top 30% Combined Score (Carbon + MOBI, excl. GAP 1/2)&quot;,
+  &quot;palette&quot;: &quot;viridis&quot;,
+  &quot;opacity&quot;: 0.7,
+  &quot;fit_bounds&quot;: true
+}</code></pre>
+<pre class="log-result"><code>{&quot;success&quot;:true,&quot;layer_id&quot;:&quot;hex-3c1465ee6e894dd5&quot;,&quot;display_name&quot;:&quot;Top 30% Combined Score (Carbon + MOBI, excl. GAP 1/2)&quot;,&quot;value_column&quot;:&quot;combined_score&quot;,&quot;bounds&quot;:[-124.72767854808644,24.550531479033406,-67.11138415118738,49.007878026010225],&quot;already_exists&quot;:false}</code></pre>
+</div>
+<div class="log-call">
+<p class="log-call-name">✓ <code>set_legend</code></p>
+<pre class="log-args"><code>{
+  &quot;layer_id&quot;: &quot;hex-3c1465ee6e894dd5&quot;,
+  &quot;title&quot;: &quot;Top 30% Priority Hexes (Carbon + Biodiversity)&quot;,
+  &quot;units&quot;: &quot;combined normalized score (0–1)&quot;
+}</code></pre>
+<pre class="log-result"><code>{&quot;success&quot;:true,&quot;layer&quot;:&quot;hex-3c1465ee6e894dd5&quot;,&quot;displayName&quot;:&quot;Top 30% Priority Hexes (Carbon + Biodiversity)&quot;,&quot;legend&quot;:{&quot;type&quot;:&quot;hex&quot;,&quot;rendered&quot;:true,&quot;units&quot;:&quot;combined normalized score (0–1)&quot;}}</code></pre>
+</div>
+
+</details>
+<details class="log-turn" id="session-log-2" data-print-closed>
+<summary>2. what NCLD land cover is represented here? — 7 calls</summary>
+<div class="log-call">
+<p class="log-call-name">✓ <code>get_schema</code></p>
+<pre class="log-args"><code>{
+  &quot;dataset_id&quot;: &quot;nlcd&quot;
+}</code></pre>
+<pre class="log-result"><code>**Annual NLCD Land Cover &amp; Land-Cover Change, CONUS 1985-2025 (Collection 1.2)**
+Collection ID: `nlcd`
+collection_url: `https://s3-west.nrp-nautilus.io/public-land-cover/nlcd/stac-collection.json`
+Annual National Land Cover Database (NLCD), MRLC/USGS **Collection 1.2 (C1V2)**, conterminous US, 30 m. A single consistent-version time series across 19 map years (1985, 1990, 1994, 1996, 1998, 2000, 2005, 2010, then annual 2015-2025) so cross-year change is valid. Per-year visualization COGs (`nlcd-cog-&lt;year&gt;`, the app year/versions dropdown) plus two unified, hive-partitioned H3 hex products keyed by a `year` column: **mode** (dominant class, `nlcd-hex`) and **per-class fractional coverage** (`nlcd-hex-fractions`). Source rasters reprojected from Albers (EPSG:5070) to WGS84 with nearest-neighbor (class codes preserved) and aggregated to H3 res 10 (parents 9,8,7,6,5,0). nodata = 250.
+
+**Land-cover change** is derived, not a separate product: it is a self-join on the H3 cell across any two years of the hex (the grid is identical across years), and any two per-year COGs can be differenced directly. No baked multi-year transition raster is published, so the consumer chooses the interval rather than inheriting one.
+
+**Timing caveat (important for event studies):** Annual NLCD is a growing-season composite, so a map year reflects conditions during that year&#39;s growing season. For events dated late in the calendar year, the first *clean* post-event year is the following map year (e.g. an event in Dec 2017 first appears in the 2018 layer, not 2017). Land cover also lags policy by years (lease -&gt; permit -&gt; disturbance), so a single post-event year may show little change either way. Most NLCD change in shrub-steppe regions is reshuffling among Shrub/Grassland/Forest; well pads, mines, fire scars, and development are the clearest class flips.
+
+SQL data (use with `query` tool):
+  - Annual NLCD land cover — H3 hex (mode), all years: `read_parquet(&#39;s3://public-land-cover/nlcd/hex/year
+... (truncated)</code></pre>
+</div>
+<div class="log-call">
+<p class="log-call-name">✓ <code>get_schema</code></p>
+<pre class="log-args"><code>{
+  &quot;dataset_id&quot;: &quot;irrecoverable-carbon&quot;
+}</code></pre>
+<pre class="log-result"><code>**Irrecoverable Earth: Carbon Reserves (v2, 2025 release)**
+Collection ID: `irrecoverable-carbon`
+collection_url: `https://s3-west.nrp-nautilus.io/public-carbon/stac-collection.json`
+Global carbon storage mapping irrecoverable carbon (stocks that, if lost, cannot be recovered by 2050), manageable carbon, and vulnerable carbon (nested pools: manageable ⊃ vulnerable ⊃ irrecoverable). Derived from the Conservation International v2 (2025) update of Noon et al. (2022, Nature Sustainability), Zenodo 17645053. Irrecoverable covers 2018, 2022, 2023, 2024; vulnerable and manageable cover 2010, 2018, 2024. (Irrecoverable 2010 is not included — the Zenodo source TIFF is corrupt.) Source rasters are ~300 m carbon DENSITY in Mg C ha⁻¹ on a WGS84 grid, provided here as Cloud-Optimized GeoTIFFs (the COG assets, unchanged from source) and as H3 resolution-9 hexagonal parquet.
+
+HEX `carbon` = TOTAL carbon in Mg C (tonnes) per H3 cell, obtained by area-integrating the source density: each ~300 m pixel&#39;s density (Mg C/ha) is multiplied by the pixel&#39;s ground area (latitude-dependent on the WGS84 grid) and apportioned to the H3 cells it overlaps, giving exactly ONE row per h9 cell. SUM(carbon) over hex rows is therefore directly valid as a carbon TOTAL — no GROUP BY or dedup. Parent resolutions 8,7,6,5 are columns (h8…h5); h0 is the hive partition key.
+
+VALIDATION (data-workflows #330): hex SUM(carbon) matches an independent full-resolution area-integral of the source COG to a uniform +0.22% on every layer (a benign H3-cell-area vs exact-pixel discretization offset). These straight area-integrals run ~2–3% above Conservation International&#39;s published committed-loss headline figures — e.g. irrecoverable 2024 = 131.9 Gt C here vs CI&#39;s 128.0 Gt; CI corrected the original 2018 baseline from 139.1 to 135.3 Gt. The per-year series is therefore NOT strictly monotonic in a raw integral (e.g. irrecoverable rises slightly 2023→2024), reflecting the shipped density rasters rather than CI&#39;s account
+... (truncated)</code></pre>
+</div>
+<div class="log-call">
+<p class="log-call-name">✓ <code>get_schema</code></p>
+<pre class="log-args"><code>{
+  &quot;dataset_id&quot;: &quot;mobi-species-richness-all&quot;
+}</code></pre>
+<pre class="log-result"><code>**MOBI Species Richness (All Taxa)**
+Collection ID: `mobi-species-richness-all`
+collection_url: `https://s3-west.nrp-nautilus.io/public-mobi/mobi-species-richness-all/stac-collection.json`
+Map of Biodiversity Importance (MOBI) — total species richness across all modeled taxa, aggregated to H3 resolution 8 hexagonal cells (~0.74 km² each). MOBI integrates NatureServe habitat models for ~2,400 imperiled and endemic species of vertebrates, invertebrates, and plants across the contiguous United States. For each H3 cell this layer reports the maximum modeled species richness (count of species with predicted suitable habitat) among the source-raster pixels covering the cell, computed by area-weighted exact-extract aggregation with the `max` reducer (one row per cell; the peak, not the average, so coarse-resolution rollups via GROUP BY + MAX preserve hotspots). Produced by NatureServe.
+
+SQL data (use with `query` tool):
+  - MOBI Species Richness — H3 Hex Parquet (resolution 8, exact-extract max): `read_parquet(&#39;s3://public-mobi/mobi-species-richness-all/hex/h0=*/data_0.parquet&#39;)`
+    - h3:native_resolution: 8
+    - h3:parent_resolutions: [7, 6, 5, 0]
+    - columns: `species_richness` (float), `h8` (uint64), `h7` (uint64), `h6` (uint64), `h5` (uint64), `h0` (int64)
+
+Column descriptions (shared across the assets above):
+    - `species_richness` (float) — Maximum modeled species richness (count of species with predicted suitable habitat) among source-raster pixels covering this cell, via area-weighted exact-extract with the `max` reducer. One row per cell — query directly, no GROUP BY needed. Integer-valued, range 0–32. To view at a coarser resolution, GROUP BY h7 (or h6/h5) and take MAX(species_richness) — MAX-of-MAX preserves the hotspot; never AVG/SUM across the rollup.
+    - `h8` (uint64) — H3 cell index at resolution 8 (native resolution; one row per h8 cell).
+    - `h7` (uint64) — H3 cell index at resolution 7 (parent of h8; rollup key).
+    - `h6` (uint64) — H3 cell in
+... (truncated)</code></pre>
+</div>
+<div class="log-call">
+<p class="log-call-name">✓ <code>get_schema</code></p>
+<pre class="log-args"><code>{
+  &quot;dataset_id&quot;: &quot;pad-us-4.1-combined&quot;
+}</code></pre>
+<pre class="log-result"><code>**PAD-US 4.1 Combined - All Protection Types**
+Collection ID: `pad-us-4.1-combined`
+collection_url: `https://s3-west.nrp-nautilus.io/public-padus/padus-4-1/combined/stac-collection.json`
+The Protected Areas Database of the United States (PAD-US) 4.1 Combined layer integrates all protection types (fee ownership, easements, proclamation boundaries, marine areas, and designations) into a comprehensive national inventory of 656,986 protected areas. Managed by USGS Gap Analysis Project (GAP), this authoritative dataset combines federal, state, local, and private conservation lands indexed by H3 hexagons. Most features are at resolution 10 (~15m² cells), with 20 extremely complex geometries at resolution 8 (~0.74 km² cells). IMPORTANT: Features may overlap - a single location can have multiple protection types. Overlapping features produce duplicate hex rows — use SELECT DISTINCT h8, h0 before joining to avoid double-counting. Area column (GIS_Acres) stores the source polygon&#39;s total area repeated on every hex row; never SUM it on hex data — compute area from hex count instead.
+
+SQL data (use with `query` tool):
+  - GeoParquet file with all 656,986 protected areas: `read_parquet(&#39;s3://public-padus/padus-4-1/combined.parquet&#39;)`
+    - Cloud-native GeoParquet format optimized for analytical queries. Use with DuckDB, Polars, pandas, or any GeoParquet-compatible tool. Geometries in EPSG:4326.
+    - columns: `_cng_fid` (int64), `FeatClass` (string), `Category` (string), `Own_Type` (string), `Own_Name` (string), `Loc_Own` (string), `Mang_Type` (string), `Mang_Name` (string), `Loc_Mang` (string), `Des_Tp` (string), `Loc_Ds` (string), `Unit_Nm` (string), `Loc_Nm` (string), `State_Nm` (string), `Agg_Src` (string), `GIS_Src` (string), `Src_Date` (string), `GIS_Acres` (int32), `Source_PAID` (string), `WDPA_Cd` (int32), `Pub_Access` (string), `Access_Src` (string), `Access_Dt` (string), `GAP_Sts` (string), `GAPCdSrc` (string), `GAPCdDt` (string), `IUCN_Cat` (string), `IUCNCtSrc` (stri
+... (truncated)</code></pre>
+</div>
+<div class="log-call">
+<p class="log-call-name">✓ <code>query</code> <span class="log-tag">MCP</span></p>
+<pre class="log-args"><code>{
+  &quot;sql_query&quot;: &quot;WITH mobi AS (\n  SELECT h8, h0, species_richness\n  FROM read_parquet(&#39;s3://public-mobi/mobi-species-richness-all/hex/h0=*/data_0.parquet&#39;)\n  WHERE species_richness &gt; 0\n),\ncarbon_h8 AS (\n  SELECT c.h8, c.h0, SUM(c.carbon) AS total_carbon\n  FROM read_parquet(&#39;s3://public-carbon/irrecoverable-carbon-2024/hex/h0=*/data_0.parquet&#39;) c\n  SEMI JOIN mobi m ON c.h8 = m.h8 AND c.h0 = m.h0\n  WHERE c.carbon &gt; 0\n  GROUP BY c.h8, c.h0\n),\ngap12 AS (\n  SELECT DISTINCT h8, h0\n  FROM read_parquet(&#39;s3://public-padus/padus-4-1/combined/hex/h0=*/data_0.parquet&#39;)\n  WHERE GAP_Sts IN (&#39;1&#39;, &#39;2&#39;)\n),\neligible AS (\n  SELECT c.h8, c.h0, c.total_carbon, m.species_richness\n  FROM carbon_h8 c\n  JOIN mobi m ON c.h8 = m.h8 AND c.h0 = m.h0\n  ANTI JOIN gap12 g USING (h8, h0)\n),\nnormed AS (\n  SELECT h8, h0,\n    total_carbon / MAX(total_carbon) OVER () AS carbon_norm,\n    species_richness / MAX(species_richness) OVER () AS mobi_norm\n  FROM eligible\n),\nscored AS (\n  SELECT h8, h0,\n    (carbon_norm + mobi_norm) / 2.0 AS score,\n    PERCENT_RANK() OVER (ORDER BY (carbon_norm + mobi_norm) / 2.0) AS pct\n  FROM normed\n),\ntop30 AS (\n  SELECT h8, h0 FROM scored WHERE pct &gt;= 0.70\n)\nSELECT n.nlcd,\n  SUM(n.frac * h3_cell_area(n.h10, &#39;km^2&#39;)) AS area_km2\nFROM read_parquet(&#39;s3://public-land-cover/nlcd/hex-fractions/year=2024/h0=*/data_0.parquet&#39;) n\nSEMI JOIN top30 t ON n.h8 = t.h8 AND n.h0 = t.h0\nWHERE n.nlcd &lt;&gt; 250\nGROUP BY n.nlcd\nORDER BY area_km2 DESC;&quot;
+}</code></pre>
+<pre class="log-result"><code>SQL Error: Binder Error: Ambiguous reference to column name &quot;h8&quot; (use: &quot;c.h8&quot; or &quot;m.h8&quot;)</code></pre>
+</div>
+<div class="log-call">
+<p class="log-call-name">✓ <code>query</code> <span class="log-tag">MCP</span></p>
+<pre class="log-args"><code>{
+  &quot;sql_query&quot;: &quot;WITH mobi AS (\n  SELECT h8, h0, species_richness\n  FROM read_parquet(&#39;s3://public-mobi/mobi-species-richness-all/hex/h0=*/data_0.parquet&#39;)\n  WHERE species_richness &gt; 0\n),\ncarbon_h8 AS (\n  SELECT c.h8, c.h0, SUM(c.carbon) AS total_carbon\n  FROM read_parquet(&#39;s3://public-carbon/irrecoverable-carbon-2024/hex/h0=*/data_0.parquet&#39;) c\n  SEMI JOIN mobi m ON c.h8 = m.h8 AND c.h0 = m.h0\n  WHERE c.carbon &gt; 0\n  GROUP BY c.h8, c.h0\n),\ngap12 AS (\n  SELECT DISTINCT h8, h0\n  FROM read_parquet(&#39;s3://public-padus/padus-4-1/combined/hex/h0=*/data_0.parquet&#39;)\n  WHERE GAP_Sts IN (&#39;1&#39;, &#39;2&#39;)\n),\neligible AS (\n  SELECT c.h8 AS h8, c.h0 AS h0, c.total_carbon, m.species_richness\n  FROM carbon_h8 c\n  JOIN mobi m ON c.h8 = m.h8 AND c.h0 = m.h0\n  ANTI JOIN gap12 g ON c.h8 = g.h8 AND c.h0 = g.h0\n),\nnormed AS (\n  SELECT h8, h0,\n    total_carbon / MAX(total_carbon) OVER () AS carbon_norm,\n    species_richness / MAX(species_richness) OVER () AS mobi_norm\n  FROM eligible\n),\nscored AS (\n  SELECT h8, h0,\n    (carbon_norm + mobi_norm) / 2.0 AS score,\n    PERCENT_RANK() OVER (ORDER BY (carbon_norm + mobi_norm) / 2.0) AS pct\n  FROM normed\n),\ntop30 AS (\n  SELECT h8, h0 FROM scored WHERE pct &gt;= 0.70\n)\nSELECT n.nlcd,\n  SUM(n.frac * h3_cell_area(n.h10, &#39;km^2&#39;)) AS area_km2\nFROM read_parquet(&#39;s3://public-land-cover/nlcd/hex-fractions/year=2024/h0=*/data_0.parquet&#39;) n\nSEMI JOIN top30 t ON n.h8 = t.h8 AND n.h0 = t.h0\nWHERE n.nlcd &lt;&gt; 250\nGROUP BY n.nlcd\nORDER BY area_km2 DESC;&quot;
+}</code></pre>
+<pre class="log-result"><code>|   nlcd | area_km2     |
+|-------:|:-------------|
+|     41 | 252157.3411  |
+|     42 | 104010.0436  |
+|     81 | 78489.62827  |
+|     90 | 77418.24195  |
+|     43 | 65953.84554  |
+|     21 | 42417.84612  |
+|     52 | 40111.05011  |
+|     71 | 23354.90334  |
+|     82 | 22640.40548  |
+|     22 | 20873.61377  |
+|     95 | 16042.83696  |
+|     11 | 13934.5628   |
+|     23 | 7121.023503  |
+|     31 | 2818.142576  |
+|     24 | 1461.250474  |
+|     12 | 0.1129486034 |</code></pre>
+</div>
+<div class="log-call">
+<p class="log-call-name">✓ <code>query</code> <span class="log-tag">MCP</span></p>
+<pre class="log-args"><code>{
+  &quot;sql_query&quot;: &quot;WITH mobi AS (\n  SELECT h8, h0, species_richness\n  FROM read_parquet(&#39;s3://public-mobi/mobi-species-richness-all/hex/h0=*/data_0.parquet&#39;)\n  WHERE species_richness &gt; 0\n),\ncarbon_h8 AS (\n  SELECT c.h8, c.h0, SUM(c.carbon) AS total_carbon\n  FROM read_parquet(&#39;s3://public-carbon/irrecoverable-carbon-2024/hex/h0=*/data_0.parquet&#39;) c\n  SEMI JOIN mobi m ON c.h8 = m.h8 AND c.h0 = m.h0\n  WHERE c.carbon &gt; 0\n  GROUP BY c.h8, c.h0\n),\ngap12 AS (\n  SELECT DISTINCT h8, h0\n  FROM read_parquet(&#39;s3://public-padus/padus-4-1/combined/hex/h0=*/data_0.parquet&#39;)\n  WHERE GAP_Sts IN (&#39;1&#39;, &#39;2&#39;)\n),\neligible AS (\n  SELECT c.h8 AS h8, c.h0 AS h0, c.total_carbon, m.species_richness\n  FROM carbon_h8 c\n  JOIN mobi m ON c.h8 = m.h8 AND c.h0 = m.h0\n  ANTI JOIN gap12 g ON c.h8 = g.h8 AND c.h0 = g.h0\n),\nnormed AS (\n  SELECT h8, h0,\n    total_carbon / MAX(total_carbon) OVER () AS carbon_norm,\n    species_richness / MAX(species_richness) OVER () AS mobi_norm\n  FROM eligible\n),\nscored AS (\n  SELECT h8, h0,\n    (carbon_norm + mobi_norm) / 2.0 AS score,\n    PERCENT_RANK() OVER (ORDER BY (carbon_norm + mobi_norm) / 2.0) AS pct\n  FROM normed\n),\ntop30 AS (\n  SELECT h8, h0 FROM scored WHERE pct &gt;= 0.70\n),\nclass_area AS (\n  SELECT n.nlcd,\n    SUM(n.frac * h3_cell_area(n.h10, &#39;km^2&#39;)) AS area_km2\n  FROM read_parquet(&#39;s3://public-land-cover/nlcd/hex-fractions/year=2024/h0=*/data_0.parquet&#39;) n\n  SEMI JOIN top30 t ON n.h8 = t.h8 AND n.h0 = t.h0\n  WHERE n.nlcd &lt;&gt; 250\n  GROUP BY n.nlcd\n)\nSELECT\n  nlcd,\n  CASE nlcd\n    WHEN 11 THEN &#39;Open Water&#39;\n    WHEN 12 THEN &#39;Perennial Ice/Snow&#39;\n    WHEN 21 THEN &#39;Developed, Open Space&#39;\n    WHEN 22 THEN &#39;Developed, Low Intensity&#39;\n    WHEN 23 THEN &#39;Developed, Medium Intensity&#39;\n    WHEN 24 THEN &#39;Developed, High Intensity&#39;\n    WHEN 31 THEN &#39;Barren Land&#39;\n    WHEN 41 THEN &#39;Deciduous Forest&#39;\n    WHEN 42 THEN &#39;Evergreen Forest&#39;\n    WHEN 43 THEN &#39;Mixed Forest&#39;\n    WHEN 52 THEN &#39;Shrub/Scrub&#39;\n    WHEN 71 THEN &#39;Herbaceous (Grassland)&#39;\n    WHEN 81 THEN &#39;Hay/Pasture&#39;\n    WHEN 82 THEN &#39;Cultivated Crops&#39;\n    WHEN 90 THEN &#39;Woody Wetlands&#39;\n    WHEN 95 THEN &#39;Emergent Herbaceous Wetlands&#39;\n  END AS land_cover_class,\n  ROUND(area_km2, 1) AS area_km2,\n  ROUND(100.0 * area_km2 / SUM(area_km2) OVER (), 2) AS pct_of_total\nFROM class_area\nORDER BY area_km2 DESC;&quot;
+}</code></pre>
+<pre class="log-result"><code>|   nlcd | land_cover_class             | area_km2   | pct_of_total   |
+|-------:|:-----------------------------|:-----------|:---------------|
+|     41 | Deciduous Forest             | 252157.3   | 32.8           |
+|     42 | Evergreen Forest             | 104010     | 13.53          |
+|     81 | Hay/Pasture                  | 78489.6    | 10.21          |
+|     90 | Woody Wetlands               | 77418.2    | 10.07          |
+|     43 | Mixed Forest                 | 65953.8    | 8.58           |
+|     21 | Developed, Open Space        | 42417.8    | 5.52           |
+|     52 | Shrub/Scrub                  | 40111.1    | 5.22           |
+|     71 | Herbaceous (Grassland)       | 23354.9    | 3.04           |
+|     82 | Cultivated Crops             | 22640.4    | 2.94           |
+|     22 | Developed, Low Intensity     | 20873.6    | 2.72           |
+|     95 | Emergent Herbaceous Wetlands | 16042.8    | 2.09           |
+|     11 | Open Water                   | 13934.6    | 1.81           |
+|     23 | Developed, Medium Intensity  | 7121       | 0.93           |
+|     31 | Barren Land                  | 2818.1     | 0.37           |
+|     24 | Developed, High Intensity    | 1461.3     | 0.19           |
+|     12 | Perennial Ice/Snow           | 0.1        | 0              |</code></pre>
+</div>
+
+</details>
+</section>
+<footer class="report-colophon">
+  <p>Generated with a development build of GLEN in <a href="https://boettiger-lab.github.io/geo-agent/preview/">TPL — Protected Lands Explorer</a>.
+     Exported 10/2/2026, 2:02:04 PM.</p>
+</footer>
 <script>
 (function () {
   var KEY = 'glen-export-code-lang';
@@ -445,6 +1795,19 @@ FROM read_parquet('s3://public-iucn/hex/mammals_sr/h0=*/data_0.parquet')
 </script>
 <script>
 (function () {
+  var strip = document.querySelector('.code-fold-toggle');
+  if (!strip) return;
+  strip.addEventListener('click', function (e) {
+    var b = e.target && e.target.closest ? e.target.closest('button[data-code-all]') : null;
+    if (!b) return;
+    var open = b.getAttribute('data-code-all') === 'show';
+    var chunks = document.querySelectorAll('details.chunk-code');
+    for (var i = 0; i < chunks.length; i++) chunks[i].open = open;
+  });
+})();
+</script>
+<script>
+(function () {
   var check = document.getElementById('export-report-style');
   if (check) {
     check.addEventListener('change', function () {
@@ -454,7 +1817,8 @@ FROM read_parquet('s3://public-iucn/hex/mammals_sr/h0=*/data_0.parquet')
   var reopened = [];
   window.addEventListener('beforeprint', function () {
     reopened = [];
-    var closed = document.querySelectorAll('details:not([open])');
+    // The session log stays folded: printed open, it is most of the paper.
+    var closed = document.querySelectorAll('details:not([open]):not([data-print-closed])');
     for (var i = 0; i < closed.length; i++) { reopened.push(closed[i]); closed[i].open = true; }
   });
   window.addEventListener('afterprint', function () {
