@@ -450,9 +450,13 @@ half the same `toggle_group` and the panel shows **one** row that turns both on 
 ```
 
 - **Only the panel row is shared.** Each member is still its own layer, with its own source,
-  `colormap`/`rescale`, `layer_id` and **legend entry**. Use separate stretches when the halves'
-  value ranges differ; one shared colorbar would misstate one of them. Give the members the same
-  `group` so their legend entries sit under one heading.
+  `colormap`/`rescale` and `layer_id`. Use separate stretches when the halves' value ranges
+  differ; one shared colorbar would misstate one of them.
+- **Legends merge only when identical.** Visible members whose legends would draw the same thing
+  (same classes and colours, or same colormap, `rescale` and `legend_label`) share one legend
+  entry titled with the `toggle_group` value. Members whose legends differ keep their own entries,
+  titled with their `display_name`. Give the members the same `group` so those entries sit under
+  one heading.
 - The row sits where the first member's row would have been, and the `toggle_group` value is its
   label. Members can be in different collections.
 - The agent can still show one half on its own (`show_layer` on one member). The row's checkbox
