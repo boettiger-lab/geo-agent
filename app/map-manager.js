@@ -630,6 +630,7 @@ export class MapManager {
         if (state.outlineLayerId) this.map.setLayoutProperty(state.outlineLayerId, 'visibility', 'visible');
         if (state.control) state.control.setVisible(true);
         if (this._hasLegend(state)) this._showLegend(layerId);
+        this._syncToggleGroupLegends(layerId);
         return { success: true, layer: layerId, displayName: state.displayName, visible: true };
     }
 
@@ -651,6 +652,7 @@ export class MapManager {
         if (state.outlineLayerId) this.map.setLayoutProperty(state.outlineLayerId, 'visibility', 'none');
         if (state.control) state.control.setVisible(false);
         if (this._hasLegend(state)) this._hideLegend(layerId);
+        this._syncToggleGroupLegends(layerId);
         return { success: true, layer: layerId, displayName: state.displayName, visible: false };
     }
 
@@ -2214,6 +2216,7 @@ export class MapManager {
     _refreshLegend(layerId) {
         this._dropLegendItem(layerId);
         this._showLegendIfVisible(layerId);
+        this._syncToggleGroupLegends(layerId);
     }
 
     /**
@@ -2496,7 +2499,12 @@ export class MapManager {
         this._legendEl.style.display = '';
 
         if (this._legendItems.has(layerId)) {
-            this._legendItems.get(layerId).style.display = '';
+            const share = this._legendShare(layerId);
+            if (share.owner !== layerId) { this._hideLegend(layerId); return; }
+            const cached = this._legendItems.get(layerId);
+            const heading = cached.querySelector('h4');
+            if (heading) heading.textContent = share.title;
+            cached.style.display = '';
             if (state.group) this._legendParentFor(state); // re-show group wrapper
             return;
         }
@@ -2609,8 +2617,72 @@ export class MapManager {
             item.appendChild(labels);
         }
 
+        // Decided after the await above, so a sibling shown meanwhile counts.
+        const share = this._legendShare(layerId);
+        const heading = item.querySelector('h4');
+        if (heading) heading.textContent = share.title;
+
         this._legendParentFor(state).appendChild(item);
         this._legendItems.set(layerId, item);
+        if (share.owner !== layerId) this._hideLegend(layerId);
+    }
+
+    /**
+     * What a layer's legend would draw, as a comparable string, or null when
+     * it can't be shared (hex legends relabel per zoom). Mirrors the branches
+     * of `_showLegend`.
+     */
+    _legendSignature(state) {
+        const unit = state.legendLabel || null;
+        const categorical = this._categoricalLegend(state);
+        if (categorical) {
+            return JSON.stringify(['categorical', unit, categorical.classes.map(c =>
+                [c.name || `Class ${c.value}`, c['color-hint'] || c.color_hint || null])]);
+        }
+        if (state.legendType === 'continuous') {
+            const cv = this._continuousVectorLegend(state);
+            if (cv) return JSON.stringify(['continuous', unit, cv.colors, cv.range]);
+        }
+        if (state.legendType === 'hex') return null;
+        return JSON.stringify(['colorbar', unit, state.colormap || 'reds', state.rescale || '0,1']);
+    }
+
+    /**
+     * Toggle groups (#349): visible members whose legends would draw the same
+     * thing (same classes and colours, or same colormap and range) share one
+     * section, owned by the first of them and titled with the group name.
+     * Members whose legends differ, such as CONUS and Alaska stretches, keep
+     * their own sections, since one colorbar would misstate one of them.
+     * @returns {{owner: string, title: string}}
+     */
+    _legendShare(layerId) {
+        const state = this.layers.get(layerId);
+        const tg = state?.toggleGroup && this._toggleGroups?.get(state.toggleGroup);
+        const sig = tg ? this._legendSignature(state) : null;
+        if (!sig) return { owner: layerId, title: state?.displayName };
+        const peers = tg.members.filter(id => {
+            if (id === layerId) return true;
+            const st = this.layers.get(id);
+            return st?.visible && this._hasLegend(st) && this._legendSignature(st) === sig;
+        });
+        return { owner: peers[0], title: peers.length > 1 ? tg.name : state.displayName };
+    }
+
+    /**
+     * Re-decide which members of a layer's toggle group own a legend section,
+     * after one of them was shown, hidden, restyled or switched version.
+     */
+    _syncToggleGroupLegends(layerId) {
+        const state = this.layers.get(layerId);
+        const tg = state?.toggleGroup && this._toggleGroups?.get(state.toggleGroup);
+        if (!tg || !this._legendItems) return;
+        for (const id of tg.members) {
+            const st = this.layers.get(id);
+            // A visible member with no section yet has its render in flight,
+            // and `_showLegend` makes the same decision when it lands.
+            if (!st?.visible || !this._hasLegend(st) || !this._legendItems.has(id)) continue;
+            this._showLegend(id);   // cached path: synchronous, shows or hides
+        }
     }
 
     _hideLegend(layerId) {

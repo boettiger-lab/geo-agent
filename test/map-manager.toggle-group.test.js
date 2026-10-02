@@ -204,3 +204,102 @@ describe('MapManager toggle groups (#349)', () => {
         expect(mm.switchToggleGroupVersion('nope', '1984').success).toBe(false);
     });
 });
+
+describe('MapManager toggle-group legends (#349)', () => {
+    let mm, container;
+
+    // Real legend code over a stub map; only the overlay mount and the
+    // TiTiler colormap fetch are faked.
+    function createLegendManager() {
+        const m = createManager();
+        delete m._hasLegend;
+        delete m._refreshLegend;
+        delete m._showLegendIfVisible;
+        m._legendEl = document.createElement('div');
+        m._legendContent = document.createElement('div');
+        m._legendItems = new Map();
+        m._legendGroups = new Map();
+        m._hexLegendRefs = new Map();
+        m._ensureLegend = () => {};
+        m._getColormapGradient = async () => 'linear-gradient(red, blue)';
+        return m;
+    }
+
+    const classes = [
+        { value: 1, name: 'Low', 'color-hint': '006400' },
+        { value: 4, name: 'High', 'color-hint': 'ff0000' },
+    ];
+    const shownSections = () => [...mm._legendContent.querySelectorAll('.legend-section')]
+        .filter(el => el.style.display !== 'none');
+    const titles = () => shownSections().map(el => el.querySelector('h4')?.textContent);
+    const flush = () => new Promise(r => setTimeout(r, 0));
+
+    beforeEach(() => {
+        mm = createLegendManager();
+        container = document.createElement('div');
+    });
+
+    describe('identical categorical legends (MTBS)', () => {
+        beforeEach(() => {
+            const cat = { toggleGroup: 'MTBS', group: 'Fire history', legendType: 'categorical', legendClasses: classes };
+            mm.registerLayer(versioned('conus/sev', 'MTBS (CONUS)', ['1984', '1985'], cat));
+            mm.registerLayer(versioned('ak/sev', 'MTBS (Alaska)', ['1984'], cat));
+            mm.generateControls(container);
+        });
+
+        it('share one section titled with the group name', () => {
+            mm._setToggleGroupVisible(mm._toggleGroups.get('MTBS'), true);
+            expect(titles()).toEqual(['MTBS']);
+        });
+
+        it('fall back to the remaining member\'s own title when one half drops out', () => {
+            mm._setToggleGroupVisible(mm._toggleGroups.get('MTBS'), true);
+            mm.switchToggleGroupVersion('MTBS', '1985');   // Alaska has no 1985
+            expect(titles()).toEqual(['MTBS (CONUS)']);
+
+            mm.switchToggleGroupVersion('MTBS', '1984');
+            expect(titles()).toEqual(['MTBS']);
+        });
+
+        it('hand the section to the other member when the owner is hidden', () => {
+            mm._setToggleGroupVisible(mm._toggleGroups.get('MTBS'), true);
+            mm.hideLayer('conus/sev');
+            expect(titles()).toEqual(['MTBS (Alaska)']);
+            mm.showLayer('conus/sev');
+            expect(titles()).toEqual(['MTBS']);
+        });
+
+        it('split again when the agent relabels one member\'s classes', () => {
+            mm._setToggleGroupVisible(mm._toggleGroups.get('MTBS'), true);
+            mm.setLegend('ak/sev', { labels: { 4: 'Severe' } });
+            expect(titles()).toEqual(['MTBS (CONUS)', 'MTBS (Alaska)']);
+        });
+    });
+
+    it('keeps separate colorbars when the stretches differ (WHP)', async () => {
+        mm.registerLayer(raster('conus/cog', 'WHP (CONUS)', { toggleGroup: 'WHP', rescale: '0,2000', colormap: 'inferno' }));
+        mm.registerLayer(raster('ak/cog', 'WHP (Alaska)', { toggleGroup: 'WHP', rescale: '0,9000', colormap: 'inferno' }));
+        mm.generateControls(container);
+        mm._setToggleGroupVisible(mm._toggleGroups.get('WHP'), true);
+        await flush();
+        expect(titles()).toEqual(['WHP (CONUS)', 'WHP (Alaska)']);
+    });
+
+    it('merges colorbars with the same colormap and range', async () => {
+        mm.registerLayer(raster('a/cog', 'A', { toggleGroup: 'G', rescale: '0,1', colormap: 'reds' }));
+        mm.registerLayer(raster('b/cog', 'B', { toggleGroup: 'G', rescale: '0,1', colormap: 'reds' }));
+        mm.generateControls(container);
+        mm._setToggleGroupVisible(mm._toggleGroups.get('G'), true);
+        await flush();
+        expect(titles()).toEqual(['G']);
+    });
+
+    it('leaves legends of layers outside any toggle group alone', async () => {
+        mm.registerLayer(raster('a/cog', 'A', { rescale: '0,1' }));
+        mm.registerLayer(raster('b/cog', 'B', { rescale: '0,1' }));
+        mm.generateControls(container);
+        mm.showLayer('a/cog'); mm.showLayer('b/cog');
+        await flush();
+        expect(titles()).toEqual(['A', 'B']);
+    });
+});
