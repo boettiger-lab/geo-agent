@@ -1077,7 +1077,8 @@ The export is **on by default** — the public apps are the common case. Configu
 "export": {
   "enabled": true,
   "public_s3_endpoint": "s3-west.nrp-nautilus.io",
-  "default_code_language": "sql"
+  "default_code_language": "sql",
+  "project_url": "https://boettiger-lab.github.io/geo-agent/"
 }
 ```
 
@@ -1086,6 +1087,7 @@ The export is **on by default** — the public apps are the common case. Configu
 | `enabled` | boolean | `true` | `false` removes the save button entirely — it is never created, not merely disabled. |
 | `public_s3_endpoint` | string | `s3-west.nrp-nautilus.io` | S3 host for the export's DuckDB setup block. Set it when an app's data lives on other anonymously-readable storage. A scheme or trailing slash is stripped. |
 | `default_code_language` | `sql` \| `r` \| `python` | `sql` | Which language the saved document opens on. The reader can switch inside the file; an unrecognised value falls back to `sql`. |
+| `project_url` | string | `https://boettiger-lab.github.io/geo-agent/` | Where the report's "Outputs generated with GLEN" disclosure links. |
 
 `"export": false` is shorthand for `{"enabled": false}`, and a stringified `"false"` from a generated `config.json` counts as off. `public_s3_endpoint` as a top-level key is the older spelling and still works; the block wins when both are set.
 
@@ -1093,7 +1095,13 @@ The export is **on by default** — the public apps are the common case. Configu
 For an app serving private data the export is worse than useless. The credential scrub (below) strips exactly what the exported queries would need to reach that data, so the recipient gets a document whose code cannot run — while the transcript still narrates what the data holds. Set `"export": false`.
 :::
 
-The saved file mirrors what the user sees in the live chat: user prompts, assistant prose, and tool-call rows with collapsible SQL and result blocks, plus the **map as it stood when Save was clicked** (see below).
+The saved file is a **session report** (#388), laid out like a Quarto or R Markdown document rather than a copy of the chat panel:
+
+- **A disclosure** under the title: *outputs generated with GLEN using* the model(s) *on* the date. The model is recorded per question, so a mid-session switch shows, and each section names its own when more than one was used.
+- **One section per question**, headed by the user's words verbatim. In the order they ran come the SQL-carrying calls (`query`, `register_hex_tiles`, `render_chart`, `filter_by_query`), each a **folded code chunk** with its output beneath it, and then the model's answer as prose. *Show all code / Hide all code* and the R · Python · SQL switch apply to every chunk.
+- **Lookups are summarised, not shown.** Schema and catalog reads and status polls (`get_schema`, `get_hex_tile_status`, …) become one *Consulted …* line. Map actions become one line each. Failed or retried calls are left out, with a count.
+- **A session log appendix**, collapsed, holding every call with its arguments and result, lookups and failures included. The body is curated; the log shows nothing was hidden.
+- The **map as it stood when Save was clicked** (see below), and a colophon naming the GLEN version the app is pinned to.
 
 Two guarantees apply to the export:
 
