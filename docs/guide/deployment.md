@@ -35,11 +35,32 @@ kubectl apply -f k8s/service.yaml
 kubectl apply -f k8s/ingress.yaml
 ```
 
-After code changes (merged to `main` and picked up from CDN), no restart is needed — the CDN delivers the latest JS. Only restart if you changed the ConfigMap or deployment manifests:
+A release of the library changes nothing for a running app: the app's `index.html` pins a version, so it keeps loading the same code until you bump that pin. Restart when *your* files change:
+
+- **You bumped the pin, or edited `index.html` / `layers-input.json`.** If the pod `git clone`s the app at startup (an initContainer, as in the template), the running pod keeps serving what it cloned, so restart it to re-clone. If those files come from a ConfigMap, `kubectl apply` it first.
+- **You changed the ConfigMap or deployment manifests.** Apply, then restart.
 
 ```bash
 kubectl rollout restart deployment/my-app
 ```
+
+### `config.json`
+
+The deploy-time `config.json` sits beside `layers-input.json` and is merged over it at startup. It holds what shouldn't be committed. The app reads these keys from it:
+
+| Key | Description |
+|---|---|
+| `llm_models` | Array of `{ value, label, endpoint, api_key }`, the models offered in the chat footer. |
+| `llm_model` | Which of them is selected on load. Defaults to the first. |
+| `mcp_server_url` | MCP server URL. Overrides `mcp_url` from `layers-input.json`. |
+| `mcp_auth_token` | Sent to the MCP server as `Authorization: Bearer …`. |
+| `transcription_model` | Enables voice input. See [Voice input](./configuration#voice-input-optional). |
+| `draw_enabled`, `geolocate` | Override the same keys in `layers-input.json`. |
+| `max_tool_calls`, `max_tool_calls_manual` | Override the checkpoint caps. `0` disables a cap. |
+| `export` | Overrides the [export settings](./configuration#chat-export). |
+| `maptiler_key` | MapTiler key for the basemap, and for the `maptiler` geocoder when it has none of its own. |
+
+Without a `config.json` (local development, GitHub Pages), set `llm.user_provided` instead so visitors supply their own key.
 
 ## CDN versioning
 
@@ -48,7 +69,7 @@ All deployment options load the core library from jsDelivr. **Always pin to a re
 ```html
 <!-- Pinned to a release tag — required for any deployed app -->
 <script type="module"
-  src="https://cdn.jsdelivr.net/gh/boettiger-lab/geo-agent@v3.6.0/app/main.js">
+  src="https://cdn.jsdelivr.net/gh/boettiger-lab/geo-agent@v3.32.0/app/main.js">
 </script>
 ```
 

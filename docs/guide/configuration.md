@@ -23,6 +23,13 @@ Client apps configure GLEN via `layers-input.json`. All fields except `catalog` 
 | `links` | No | Optional links shown in the chat UI — see below. |
 | `header` | No | App chrome band across the top — logos and top-level nav. Off unless configured. See below. |
 | `theme` | No | Chrome colour scheme — a mode string, or an object that also sets brand colours. See below. |
+| `sidebar` | No | Full-height resizable sidebar instead of the floating chat panel. See [Sidebar layout](#sidebar-layout). |
+| `charts` | No | `{ "enabled": true }` registers the `render_chart` tool. Off by default. See [Charts](#charts-opt-in). |
+| `draw_enabled` | No | Polygon draw tool. Off by default. See [Draw tool](#draw-tool-optional). |
+| `upload_enabled` | No | GeoJSON boundary upload. Off by default. See [GeoJSON upload](#geojson-upload-optional). |
+| `geocoder`, `geolocate` | No | Place-name search and device location. See [Geocoding](#geocoding-optional) and [Geolocation](#geolocation-optional). |
+| `export` | No | The saved session report. On by default. See [Chat export](#chat-export). |
+| `tool_memo` | No | `false` turns off read-tool memoization. Default on. See [Read-tool memo](#read-tool-memo). |
 
 ## View
 
@@ -526,15 +533,15 @@ in `layers-input.json`.
 ```html
 <head>
   <!-- ... other tags ... -->
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/boettiger-lab/geo-agent@v3.2.0/app/style.css">
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/boettiger-lab/geo-agent@v3.2.0/app/chat.css">
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/boettiger-lab/geo-agent@v3.2.0/app/sidebar.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/boettiger-lab/geo-agent@v3.32.0/app/style.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/boettiger-lab/geo-agent@v3.32.0/app/chat.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/boettiger-lab/geo-agent@v3.32.0/app/sidebar.css">
 </head>
 <body>
   <div id="map"></div>
   <div id="menu"></div>
   <script type="module"
-    src="https://cdn.jsdelivr.net/gh/boettiger-lab/geo-agent@v3.2.0/app/main.js">
+    src="https://cdn.jsdelivr.net/gh/boettiger-lab/geo-agent@v3.32.0/app/main.js">
   </script>
 </body>
 ```
@@ -1070,6 +1077,36 @@ The shorthand `"geolocate": true` is equivalent to `{ "button": true }`.
 
 Note the deliberate asymmetry with the [`geocode` tool](#geocoding-optional), which is **on** by default: `get_user_location` reaches into the user's *actual device location*, so it stays **off** unless an app opts in — even though, like `geocode`, it's an invisible agent tool. Both require a secure context (HTTPS) and a browser permission prompt. The `get_user_location` tool returns `{ latitude, longitude, accuracy_m }` only — it does not move the map; the agent calls `fly_to` itself if it wants to recenter.
 
+## GeoJSON upload (optional)
+
+Lets a user drop a small polygon boundary (a study area, a parcel, a district) onto the map and ask questions about it. Off by default:
+
+```json
+{ "upload_enabled": true }
+```
+
+An **Upload** button appears in the layer panel's action row, and a `.geojson` file can also be dragged onto the map. The file is validated in the browser, `PUT` straight to a public bucket, and drawn on the map. The file never passes through the model. The agent gets only the uploaded file's URL, through the `get_uploaded_dataset` tool, and reads it with DuckDB `ST_Read(...)` in an ordinary `query`.
+
+To customise, pass an object instead of `true`:
+
+| Field | Default | Description |
+|---|---|---|
+| `bucket_url` | `https://s3-west.nrp-nautilus.io/public-output` | Bucket the file is written to. |
+| `prefix` | `uploads` | Key prefix inside the bucket. Files are named by content hash. |
+| `max_bytes` | `5242880` (5 MB) | Largest file accepted. |
+| `max_features` | `1000` | Most features accepted. |
+| `ingest_url` | none | Where to send people whose data is too big or isn't polygons, e.g. a data-ingest request form. |
+
+```json
+{ "upload_enabled": { "max_features": 200, "ingest_url": "https://example.org/data-request" } }
+```
+
+Only Polygon and MultiPolygon features are accepted. Larger or other data is out of scope by design; the error message points to `ingest_url`.
+
+::: warning The bucket must accept anonymous browser uploads
+The browser writes the file directly, so the bucket needs anonymous `PUT` **and** a CORS rule allowing `PUT` from your app's origin. Read-only CORS is the common default, and uploads fail at the preflight with a 403. On Ceph RGW the first rule whose `AllowedOrigin` matches wins, so put a specific-origin `PUT` rule before any broad `*` rule. Uploaded files are public.
+:::
+
 ## Tool call auto-approve
 
 By default, the agent executes remote tool calls (SQL queries via the MCP server) immediately. Local tools — map controls like `show_layer`, `fly_to`, `set_filter` — also run without confirmation.
@@ -1106,6 +1143,14 @@ Both keys may also be supplied at deploy time via `config.json`, which overrides
 ::: warning
 The checkpoint is the only per-turn cap on tool use. Setting a value to `0` removes it entirely for that mode — a misbehaving model could then loop indefinitely, stopped only by the per-call timeout or a manual **Stop**. Prefer a high value (e.g. several hundred) over `0` unless you have another guard in place.
 :::
+
+## Read-tool memo
+
+Catalog and schema reads (`get_schema`, `get_stac_details`, `get_collection`, `browse_stac_catalog`) are memoized per session. A repeated identical call returns the earlier result instead of another MCP round trip, which saves time and prompt tokens when a model re-reads a schema it already has. It is on by default. Turn it off, for example to debug duplicate MCP traffic, with:
+
+```json
+{ "tool_memo": false }
+```
 
 ## Chat export
 
