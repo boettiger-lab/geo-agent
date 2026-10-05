@@ -3,14 +3,15 @@ import {
     buildDuckdbSetupSql, buildSetupSnippet, wrapQuery, resolveExportConfig,
     CODE_LANGUAGES, PUBLIC_S3_ENDPOINT, scrubCredentials,
 } from '../app/chat-ui.js';
+import { GLEN_PROJECT_URL } from '../app/export-report.js';
 
 describe('resolveExportConfig', () => {
     it('defaults to enabled at the public endpoint when unconfigured', () => {
         expect(resolveExportConfig()).toEqual({
-            enabled: true, s3Endpoint: PUBLIC_S3_ENDPOINT, codeLanguage: 'sql',
+            enabled: true, s3Endpoint: PUBLIC_S3_ENDPOINT, codeLanguage: 'sql', projectUrl: GLEN_PROJECT_URL,
         });
         expect(resolveExportConfig({})).toEqual({
-            enabled: true, s3Endpoint: PUBLIC_S3_ENDPOINT, codeLanguage: 'sql',
+            enabled: true, s3Endpoint: PUBLIC_S3_ENDPOINT, codeLanguage: 'sql', projectUrl: GLEN_PROJECT_URL,
         });
     });
 
@@ -36,7 +37,7 @@ describe('resolveExportConfig', () => {
 
     it('takes the endpoint from the block', () => {
         expect(resolveExportConfig({ export: { public_s3_endpoint: 'minio.example.org' } }))
-            .toEqual({ enabled: true, s3Endpoint: 'minio.example.org', codeLanguage: 'sql' });
+            .toEqual({ enabled: true, s3Endpoint: 'minio.example.org', codeLanguage: 'sql', projectUrl: GLEN_PROJECT_URL });
     });
 
     it('still honours the older flat key', () => {

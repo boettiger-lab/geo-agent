@@ -109,4 +109,38 @@ describe('ChartRenderer', () => {
         expect(captured.width).toBe(400);
         expect(captured.height).toBe(300);
     });
+
+    describe('exportFigure (#388)', () => {
+        function drawn() {
+            globalThis.Plot = { ...fakePlot, plot: (o) => ({ outerHTML: `<svg width="${o.width}"></svg>` }) };
+            return new ChartRenderer({ doc: null });
+        }
+
+        it('re-draws a chart at report width from the spec and rows it was drawn with', async () => {
+            const cr = drawn();
+            const { id } = await cr.render({ chart_type: 'bar', x: 'country', y: 'pct' }, rows);
+            expect(cr.exportFigure(id)).toBe('<svg width="780"></svg>');
+            expect(cr.exportFigure(id, { width: 500 })).toBe('<svg width="500"></svg>');
+        });
+
+        it('still exports a chart whose panel the user closed', async () => {
+            const cr = drawn();
+            const { id } = await cr.render({ chart_type: 'bar', x: 'country', y: 'pct' }, rows);
+            cr.remove(id);
+            expect(cr.exportFigure(id)).toBe('<svg width="780"></svg>');
+        });
+
+        it('is null for an unknown chart, or when Plot never loaded', async () => {
+            const cr = drawn();
+            expect(cr.exportFigure('chart-99')).toBe(null);
+            expect(new ChartRenderer({ doc: null }).exportFigure('chart-1')).toBe(null);
+        });
+
+        it('is null rather than throwing when the draw fails', async () => {
+            const cr = drawn();
+            const { id } = await cr.render({ chart_type: 'bar', x: 'country', y: 'pct' }, rows);
+            cr._plot = { ...fakePlot, plot: () => { throw new Error('boom'); } };
+            expect(cr.exportFigure(id)).toBe(null);
+        });
+    });
 });
