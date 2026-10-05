@@ -21,6 +21,8 @@ features:
     details: Your app is just three files — index.html, layers-input.json, and system-prompt.md. The core library loads from CDN.
   - title: STAC + SQL analytics
     details: Point at a STAC catalog; the agent queries H3-indexed Parquet via DuckDB/MCP and controls the map in response.
+  - title: Reports you can re-run
+    details: Save a session as a Quarto-style report — the SQL the agent ran as R, Python or SQL chunks with their output, charts, the final map, and a disclosure of the model used.
   - title: Flexible deployment
     details: GitHub Pages with user-supplied API keys, Hugging Face Spaces with a secret config, or Kubernetes with server-injected credentials.
 ---
