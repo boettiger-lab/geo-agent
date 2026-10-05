@@ -92,9 +92,16 @@ export function resolveExportConfig(config = {}) {
  * expand a glob over plain HTTP — there is no listing. Under a configured
  * S3 secret DuckDB lists via the S3 API and the glob resolves.
  *
- * Deliberately credential-free: an omitted KEY_ID/SECRET means unsigned
- * requests, which is what public buckets want, and keeps the block clear of
- * {@link scrubCredentials}' `SECRET '…'` pattern.
+ * Deliberately credential-free, and explicitly so: `KEY_ID ''` / `SECRET ''`
+ * means unsigned requests, which is what public buckets want. Omitting the
+ * pair used to mean the same, but DuckDB 1.5 then signs with an empty key and
+ * the bucket answers 403 InvalidAccessKeyId — verified against 1.4.5 and
+ * 1.5.6. {@link scrubCredentials} leaves empty values alone, so the block
+ * survives it.
+ *
+ * Also loads the `h3` community extension: the data is H3-indexed and the
+ * agent's queries call `h3_*` functions, which the server has loaded and a
+ * fresh DuckDB does not.
  *
  * @param {string} [endpoint] - S3 host, no scheme
  * @returns {string} SQL to run once before the transcript's queries
@@ -102,10 +109,13 @@ export function resolveExportConfig(config = {}) {
 export function buildDuckdbSetupSql(endpoint = PUBLIC_S3_ENDPOINT) {
     const host = normalizeS3Host(endpoint);
     return `INSTALL httpfs; LOAD httpfs;
+INSTALL h3 FROM community; LOAD h3;
 
 CREATE OR REPLACE SECRET public_s3 (
     TYPE s3,
     PROVIDER config,
+    KEY_ID '',
+    SECRET '',
     ENDPOINT '${host}',
     URL_STYLE 'path',
     USE_SSL true
@@ -169,7 +179,7 @@ function pyString(sql) {
 export function buildSetupSnippet(lang, endpoint = PUBLIC_S3_ENDPOINT) {
     const host = normalizeS3Host(endpoint);
     const secret =
-        `CREATE OR REPLACE SECRET public_s3 (TYPE s3, PROVIDER config, ` +
+        `CREATE OR REPLACE SECRET public_s3 (TYPE s3, PROVIDER config, KEY_ID '', SECRET '', ` +
         `ENDPOINT '${host}', URL_STYLE 'path', USE_SSL true);`;
 
     if (lang === 'r') {
@@ -178,7 +188,7 @@ library(duckdb)
 
 con <- dbConnect(duckdb())
 # invisible() keeps dbExecute's row count from printing at the console
-invisible(dbExecute(con, "INSTALL httpfs; LOAD httpfs;"))
+invisible(dbExecute(con, "INSTALL httpfs; LOAD httpfs; INSTALL h3 FROM community; LOAD h3;"))
 invisible(dbExecute(con, "${secret}"))`;
     }
 
@@ -187,7 +197,7 @@ invisible(dbExecute(con, "${secret}"))`;
 import duckdb
 
 con = duckdb.connect()
-con.execute("INSTALL httpfs; LOAD httpfs;")
+con.execute("INSTALL httpfs; LOAD httpfs; INSTALL h3 FROM community; LOAD h3;")
 con.execute("${secret}")`;
     }
 
@@ -201,12 +211,13 @@ con.execute("${secret}")`;
  *
  * @param {string} sql
  * @param {string} lang - 'sql' | 'r' | 'python'
+ * @param {string} [name] - the variable the result lands in
  * @returns {string}
  */
-export function wrapQuery(sql, lang) {
+export function wrapQuery(sql, lang, name = 'df') {
     const body = String(sql ?? '').replace(/\s+$/, '');
-    if (lang === 'r') return `df <- dbGetQuery(con, ${rRawString(body)})`;
-    if (lang === 'python') return `df = con.sql(${pyString(body)}).df()`;
+    if (lang === 'r') return `${name} <- dbGetQuery(con, ${rRawString(body)})`;
+    if (lang === 'python') return `${name} = con.sql(${pyString(body)}).df()`;
     return body;
 }
 
@@ -285,9 +296,10 @@ export function scrubCredentials(text) {
 
     let out = text;
 
-    // DuckDB CREATE SECRET — KEY_ID 'value' / SECRET 'value'
-    out = out.replace(/(KEY_ID)\s+'[^']*'/gi, '$1 [REDACTED]');
-    out = out.replace(/(\bSECRET)\s+'[^']*'/gi, '$1 [REDACTED]');
+    // DuckDB CREATE SECRET — KEY_ID 'value' / SECRET 'value'. An empty value
+    // is the anonymous-access spelling and hides nothing, so it stays.
+    out = out.replace(/(KEY_ID)\s+'[^']+'/gi, '$1 [REDACTED]');
+    out = out.replace(/(\bSECRET)\s+'[^']+'/gi, '$1 [REDACTED]');
 
     // json/yaml/python access key assignments
     out = out.replace(
@@ -561,15 +573,17 @@ export function stepSql(step) {
 }
 
 /**
- * Whether a step failed. Mirrors `Agent#_isFailedResult`: a registry error,
- * an `Error…` string, or a tool's `{"success": false}` envelope — the
- * registry marks `success: true` whenever the tool didn't throw.
+ * Whether a step failed: a registry error, an `Error…` string, the MCP
+ * server's `SQL Error: …`, or a tool's `{"success": false}` envelope — the
+ * registry marks `success: true` whenever the tool didn't throw. Stricter
+ * than `Agent#_isFailedResult`, which misses `SQL Error`: a failed query in
+ * the report body is a failed line in every downloaded script.
  */
 export function isFailedStep(step) {
     if (!step) return false;
     if (step.success === false || step.source === 'error') return true;
     const s = typeof step.result === 'string' ? step.result : '';
-    return /^\s*Error\b/.test(s) || /"success"\s*:\s*false/.test(s);
+    return /^\s*(SQL\s+)?Error\b/.test(s) || /"success"\s*:\s*false/.test(s);
 }
 
 /**
@@ -820,6 +834,255 @@ ${items}
 </section>`;
 }
 
+/* ------------------------------------------------------------------ */
+/*  The session as a file to run: .R, .py, .qmd, .ipynb                */
+/* ------------------------------------------------------------------ */
+
+/**
+ * The note every exported form carries beside the AI disclosure: the app ran
+ * these queries on servers sitting next to the data, and a laptop pulling the
+ * same parquet over the internet will not keep pace. Without it, a reader
+ * whose re-run takes twenty minutes concludes the code is broken.
+ */
+export const SPEED_NOTE =
+    'GLEN apps run these queries on high-speed servers next to the data. ' +
+    'Re-run on a personal computer, large queries may take much longer.';
+// The report's HTML disclosure says the same, with the link inline.
+
+/**
+ * Files the report offers beside print-to-PDF. Scripts for people who will
+ * run it top to bottom; notebooks for people who will step through it with
+ * the questions and answers in between. One language per notebook, the one
+ * each format's users mostly reach for.
+ */
+export const SCRIPT_FORMATS = [
+    { id: 'r', ext: 'R', label: 'R script', mime: 'text/plain' },
+    { id: 'python', ext: 'py', label: 'Python script', mime: 'text/x-python' },
+    { id: 'qmd', ext: 'qmd', label: 'Quarto notebook (R)', mime: 'text/markdown' },
+    { id: 'ipynb', ext: 'ipynb', label: 'Jupyter notebook (Python)', mime: 'application/x-ipynb+json' },
+];
+
+/** What a chunk's query became in the app, when that was not a table. */
+const QUERY_EFFECT = {
+    register_hex_tiles: 'In the app, this query was drawn on the map as hex tiles.',
+    filter_by_query: 'In the app, this query filtered the map.',
+    render_chart: 'In the app, this query was plotted as a chart.',
+};
+
+/**
+ * The runnable part of a session: each question with the queries that
+ * succeeded under it, numbered across the whole session so every result keeps
+ * its own variable. Failed attempts and lookups stay in the report's log.
+ *
+ * @param {{turns: object[]}} record
+ * @returns {{prompt: string, answer: string|null, queries: {sql: string, tool: string, n: number}[]}[]}
+ */
+export function sessionQueries(record) {
+    let n = 0;
+    return (record?.turns || []).filter(t => t.prompt != null).map(t => ({
+        prompt: scrubCredentials(String(t.prompt)),
+        answer: t.answer ? scrubCredentials(t.answer) : null,
+        queries: (t.steps || [])
+            .filter(s => classifyStep(s) === 'chunk' && stepSql(s))
+            .map(s => ({ sql: scrubCredentials(stepSql(s)), tool: s.name, n: ++n })),
+    }));
+}
+
+/** A single line, safe inside a `#` comment or a markdown heading. */
+function oneLine(text) {
+    return String(text ?? '').replace(/\s+/g, ' ').trim();
+}
+
+/**
+ * The disclosure, as plain sentences for a comment or a callout. Notebooks
+ * carry the model's answers; scripts leave them in the report.
+ */
+function plainDisclosure(record, opts, answersHere = false) {
+    const models = sessionModels(record).map(m => m.id);
+    const using = models.length ? ` using ${models.join(', ')}` : '';
+    const version = opts.version ? ` ${opts.version}` : '';
+    return [
+        `Generated with GLEN${version} (${opts.projectUrl || GLEN_PROJECT_URL})${using}.`,
+        'The queries are exactly what the agent ran; the questions are the user\'s words.',
+        `${answersHere ? 'The answers between the code' : 'Answers in the report'} were written by the model - ` +
+            'check them against the code and its output.',
+        SPEED_NOTE,
+    ];
+}
+
+/** Title line, dated by the session as the report's subtitle is. */
+function scriptTitle(record, opts) {
+    const dates = [...new Set((record?.turns || []).map(t => formatDate(t.startedAt)).filter(Boolean))];
+    const date = dates.length ? dates.join(' - ') : formatDate((opts.exportedAt || new Date()).toISOString());
+    return `${opts.appTitle || 'GLEN'} - analysis session${date ? ', ' + date : ''}`;
+}
+
+/**
+ * The line that shows a result. R prints a data frame in full, which for a
+ * hex-tile query is every hex, so it gets the report's row cap; pandas
+ * truncates its own display.
+ */
+function showResult(name, lang) {
+    return lang === 'r' ? `head(${name}, ${OUTPUT_TABLE_ROWS})` : name;
+}
+
+/**
+ * The session as a plain `.R` or `.py` script: the setup block, then each
+ * question as a section header with its queries beneath, each result printed.
+ * Sections use the editors' outline markers (`# ---- … ----` in RStudio,
+ * `# %%` cells in VS Code and Spyder).
+ *
+ * @param {{turns: object[]}} record
+ * @param {'r'|'python'} lang
+ * @param {object} [opts] - as {@link buildReportHtml}
+ * @returns {string}
+ */
+export function buildScript(record, lang, opts = {}) {
+    const out = [];
+    const comment = (line) => out.push(line ? `# ${line}` : '#');
+    comment(oneLine(scriptTitle(record, opts)));
+    comment('');
+    plainDisclosure(record, opts).forEach(comment);
+    if (lang === 'r') comment('Needs R >= 4.0 for the raw strings around each query.');
+    out.push('');
+    out.push(buildSetupSnippet(lang, opts.s3Endpoint));
+
+    for (const [i, t] of sessionQueries(record).entries()) {
+        out.push('');
+        const heading = `${i + 1}. ${oneLine(t.prompt)}`;
+        out.push(lang === 'r' ? `# ---- ${heading} ----` : `# %% ${heading}`);
+        if (!t.queries.length) comment('No queries ran for this question.');
+        for (const q of t.queries) {
+            out.push('');
+            if (QUERY_EFFECT[q.tool]) comment(QUERY_EFFECT[q.tool]);
+            out.push(wrapQuery(q.sql, lang, `df${q.n}`));
+            out.push(`print(${showResult(`df${q.n}`, lang)})`);
+        }
+    }
+    return out.join('\n') + '\n';
+}
+
+/**
+ * The session as a Quarto document with R chunks: the disclosure as a
+ * callout, the setup chunk, then each question as a heading with its queries
+ * and the model's answer as prose — the report, but live.
+ *
+ * @param {{turns: object[]}} record
+ * @param {object} [opts] - as {@link buildReportHtml}
+ * @returns {string}
+ */
+export function buildQmd(record, opts = {}) {
+    const chunk = (code, label) =>
+        '```{r}\n' + (label ? `#| label: ${label}\n` : '') + code + '\n```';
+    const out = [
+        '---',
+        // A JSON string is a valid YAML double-quoted scalar.
+        `title: ${JSON.stringify(oneLine(scriptTitle(record, opts)))}`,
+        'format: html',
+        '---',
+        '',
+        '::: {.callout-note}',
+        plainDisclosure(record, opts, true).join(' '),
+        ':::',
+        '',
+        chunk(buildSetupSnippet('r', opts.s3Endpoint), 'setup'),
+    ];
+    for (const [i, t] of sessionQueries(record).entries()) {
+        out.push('', `## ${i + 1}. ${oneLine(t.prompt)}`);
+        for (const q of t.queries) {
+            out.push('');
+            if (QUERY_EFFECT[q.tool]) out.push(QUERY_EFFECT[q.tool], '');
+            out.push(chunk(`${wrapQuery(q.sql, 'r', `df${q.n}`)}\n${showResult(`df${q.n}`, 'r')}`));
+        }
+        if (t.answer) out.push('', t.answer.trim());
+    }
+    return out.join('\n') + '\n';
+}
+
+/**
+ * The session as a Jupyter notebook (nbformat 4.5) with Python cells, laid
+ * out as {@link buildQmd}: disclosure, setup, then question → queries → answer.
+ *
+ * @param {{turns: object[]}} record
+ * @param {object} [opts] - as {@link buildReportHtml}
+ * @returns {string} the notebook JSON
+ */
+export function buildIpynb(record, opts = {}) {
+    const cells = [];
+    const md = (text) => cells.push({
+        cell_type: 'markdown', id: `cell-${cells.length + 1}`, metadata: {}, source: text,
+    });
+    const code = (text) => cells.push({
+        cell_type: 'code', id: `cell-${cells.length + 1}`, metadata: {},
+        execution_count: null, outputs: [], source: text,
+    });
+
+    md(`# ${oneLine(scriptTitle(record, opts))}\n\n> ${plainDisclosure(record, opts, true).join(' ')}`);
+    code(buildSetupSnippet('python', opts.s3Endpoint));
+    for (const [i, t] of sessionQueries(record).entries()) {
+        md(`## ${i + 1}. ${oneLine(t.prompt)}`);
+        for (const q of t.queries) {
+            if (QUERY_EFFECT[q.tool]) md(QUERY_EFFECT[q.tool]);
+            code(`${wrapQuery(q.sql, 'python', `df${q.n}`)}\ndf${q.n}`);
+        }
+        if (t.answer) md(t.answer.trim());
+    }
+    return JSON.stringify({
+        cells,
+        metadata: {
+            kernelspec: { display_name: 'Python 3', language: 'python', name: 'python3' },
+            language_info: { name: 'python' },
+        },
+        nbformat: 4,
+        nbformat_minor: 5,
+    }, null, 1) + '\n';
+}
+
+/**
+ * Every downloadable form of the session, keyed by filename.
+ *
+ * @param {{turns: object[]}} record
+ * @param {object} [opts] - as {@link buildReportHtml}, plus `basename`
+ * @returns {{format: object, filename: string, text: string}[]}
+ */
+export function buildSessionFiles(record, opts = {}) {
+    const base = opts.basename || 'glen-session';
+    const build = {
+        r: () => buildScript(record, 'r', opts),
+        python: () => buildScript(record, 'python', opts),
+        qmd: () => buildQmd(record, opts),
+        ipynb: () => buildIpynb(record, opts),
+    };
+    return SCRIPT_FORMATS.map(f => ({ format: f, filename: `${base}.${f.ext}`, text: build[f.id]() }));
+}
+
+/**
+ * Inline script for the exported document: the download buttons. The files
+ * ride in the page as one JSON block and become a Blob on click, so the
+ * report stays a single self-contained file that works offline.
+ */
+const EXPORT_DOWNLOAD_SCRIPT = `<script>
+(function () {
+  var data = document.getElementById('export-session-files');
+  var strip = document.querySelector('.export-download-controls');
+  if (!data || !strip) return;
+  var files = JSON.parse(data.textContent);
+  strip.addEventListener('click', function (e) {
+    var b = e.target && e.target.closest ? e.target.closest('button[data-download]') : null;
+    var f = b && files[b.getAttribute('data-download')];
+    if (!f) return;
+    var url = URL.createObjectURL(new Blob([f.text], { type: f.mime }));
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = b.getAttribute('data-download');
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(function () { URL.revokeObjectURL(url); }, 0);
+  });
+})();
+<\/script>`;
+
 /**
  * Build the exported report.
  *
@@ -835,6 +1098,7 @@ ${items}
  * @param {string|null} [opts.version] - GLEN build, from {@link libraryVersion}
  * @param {{headTags: string, body: string}} [opts.mapEmbed] - from {@link buildMapEmbedHtml}
  * @param {Map<string, string>} [opts.figures] - chart_id → static chart markup (ChartRenderer#exportFigure)
+ * @param {string} [opts.basename] - filename stem for the .R / .py / .qmd / .ipynb downloads
  * @param {(md: string) => string} [opts.renderMarkdown]
  * @returns {string} a complete HTML document
  */
@@ -866,6 +1130,18 @@ export function buildReportHtml(record, opts = {}) {
         `<button type="button" data-set-lang="${l.id}" aria-pressed="${l.id === codeLang}">${escapeHtmlText(l.label)}</button>`
     ).join('');
 
+    // The downloads only earn their place when there is a query to run.
+    const hasQueries = sessionQueries({ turns }).some(t => t.queries.length);
+    const sessionFiles = hasQueries ? buildSessionFiles({ turns }, {
+        ...opts, appTitle, exportedAt, projectUrl,
+    }) : [];
+    const downloadButtons = sessionFiles.map(f =>
+        `<button type="button" data-download="${attr(f.filename)}" title="${attr(f.format.label)}">.${escapeHtmlText(f.format.ext)}</button>`
+    ).join('');
+    // `<` escaped so nothing in a query or answer can close the script element.
+    const filesJson = JSON.stringify(Object.fromEntries(sessionFiles.map(f =>
+        [f.filename, { mime: f.format.mime, text: f.text }]))).replace(/</g, '\\u003c');
+
     const toc = turns.length > 1
         ? `<nav class="report-toc" aria-label="Contents"><p class="report-toc-title">Contents</p><ol>` +
           turns.map((t, i) => `<li><a href="#q-${i + 1}">${escapeHtmlText(tocLabel(t.prompt))}</a></li>`).join('') +
@@ -891,6 +1167,9 @@ ${mapEmbed.headTags}
     Outputs generated with <a href="${attr(projectUrl)}">GLEN</a> using ${modelsText} on ${escapeHtmlText(sessionDate)}.
     The code below is exactly what the agent ran; the text around it was written by the model —
     check it against the code and its output.
+    <span class="report-disclosure-speed">GLEN apps run these queries on
+    <a href="${attr(projectUrl)}">high-speed servers</a> next to the data.
+    Re-run on a personal computer, large queries may take much longer.</span>
   </aside>
   <div class="report-controls">
     <div class="code-fold-toggle" role="group" aria-label="Code">
@@ -899,9 +1178,14 @@ ${mapEmbed.headTags}
     <div class="code-lang-toggle" role="group" aria-label="Show code as">
       <span class="code-lang-label">Code as</span>${langButtons}
     </div>
-    <div class="export-print-controls">
-      <label class="export-print-report"><input type="checkbox" id="export-report-style"> Print without code</label>
-      <button type="button" class="export-print-btn">Print / Save as PDF</button>
+    <div class="export-file-controls">
+      ${downloadButtons ? `<div class="export-download-controls" role="group" aria-label="Download code">
+        <span class="code-lang-label">Download</span>${downloadButtons}
+      </div>` : ''}
+      <div class="export-print-controls">
+        <label class="export-print-report"><input type="checkbox" id="export-report-style"> Print without code</label>
+        <button type="button" class="export-print-btn">Print / Save as PDF</button>
+      </div>
     </div>
   </div>
 </header>
@@ -910,7 +1194,8 @@ ${toc}
   <details class="chunk-code"><summary>Code <span class="chunk-tool">setup</span></summary><div class="code-variants">${setupChunks}</div></details>
   <p class="report-setup-note">To re-run this analysis yourself, run the setup chunk once: it points <code>s3://</code> paths at the
      public endpoint (<code>${escapeHtmlText(opts.s3Endpoint || PUBLIC_S3_ENDPOINT)}</code>) with anonymous access.
-     Public buckets only — private data is not reachable this way.</p>
+     Public buckets only — private data is not reachable this way.${downloadButtons ? `
+     Or download the whole session as a script or notebook from the header.` : ''}</p>
 </section>
 ${mapEmbed.body}
 <main class="report-body">
@@ -924,6 +1209,8 @@ ${sessionLogHtml({ turns })}
 ${EXPORT_CODE_LANG_SCRIPT}
 ${EXPORT_CODE_FOLD_SCRIPT}
 ${EXPORT_PRINT_SCRIPT}
+${downloadButtons ? `<script type="application/json" id="export-session-files">${filesJson}</script>
+${EXPORT_DOWNLOAD_SCRIPT}` : ''}
 </body>
 </html>`;
 }
@@ -962,6 +1249,7 @@ p code, li code, td code { background: rgba(0,0,0,0.04); padding: 0.1em 0.3em; b
 .report-header { margin-bottom: 1.5rem; }
 .report-title { font-size: 2.1rem; line-height: 1.2; margin: 0 0 0.25rem; font-weight: 600; }
 .report-subtitle { color: var(--muted); margin: 0 0 1rem; font-size: 1.05rem; }
+.report-disclosure-speed { display: block; margin-top: 0.35rem; }
 .report-disclosure { border-left: 4px solid #0d6efd; background: #f3f7ff; padding: 0.6rem 0.9rem;
                      border-radius: 0 4px 4px 0; font-size: 0.92rem; margin: 0 0 1rem; }
 .report-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; font-size: 13px; }
@@ -973,7 +1261,12 @@ p code, li code, td code { background: rgba(0,0,0,0.04); padding: 0.1em 0.3em; b
 .code-fold-toggle button + button, .code-lang-toggle button + button { border-left: 0; }
 .code-lang-label { color: var(--muted); margin-right: 6px; }
 .code-lang-toggle button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
-.export-print-controls { display: flex; align-items: center; gap: 8px; color: var(--muted); margin-left: auto; }
+.export-file-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; margin-left: auto; }
+.export-download-controls { display: flex; align-items: center; }
+.export-download-controls button:nth-child(2) { border-radius: 4px 0 0 4px; }
+.export-download-controls button:last-child { border-radius: 0 4px 4px 0; }
+.export-download-controls button + button { border-left: 0; }
+.export-print-controls { display: flex; align-items: center; gap: 8px; color: var(--muted); }
 .export-print-report { display: flex; align-items: center; gap: 4px; cursor: pointer; }
 .export-print-btn { border-radius: 4px; }
 
@@ -1077,7 +1370,7 @@ body[data-view="map"] .export-map { height: 100vh; border: 0; border-radius: 0; 
 @media (max-width: 600px) {
   body { padding-top: 1rem; font-size: 15px; }
   .report-title { font-size: 1.6rem; }
-  .export-print-controls { margin-left: 0; }
+  .export-file-controls { margin-left: 0; }
 }
 
 /* Print: the report goes to a board or a funder, so it prints as a document. */

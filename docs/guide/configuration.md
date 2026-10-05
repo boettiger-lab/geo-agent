@@ -1182,7 +1182,7 @@ For an app serving private data the export is worse than useless. The credential
 
 The saved file is a **session report** (#388), laid out like a Quarto or R Markdown document rather than a copy of the chat panel:
 
-- **A disclosure** under the title: *outputs generated with GLEN using* the model(s) *on* the date. The model is recorded per question, so a mid-session switch shows, and each section names its own when more than one was used.
+- **A disclosure** under the title: *outputs generated with GLEN using* the model(s) *on* the date. The model is recorded per question, so a mid-session switch shows, and each section names its own when more than one was used. A second line notes that GLEN apps run the queries on high-speed servers next to the data, so a re-run on a personal computer can be much slower. Its link goes to `project_url`.
 - **One section per question**, headed by the user's words verbatim. In the order they ran come the SQL-carrying calls (`query`, `register_hex_tiles`, `render_chart`, `filter_by_query`), each a **folded code chunk** with its output beneath it, and then the model's answer as prose. *Show all code / Hide all code* and the R · Python · SQL switch apply to every chunk.
 - **Charts are figures.** Each `render_chart` the session drew is re-drawn at report width as a static figure under its chunk, captioned with its title, even if the user closed its panel. A chart drawn from rows the model passed inline (rather than SQL) says so, and the rows are in the session log.
 - **Lookups are summarised, not shown.** Schema and catalog reads and status polls (`get_schema`, `get_hex_tile_status`, …) become one *Consulted …* line. Map actions become one line each. Failed or retried calls are left out, with a count.
@@ -1195,17 +1195,20 @@ Two guarantees apply to the export:
 
     ```sql
     INSTALL httpfs; LOAD httpfs;
+    INSTALL h3 FROM community; LOAD h3;
 
     CREATE OR REPLACE SECRET public_s3 (
         TYPE s3,
         PROVIDER config,
+        KEY_ID '',
+        SECRET '',
         ENDPOINT 's3-west.nrp-nautilus.io',
         URL_STYLE 'path',
         USE_SSL true
     );
     ```
 
-    Run it once per DuckDB session and every query in the transcript works as written. The secret carries no credentials — an omitted `KEY_ID`/`SECRET` means unsigned requests, which is what public buckets want. Apps on other storage set `export.public_s3_endpoint` (above); private buckets are out of scope, since the credentials that would reach them are scrubbed.
+    Run it once per DuckDB session and every query in the transcript works as written. The secret carries no credentials: the empty `KEY_ID`/`SECRET` means unsigned requests, which is what public buckets want. It has to be spelled out. Since DuckDB 1.5, leaving the pair out signs requests with an empty key, and the bucket answers *403 InvalidAccessKeyId*. The `h3` extension is loaded because the agent's queries call `h3_*` functions, which the server has loaded and a fresh DuckDB does not. Apps on other storage set `export.public_s3_endpoint` (above); private buckets are out of scope, since the credentials that would reach them are scrubbed.
 
 - **Credential scrubbing.** On top of the live-chat redaction described in the agent-loop docs, the export pass replaces credential-shaped tokens with `[REDACTED]` — DuckDB `CREATE SECRET` key/value pairs, AWS access keys (`aws_access_key_id`, `aws_secret_access_key`), `Authorization: Bearer …` tokens, and pre-signed-URL `X-Amz-Signature` / `X-Amz-Credential` / `X-Amz-Security-Token` query parameters. This scrubbing also covers the embedded map state (below).
 
@@ -1248,6 +1251,21 @@ SELECT count(*) FROM read_parquet('s3://public-iucn/hex/mammals_sr/h0=*/data_0.p
 ```
 
 Both are raw strings, so a query containing a backslash or a quote survives intact; a query that collides with every raw-string delimiter falls back to an escaped literal. The *Run this first* block gets the same treatment — `library(duckdb)` / `import duckdb` with the same anonymous S3 secret.
+
+### Download as a script or notebook
+
+The R · Python · SQL switch is fine for reading, but to *run* the analysis a reader has to copy every chunk out by hand. So the report's header also offers the whole session as one file:
+
+| Button | File | What's in it |
+|---|---|---|
+| `.R` | R script | Setup, then one `# ---- 1. question ----` section per question (RStudio's outline picks these up), each query assigned to its own `df1`, `df2`, … and printed (first 20 rows). |
+| `.py` | Python script | The same, with `# %%` cell markers that VS Code and Spyder run cell by cell. |
+| `.qmd` | Quarto, R chunks | The report, but runnable: the disclosure as a callout, a setup chunk, then each question as a heading with its query chunks and the model's answer as prose. |
+| `.ipynb` | Jupyter, Python | The same layout as the `.qmd`, as nbformat 4.5 with no outputs. |
+
+All four carry the disclosure and the speed note at the top. They hold what the report body holds: the queries that succeeded, in order and byte-identical to what ran. Failed attempts and lookups stay in the report's session log. Each result keeps its own variable rather than all of them overwriting `df`, so a reader can compare them. A query that drew hex tiles, filtered the map or fed a chart is marked as such, since locally it returns the rows rather than drawing them.
+
+The files are built when the report is saved and ride inside it as a JSON block, so the report stays one self-contained file and the buttons work offline. They take the report's filename (`glen-session-2026-10-01-1924.R`, …). A session that ran no queries shows no download buttons.
 
 ### Embedded map
 

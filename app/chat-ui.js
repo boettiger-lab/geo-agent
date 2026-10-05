@@ -1185,6 +1185,7 @@ export class ChatUI {
             projectUrl: exportCfg.projectUrl,
             version: libraryVersion(),
             mapEmbed: buildMapEmbedHtml(mapState, { filename: this._exportFilename() }),
+            basename: this._exportFilename().replace(/\.html$/, ''),
         });
 
         try {
