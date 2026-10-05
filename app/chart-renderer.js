@@ -167,6 +167,9 @@ export class ChartRenderer {
         this._seq = 0;
         this._z = 3;                // top stacking order (matches .chart-panel z-index)
         this._panels = new Map();   // id → panel element
+        // id → { spec, rows } for every chart drawn this session, kept after
+        // its panel closes: the exported report re-draws each one (#388).
+        this._charts = new Map();
     }
 
     /**
@@ -201,6 +204,7 @@ export class ChartRenderer {
         await this._loadPlot();
 
         const id = `chart-${++this._seq}`;
+        this._charts.set(id, { spec, rows });
         if (!this.doc) return { id };   // headless (shouldn't happen in-app)
 
         const panel = this.doc.createElement('div');
@@ -331,6 +335,29 @@ export class ChartRenderer {
             return;   // keep the prior figure on a transient draw error
         }
         body.replaceChildren(figure);
+    }
+
+    /**
+     * A chart as static markup for the exported report: re-drawn at report
+     * width from the spec and rows it was first drawn with, so the size the
+     * user dragged its panel to doesn't matter and a closed chart still
+     * exports. Plot writes data values as text nodes, so the markup is
+     * escaped by construction. Null when the chart is unknown or Plot is not
+     * loaded (no chart was ever drawn).
+     *
+     * @param {string} id - the `chart_id` render_chart returned
+     * @param {{width?: number, height?: number}} [size]
+     * @returns {string|null}
+     */
+    exportFigure(id, { width = 780, height = 380 } = {}) {
+        const chart = this._charts.get(id);
+        if (!chart || !this._plot) return null;
+        try {
+            const figure = this._plot.plot({ ...buildPlotOptions(this._plot, chart.spec, chart.rows), width, height });
+            return figure.outerHTML;
+        } catch {
+            return null;
+        }
     }
 
     remove(id) {

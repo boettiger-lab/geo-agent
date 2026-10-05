@@ -23,6 +23,7 @@ import {
     buildMapEmbedHtml,
     renderMarkdown,
     buildReportHtml,
+    chartIdOf,
     libraryVersion,
 } from './export-report.js';
 
@@ -54,14 +55,18 @@ export class ChatUI {
      * @param {import('./map-manager.js').MapManager} [mapManager] - used by the
      *   HTML export to embed the final map state; optional so tests and
      *   headless harnesses can construct a ChatUI without a live map.
+     * @param {import('./chart-renderer.js').ChartRenderer} [chartRenderer] -
+     *   used by the HTML export to re-draw each chart as a figure; null when
+     *   the app has charts off.
      */
-    constructor(agent, config, mount, mapManager = null) {
+    constructor(agent, config, mount, mapManager = null, chartRenderer = null) {
         this.agent = agent;
         this.config = config;
         // Export settings (opt-out + endpoint), resolved once — initExportButton
         // needs them before any DOM is built.
         this.exportConfig = resolveExportConfig(config);
         this.mapManager = mapManager;
+        this.chartRenderer = chartRenderer;
         this.busy = false;
 
         // Cache DOM refs from layout-manager (no getElementById here).
@@ -1153,7 +1158,24 @@ export class ChatUI {
             console.warn('[ChatUI] map capture for export failed:', err);
         }
 
+        // Each chart the session drew, re-drawn as a static figure. Guarded
+        // like the map: a failed figure costs the figure, not the export.
+        const figures = new Map();
+        for (const turn of this._session().turns) {
+            for (const step of turn.steps) {
+                const id = chartIdOf(step);
+                if (!id || figures.has(id)) continue;
+                try {
+                    const svg = this.chartRenderer?.exportFigure?.(id);
+                    if (svg) figures.set(id, svg);
+                } catch (err) {
+                    console.warn('[ChatUI] chart capture for export failed:', err);
+                }
+            }
+        }
+
         const html = buildReportHtml(this._session(), {
+            figures,
             title: this._exportTitle(),
             appTitle: document.title || 'GLEN',
             appUrl: window.location.href,

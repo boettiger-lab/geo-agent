@@ -1139,6 +1139,7 @@ The saved file is a **session report** (#388), laid out like a Quarto or R Markd
 
 - **A disclosure** under the title: *outputs generated with GLEN using* the model(s) *on* the date. The model is recorded per question, so a mid-session switch shows, and each section names its own when more than one was used.
 - **One section per question**, headed by the user's words verbatim. In the order they ran come the SQL-carrying calls (`query`, `register_hex_tiles`, `render_chart`, `filter_by_query`), each a **folded code chunk** with its output beneath it, and then the model's answer as prose. *Show all code / Hide all code* and the R · Python · SQL switch apply to every chunk.
+- **Charts are figures.** Each `render_chart` the session drew is re-drawn at report width as a static figure under its chunk, captioned with its title, even if the user closed its panel. A chart drawn from rows the model passed inline (rather than SQL) says so, and the rows are in the session log.
 - **Lookups are summarised, not shown.** Schema and catalog reads and status polls (`get_schema`, `get_hex_tile_status`, …) become one *Consulted …* line. Map actions become one line each. Failed or retried calls are left out, with a count.
 - **A session log appendix**, collapsed, holding every call with its arguments and result, lookups and failures included. The body is curated; the log shows nothing was hidden.
 - The **map as it stood when Save was clicked** (see below), and a colophon naming the GLEN version the app is pinned to.

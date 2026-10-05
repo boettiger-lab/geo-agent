@@ -38,7 +38,8 @@ const dom = new JSDOM('<!doctype html><html><body></body></html>', {
 const { window } = dom;
 
 for (const key of ['window', 'document', 'Node', 'NodeFilter', 'HTMLElement',
-                   'MutationObserver', 'requestAnimationFrame', 'localStorage']) {
+                   'MutationObserver', 'requestAnimationFrame', 'cancelAnimationFrame', 'localStorage',
+                   'Event']) {
     globalThis[key] = window[key];
 }
 globalThis.marked = marked;
@@ -51,6 +52,13 @@ globalThis.URL = { createObjectURL: () => 'blob:sample', revokeObjectURL: () => 
 window.HTMLAnchorElement.prototype.click = () => {};
 
 const { ChatUI, resolveExportConfig } = await import('../../app/chat-ui.js');
+const { ChartRenderer } = await import('../../app/chart-renderer.js');
+
+// Charts draw through the real ChartRenderer, with Observable Plot from
+// devDependencies (pinned to the version the app loads from the CDN) in place
+// of the browser's lazy CDN load.
+globalThis.Plot = await import('@observablehq/plot');
+const chartRenderer = new ChartRenderer({ doc: window.document });
 
 /* ── The session ────────────────────────────────────────────────────────── */
 
@@ -58,9 +66,11 @@ const { ChatUI, resolveExportConfig } = await import('../../app/chat-ui.js');
 // 2026-10-01, rebuilt from that day's chat export (sample-session.json). The
 // prompts, calls, SQL, results, answers and final map are verbatim. The old
 // export never recorded the model — the gap #388 closes — so the model below
-// is the TPL app's configured default, not one read off the session.
+// is the TPL app's configured default, not one read off the session. A turn
+// marked `synthetic` was appended to exercise a feature the real session
+// didn't use (render_chart); its note says what in it is real.
 const fixture = JSON.parse(readFileSync(join(dirname(fileURLToPath(import.meta.url)), 'sample-session.json'), 'utf8'));
-const SESSION_STARTED = ['2026-10-01T19:24:00Z', '2026-10-01T19:33:00Z'];
+const SESSION_STARTED = ['2026-10-01T19:24:00Z', '2026-10-01T19:33:00Z', '2026-10-01T19:38:00Z'];
 
 window.document.title = 'TPL — Protected Lands Explorer';
 
@@ -74,23 +84,30 @@ ui.agent = { selectedModel: 'z-ai/glm-5.2' };
 ui.messagesEl = window.document.createElement('div');
 ui.messagesEl.id = 'chat-messages';
 ui.mapManager = { getExportState: () => fixture.mapState };
+ui.chartRenderer = chartRenderer;
 window.document.body.appendChild(ui.messagesEl);
 
 // Replay each turn through the methods the agent drives, one call per round.
-fixture.turns.forEach((turn, t) => {
+for (const [t, turn] of fixture.turns.entries()) {
     ui.addMessage('user', turn.prompt);
     ui.startTurn();
-    turn.steps.forEach((step, i) => {
+    for (const [i, step] of turn.steps.entries()) {
         const iter = i + 1;
         const call = { id: `c${t}-${i}`, type: 'function',
                        function: { name: step.name, arguments: JSON.stringify(step.args) } };
         ui.showToolProposal([call], null, iter, true);
+        if (step.name === 'render_chart') {
+            // Draw it for real, so the result carries a live chart_id.
+            const { id } = await chartRenderer.render(step.args, step.args.data);
+            step.result = JSON.stringify({ success: true, chart_id: id, chart_type: step.args.chart_type,
+                                           title: step.args.title || null, points: step.args.data.length });
+        }
         ui.showToolResults([step], iter);
-    });
+    }
     ui.endTurn(turn.status || 'done');
     if (turn.answer) ui.addMarkdown('assistant', turn.answer);
-    ui.session.turns[t].startedAt = SESSION_STARTED[t] || SESSION_STARTED[0];
-});
+    ui.session.turns[t].startedAt = SESSION_STARTED[t] || SESSION_STARTED[SESSION_STARTED.length - 1];
+}
 
 /* ── Export ─────────────────────────────────────────────────────────────── */
 

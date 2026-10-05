@@ -575,7 +575,7 @@ export function isFailedStep(step) {
 /**
  * Where a step goes in the report body.
  *
- *   'chunk'    — carried SQL: a code chunk, with its output
+ *   'chunk'    — carried SQL, or drew a chart: a chunk, with its output
  *   'map'      — a map action: its effect is the map, so a one-line note
  *   'consult'  — a lookup: named in the section's "Consulted" line
  *   'failed'   — counted, and left to the session log
@@ -585,7 +585,7 @@ export function isFailedStep(step) {
  */
 export function classifyStep(step) {
     if (isFailedStep(step)) return 'failed';
-    if (stepSql(step)) return 'chunk';
+    if (stepSql(step) || step.name === 'render_chart') return 'chunk';
     if (CONSULT_TOOLS.has(step.name) || step.source === 'remote') return 'consult';
     return 'map';
 }
@@ -601,6 +601,22 @@ export function classifyStep(step) {
 export function libraryVersion(url = import.meta.url) {
     const m = /\/geo-agent@([^/]+)\/app\//.exec(String(url || ''));
     return m ? m[1] : null;
+}
+
+/**
+ * The `chart_id` a successful render_chart step returned, which keys its
+ * figure in {@link buildReportHtml}'s `figures`.
+ *
+ * @param {object} step
+ * @returns {string|null}
+ */
+export function chartIdOf(step) {
+    if (step?.name !== 'render_chart' || isFailedStep(step)) return null;
+    try {
+        return JSON.parse(step.result)?.chart_id || null;
+    } catch {
+        return null;
+    }
 }
 
 /** The distinct models a session used, in order of first use. */
@@ -620,7 +636,7 @@ const OUTPUT_TABLE_ROWS = 20;
  * SQL-carrying tools say what the rows became, since their output is the
  * map or a chart rather than a table.
  */
-function chunkOutputHtml(step, renderMd) {
+function chunkOutputHtml(step, renderMd, figures) {
     const result = scrubCredentials(String(step.result ?? ''));
     if (step.name === 'register_hex_tiles') {
         return `<p class="chunk-effect">→ Rendered on the map as hex tiles.</p>`;
@@ -628,10 +644,7 @@ function chunkOutputHtml(step, renderMd) {
     if (step.name === 'filter_by_query') {
         return `<p class="chunk-effect">→ Used to filter the map.</p>`;
     }
-    if (step.name === 'render_chart') {
-        const title = step.args?.title ? ` “${escapeHtmlText(step.args.title)}”` : '';
-        return `<p class="chunk-effect">→ Plotted as a ${escapeHtmlText(step.args?.chart_type || '')} chart${title} (charts are not carried into the export yet).</p>`;
-    }
+    if (step.name === 'render_chart') return chartOutputHtml(step, figures);
     const lines = result.replace(/\s+$/, '').split('\n');
     const isMdTable = lines.length >= 2 && /^\s*\|/.test(lines[0]) && /^\s*\|[\s:|-]+\|\s*$/.test(lines[1]);
     if (isMdTable) {
@@ -645,6 +658,25 @@ function chunkOutputHtml(step, renderMd) {
     return `<pre class="chunk-output"><code>${escapeHtmlText(result)}</code></pre>`;
 }
 
+/**
+ * A chart's output: the figure, re-drawn by ChartRenderer at export time,
+ * captioned with its title — and, when the model passed rows inline rather
+ * than SQL, a line saying so, since there is no query above it to re-run.
+ */
+function chartOutputHtml(step, figures) {
+    const a = step.args || {};
+    const title = a.title ? escapeHtmlText(a.title) : `${escapeHtmlText(a.chart_type || '')} chart`;
+    const id = chartIdOf(step);
+    const svg = id && figures?.get(id);
+    const inline = !stepSql(step) && Array.isArray(a.data)
+        ? ` Plotted from ${a.data.length} row${a.data.length === 1 ? '' : 's'} the model passed inline (listed in the <a href="#session-log">session log</a>).`
+        : '';
+    if (!svg) {
+        return `<p class="chunk-effect">→ Plotted as a chart: ${title}. The figure could not be carried into this export.${inline}</p>`;
+    }
+    return `<figure class="chunk-figure">${svg}<figcaption>${title}.${inline}</figcaption></figure>`;
+}
+
 /** One code variant per language, only the chosen one visible. */
 function codeVariantsHtml(sql) {
     return '<div class="code-variants">' + CODE_LANGUAGES.map(l =>
@@ -654,11 +686,14 @@ function codeVariantsHtml(sql) {
 }
 
 /** A folded code chunk, with its output beneath it. */
-function chunkHtml(step, renderMd) {
+function chunkHtml(step, renderMd, figures) {
     const sql = stepSql(step);
+    const code = sql
+        ? `<details class="chunk-code"><summary>Code <span class="chunk-tool">${escapeHtmlText(step.name)}</span></summary>${codeVariantsHtml(sql)}</details>`
+        : '';
     return `<div class="chunk" data-tool="${escapeHtmlText(step.name)}">
-<details class="chunk-code"><summary>Code <span class="chunk-tool">${escapeHtmlText(step.name)}</span></summary>${codeVariantsHtml(sql)}</details>
-${chunkOutputHtml(step, renderMd)}
+${code}
+${chunkOutputHtml(step, renderMd, figures)}
 </div>`;
 }
 
@@ -709,14 +744,14 @@ function tocLabel(prompt, max = 64) {
 }
 
 /** One report section: the question, its chunks in order, then the answer. */
-function sectionHtml(turn, i, renderMd, multiModel) {
+function sectionHtml(turn, i, renderMd, multiModel, figures) {
     const steps = turn.steps || [];
     const consulted = [];
     let failed = 0;
     const body = [];
     for (const step of steps) {
         const kind = classifyStep(step);
-        if (kind === 'chunk') body.push(chunkHtml(step, renderMd));
+        if (kind === 'chunk') body.push(chunkHtml(step, renderMd, figures));
         else if (kind === 'map') body.push(`<p class="report-map-step">Map — ${escapeHtmlText(describeMapStep(step))}</p>`);
         else if (kind === 'consult') consulted.push(step);
         else failed++;
@@ -799,6 +834,7 @@ ${items}
  * @param {string} [opts.projectUrl]
  * @param {string|null} [opts.version] - GLEN build, from {@link libraryVersion}
  * @param {{headTags: string, body: string}} [opts.mapEmbed] - from {@link buildMapEmbedHtml}
+ * @param {Map<string, string>} [opts.figures] - chart_id → static chart markup (ChartRenderer#exportFigure)
  * @param {(md: string) => string} [opts.renderMarkdown]
  * @returns {string} a complete HTML document
  */
@@ -878,7 +914,7 @@ ${toc}
 </section>
 ${mapEmbed.body}
 <main class="report-body">
-${turns.map((t, i) => sectionHtml(t, i, renderMd, multiModel)).join('\n')}
+${turns.map((t, i) => sectionHtml(t, i, renderMd, multiModel, opts.figures)).join('\n')}
 </main>
 ${sessionLogHtml({ turns })}
 <footer class="report-colophon">
@@ -974,6 +1010,9 @@ pre.chunk-output { padding: 0.5rem 1rem; border: 1px solid var(--rule); border-r
 .chunk-output th, .chunk-output td, .report-prose th, .report-prose td { border-bottom: 1px solid var(--rule); padding: 0.3rem 0.75rem; text-align: left; }
 .chunk-output th, .report-prose th { border-bottom: 2px solid #adb5bd; font-weight: 600; }
 .chunk-output td { font-family: var(--mono); font-size: 0.8rem; }
+.chunk-figure { margin: 0.75rem 0 0; }
+.chunk-figure svg, .chunk-figure > figure { max-width: 100%; height: auto; }
+.chunk-figure figcaption { color: var(--muted); font-size: 0.85rem; margin-top: 0.25rem; }
 .chunk-more, .chunk-effect { color: var(--muted); font-size: 0.85rem; margin: 0.35rem 0 0; }
 
 /* Sections */
@@ -1046,7 +1085,7 @@ body[data-view="map"] .export-map { height: 100vh; border: 0; border-radius: 0; 
   body { max-width: none; margin: 0; padding: 0; }
   .report-controls, .export-embed, .report-toc { display: none !important; }
   a { color: inherit; text-decoration: none; }
-  .chunk, .code-variants, pre, .export-map-section, .report-prose table, .log-call { break-inside: avoid; }
+  .chunk, .chunk-figure, .code-variants, pre, .export-map-section, .report-prose table, .log-call { break-inside: avoid; }
   .report-section h2 { break-after: avoid; }
   pre.chunk-output, .log-args, .log-result { max-height: none; overflow: visible; }
   .export-map { height: 420px; }

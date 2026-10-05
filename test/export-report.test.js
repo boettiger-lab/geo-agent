@@ -2,7 +2,7 @@
 import { describe, it, expect } from 'vitest';
 import {
     buildReportHtml, classifyStep, stepSql, isFailedStep, libraryVersion,
-    sessionModels, GLEN_PROJECT_URL,
+    sessionModels, chartIdOf, GLEN_PROJECT_URL,
 } from '../app/export-report.js';
 import { ChatUI, resolveExportConfig } from '../app/chat-ui.js';
 
@@ -172,6 +172,91 @@ describe('buildReportHtml', () => {
         const { html } = report([turn({ prompt: `use ${leak}`, steps: [query(leak, leak)] })]);
         expect(html).not.toContain('AKIA123');
         expect(html).not.toContain("'shh'");
+    });
+});
+
+describe('render_chart in the report', () => {
+    const SVG = '<svg class="plot"><text>Brazil</text></svg>';
+    const chart = (over = {}) => step({
+        name: 'render_chart', source: 'local',
+        args: { chart_type: 'bar', title: 'Protected share', x: 'country', y: 'pct',
+                data: [{ country: 'Brazil', pct: 31 }, { country: 'Peru', pct: 22 }] },
+        result: JSON.stringify({ success: true, chart_id: 'chart-1', points: 2 }),
+        ...over,
+    });
+
+    it('reads the chart_id off a successful result only', () => {
+        expect(chartIdOf(chart())).toBe('chart-1');
+        expect(chartIdOf(chart({ result: '{"success": false, "error": "no rows"}' }))).toBe(null);
+        expect(chartIdOf(query())).toBe(null);
+    });
+
+    it('is a chunk even with inline data, so the figure sits in the run order', () => {
+        expect(classifyStep(chart())).toBe('chunk');
+    });
+
+    it('shows the figure, captioned, beneath its chunk', () => {
+        const { doc } = report([turn({ steps: [chart()] })], { figures: new Map([['chart-1', SVG]]) });
+        const fig = doc.querySelector('main .chunk figure.chunk-figure');
+        expect(fig.querySelector('svg.plot')).not.toBe(null);
+        expect(fig.querySelector('figcaption').textContent).toContain('Protected share');
+    });
+
+    it('says when the rows came inline, since there is no query to re-run', () => {
+        const { doc } = report([turn({ steps: [chart()] })], { figures: new Map([['chart-1', SVG]]) });
+        expect(doc.querySelector('main .chunk details.chunk-code')).toBe(null);
+        expect(doc.querySelector('figcaption').textContent).toContain('2 rows the model passed inline');
+    });
+
+    it('gives a SQL chart its code chunk too', () => {
+        const s = chart({ args: { chart_type: 'bar', x: 'c', y: 'n', sql: Q } });
+        const { doc } = report([turn({ steps: [s] })], { figures: new Map([['chart-1', SVG]]) });
+        expect(doc.querySelector('main .chunk .code-variant[data-lang="sql"]').textContent).toBe(Q);
+        expect(doc.querySelector('figcaption').textContent).not.toContain('inline');
+    });
+
+    it('falls back to a note when the figure could not be drawn', () => {
+        const { doc } = report([turn({ steps: [chart()] })]);
+        expect(doc.querySelector('main figure')).toBe(null);
+        expect(doc.querySelector('main .chunk-effect').textContent).toContain('could not be carried');
+    });
+
+    it('leaves a failed chart to the log', () => {
+        const { doc } = report([turn({ steps: [chart({ result: '{"success": false, "error": "no rows"}' })] })]);
+        expect(doc.querySelector('main .chunk')).toBe(null);
+        expect(doc.querySelector('.report-meta').textContent).toContain('1 failed');
+    });
+});
+
+describe('ChatUI export: charts', () => {
+    it('asks the chart renderer for each chart the session drew', () => {
+        let captured = '';
+        const RealBlob = globalThis.Blob, realUrl = globalThis.URL;
+        const realClick = window.HTMLAnchorElement.prototype.click;
+        globalThis.Blob = class { constructor(parts) { captured = parts.join(''); } };
+        globalThis.URL = { createObjectURL: () => 'blob:x', revokeObjectURL: () => {} };
+        window.HTMLAnchorElement.prototype.click = () => {};
+        try {
+            const ui = Object.create(ChatUI.prototype);
+            ui.config = {};
+            ui.exportConfig = resolveExportConfig({});
+            ui.messagesEl = document.createElement('div');
+            ui.agent = { selectedModel: 'm' };
+            const asked = [];
+            ui.chartRenderer = { exportFigure: (id) => { asked.push(id); return '<svg id="drawn"></svg>'; } };
+            ui.addMessage('user', 'chart it');
+            ui.startTurn();
+            ui.showToolProposal([{ id: 'a', type: 'function', function: { name: 'render_chart', arguments: '{"chart_type":"bar","x":"a","y":"b","data":[]}' } }], null, 1, true);
+            ui.showToolResults([{ name: 'render_chart', success: true, source: 'local', result: '{"success":true,"chart_id":"chart-7"}' }], 1);
+            ui.endTurn('done');
+            ui.exportHtml();
+            expect(asked).toEqual(['chart-7']);
+            expect(captured).toContain('<svg id="drawn"></svg>');
+        } finally {
+            globalThis.Blob = RealBlob;
+            globalThis.URL = realUrl;
+            window.HTMLAnchorElement.prototype.click = realClick;
+        }
     });
 });
 

@@ -174,6 +174,94 @@
    ],
    "answer": "Here's the NLCD land cover composition (2024) for the top 30% combined-score hexes:\n\n### NLCD Land Cover in the Top 30% Priority Hexes\n\n| NLCD Code | Land Cover Class             | Area (km²) | % of Total |\n|----------:|------------------------------|-----------:|-----------:|\n|        41 | **Deciduous Forest**         |    252,157 | **32.80%** |\n|        42 | **Evergreen Forest**         |    104,010 | **13.53%** |\n|        81 | Hay/Pasture                  |     78,490 |     10.21% |\n|        90 | **Woody Wetlands**           |     77,418 | **10.07%** |\n|        43 | **Mixed Forest**             |     65,954 |  **8.58%** |\n|        21 | Developed, Open Space        |     42,418 |      5.52% |\n|        52 | Shrub/Scrub                  |     40,111 |      5.22% |\n|        71 | Herbaceous (Grassland)       |     23,355 |      3.04% |\n|        82 | Cultivated Crops             |     22,640 |      2.94% |\n|        22 | Developed, Low Intensity     |     20,874 |      2.72% |\n|        95 | Emergent Herbaceous Wetlands |     16,043 |      2.09% |\n|        11 | Open Water                   |     13,935 |      1.81% |\n|        23 | Developed, Medium Intensity  |      7,121 |      0.93% |\n|        31 | Barren Land                  |      2,818 |      0.37% |\n|        24 | Developed, High Intensity    |      1,461 |      0.19% |\n|        12 | Perennial Ice/Snow           |        0.1 |        ~0% |\n\n**Total area: ~769,000 km²**\n\n### Key Takeaways\n\n- **Forests dominate** — Deciduous (32.8%), Evergreen (13.5%), and Mixed (8.6%) forest together account for **~55%** of the top-priority area. This aligns with both high irrecoverable carbon storage (forest biomass and soils) and high species richness (forest habitat diversity).\n\n- **Wetlands are disproportionately represented** — Woody Wetlands (10.1%) and Emergent Herbaceous Wetlands (2.1%) together make up **~12%**, well above their typical CONUS land cover share. Wetlands are critical for both carbon sequestration and biodiversity, which drives their high combined scores.\n\n- **Agricultural lands** (Hay/Pasture + Cultivated Crops) account for **~13%**, suggesting some priority areas overlap with working lands — potential conservation easement or sustainable agriculture opportunities.\n\n- **Developed land** is relatively low at **~9.4%** (mostly open-space development), reflecting that the highest-value carbon + biodiversity cells tend to be in less-urbanized landscapes.\n\n- **Shrub/Scrub and Grassland** together account for **~8.3%**, representing arid and semi-arid ecosystems that may have lower carbon but high species richness (especially in the Southwest).",
    "status": "done"
+  },
+  {
+   "synthetic": "Not from the 2026-10-01 session: appended to exercise render_chart. The rows are turn 2's real query result; the prompt and answer are written for the fixture.",
+   "prompt": "chart that as a bar chart",
+   "steps": [
+    {
+     "name": "render_chart",
+     "source": "local",
+     "success": true,
+     "args": {
+      "chart_type": "bar",
+      "title": "Land cover in the top 30% priority hexes",
+      "data": [
+       {
+        "land_cover_class": "Deciduous Forest",
+        "area_km2": 252157.3
+       },
+       {
+        "land_cover_class": "Evergreen Forest",
+        "area_km2": 104010.0
+       },
+       {
+        "land_cover_class": "Hay/Pasture",
+        "area_km2": 78489.6
+       },
+       {
+        "land_cover_class": "Woody Wetlands",
+        "area_km2": 77418.2
+       },
+       {
+        "land_cover_class": "Mixed Forest",
+        "area_km2": 65953.8
+       },
+       {
+        "land_cover_class": "Developed, Open Space",
+        "area_km2": 42417.8
+       },
+       {
+        "land_cover_class": "Shrub/Scrub",
+        "area_km2": 40111.1
+       },
+       {
+        "land_cover_class": "Herbaceous (Grassland)",
+        "area_km2": 23354.9
+       },
+       {
+        "land_cover_class": "Cultivated Crops",
+        "area_km2": 22640.4
+       },
+       {
+        "land_cover_class": "Developed, Low Intensity",
+        "area_km2": 20873.6
+       },
+       {
+        "land_cover_class": "Emergent Herbaceous Wetlands",
+        "area_km2": 16042.8
+       },
+       {
+        "land_cover_class": "Open Water",
+        "area_km2": 13934.6
+       },
+       {
+        "land_cover_class": "Developed, Medium Intensity",
+        "area_km2": 7121.0
+       },
+       {
+        "land_cover_class": "Barren Land",
+        "area_km2": 2818.1
+       },
+       {
+        "land_cover_class": "Developed, High Intensity",
+        "area_km2": 1461.3
+       },
+       {
+        "land_cover_class": "Perennial Ice/Snow",
+        "area_km2": 0.1
+       }
+      ],
+      "x": "land_cover_class",
+      "y": "area_km2",
+      "x_label": "NLCD class",
+      "y_label": "Area (km²)"
+     },
+     "result": null
+    }
+   ],
+   "answer": "Here is the land cover composition of the top 30% priority hexes as a bar chart. Deciduous forest leads at about 252,000 km², followed by evergreen forest and hay/pasture.",
+   "status": "done"
   }
  ],
  "mapState": {

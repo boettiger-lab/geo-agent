@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="generator" content="GLEN">
-<title>TPL — Protected Lands Explorer — session report, 2026-10-02</title>
+<title>TPL — Protected Lands Explorer — session report, 2026-10-05</title>
 <style>
 :root { --fg: #212529; --muted: #6c757d; --rule: #dee2e6; --code-bg: #f6f8fa;
         --accent: #2c5282; --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
@@ -68,6 +68,9 @@ pre.chunk-output { padding: 0.5rem 1rem; border: 1px solid var(--rule); border-r
 .chunk-output th, .chunk-output td, .report-prose th, .report-prose td { border-bottom: 1px solid var(--rule); padding: 0.3rem 0.75rem; text-align: left; }
 .chunk-output th, .report-prose th { border-bottom: 2px solid #adb5bd; font-weight: 600; }
 .chunk-output td { font-family: var(--mono); font-size: 0.8rem; }
+.chunk-figure { margin: 0.75rem 0 0; }
+.chunk-figure svg, .chunk-figure > figure { max-width: 100%; height: auto; }
+.chunk-figure figcaption { color: var(--muted); font-size: 0.85rem; margin-top: 0.25rem; }
 .chunk-more, .chunk-effect { color: var(--muted); font-size: 0.85rem; margin: 0.35rem 0 0; }
 
 /* Sections */
@@ -140,7 +143,7 @@ body[data-view="map"] .export-map { height: 100vh; border: 0; border-radius: 0; 
   body { max-width: none; margin: 0; padding: 0; }
   .report-controls, .export-embed, .report-toc { display: none !important; }
   a { color: inherit; text-decoration: none; }
-  .chunk, .code-variants, pre, .export-map-section, .report-prose table, .log-call { break-inside: avoid; }
+  .chunk, .chunk-figure, .code-variants, pre, .export-map-section, .report-prose table, .log-call { break-inside: avoid; }
   .report-section h2 { break-after: avoid; }
   pre.chunk-output, .log-args, .log-result { max-height: none; overflow: visible; }
   .export-map { height: 420px; }
@@ -177,7 +180,7 @@ body[data-view="map"] .export-map { height: 100vh; border: 0; border-radius: 0; 
     </div>
   </div>
 </header>
-<nav class="report-toc" aria-label="Contents"><p class="report-toc-title">Contents</p><ol><li><a href="#q-1">what are the top 30% of us h8 hexes in terms of equal weight ca…</a></li><li><a href="#q-2">what NCLD land cover is represented here?</a></li><li class="report-toc-log"><a href="#session-log">Session log</a></li></ol></nav>
+<nav class="report-toc" aria-label="Contents"><p class="report-toc-title">Contents</p><ol><li><a href="#q-1">what are the top 30% of us h8 hexes in terms of equal weight ca…</a></li><li><a href="#q-2">what NCLD land cover is represented here?</a></li><li><a href="#q-3">chart that as a bar chart</a></li><li class="report-toc-log"><a href="#session-log">Session log</a></li></ol></nav>
 <section class="report-setup" id="setup">
   <details class="chunk-code"><summary>Code <span class="chunk-tool">setup</span></summary><div class="code-variants"><pre class="code-variant" data-lang="sql"><code class="language-sql">INSTALL httpfs; LOAD httpfs;
 
@@ -215,10 +218,10 @@ con.execute(&quot;CREATE OR REPLACE SECRET public_s3 (TYPE s3, PROVIDER config, 
       <p>This map can go on your own website. It is one self-contained file — no server, no
          account, no build step.</p>
       <ol>
-        <li>Send this file (<code>glen-session-2026-10-02-1402.html</code>) to whoever looks after your website and
+        <li>Send this file (<code>glen-session-2026-10-05-0415.html</code>) to whoever looks after your website and
             ask them to upload it. Any web host will do.</li>
         <li>Ask them to paste this where the map should appear:
-          <pre class="export-embed-snippet"><code>&lt;iframe src=&quot;glen-session-2026-10-02-1402.html#map&quot; width=&quot;100%&quot; height=&quot;480&quot;
+          <pre class="export-embed-snippet"><code>&lt;iframe src=&quot;glen-session-2026-10-05-0415.html#map&quot; width=&quot;100%&quot; height=&quot;480&quot;
         style=&quot;border:0&quot; loading=&quot;lazy&quot; title=&quot;Map&quot;&gt;&lt;/iframe&gt;</code></pre>
           <button type="button" class="export-embed-copy">Copy snippet</button>
         </li>
@@ -1424,6 +1427,30 @@ ORDER BY area_km2 DESC;
 
 
 </section>
+<section class="report-section" id="q-3">
+<h2><span class="q-num">3.</span> chart that as a bar chart</h2>
+<p class="report-meta">1 tool call</p>
+
+
+<div class="chunk" data-tool="render_chart">
+
+<figure class="chunk-figure"><svg class="plot-d6a7b5" fill="currentColor" font-family="system-ui, sans-serif" font-size="10" text-anchor="middle" width="780" height="380" viewBox="0 0 780 380" style="font-size: 13px; font-family: &quot;Open Sans&quot;, system-ui, -apple-system, sans-serif; color: rgb(26, 26, 26); background: transparent;"><style>:where(.plot-d6a7b5) {
+  --plot-background: white;
+  display: block;
+  height: auto;
+  height: intrinsic;
+  max-width: 100%;
+}
+:where(.plot-d6a7b5 text),
+:where(.plot-d6a7b5 tspan) {
+  white-space: pre;
+}</style><g aria-label="y-grid" aria-hidden="true" stroke="currentColor" stroke-opacity="0.1" transform="translate(0,0.5)"><line x1="56" x2="762" y1="260" y2="260"></line><line x1="56" x2="762" y1="212.01408010000108" y2="212.01408010000108"></line><line x1="56" x2="762" y1="164.02816020000213" y2="164.02816020000213"></line><line x1="56" x2="762" y1="116.0422403000032" y2="116.0422403000032"></line><line x1="56" x2="762" y1="68.05632040000428" y2="68.05632040000428"></line><line x1="56" x2="762" y1="20.070400500005352" y2="20.070400500005352"></line></g><g aria-label="y-axis tick" aria-hidden="true" fill="none" stroke="currentColor" transform="translate(0,0.5)"><path transform="translate(56,260)" d="M0,0L-6,0"></path><path transform="translate(56,212.01408010000108)" d="M0,0L-6,0"></path><path transform="translate(56,164.02816020000213)" d="M0,0L-6,0"></path><path transform="translate(56,116.0422403000032)" d="M0,0L-6,0"></path><path transform="translate(56,68.05632040000428)" d="M0,0L-6,0"></path><path transform="translate(56,20.070400500005352)" d="M0,0L-6,0"></path></g><g aria-label="y-axis tick label" text-anchor="end" font-variant="tabular-nums" transform="translate(-8.5,0.5)"><text y="0.32em" transform="translate(56,260)">0k</text><text y="0.32em" transform="translate(56,212.01408010000108)">50k</text><text y="0.32em" transform="translate(56,164.02816020000213)">100k</text><text y="0.32em" transform="translate(56,116.0422403000032)">150k</text><text y="0.32em" transform="translate(56,68.05632040000428)">200k</text><text y="0.32em" transform="translate(56,20.070400500005352)">250k</text></g><g aria-label="y-axis label" text-anchor="start" transform="translate(-52.5,-14.5)"><text y="0.71em" transform="translate(56,18)">↑ Area (km²)</text></g><g aria-label="x-axis tick" aria-hidden="true" fill="none" stroke="currentColor" transform="translate(20,0)"><path transform="translate(67,260)" d="M0,0L0,6"></path><path transform="translate(110,260)" d="M0,0L0,6"></path><path transform="translate(153,260)" d="M0,0L0,6"></path><path transform="translate(196,260)" d="M0,0L0,6"></path><path transform="translate(239,260)" d="M0,0L0,6"></path><path transform="translate(282,260)" d="M0,0L0,6"></path><path transform="translate(325,260)" d="M0,0L0,6"></path><path transform="translate(368,260)" d="M0,0L0,6"></path><path transform="translate(411,260)" d="M0,0L0,6"></path><path transform="translate(454,260)" d="M0,0L0,6"></path><path transform="translate(497,260)" d="M0,0L0,6"></path><path transform="translate(540,260)" d="M0,0L0,6"></path><path transform="translate(583,260)" d="M0,0L0,6"></path><path transform="translate(626,260)" d="M0,0L0,6"></path><path transform="translate(669,260)" d="M0,0L0,6"></path><path transform="translate(712,260)" d="M0,0L0,6"></path></g><g aria-label="x-axis tick label" text-anchor="end" transform="translate(20,12.776608177155968)"><text y="0.32em" transform="translate(67,260) rotate(-35)">Barren Land</text><text y="0.32em" transform="translate(110,260) rotate(-35)">Cultivated Crops</text><text y="0.32em" transform="translate(153,260) rotate(-35)">Deciduous Forest</text><text y="0.32em" transform="translate(196,260) rotate(-35)">Developed, High Intensity</text><text y="0.32em" transform="translate(239,260) rotate(-35)">Developed, Low Intensity</text><text y="0.32em" transform="translate(282,260) rotate(-35)">Developed, Medium Intensity</text><text y="0.32em" transform="translate(325,260) rotate(-35)">Developed, Open Space</text><text y="0.32em" transform="translate(368,260) rotate(-35)">Emergent Herbaceous Wetlands</text><text y="0.32em" transform="translate(411,260) rotate(-35)">Evergreen Forest</text><text y="0.32em" transform="translate(454,260) rotate(-35)">Hay/Pasture</text><text y="0.32em" transform="translate(497,260) rotate(-35)">Herbaceous (Grassland)</text><text y="0.32em" transform="translate(540,260) rotate(-35)">Mixed Forest</text><text y="0.32em" transform="translate(583,260) rotate(-35)">Open Water</text><text y="0.32em" transform="translate(626,260) rotate(-35)">Perennial Ice/Snow</text><text y="0.32em" transform="translate(669,260) rotate(-35)">Shrub/Scrub</text><text y="0.32em" transform="translate(712,260) rotate(-35)">Woody Wetlands</text></g><g aria-label="x-axis label" transform="translate(0.5,117.5)"><text transform="translate(409,260)">NLCD class</text></g><g aria-label="rule" stroke="currentColor" transform="translate(0,0.5)"><line x1="56" x2="762" y1="260" y2="260"></line></g><g aria-label="bar" fill="#2a78d6"><rect x="154" width="37" y="18" height="242"></rect><rect x="412" width="37" y="160.1796894240222" height="99.8203105759778"></rect><rect x="455" width="37" y="184.67208682834087" height="75.32791317165913"></rect><rect x="713" width="37" y="185.70032911995807" height="74.29967088004193"></rect><rect x="541" width="37" y="196.702924721989" height="63.29707527801099"></rect><rect x="326" width="37" y="219.2908569373165" height="40.709143062683495"></rect><rect x="670" width="37" y="221.50463936598308" height="38.49536063401692"></rect><rect x="498" width="37" y="237.58587278655028" height="22.414127213449717"></rect><rect x="111" width="37" y="238.27159158192126" height="21.728408418078743"></rect><rect x="240" width="37" y="239.96722204750765" height="20.032777952492353"></rect><rect x="369" width="37" y="244.60342968456595" height="15.396570315434047"></rect><rect x="584" width="37" y="246.6267080112295" height="13.37329198877049"></rect><rect x="283" width="37" y="253.16584528784213" height="6.8341547121578685"></rect><rect x="68" width="37" y="257.29541758259626" height="2.704582417403742"></rect><rect x="197" width="37" y="258.5975635050026" height="1.4024364949974029"></rect><rect x="627" width="37" y="259.9999040281602" height="0.00009597183981213675"></rect></g><g aria-label="tip" fill="var(--plot-background)" stroke="currentColor" pointer-events="none" text-anchor="start" transform="translate(20,0.5)"></g></svg><figcaption>Land cover in the top 30% priority hexes. Plotted from 16 rows the model passed inline (listed in the <a href="#session-log">session log</a>).</figcaption></figure>
+</div>
+<div class="report-prose"><p>Here is the land cover composition of the top 30% priority hexes as a bar chart. Deciduous forest leads at about 252,000 km², followed by evergreen forest and hay/pasture.</p>
+</div>
+
+
+</section>
 </main>
 <section class="report-appendix" id="session-log">
 <h2>Session log</h2>
@@ -1766,10 +1793,92 @@ SQL data (use with `query` tool):
 </div>
 
 </details>
+<details class="log-turn" id="session-log-3" data-print-closed>
+<summary>3. chart that as a bar chart — 1 call</summary>
+<div class="log-call">
+<p class="log-call-name">✓ <code>render_chart</code></p>
+<pre class="log-args"><code>{
+  &quot;chart_type&quot;: &quot;bar&quot;,
+  &quot;title&quot;: &quot;Land cover in the top 30% priority hexes&quot;,
+  &quot;data&quot;: [
+    {
+      &quot;land_cover_class&quot;: &quot;Deciduous Forest&quot;,
+      &quot;area_km2&quot;: 252157.3
+    },
+    {
+      &quot;land_cover_class&quot;: &quot;Evergreen Forest&quot;,
+      &quot;area_km2&quot;: 104010
+    },
+    {
+      &quot;land_cover_class&quot;: &quot;Hay/Pasture&quot;,
+      &quot;area_km2&quot;: 78489.6
+    },
+    {
+      &quot;land_cover_class&quot;: &quot;Woody Wetlands&quot;,
+      &quot;area_km2&quot;: 77418.2
+    },
+    {
+      &quot;land_cover_class&quot;: &quot;Mixed Forest&quot;,
+      &quot;area_km2&quot;: 65953.8
+    },
+    {
+      &quot;land_cover_class&quot;: &quot;Developed, Open Space&quot;,
+      &quot;area_km2&quot;: 42417.8
+    },
+    {
+      &quot;land_cover_class&quot;: &quot;Shrub/Scrub&quot;,
+      &quot;area_km2&quot;: 40111.1
+    },
+    {
+      &quot;land_cover_class&quot;: &quot;Herbaceous (Grassland)&quot;,
+      &quot;area_km2&quot;: 23354.9
+    },
+    {
+      &quot;land_cover_class&quot;: &quot;Cultivated Crops&quot;,
+      &quot;area_km2&quot;: 22640.4
+    },
+    {
+      &quot;land_cover_class&quot;: &quot;Developed, Low Intensity&quot;,
+      &quot;area_km2&quot;: 20873.6
+    },
+    {
+      &quot;land_cover_class&quot;: &quot;Emergent Herbaceous Wetlands&quot;,
+      &quot;area_km2&quot;: 16042.8
+    },
+    {
+      &quot;land_cover_class&quot;: &quot;Open Water&quot;,
+      &quot;area_km2&quot;: 13934.6
+    },
+    {
+      &quot;land_cover_class&quot;: &quot;Developed, Medium Intensity&quot;,
+      &quot;area_km2&quot;: 7121
+    },
+    {
+      &quot;land_cover_class&quot;: &quot;Barren Land&quot;,
+      &quot;area_km2&quot;: 2818.1
+    },
+    {
+      &quot;land_cover_class&quot;: &quot;Developed, High Intensity&quot;,
+      &quot;area_km2&quot;: 1461.3
+    },
+    {
+      &quot;land_cover_class&quot;: &quot;Perennial Ice/Snow&quot;,
+      &quot;area_km2&quot;: 0.1
+    }
+  ],
+  &quot;x&quot;: &quot;land_cover_class&quot;,
+  &quot;y&quot;: &quot;area_km2&quot;,
+  &quot;x_label&quot;: &quot;NLCD class&quot;,
+  &quot;y_label&quot;: &quot;Area (km²)&quot;
+}</code></pre>
+<pre class="log-result"><code>{&quot;success&quot;:true,&quot;chart_id&quot;:&quot;chart-1&quot;,&quot;chart_type&quot;:&quot;bar&quot;,&quot;title&quot;:&quot;Land cover in the top 30% priority hexes&quot;,&quot;points&quot;:16}</code></pre>
+</div>
+
+</details>
 </section>
 <footer class="report-colophon">
   <p>Generated with a development build of GLEN in <a href="https://boettiger-lab.github.io/geo-agent/preview/">TPL — Protected Lands Explorer</a>.
-     Exported 10/2/2026, 2:02:04 PM.</p>
+     Exported 10/5/2026, 4:15:22 AM.</p>
 </footer>
 <script>
 (function () {

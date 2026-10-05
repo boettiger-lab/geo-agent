@@ -164,4 +164,8 @@ Protected Lands Explorer session of 2026-10-01, rebuilt from that day's chat
 export into `tools/sample-session.json`: prompts, calls, SQL, results, answers
 and the final map, verbatim. A sample carrying invented figures would be worse
 than no sample. The one thing that export did not record is the model (#388
-adds it), so the fixture uses the TPL app's configured default.
+adds it), so the fixture uses the TPL app's configured default. A third turn,
+*chart that as a bar chart*, is **synthetic** and marked so in the fixture: it
+was appended to exercise `render_chart`, using turn 2's real query result as
+its rows. It draws through the real `ChartRenderer`, with Observable Plot from
+devDependencies at the version the app loads.
