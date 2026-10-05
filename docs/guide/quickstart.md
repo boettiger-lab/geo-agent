@@ -82,16 +82,16 @@ The canonical `index.html` lives in [boettiger-lab/geo-agent-template](https://g
     crossorigin="anonymous"></script>
 
   <!-- GLEN core styles (pinned) -->
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/boettiger-lab/geo-agent@v3.9.0/app/style.css">
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/boettiger-lab/geo-agent@v3.9.0/app/chat.css">
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/boettiger-lab/geo-agent@v3.9.0/app/sidebar.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/boettiger-lab/geo-agent@v3.32.0/app/style.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/boettiger-lab/geo-agent@v3.32.0/app/chat.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/boettiger-lab/geo-agent@v3.32.0/app/sidebar.css">
 </head>
 <body>
   <div id="map"></div>
   <div id="menu"></div>
   <!-- GLEN bootstrap (pinned) -->
   <script type="module"
-    src="https://cdn.jsdelivr.net/gh/boettiger-lab/geo-agent@v3.9.0/app/main.js">
+    src="https://cdn.jsdelivr.net/gh/boettiger-lab/geo-agent@v3.32.0/app/main.js">
   </script>
 </body>
 </html>
@@ -118,7 +118,7 @@ Update the URL and its `integrity` value together in the same commit. Because ev
 
 | CDN reference | When to use |
 |---|---|
-| `@vX.Y.Z` (e.g. `@v3.6.0`) | Every deployed app — pinned, immutable |
+| `@vX.Y.Z` (e.g. `@v3.32.0`) | Every deployed app — pinned, immutable |
 | `@<40-char-commit-sha>` | Short-lived demo of an in-flight feature branch |
 
 `@main` is **not** used by deployed apps: a merge to `main` can change behavior under a running page, and tooling/MCP contracts evolve between releases. Bump the pin deliberately, never implicitly.

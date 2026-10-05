@@ -67,7 +67,7 @@ A toggle in the chat UI lets users switch remote tools to auto-approve mode, ski
 
 Tool call arguments displayed in the UI are filtered to strip S3 credentials, API tokens, and similar secrets before rendering. This applies to both the collapsed "Running: …" blocks and the expanded Details view, so sensitive values injected into SQL or tool parameters are never shown to the user.
 
-The same redaction extends to the HTML chat export (the 💾 save button in the chat footer): the same key list is re-applied to the cloned DOM as an invariant, and a defense-in-depth regex pass scrubs credential-shaped tokens (AWS access keys, `CREATE SECRET` values, `Authorization: Bearer …` tokens, pre-signed-URL signature/credential/session-token parameters) that might have reached the rendered DOM through other paths. See [Chat export](/guide/configuration#chat-export) for the user-facing description.
+The same redaction extends to the saved session report (the **Export session** button): the report is built from a record of the session rather than from the chat panel, the same key list is dropped from every tool call's arguments, and a defense-in-depth regex pass scrubs credential-shaped tokens (AWS access keys, `CREATE SECRET` values, `Authorization: Bearer …` tokens, pre-signed-URL signature/credential/session-token parameters) from prompts, SQL, results and prose. See [Chat export](/guide/configuration#chat-export) for the user-facing description.
 
 ## Pre-call explanation: how it works
 
