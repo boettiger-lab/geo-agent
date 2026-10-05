@@ -38,6 +38,10 @@ async function main() {
         // != null (not truthiness) so 0 — which disables the checkpoint — survives.
         if (runtimeConfig.max_tool_calls != null) appConfig.max_tool_calls = runtimeConfig.max_tool_calls;
         if (runtimeConfig.max_tool_calls_manual != null) appConfig.max_tool_calls_manual = runtimeConfig.max_tool_calls_manual;
+        // A private deployment opts out of the export here ("export": false),
+        // where k8s may hand it over as the string "false" — resolveExportConfig
+        // reads both. It was documented as overriding but never merged.
+        if (runtimeConfig.export != null) appConfig.export = runtimeConfig.export;
     }
 
     // If no server-provided LLM config, check for user-provided key mode
