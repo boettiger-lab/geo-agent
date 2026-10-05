@@ -9,501 +9,40 @@ import { CARBON_DASHBOARD_URL } from './app-header.js';
 import { ensurePanelActions } from './panel-actions.js';
 import { githubIcon, leafIcon } from './icons.js';
 
-/**
- * Default public (anonymous) S3 endpoint for the exported setup block.
- * Mirrors the host that `dataset-catalog.js` strips when it converts asset
- * hrefs to `s3://` paths. Apps on other storage override it with
- * `public_s3_endpoint` in their config.
- */
-export const PUBLIC_S3_ENDPOINT = 's3-west.nrp-nautilus.io';
+import {
+    PUBLIC_S3_ENDPOINT,
+    resolveExportConfig,
+    buildDuckdbSetupSql,
+    CODE_LANGUAGES,
+    buildSetupSnippet,
+    wrapQuery,
+    scrubCredentials,
+    REDACTED_KEYS,
+    EXPORT_MAP_MAPLIBRE_VERSION,
+    EXPORT_MAP_PMTILES_VERSION,
+    buildMapEmbedHtml,
+    renderMarkdown,
+    buildReportHtml,
+    chartIdOf,
+    libraryVersion,
+} from './export-report.js';
 
-/**
- * Strip a scheme and any trailing slashes from an S3 host, so a config that
- * spells the endpoint as a URL still produces a valid `ENDPOINT '…'`.
- *
- * @param {string} endpoint
- * @returns {string}
- */
-function normalizeS3Host(endpoint) {
-    return String(endpoint || PUBLIC_S3_ENDPOINT)
-        .replace(/^https?:\/\//, '')
-        .replace(/\/+$/, '');
-}
+// Re-exported so existing importers (and tests) keep resolving them here.
+export {
+    PUBLIC_S3_ENDPOINT,
+    resolveExportConfig,
+    buildDuckdbSetupSql,
+    CODE_LANGUAGES,
+    buildSetupSnippet,
+    wrapQuery,
+    scrubCredentials,
+    REDACTED_KEYS,
+    EXPORT_MAP_MAPLIBRE_VERSION,
+    EXPORT_MAP_PMTILES_VERSION,
+    buildMapEmbedHtml,
+    renderMarkdown,
+};
 
-/**
- * Resolve the app's export settings.
- *
- * Shape in `layers-input.json` (or the deploy-time `config.json`, which wins):
- *
- * ```json
- * "export": { "enabled": false }
- * "export": { "public_s3_endpoint": "minio.example.org" }
- * "export": false
- * ```
- *
- * Opt-*out*: absent config means the export is on, which is what the public
- * apps want. Private deployments turn it off, because the credential scrub
- * strips exactly what their exported queries would need — the recipient gets
- * a document whose code cannot run.
- *
- * `public_s3_endpoint` as a flat top-level key is the older spelling (#367)
- * and is still honoured, with the block winning when both are set.
- *
- * @param {object} [config] - merged app config
- * @returns {{ enabled: boolean, s3Endpoint: string }}
- */
-export function resolveExportConfig(config = {}) {
-    // Deploy-time config.json arrives from k8s, where a boolean can land as
-    // the string "false"; treat both spellings as off.
-    const isOff = (v) => v === false || v === 'false';
-
-    const block = config?.export;
-    const blk = (block && typeof block === 'object') ? block : {};
-    const enabled = !isOff(block) && !isOff(blk.enabled);
-    const endpoint = blk.public_s3_endpoint || config?.public_s3_endpoint || PUBLIC_S3_ENDPOINT;
-
-    // Which language the exported document opens on. An unknown value falls
-    // back to SQL rather than showing an empty document — the reader can
-    // still switch in the file.
-    const wanted = String(blk.default_code_language ?? 'sql').toLowerCase();
-    const codeLanguage = CODE_LANGUAGES.some(l => l.id === wanted) ? wanted : 'sql';
-
-    return { enabled, s3Endpoint: normalizeS3Host(endpoint), codeLanguage };
-}
-
-/**
- * DuckDB preamble that points `s3://` URLs at the public endpoint
- * anonymously, so every query in an exported transcript re-runs verbatim
- * outside the cluster.
- *
- * We emit this instead of rewriting `s3://bucket/key` to an HTTPS URL: the
- * paths the catalog hands the model are routinely globs
- * (`s3://bucket/hex/x/h0=*\/data_0.parquet`, `.../**`), and `httpfs` cannot
- * expand a glob over plain HTTP — there is no listing. Under a configured
- * S3 secret DuckDB lists via the S3 API and the glob resolves.
- *
- * Deliberately credential-free: an omitted KEY_ID/SECRET means unsigned
- * requests, which is what public buckets want, and keeps the block clear of
- * {@link scrubCredentials}' `SECRET '…'` pattern.
- *
- * @param {string} [endpoint] - S3 host, no scheme
- * @returns {string} SQL to run once before the transcript's queries
- */
-export function buildDuckdbSetupSql(endpoint = PUBLIC_S3_ENDPOINT) {
-    const host = normalizeS3Host(endpoint);
-    return `INSTALL httpfs; LOAD httpfs;
-
-CREATE OR REPLACE SECRET public_s3 (
-    TYPE s3,
-    PROVIDER config,
-    ENDPOINT '${host}',
-    URL_STYLE 'path',
-    USE_SSL true
-);`;
-}
-
-/**
- * Code languages the export can present. SQL is what actually ran; R and
- * Python are thin wrappers around the identical query text, because most of
- * our users can drive R or Python and cannot write SQL — they just don't know
- * that `duckdb` hands SQL straight through in three lines.
- */
-export const CODE_LANGUAGES = [
-    { id: 'sql', label: 'SQL' },
-    { id: 'r', label: 'R' },
-    { id: 'python', label: 'Python' },
-];
-
-/**
- * Quote SQL as an R raw string, so nothing inside it needs escaping. Walks
- * R's delimiter forms in turn; only a query containing every closing form
- * falls back to an escaped ordinary string. Raw strings need R >= 4.0.
- *
- * @param {string} sql
- * @returns {string} an R string literal
- */
-function rRawString(sql) {
-    const forms = [['r"(', ')"'], ['r"[', ']"'], ['r"{', '}"'], ['r"---(', ')---"']];
-    for (const [open, close] of forms) {
-        if (!sql.includes(close)) return `${open}\n${sql}\n${close}`;
-    }
-    return `"${sql.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
-}
-
-/**
- * Quote SQL as a Python triple-quoted raw string. Raw so a backslash in the
- * query (a regex, say) survives verbatim; the newline before the closing
- * delimiter keeps a trailing backslash legal. Falls back to an escaped
- * literal only if the query contains both triple-quote forms.
- *
- * @param {string} sql
- * @returns {string} a Python string literal
- */
-function pyString(sql) {
-    for (const q of ['"""', "'''"]) {
-        if (!sql.includes(q)) return `r${q}\n${sql}\n${q}`;
-    }
-    return JSON.stringify(sql);
-}
-
-/**
- * The connect-and-configure preamble for one language: load `httpfs` and
- * point `s3://` at the public endpoint anonymously (see
- * {@link buildDuckdbSetupSql} for why the export configures the endpoint
- * rather than rewriting the URLs).
- *
- * @param {string} lang - 'sql' | 'r' | 'python'
- * @param {string} [endpoint]
- * @returns {string}
- */
-export function buildSetupSnippet(lang, endpoint = PUBLIC_S3_ENDPOINT) {
-    const host = normalizeS3Host(endpoint);
-    const secret =
-        `CREATE OR REPLACE SECRET public_s3 (TYPE s3, PROVIDER config, ` +
-        `ENDPOINT '${host}', URL_STYLE 'path', USE_SSL true);`;
-
-    if (lang === 'r') {
-        return `# install.packages("duckdb")        # first time only
-library(duckdb)
-
-con <- dbConnect(duckdb())
-# invisible() keeps dbExecute's row count from printing at the console
-invisible(dbExecute(con, "INSTALL httpfs; LOAD httpfs;"))
-invisible(dbExecute(con, "${secret}"))`;
-    }
-
-    if (lang === 'python') {
-        return `# pip install duckdb pandas          # first time only
-import duckdb
-
-con = duckdb.connect()
-con.execute("INSTALL httpfs; LOAD httpfs;")
-con.execute("${secret}")`;
-    }
-
-    return buildDuckdbSetupSql(host);
-}
-
-/**
- * Wrap one query for a language, around byte-identical SQL. The wrapper is
- * presentation only: change the query text and the export stops being a
- * record of what ran.
- *
- * @param {string} sql
- * @param {string} lang - 'sql' | 'r' | 'python'
- * @returns {string}
- */
-export function wrapQuery(sql, lang) {
-    const body = String(sql ?? '').replace(/\s+$/, '');
-    if (lang === 'r') return `df <- dbGetQuery(con, ${rRawString(body)})`;
-    if (lang === 'python') return `df = con.sql(${pyString(body)}).df()`;
-    return body;
-}
-
-/**
- * Inline script for the exported document: the language toggle. Kept as a
- * literal rather than built from `wrapQuery` logic, because every variant is
- * already rendered into the file — this only flips which one shows, and
- * remembers the choice for the next file the reader opens.
- */
-const EXPORT_CODE_LANG_SCRIPT = `<script>
-(function () {
-  var KEY = 'glen-export-code-lang';
-  var strip = document.querySelector('.code-lang-toggle');
-  if (!strip) return;
-  function apply(lang) {
-    document.body.setAttribute('data-code-lang', lang);
-    var btns = strip.querySelectorAll('button[data-set-lang]');
-    for (var i = 0; i < btns.length; i++) {
-      btns[i].setAttribute('aria-pressed', String(btns[i].getAttribute('data-set-lang') === lang));
-    }
-    try { localStorage.setItem(KEY, lang); } catch (e) {}
-  }
-  var saved = null;
-  try { saved = localStorage.getItem(KEY); } catch (e) {}
-  if (saved && strip.querySelector('button[data-set-lang="' + saved + '"]')) apply(saved);
-  strip.addEventListener('click', function (e) {
-    var b = e.target && e.target.closest ? e.target.closest('button[data-set-lang]') : null;
-    if (b) apply(b.getAttribute('data-set-lang'));
-  });
-})();
-<\/script>`;
-
-/**
- * Inline script for the exported document: printing. Two jobs — the report /
- * full choice, and opening collapsed `<details>` for the print run.
- *
- * The second one is not cosmetic: every query and result in the transcript
- * lives in a `<details>`, and a closed one prints empty, so a naive
- * print-to-PDF silently drops the analysis. Bound to the print events rather
- * than to our own button, because most people press Ctrl+P.
- */
-const EXPORT_PRINT_SCRIPT = `<script>
-(function () {
-  var check = document.getElementById('export-report-style');
-  if (check) {
-    check.addEventListener('change', function () {
-      document.body.setAttribute('data-print', check.checked ? 'report' : 'full');
-    });
-  }
-  var reopened = [];
-  window.addEventListener('beforeprint', function () {
-    reopened = [];
-    var closed = document.querySelectorAll('details:not([open])');
-    for (var i = 0; i < closed.length; i++) { reopened.push(closed[i]); closed[i].open = true; }
-  });
-  window.addEventListener('afterprint', function () {
-    for (var i = 0; i < reopened.length; i++) reopened[i].open = false;
-    reopened = [];
-  });
-  var btn = document.querySelector('.export-print-btn');
-  if (btn) btn.addEventListener('click', function () { window.print(); });
-})();
-<\/script>`;
-
-/**
- * Defense-in-depth credential scrub. Replaces credential-shaped tokens with
- * `[REDACTED]`. Each pattern requires a quoted value or structured
- * delimiter, so false positives in prose are unlikely.
- *
- * @param {string} text
- * @returns {string}
- */
-export function scrubCredentials(text) {
-    if (text === '' || text == null) return text;
-
-    let out = text;
-
-    // DuckDB CREATE SECRET — KEY_ID 'value' / SECRET 'value'
-    out = out.replace(/(KEY_ID)\s+'[^']*'/gi, '$1 [REDACTED]');
-    out = out.replace(/(\bSECRET)\s+'[^']*'/gi, '$1 [REDACTED]');
-
-    // json/yaml/python access key assignments
-    out = out.replace(
-        /((?:aws_)?access_key(?:_id)?)["']?\s*([:=])\s*(['"])[^'"]+\3/gi,
-        '$1$2 [REDACTED]'
-    );
-    out = out.replace(
-        /((?:aws_)?secret(?:_access)?_key)["']?\s*([:=])\s*(['"])[^'"]+\3/gi,
-        '$1$2 [REDACTED]'
-    );
-
-    // Bearer tokens
-    out = out.replace(/(Authorization:)\s*Bearer\s+\S+/gi, '$1 [REDACTED]');
-
-    // Pre-signed URL signature/credential
-    out = out.replace(/X-Amz-Signature=[^&\s'"]+/gi, 'X-Amz-Signature=[REDACTED]');
-    out = out.replace(/X-Amz-Credential=[^&\s'"]+/gi, 'X-Amz-Credential=[REDACTED]');
-    out = out.replace(/X-Amz-Security-Token=[^&\s'"]+/gi, 'X-Amz-Security-Token=[REDACTED]');
-
-    return out;
-}
-
-/**
- * Tool-call argument keys whose values are credentials and must never be
- * rendered to the chat or to any export. Used by both `renderToolCallArgs`
- * (live chat) and `exportHtml` (download).
- */
-export const REDACTED_KEYS = ['s3_key', 's3_secret', 's3_endpoint', 's3_scope', 'catalog_token'];
-
-/*
- * CDN builds used to re-hydrate the map in an exported transcript. Pinned to
- * match what the app itself loads (see app/index.html and
- * docs/guide/quickstart.md) so the embedded style renders under the same
- * MapLibre/PMTiles version that produced it. Bump alongside the app's pins.
- */
-export const EXPORT_MAP_MAPLIBRE_VERSION = '5.22.0';
-export const EXPORT_MAP_PMTILES_VERSION = '3.0.7';
-
-/**
- * Build a self-rendering, interactive MapLibre map from a captured map state,
- * as HTML for embedding in the exported transcript. The map re-hydrates from
- * the embedded style + camera in the recipient's browser — it is live
- * (pan/zoom), not a raster snapshot, so it needs network access to the same
- * public tile sources that produced it.
- *
- * The serialized state is credential-scrubbed: AWS signatures / bearer tokens
- * (via {@link scrubCredentials}) and MapTiler `key=` params must never ride
- * along into a shared file. `<` is escaped to `<` so a source name or URL
- * containing `</script>` can't break out of the embedded JSON block.
- *
- * The section also carries the embed affordance: a recipient who wants this
- * map on their own site gets the iframe snippet and plain-language steps, and
- * `#map` strips the page to the map alone so one file serves both the
- * transcript and the embed.
- *
- * @param {object|null} state - from MapManager.getExportState(); null/empty → no map
- * @param {{filename?: string}} [options] - the download's own filename, used in the snippet
- * @returns {{ headTags: string, body: string }} empty strings when there is no map
- */
-export function buildMapEmbedHtml(state, options = {}) {
-    if (!state || !state.style) return { headTags: '', body: '' };
-
-    const filename = options.filename || 'this-file.html';
-    const safeName = escapeHtmlText(filename);
-
-    let stateJson = JSON.stringify(state);
-    stateJson = scrubCredentials(stateJson);
-    // Redact MapTiler-style API keys in any surviving source URL.
-    stateJson = stateJson.replace(/([?&]key=)[^&"'\\]+/g, '$1[REDACTED]');
-    // Neutralize a </script> breakout hiding in the embedded JSON.
-    const safeJson = stateJson.replace(/</g, '\\u003c');
-
-    const ml = EXPORT_MAP_MAPLIBRE_VERSION;
-    const pm = EXPORT_MAP_PMTILES_VERSION;
-
-    const headTags =
-`<link href="https://unpkg.com/maplibre-gl@${ml}/dist/maplibre-gl.css" rel="stylesheet" crossorigin="anonymous">
-<script src="https://unpkg.com/maplibre-gl@${ml}/dist/maplibre-gl.js" crossorigin="anonymous"></script>
-<script src="https://unpkg.com/pmtiles@${pm}/dist/pmtiles.js" crossorigin="anonymous"></script>`;
-
-    // The snippet a recipient pastes into their own page. `#map` is what makes
-    // one file serve two purposes — see the view-mode script below.
-    const snippet =
-`<iframe src="${safeName}#map" width="100%" height="480"
-        style="border:0" loading="lazy" title="Map"></iframe>`;
-
-    const body =
-`<section class="export-map-section">
-  <h2 class="export-map-title">Map at time of export</h2>
-  <div id="export-map" class="export-map"></div>
-  <p class="export-map-note">Interactive map re-rendered from the saved state. Needs a network
-     connection to the original public tile sources; private or signed layers may not appear.</p>
-  <div class="export-embed">
-    <button type="button" class="export-embed-toggle" aria-expanded="false"
-            aria-controls="export-embed-help">Embed this map on your website</button>
-    <div class="export-embed-help" id="export-embed-help" hidden>
-      <p>This map can go on your own website. It is one self-contained file — no server, no
-         account, no build step.</p>
-      <ol>
-        <li>Send this file (<code>${safeName}</code>) to whoever looks after your website and
-            ask them to upload it. Any web host will do.</li>
-        <li>Ask them to paste this where the map should appear:
-          <pre class="export-embed-snippet"><code>${escapeHtmlText(snippet)}</code></pre>
-          <button type="button" class="export-embed-copy">Copy snippet</button>
-        </li>
-        <li>If they put the file somewhere other than beside that page, they will need to change
-            <code>src</code> to wherever it ended up.</li>
-      </ol>
-      <p class="export-embed-note">The <code>#map</code> on the end shows the map by itself,
-         without this transcript — <a href="#map">open that view</a> to see what a visitor gets.
-         Drop the <code>#map</code> to embed the whole page instead. Either way the map draws its
-         tiles from the same public sources it came from, so the page needs a network connection,
-         and private or signed layers will not appear.</p>
-    </div>
-  </div>
-  <script type="application/json" id="export-map-state">${safeJson}</script>
-  <script>
-  (function () {
-    var el = document.getElementById('export-map');
-    var map = null;
-    try {
-      if (typeof maplibregl === 'undefined') throw new Error('MapLibre GL JS did not load');
-      var state = JSON.parse(document.getElementById('export-map-state').textContent);
-      if (window.pmtiles && maplibregl.addProtocol) {
-        maplibregl.addProtocol('pmtiles', new pmtiles.Protocol().tile);
-      }
-      map = new maplibregl.Map({
-        container: 'export-map',
-        style: state.style,
-        center: state.center,
-        zoom: state.zoom,
-        bearing: state.bearing,
-        pitch: state.pitch,
-        renderWorldCopies: false,
-        preserveDrawingBuffer: true,
-      });
-      map.addControl(new maplibregl.NavigationControl(), 'top-left');
-      if (state.projection === 'globe') {
-        map.on('load', function () { map.setProjection({ type: 'globe' }); });
-      }
-    } catch (e) {
-      if (el) el.innerHTML = '<p class="export-map-error">Could not render the saved map: ' +
-        (e && e.message ? e.message : e) + '</p>';
-    }
-
-    // View mode: '#map' strips the page to the map alone, which is what the
-    // embed snippet points an iframe at. Same file, two presentations.
-    function applyView() {
-      var mapOnly = window.location.hash === '#map';
-      document.body.setAttribute('data-view', mapOnly ? 'map' : 'full');
-      if (map) map.resize();
-    }
-    applyView();
-    window.addEventListener('hashchange', applyView);
-
-    var toggle = document.querySelector('.export-embed-toggle');
-    var help = document.getElementById('export-embed-help');
-    if (toggle && help) {
-      toggle.addEventListener('click', function () {
-        var opening = help.hasAttribute('hidden');
-        if (opening) help.removeAttribute('hidden');
-        else help.setAttribute('hidden', '');
-        toggle.setAttribute('aria-expanded', String(opening));
-      });
-    }
-
-    var copyBtn = document.querySelector('.export-embed-copy');
-    var snippetEl = document.querySelector('.export-embed-snippet code');
-    if (copyBtn && snippetEl) {
-      copyBtn.addEventListener('click', function () {
-        function settle(label) {
-          copyBtn.textContent = label;
-          setTimeout(function () { copyBtn.textContent = 'Copy snippet'; }, 2000);
-        }
-        // Selecting the text is the fallback: clipboard access is refused on
-        // file:// in some browsers, which is exactly how this file gets opened.
-        function selectInstead() {
-          try {
-            var range = document.createRange();
-            range.selectNodeContents(snippetEl);
-            var sel = window.getSelection();
-            sel.removeAllRanges();
-            sel.addRange(range);
-            settle('Selected — press Ctrl+C');
-          } catch (err) { settle('Copy by hand'); }
-        }
-        if (navigator.clipboard && navigator.clipboard.writeText) {
-          navigator.clipboard.writeText(snippetEl.textContent)
-            .then(function () { settle('Copied'); }, selectInstead);
-        } else selectInstead();
-      });
-    }
-  })();
-  </script>
-</section>`;
-
-    return { headTags, body };
-}
-
-/**
- * Render LLM-derived text to HTML for innerHTML insertion. The model can be
- * steered by anything it reads (dataset values, STAC descriptions), so its
- * output may carry attacker-controlled markup: scrub credential-shaped
- * tokens, parse markdown, then sanitize through DOMPurify. If either page
- * global is missing, fail closed to escaped plain text rather than raw HTML.
- *
- * @param {string} md
- * @returns {string} HTML safe to assign to innerHTML
- */
-export function renderMarkdown(md) {
-    const text = scrubCredentials(String(md ?? ''));
-    if (typeof marked !== 'undefined' && typeof DOMPurify !== 'undefined') {
-        return DOMPurify.sanitize(marked.parse(text));
-    }
-    if (!renderMarkdown._warned) {
-        renderMarkdown._warned = true;
-        console.warn('[ChatUI] marked and/or DOMPurify not loaded — chat text will render as escaped plain text. Check the CDN <script> tags in index.html.');
-    }
-    return `<pre>${escapeHtmlText(text)}</pre>`;
-}
-
-/** DOM-free HTML escape (renderMarkdown fallback path). */
-function escapeHtmlText(str) {
-    return String(str).replace(/[&<>"']/g, (c) => ({
-        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
-    }[c]));
-}
 
 export class ChatUI {
     /**
@@ -516,14 +55,18 @@ export class ChatUI {
      * @param {import('./map-manager.js').MapManager} [mapManager] - used by the
      *   HTML export to embed the final map state; optional so tests and
      *   headless harnesses can construct a ChatUI without a live map.
+     * @param {import('./chart-renderer.js').ChartRenderer} [chartRenderer] -
+     *   used by the HTML export to re-draw each chart as a figure; null when
+     *   the app has charts off.
      */
-    constructor(agent, config, mount, mapManager = null) {
+    constructor(agent, config, mount, mapManager = null, chartRenderer = null) {
         this.agent = agent;
         this.config = config;
         // Export settings (opt-out + endpoint), resolved once — initExportButton
         // needs them before any DOM is built.
         this.exportConfig = resolveExportConfig(config);
         this.mapManager = mapManager;
+        this.chartRenderer = chartRenderer;
         this.busy = false;
 
         // Cache DOM refs from layout-manager (no getElementById here).
@@ -1142,6 +685,8 @@ export class ChatUI {
                 ? 'LLM timeout or network error. Type "continue" to resume, or try selecting a different model if this persists.'
                 : msg);
         } finally {
+            const rec = this._recordCurrent();
+            if (rec) rec.closed = true;
             this.busy = false;
             this._syncInputControls();
             document.removeEventListener('keydown', escHandler);
@@ -1229,6 +774,8 @@ export class ChatUI {
      * 'cancelled'.
      */
     endTurn(status = 'done') {
+        const rec = this._recordCurrent();
+        if (rec) rec.status = status;
         if (!this.currentTurn) return;
         this.removeThinkingRow();
 
@@ -1341,6 +888,7 @@ export class ChatUI {
      * decides.
      */
     showToolProposal(calls, reasoningText, iteration, autoApproved = false) {
+        this._recordProposal(calls, iteration);
         if (!this.currentTurn) return Promise.resolve({ approved: true });
         this.removeThinkingRow();
 
@@ -1457,6 +1005,7 @@ export class ChatUI {
      * icon and append the result panels to the body.
      */
     showToolResults(results, iteration) {
+        this._recordResults(results, iteration);
         if (!this.currentTurn) return;
         const row = this.currentTurn.rowsByIter.get(iteration);
         if (!row) return;
@@ -1503,89 +1052,140 @@ export class ChatUI {
     /*  HTML export                                                        */
     /* ------------------------------------------------------------------ */
 
+    /* ------------------------------------------------------------------ */
+    /*  Session record (what the export is built from, #388)               */
+    /* ------------------------------------------------------------------ */
+
     /**
-     * Build a self-contained HTML transcript of the current conversation
-     * and trigger a download. Faithful mirror of the live chat panel: SQL is
-     * carried verbatim under a DuckDB setup block that makes it re-runnable,
-     * and credential-shaped tokens are scrubbed.
+     * The session as a structured record, accumulated alongside the DOM so
+     * the export never has to read the chat panel back. Lazily created, so a
+     * ChatUI built with `Object.create` (tests, the sample generator) works.
+     */
+    _session() {
+        if (!this.session) this.session = { turns: [], pendingNotes: [] };
+        return this.session;
+    }
+
+    /** The turn events attach to: the latest, unless it has closed. */
+    _recordCurrent() {
+        const turns = this._session().turns;
+        const last = turns[turns.length - 1];
+        return last && !last.closed ? last : null;
+    }
+
+    /** The model a turn starts on, by id and by the label the app shows. */
+    _currentModel() {
+        const id = this.agent?.selectedModel;
+        if (!id) return null;
+        const label = this.config?.llm_models?.find(m => m.value === id)?.label || null;
+        return { id, label };
+    }
+
+    _recordMessage(role, text) {
+        const session = this._session();
+        if (role === 'user') {
+            for (const t of session.turns) t.closed = true;
+            session.turns.push({
+                prompt: String(text ?? ''),
+                model: this._currentModel(),
+                startedAt: new Date().toISOString(),
+                status: 'running',
+                steps: [],
+                answer: null,
+                // System lines that arrived between questions ("Region drawn
+                // on map") are context for this one.
+                context: session.pendingNotes.splice(0),
+                notes: [],
+                _calls: new Map(),
+            });
+            return;
+        }
+        if (role !== 'system' && role !== 'error') return;
+        const rec = this._recordCurrent();
+        const note = { role, text: String(text ?? '') };
+        if (rec) rec.notes.push(note);
+        else session.pendingNotes.push(note);
+    }
+
+    _recordProposal(calls, iteration) {
+        const rec = this._recordCurrent();
+        if (rec) rec._calls.set(iteration, calls || []);
+    }
+
+    /** Pair each result with the call that produced it (the agent keeps order). */
+    _recordResults(results, iteration) {
+        const rec = this._recordCurrent();
+        if (!rec) return;
+        const calls = rec._calls.get(iteration) || [];
+        (results || []).forEach((r, i) => {
+            const fn = calls[i]?.function;
+            let args = fn?.arguments ?? null;
+            if (typeof args === 'string') {
+                try { args = JSON.parse(args); } catch { /* keep the raw string */ }
+            }
+            rec.steps.push({
+                name: r.name || fn?.name || 'unknown',
+                args,
+                success: r.success !== false && r.source !== 'error',
+                source: r.source || null,
+                result: typeof r.result === 'string' ? r.result : JSON.stringify(r.result ?? ''),
+                ...(r.sqlQuery ? { sqlQuery: r.sqlQuery } : {}),
+            });
+        });
+        rec._calls.delete(iteration);
+    }
+
+    /* ------------------------------------------------------------------ */
+    /*  HTML export                                                        */
+    /* ------------------------------------------------------------------ */
+
+    /**
+     * Build the session report (#388) and trigger a download: one section
+     * per question, the SQL the agent ran as folded code chunks with their
+     * output, the model's answer as prose, the final map as the figure, and
+     * the full call log as an appendix. Built from the session record, not
+     * from the chat panel's DOM.
      */
     exportHtml() {
-        const clone = this.messagesEl.cloneNode(true);
-        this._sanitizeExportClone(clone);
-
-        const css = this._exportCss();
-        const title = this._exportTitle();
-        const appUrl = window.location.href;
-        const appUrlAttr = this.escapeHtml(appUrl).replace(/"/g, '&quot;');
-        const appTitle = document.title || 'GLEN';
-        const exportedAt = new Date().toLocaleString();
+        const exportCfg = this.exportConfig || resolveExportConfig(this.config);
 
         // Capture the final map state (one map per saved log). Guarded so a
-        // ChatUI built without a map still exports the transcript.
+        // ChatUI built without a map still exports the report.
         let mapState = null;
         try {
             mapState = this.mapManager?.getExportState?.() ?? null;
         } catch (err) {
             console.warn('[ChatUI] map capture for export failed:', err);
         }
-        const mapEmbed = buildMapEmbedHtml(mapState, { filename: this._exportFilename() });
 
-        // Setup block: the SQL in the transcript is left untouched (globs and all),
-        // so the export carries the preamble that makes those paths resolve.
-        const exportCfg = this.exportConfig || resolveExportConfig(this.config);
-        const setupHost = exportCfg.s3Endpoint;
-        const codeLang = exportCfg.codeLanguage;
+        // Each chart the session drew, re-drawn as a static figure. Guarded
+        // like the map: a failed figure costs the figure, not the export.
+        const figures = new Map();
+        for (const turn of this._session().turns) {
+            for (const step of turn.steps) {
+                const id = chartIdOf(step);
+                if (!id || figures.has(id)) continue;
+                try {
+                    const svg = this.chartRenderer?.exportFigure?.(id);
+                    if (svg) figures.set(id, svg);
+                } catch (err) {
+                    console.warn('[ChatUI] chart capture for export failed:', err);
+                }
+            }
+        }
 
-        // One setup block per language, one visible at a time (§3 of #368).
-        const setupBlocks = CODE_LANGUAGES.map(l =>
-            `<pre class="code-variant" data-lang="${l.id}"><code class="language-${l.id}">` +
-            `${this.escapeHtml(buildSetupSnippet(l.id, setupHost))}</code></pre>`
-        ).join('\n  ');
-
-        const langButtons = CODE_LANGUAGES.map(l =>
-            `<button type="button" data-set-lang="${l.id}" ` +
-            `aria-pressed="${l.id === codeLang}">${this.escapeHtml(l.label)}</button>`
-        ).join('');
-
-        const html =
-`<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<title>${this.escapeHtml(title)}</title>
-<style>${css}</style>
-${mapEmbed.headTags}
-</head>
-<body data-code-lang="${codeLang}" data-print="full">
-<header class="export-header">
-  <h1>GLEN chat transcript</h1>
-  <p>Exported ${this.escapeHtml(exportedAt)} — <a href="${appUrlAttr}">${this.escapeHtml(appTitle)}</a></p>
-  <p class="export-note">The queries below are the ones the agent ran, verbatim. To re-run them
-     outside the cluster, run the setup block first; it points <code>s3://</code> paths at the
-     public endpoint (<code>${this.escapeHtml(setupHost)}</code>) with anonymous access.</p>
-  <div class="export-controls">
-    <div class="code-lang-toggle" role="group" aria-label="Show code as">
-      <span class="code-lang-label">Show code as</span>${langButtons}
-    </div>
-    <div class="export-print-controls">
-      <label class="export-print-report"><input type="checkbox" id="export-report-style">
-        Report style — print without code</label>
-      <button type="button" class="export-print-btn">Print / Save as PDF</button>
-    </div>
-  </div>
-</header>
-<section class="export-setup">
-  <h2 class="export-setup-title">Run this first</h2>
-  ${setupBlocks}
-  <p class="export-setup-note">One time per session, then every query in this transcript runs as
-     written. Public buckets only — private data is not reachable this way.</p>
-</section>
-${mapEmbed.body}
-<main id="chat-messages">${clone.innerHTML}</main>
-${EXPORT_CODE_LANG_SCRIPT}
-${EXPORT_PRINT_SCRIPT}
-</body>
-</html>`;
+        const html = buildReportHtml(this._session(), {
+            figures,
+            title: this._exportTitle(),
+            appTitle: document.title || 'GLEN',
+            appUrl: window.location.href,
+            exportedAt: new Date(),
+            s3Endpoint: exportCfg.s3Endpoint,
+            codeLanguage: exportCfg.codeLanguage,
+            projectUrl: exportCfg.projectUrl,
+            version: libraryVersion(),
+            mapEmbed: buildMapEmbedHtml(mapState, { filename: this._exportFilename() }),
+        });
 
         try {
             const blob = new Blob([html], { type: 'text/html' });
@@ -1604,211 +1204,19 @@ ${EXPORT_PRINT_SCRIPT}
         }
     }
 
-    /**
-     * Walk a cloned messagesEl subtree applying export-time transforms:
-     * drop transient UI, flatten SQL highlighting, scrub credentials.
-     */
-    _sanitizeExportClone(root) {
-        // Drop transient interactive UI.
-        root.querySelectorAll('.tool-approval-buttons, button, script')
-            .forEach(el => el.remove());
-
-        // Remove .running class from any rows still in-flight at click time.
-        root.querySelectorAll('.running').forEach(el => el.classList.remove('running'));
-
-        // Each SQL block becomes one block per language: the same query,
-        // wrapped for R or Python, with only one visible at a time. The SQL
-        // itself is exported verbatim — s3:// paths included, since the setup
-        // block in the header makes them resolve — and building the variants
-        // through the DOM also flattens stale highlight spans.
-        const doc = root.ownerDocument || document;
-        root.querySelectorAll('pre > code.language-sql').forEach(codeEl => {
-            const sql = codeEl.textContent;
-            const variants = doc.createElement('div');
-            variants.className = 'code-variants';
-            for (const lang of CODE_LANGUAGES) {
-                const pre = doc.createElement('pre');
-                pre.className = 'code-variant';
-                pre.setAttribute('data-lang', lang.id);
-                const code = doc.createElement('code');
-                code.className = `language-${lang.id}`;
-                code.textContent = wrapQuery(sql, lang.id);
-                pre.appendChild(code);
-                variants.appendChild(pre);
-            }
-            codeEl.parentElement.replaceWith(variants);
-        });
-
-        // The collapsed row says "SQL" in the live chat, where SQL is all it
-        // can be; in the export it may be showing R or Python.
-        root.querySelectorAll('details.sql-detail > summary').forEach(sum => {
-            if (sum.textContent.trim() === 'SQL') sum.textContent = 'Query';
-        });
-
-        // Credential scrub: DOM-wide on text nodes only.
-        const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
-        const toUpdate = [];
-        let node = walker.nextNode();
-        while (node) {
-            const scrubbed = scrubCredentials(node.nodeValue);
-            if (scrubbed !== node.nodeValue) toUpdate.push([node, scrubbed]);
-            node = walker.nextNode();
-        }
-        for (const [n, v] of toUpdate) n.nodeValue = v;
-    }
-
     _exportFilename() {
         const d = new Date();
         const pad = (n) => String(n).padStart(2, '0');
         const stamp = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}` +
                       `-${pad(d.getHours())}${pad(d.getMinutes())}`;
-        return `glen-chat-${stamp}.html`;
+        return `glen-session-${stamp}.html`;
     }
 
     _exportTitle() {
         const d = new Date();
         const pad = (n) => String(n).padStart(2, '0');
-        const stamp = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ` +
-                      `${pad(d.getHours())}:${pad(d.getMinutes())}`;
-        return `GLEN chat — ${stamp}`;
-    }
-
-    /**
-     * Inlined CSS subset for the export. Covers what's needed to render
-     * messages, turn rows, tool calls, SQL/result <details>, and code
-     * blocks. Excludes anything related to live input, layout, scrollbars,
-     * or interactive buttons.
-     */
-    _exportCss() {
-        return `
-body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-       max-width: 900px; margin: 1rem auto; padding: 0 1rem; color: #1a1a2e; line-height: 1.5; }
-.export-header { border-bottom: 1px solid #ddd; padding-bottom: 0.75rem; margin-bottom: 1rem; }
-.export-header h1 { margin: 0 0 0.25rem; font-size: 1.25rem; }
-.export-header p { margin: 0.25rem 0; color: #555; font-size: 13px; }
-.export-note { font-size: 12px; color: #6b7280; background: #f3f4f6;
-               padding: 6px 10px; border-radius: 4px; }
-.chat-message { padding: 8px 10px; margin: 6px 0; border-radius: 6px; font-size: 14px; }
-.chat-message.user { background: #e0f2fe; }
-.chat-message.assistant { background: #f9fafb; }
-.chat-message.system { background: #fff7ed; color: #92400e; font-size: 12px; font-style: italic; }
-.chat-message.error { background: #fef2f2; color: #991b1b; font-size: 12px; }
-.chat-message pre { background: #1e293b; color: #e2e8f0; padding: 8px; border-radius: 4px;
-                    overflow-x: auto; font-size: 12px; }
-.chat-message code { background: rgba(0,0,0,0.05); padding: 1px 4px; border-radius: 3px;
-                     font-size: 12px; }
-.chat-message pre code { background: transparent; padding: 0; color: inherit; }
-.chat-message table { border-collapse: collapse; margin: 6px 0; font-size: 12px; }
-.chat-message th, .chat-message td { border: 1px solid #ddd; padding: 4px 8px; }
-.chat-message th { background: #f3f4f6; }
-.agent-turn { margin: 8px 0; border: 1px solid #e5e7eb; border-radius: 6px;
-              padding: 4px 8px; }
-.agent-turn > summary { cursor: pointer; font-size: 12px; color: #2c5282;
-                        padding: 2px 4px; list-style: none; }
-.agent-turn > summary::-webkit-details-marker { display: none; }
-.agent-turn-row { font-size: 12px; margin: 2px 0; }
-.agent-turn-row-summary { padding: 2px 6px; cursor: pointer; list-style: none;
-                          display: flex; align-items: center; gap: 6px; color: #2c5282; }
-.agent-turn-row-summary::-webkit-details-marker { display: none; }
-.agent-turn-row-body { padding: 4px 10px 6px 24px; font-size: 12px; color: #1a1a2e; }
-.tool-call-item, .tool-result-item { margin: 4px 0; }
-.tool-call-item strong, .tool-result-item strong { font-weight: 600; color: #374151; }
-.row-status.done { color: #28a745; font-weight: 600; }
-.row-status.error { color: #dc3545; font-weight: 600; }
-.sql-detail summary { cursor: pointer; color: #2c5282; font-size: 11px;
-                      padding: 2px 0; list-style: none; }
-.sql-detail summary::-webkit-details-marker { display: none; }
-.sql-detail summary::before { content: '▸ '; }
-.sql-detail[open] summary::before { content: '▾ '; }
-.sql-detail pre { background: #1e293b; color: #e2e8f0; padding: 8px;
-                  border-radius: 4px; overflow-x: auto; font-size: 11px;
-                  white-space: pre-wrap; word-break: break-word; }
-.tool-output { background: #f9fafb; padding: 6px; border-radius: 3px;
-               font-size: 11px; white-space: pre-wrap; word-break: break-word;
-               max-height: 400px; overflow-y: auto; }
-.tool-tag { font-size: 10px; padding: 1px 5px; border-radius: 3px;
-            background: #e5e7eb; color: #374151; margin-left: 4px; }
-.tool-tag.remote { background: #dbeafe; color: #1e40af; }
-.welcome-message { background: #f9fafb; padding: 8px 10px; border-radius: 6px;
-                   font-size: 13px; color: #6b7280; }
-.welcome-examples { display: none; }
-.export-controls { display: flex; flex-wrap: wrap; align-items: center;
-                   justify-content: space-between; gap: 8px; margin: 8px 0 0; }
-.export-print-controls { display: flex; align-items: center; gap: 8px; font-size: 12px;
-                         color: #6b7280; }
-.export-print-report { display: flex; align-items: center; gap: 4px; cursor: pointer; }
-.export-print-btn { font: inherit; font-size: 12px; padding: 2px 10px; cursor: pointer;
-                    border: 1px solid #d1d5db; border-radius: 4px; background: #fff;
-                    color: #374151; }
-.code-lang-toggle { display: flex; align-items: center; gap: 6px; margin: 0; }
-.code-lang-label { font-size: 12px; color: #6b7280; }
-.code-lang-toggle button { font: inherit; font-size: 12px; padding: 2px 10px; cursor: pointer;
-                           border: 1px solid #d1d5db; border-radius: 4px; background: #fff;
-                           color: #374151; }
-.code-lang-toggle button[aria-pressed="true"] { background: #2c5282; border-color: #2c5282;
-                                                color: #fff; }
-.code-variant { display: none; }
-body[data-code-lang="sql"] .code-variant[data-lang="sql"],
-body[data-code-lang="r"] .code-variant[data-lang="r"],
-body[data-code-lang="python"] .code-variant[data-lang="python"] { display: block; }
-.export-setup { margin: 0 0 1rem; border: 1px solid #e5e7eb; border-radius: 6px;
-                padding: 8px 10px; }
-.export-setup-title { font-size: 1rem; margin: 0 0 0.5rem; }
-.export-setup .code-variant { background: #1e293b; color: #e2e8f0; padding: 8px; border-radius: 4px;
-                    overflow-x: auto; font-size: 12px; }
-.export-setup-note { font-size: 12px; color: #6b7280; margin: 6px 0 0; }
-.export-map-section { margin: 0 0 1rem; }
-.export-map-title { font-size: 1rem; margin: 0 0 0.5rem; }
-.export-map { width: 100%; height: 480px; border: 1px solid #ddd; border-radius: 6px; }
-.export-map-note { font-size: 12px; color: #6b7280; margin: 6px 0 0; }
-.export-map-error { padding: 1rem; color: #991b1b; font-size: 13px; }
-.export-embed { margin: 8px 0 0; }
-.export-embed-toggle { font: inherit; font-size: 12px; padding: 4px 10px; cursor: pointer;
-                       border: 1px solid #d1d5db; border-radius: 4px; background: #fff;
-                       color: #2c5282; }
-.export-embed-toggle[aria-expanded="true"] { background: #eef2ff; border-color: #c7d2fe; }
-.export-embed-help { border: 1px solid #e5e7eb; border-radius: 6px; padding: 10px 12px;
-                     margin: 8px 0 0; font-size: 13px; background: #f9fafb; }
-.export-embed-help ol { margin: 8px 0; padding-left: 20px; }
-.export-embed-help li { margin: 6px 0; }
-.export-embed-snippet { background: #1e293b; color: #e2e8f0; padding: 8px; border-radius: 4px;
-                        overflow-x: auto; font-size: 11px; white-space: pre-wrap;
-                        word-break: break-word; margin: 6px 0; }
-.export-embed-copy { font: inherit; font-size: 11px; padding: 2px 8px; cursor: pointer;
-                     border: 1px solid #d1d5db; border-radius: 4px; background: #fff;
-                     color: #374151; }
-.export-embed-note { font-size: 12px; color: #6b7280; margin: 8px 0 0; }
-
-/* '#map' view: the same file, stripped to the map, which is what the embed
-   snippet points an iframe at. */
-body[data-view="map"] { margin: 0; padding: 0; max-width: none; }
-body[data-view="map"] > *:not(.export-map-section) { display: none !important; }
-body[data-view="map"] .export-map-title,
-body[data-view="map"] .export-map-note,
-body[data-view="map"] .export-embed { display: none; }
-body[data-view="map"] .export-map-section { margin: 0; }
-body[data-view="map"] .export-map { height: 100vh; border: 0; border-radius: 0; }
-
-/* Print: the export is a document people hand to a board or a funder, so
-   printing it has to come out as a document. */
-@media print {
-  body { max-width: none; margin: 0; padding: 0; }
-  .export-controls, .export-embed { display: none !important; }
-  .export-header { border-bottom: 1px solid #999; }
-  a { color: inherit; text-decoration: none; }
-  /* Never split a query, a result or a turn across a page. */
-  .agent-turn, .agent-turn-row, .tool-call-item, .tool-result-item,
-  .sql-detail, .code-variants, pre, .export-setup,
-  .export-map-section, .chat-message { break-inside: avoid; }
-  /* Screen scroll boxes become full text on paper. */
-  .tool-output { max-height: none; overflow: visible; }
-  .export-map { height: 420px; }
-  .agent-turn > summary, .agent-turn-row-summary, .sql-detail summary { color: #444; }
-  /* Report style: the prose, the answers and the map — none of the machinery. */
-  body[data-print="report"] .agent-turn,
-  body[data-print="report"] .export-setup { display: none !important; }
-}
-`;
+        const stamp = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+        return `${document.title || 'GLEN'} — session report, ${stamp}`;
     }
 
     /* ------------------------------------------------------------------ */
@@ -1816,6 +1224,7 @@ body[data-view="map"] .export-map { height: 100vh; border: 0; border-radius: 0; 
     /* ------------------------------------------------------------------ */
 
     addMessage(role, text) {
+        this._recordMessage(role, text);
         const el = document.createElement('div');
         el.className = `chat-message ${role}`;
         el.textContent = text;
@@ -1824,6 +1233,10 @@ body[data-view="map"] .export-map { height: 100vh; border: 0; border-radius: 0; 
     }
 
     addMarkdown(role, md) {
+        if (role === 'assistant') {
+            const rec = this._recordCurrent();
+            if (rec) rec.answer = rec.answer ? `${rec.answer}\n\n${md}` : md;
+        }
         const el = document.createElement('div');
         el.className = `chat-message ${role}`;
         el.innerHTML = renderMarkdown(md);

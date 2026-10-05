@@ -361,10 +361,11 @@ async function main() {
     // Opt-in charting primitive (#277). Off by default: the render_chart tool
     // and the Observable Plot CDN load only exist when `charts.enabled` is set,
     // so apps that don't want charts pay nothing.
+    let chartRenderer = null;
     if (appConfig.charts?.enabled) {
         try {
             const { ChartRenderer } = await import('./chart-renderer.js');
-            const chartRenderer = new ChartRenderer();
+            chartRenderer = new ChartRenderer();
             toolRegistry.registerLocal(createRenderChartTool(chartRenderer, mcp));
             console.log('[main] Charting enabled (render_chart tool registered)');
         } catch (err) {
@@ -496,7 +497,7 @@ async function main() {
     console.log('[main] Agent ready');
 
     /* ── 8. Create UI ─────────────────────────────────────────────────── */
-    const ui = new ChatUI(agent, appConfig, layoutRefs.chatMount, mapManager);
+    const ui = new ChatUI(agent, appConfig, layoutRefs.chatMount, mapManager, chartRenderer);
 
     // Draw event → chat notifications.
     // Replace (not append) synthetic draw messages so repeated draw/clear
