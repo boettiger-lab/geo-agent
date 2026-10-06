@@ -876,7 +876,7 @@ details.layer-group:not([open]) .layer-group-title::before {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(max(7.5rem, calc((100% - 2 * 8px) / 3)), 1fr));
     gap: 8px;
-    margin: 10px 0 8px;
+    margin: 10px 0 14px; /* room before the first group heading below */
 }
 
 .panel-actions > .panel-btn,
