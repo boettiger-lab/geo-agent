@@ -12,6 +12,38 @@
  *   - isLocalTool(name) → for auto-approve logic
  */
 
+/**
+ * The argument names a tool call's SQL can arrive under, in order of
+ * preference. One list, because four call sites each kept their own and
+ * drifted: the registry and the export missed `sql`, and the chat panel took a
+ * local `query` (geocode's place name) for SQL.
+ *
+ * Remote: mcp-data-server's two SQL tools name the argument differently —
+ * `query` takes `sql_query`, `register_hex_tiles` takes `sql` — and each
+ * accepts the other's name as an alias (mcp-data-server#321), so either can
+ * arrive at either tool. `query` is an older spelling models still produce.
+ * Local: `render_chart` and `filter_by_query` take `sql`; a local `query` is
+ * not SQL.
+ */
+export const REMOTE_SQL_ARGS = ['sql_query', 'sql', 'query'];
+export const LOCAL_SQL_ARGS = ['sql'];
+
+/**
+ * The SQL a tool call carries, and the argument it came in.
+ *
+ * @param {object} args - the call's parsed arguments
+ * @param {boolean} remote - whether the tool runs on the MCP server
+ * @returns {{key: string, sql: string}|null}
+ */
+export function sqlArg(args, remote) {
+    if (!args || typeof args !== 'object') return null;
+    for (const key of remote ? REMOTE_SQL_ARGS : LOCAL_SQL_ARGS) {
+        const v = args[key];
+        if (typeof v === 'string' && v.trim()) return { key, sql: v };
+    }
+    return null;
+}
+
 // Idempotent read tools whose result is a pure function of their args for the
 // life of a session. Memoizing these (#281) skips duplicate round-trips *and*
 // keeps repeated calls from re-growing the message suffix with byte-identical
@@ -218,7 +250,7 @@ export class ToolRegistry {
                     name,
                     result: raw,
                     source: 'remote',
-                    sqlQuery: args.sql_query || args.query || null,
+                    sqlQuery: sqlArg(args, true)?.sql ?? null,
                 };
             }
         } catch (error) {

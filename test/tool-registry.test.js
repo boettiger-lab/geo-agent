@@ -221,6 +221,16 @@ describe('ToolRegistry execute error paths', () => {
         const r = await reg.execute('query', { sql_query: 'SELECT 1' });
         expect(r.sqlQuery).toBe('SELECT 1');
     });
+
+    it('captures the `sql` alias the MCP server also accepts', async () => {
+        // deepseek-v4-flash on ca-30x30 calls query with {sql: …} (2026-10-06).
+        const reg = new ToolRegistry();
+        reg.registerRemote([{ name: 'query', description: 'q', inputSchema: { type: 'object', properties: {} } }], {
+            callTool: async () => 'rows',
+        });
+        expect((await reg.execute('query', { sql: 'SELECT 2' })).sqlQuery).toBe('SELECT 2');
+        expect((await reg.execute('query', { sql_query: 'SELECT 1', sql: 'SELECT 2' })).sqlQuery).toBe('SELECT 1');
+    });
 });
 
 describe('ToolRegistry executeAll', () => {
