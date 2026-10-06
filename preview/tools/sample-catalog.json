@@ -1,0 +1,1801 @@
+{
+ "_note": "Verbatim STAC collections (trimmed to the fields the export reads) from https://s3-west.nrp-nautilus.io/public-data/stac/catalog.json, fetched 2026-10-06, for the datasets the sample session used.",
+ "collections": [
+  {
+   "type": "Collection",
+   "stac_version": "1.0.0",
+   "id": "mobi-species-richness-all",
+   "title": "MOBI Species Richness (All Taxa)",
+   "license": "CC-BY-NC-4.0",
+   "providers": [
+    {
+     "name": "NatureServe",
+     "roles": [
+      "producer",
+      "licensor"
+     ],
+     "url": "https://www.natureserve.org/map-biodiversity-importance"
+    },
+    {
+     "name": "Esri",
+     "roles": [
+      "producer"
+     ],
+     "url": "https://www.esri.com"
+    },
+    {
+     "name": "The Nature Conservancy",
+     "roles": [
+      "producer"
+     ],
+     "url": "https://www.nature.org"
+    },
+    {
+     "name": "Boettiger Lab / ESPM, UC Berkeley",
+     "roles": [
+      "processor",
+      "host"
+     ],
+     "url": "https://boettiger-lab.github.io"
+    }
+   ],
+   "links": [
+    {
+     "rel": "parent",
+     "href": "https://s3-west.nrp-nautilus.io/public-data/stac/catalog.json",
+     "type": "application/json"
+    },
+    {
+     "rel": "root",
+     "href": "https://s3-west.nrp-nautilus.io/public-data/stac/catalog.json",
+     "type": "application/json"
+    },
+    {
+     "rel": "self",
+     "href": "https://s3-west.nrp-nautilus.io/public-mobi/mobi-species-richness-all/stac-collection.json",
+     "type": "application/json"
+    },
+    {
+     "rel": "license",
+     "href": "https://creativecommons.org/licenses/by-nc/4.0/",
+     "title": "Creative Commons Attribution-NonCommercial 4.0 International"
+    }
+   ],
+   "sci:citation": "Hamilton, H., Smyth, R. L., Young, B. E., Howard, T. G., Tracey, C., Breyer, S., Cameron, D. R., Chazal, A., Conley, A. K., Frye, C., & Schloss, C. (2022). Increasing taxonomic diversity and spatial resolution clarifies opportunities for protecting US imperiled species. Ecological Applications, 32(3), e2534. https://doi.org/10.1002/eap.2534",
+   "sci:doi": "10.1002/eap.2534",
+   "assets": {
+    "species-richness-all-hex": {
+     "href": "https://s3-west.nrp-nautilus.io/public-mobi/mobi-species-richness-all/hex/h0=*/data_0.parquet",
+     "type": "application/vnd.apache.parquet",
+     "title": "MOBI Species Richness \u2014 H3 Hex Parquet (resolution 8, exact-extract max)",
+     "roles": [
+      "data"
+     ],
+     "h3:native_resolution": 8,
+     "h3:parent_resolutions": [
+      7,
+      6,
+      5,
+      0
+     ],
+     "table:columns": [
+      {
+       "name": "species_richness",
+       "type": "float",
+       "description": "Maximum modeled species richness (count of species with predicted suitable habitat) among source-raster pixels covering this cell, via area-weighted exact-extract with the `max` reducer. One row per cell \u2014 query directly, no GROUP BY needed. Integer-valued, range 0\u201332. To view at a coarser resolution, GROUP BY h7 (or h6/h5) and take MAX(species_richness) \u2014 MAX-of-MAX preserves the hotspot; never AVG/SUM across the rollup."
+      },
+      {
+       "name": "h8",
+       "type": "uint64",
+       "description": "H3 cell index at resolution 8 (native resolution; one row per h8 cell)."
+      },
+      {
+       "name": "h7",
+       "type": "uint64",
+       "description": "H3 cell index at resolution 7 (parent of h8; rollup key)."
+      },
+      {
+       "name": "h6",
+       "type": "uint64",
+       "description": "H3 cell index at resolution 6 (rollup key)."
+      },
+      {
+       "name": "h5",
+       "type": "uint64",
+       "description": "H3 cell index at resolution 5 (rollup key)."
+      },
+      {
+       "name": "h0",
+       "type": "int64",
+       "description": "H3 cell index at resolution 0, used as the Hive partition key."
+      }
+     ]
+    }
+   }
+  },
+  {
+   "type": "Collection",
+   "stac_version": "1.0.0",
+   "id": "irrecoverable-carbon",
+   "title": "Irrecoverable Earth: Carbon Reserves (v2, 2025 release)",
+   "license": "CC-BY-NC-4.0",
+   "providers": [
+    {
+     "name": "Conservation International",
+     "roles": [
+      "producer"
+     ],
+     "url": "https://www.conservation.org/"
+    },
+    {
+     "name": "Boettiger Lab",
+     "roles": [
+      "processor",
+      "host"
+     ],
+     "url": "https://github.com/boettiger-lab"
+    }
+   ],
+   "links": [
+    {
+     "rel": "self",
+     "href": "https://s3-west.nrp-nautilus.io/public-carbon/stac-collection.json",
+     "type": "application/json"
+    },
+    {
+     "rel": "root",
+     "href": "https://s3-west.nrp-nautilus.io/public-data/stac/catalog.json",
+     "type": "application/json"
+    },
+    {
+     "rel": "parent",
+     "href": "https://s3-west.nrp-nautilus.io/public-data/stac/catalog.json",
+     "type": "application/json"
+    },
+    {
+     "rel": "describedby",
+     "href": "https://s3-west.nrp-nautilus.io/public-carbon/README.md",
+     "type": "text/markdown",
+     "title": "Data Documentation with Field Descriptions"
+    },
+    {
+     "rel": "about",
+     "href": "https://www.conservation.org/irrecoverable-carbon",
+     "title": "Conservation International - Irrecoverable Carbon Project"
+    },
+    {
+     "rel": "cite-as",
+     "href": "https://doi.org/10.1038/s41893-021-00803-6",
+     "title": "Noon et al. (2022) Nature Sustainability"
+    },
+    {
+     "rel": "derived_from",
+     "href": "https://doi.org/10.5281/zenodo.4091029",
+     "title": "v1 Source Data - Zenodo 4091029"
+    },
+    {
+     "rel": "derived_from",
+     "href": "https://doi.org/10.5281/zenodo.17645053",
+     "title": "v2 Source Data (2025 update) - Zenodo 17645053"
+    },
+    {
+     "rel": "license",
+     "href": "https://creativecommons.org/licenses/by-nc/4.0/",
+     "title": "Creative Commons Attribution-NonCommercial 4.0 International"
+    }
+   ],
+   "assets": {
+    "v2-irrecoverable-2024-hex": {
+     "href": "https://s3-west.nrp-nautilus.io/public-carbon/irrecoverable-carbon-2024/hex/h0=*/data_0.parquet",
+     "type": "application/vnd.apache.parquet",
+     "title": "v2: Irrecoverable Carbon 2024 - H3 Hexagonal Tiling (res 9)",
+     "roles": [
+      "h3-parquet",
+      "data"
+     ],
+     "description": "Total carbon (Mg C) at H3 resolution 9, area-corrected from the ~300 m Mg C/ha source density (density \u00d7 pixel ground area, area-weighted via exact_extract; one row per h9 cell). SUM(carbon) is directly valid as a total \u2014 no GROUP BY/dedup. Validated global SUM \u2248 131.9 Gt C. Hive-partitioned by h0.",
+     "h3:native_resolution": 9,
+     "h3:parent_resolutions": [
+      8,
+      7,
+      6,
+      5,
+      0
+     ],
+     "table:columns": [
+      {
+       "name": "carbon",
+       "type": "double",
+       "description": "Total carbon stock in this H3 cell, in Mg C (megagrams = tonnes). Computed as source carbon density (Mg C ha\u207b\u00b9) \u00d7 cell ground area, area-weighted via exact_extract from the ~300 m source. ONE row per h9 cell \u2014 SAFE to SUM(carbon) directly across rows (no GROUP BY, no dedup; raster hex). Global SUM reproduces the published carbon total."
+      },
+      {
+       "name": "h9",
+       "type": "uint64",
+       "description": "H3 cell ID at resolution 9 (native resolution; exactly one row per h9 cell)."
+      },
+      {
+       "name": "h8",
+       "type": "uint64",
+       "description": "H3 cell ID at resolution 8 (parent rollup)."
+      },
+      {
+       "name": "h7",
+       "type": "uint64",
+       "description": "H3 cell ID at resolution 7 (parent rollup)."
+      },
+      {
+       "name": "h6",
+       "type": "uint64",
+       "description": "H3 cell ID at resolution 6 (parent rollup)."
+      },
+      {
+       "name": "h5",
+       "type": "uint64",
+       "description": "H3 cell ID at resolution 5 (parent rollup)."
+      },
+      {
+       "name": "h0",
+       "type": "int64",
+       "description": "H3 cell ID at resolution 0, used as the hive partition key for partitioned reads."
+      }
+     ]
+    },
+    "v2-irrecoverable-2023-hex": {
+     "href": "https://s3-west.nrp-nautilus.io/public-carbon/irrecoverable-carbon-2023/hex/h0=*/data_0.parquet",
+     "type": "application/vnd.apache.parquet",
+     "title": "v2: Irrecoverable Carbon 2023 - H3 Hexagonal Tiling (res 9)",
+     "roles": [
+      "h3-parquet",
+      "data"
+     ],
+     "description": "Total carbon (Mg C) at H3 resolution 9, area-corrected from the ~300 m Mg C/ha source density (density \u00d7 pixel ground area, area-weighted via exact_extract; one row per h9 cell). SUM(carbon) is directly valid as a total \u2014 no GROUP BY/dedup. Validated global SUM \u2248 130.3 Gt C. Hive-partitioned by h0.",
+     "h3:native_resolution": 9,
+     "h3:parent_resolutions": [
+      8,
+      7,
+      6,
+      5,
+      0
+     ],
+     "table:columns": [
+      {
+       "name": "carbon",
+       "type": "double",
+       "description": "Total carbon stock in this H3 cell, in Mg C (megagrams = tonnes). Computed as source carbon density (Mg C ha\u207b\u00b9) \u00d7 cell ground area, area-weighted via exact_extract from the ~300 m source. ONE row per h9 cell \u2014 SAFE to SUM(carbon) directly across rows (no GROUP BY, no dedup; raster hex). Global SUM reproduces the published carbon total."
+      },
+      {
+       "name": "h9",
+       "type": "uint64",
+       "description": "H3 cell ID at resolution 9 (native resolution; exactly one row per h9 cell)."
+      },
+      {
+       "name": "h8",
+       "type": "uint64",
+       "description": "H3 cell ID at resolution 8 (parent rollup)."
+      },
+      {
+       "name": "h7",
+       "type": "uint64",
+       "description": "H3 cell ID at resolution 7 (parent rollup)."
+      },
+      {
+       "name": "h6",
+       "type": "uint64",
+       "description": "H3 cell ID at resolution 6 (parent rollup)."
+      },
+      {
+       "name": "h5",
+       "type": "uint64",
+       "description": "H3 cell ID at resolution 5 (parent rollup)."
+      },
+      {
+       "name": "h0",
+       "type": "int64",
+       "description": "H3 cell ID at resolution 0, used as the hive partition key for partitioned reads."
+      }
+     ]
+    },
+    "v2-irrecoverable-2022-hex": {
+     "href": "https://s3-west.nrp-nautilus.io/public-carbon/irrecoverable-carbon-2022/hex/h0=*/data_0.parquet",
+     "type": "application/vnd.apache.parquet",
+     "title": "v2: Irrecoverable Carbon 2022 - H3 Hexagonal Tiling (res 9)",
+     "roles": [
+      "h3-parquet",
+      "data"
+     ],
+     "description": "Total carbon (Mg C) at H3 resolution 9, area-corrected from the ~300 m Mg C/ha source density (density \u00d7 pixel ground area, area-weighted via exact_extract; one row per h9 cell). SUM(carbon) is directly valid as a total \u2014 no GROUP BY/dedup. Validated global SUM \u2248 130.8 Gt C. Hive-partitioned by h0.",
+     "h3:native_resolution": 9,
+     "h3:parent_resolutions": [
+      8,
+      7,
+      6,
+      5,
+      0
+     ],
+     "table:columns": [
+      {
+       "name": "carbon",
+       "type": "double",
+       "description": "Total carbon stock in this H3 cell, in Mg C (megagrams = tonnes). Computed as source carbon density (Mg C ha\u207b\u00b9) \u00d7 cell ground area, area-weighted via exact_extract from the ~300 m source. ONE row per h9 cell \u2014 SAFE to SUM(carbon) directly across rows (no GROUP BY, no dedup; raster hex). Global SUM reproduces the published carbon total."
+      },
+      {
+       "name": "h9",
+       "type": "uint64",
+       "description": "H3 cell ID at resolution 9 (native resolution; exactly one row per h9 cell)."
+      },
+      {
+       "name": "h8",
+       "type": "uint64",
+       "description": "H3 cell ID at resolution 8 (parent rollup)."
+      },
+      {
+       "name": "h7",
+       "type": "uint64",
+       "description": "H3 cell ID at resolution 7 (parent rollup)."
+      },
+      {
+       "name": "h6",
+       "type": "uint64",
+       "description": "H3 cell ID at resolution 6 (parent rollup)."
+      },
+      {
+       "name": "h5",
+       "type": "uint64",
+       "description": "H3 cell ID at resolution 5 (parent rollup)."
+      },
+      {
+       "name": "h0",
+       "type": "int64",
+       "description": "H3 cell ID at resolution 0, used as the hive partition key for partitioned reads."
+      }
+     ]
+    },
+    "v2-irrecoverable-2018-hex": {
+     "href": "https://s3-west.nrp-nautilus.io/public-carbon/irrecoverable-carbon-2018/hex/h0=*/data_0.parquet",
+     "type": "application/vnd.apache.parquet",
+     "title": "v2: Irrecoverable Carbon 2018 - H3 Hexagonal Tiling (res 9)",
+     "roles": [
+      "h3-parquet",
+      "data"
+     ],
+     "description": "Total carbon (Mg C) at H3 resolution 9, area-corrected from the ~300 m Mg C/ha source density (density \u00d7 pixel ground area, area-weighted via exact_extract; one row per h9 cell). SUM(carbon) is directly valid as a total \u2014 no GROUP BY/dedup. Validated global SUM \u2248 137.4 Gt C. Hive-partitioned by h0.",
+     "h3:native_resolution": 9,
+     "h3:parent_resolutions": [
+      8,
+      7,
+      6,
+      5,
+      0
+     ],
+     "table:columns": [
+      {
+       "name": "carbon",
+       "type": "double",
+       "description": "Total carbon stock in this H3 cell, in Mg C (megagrams = tonnes). Computed as source carbon density (Mg C ha\u207b\u00b9) \u00d7 cell ground area, area-weighted via exact_extract from the ~300 m source. ONE row per h9 cell \u2014 SAFE to SUM(carbon) directly across rows (no GROUP BY, no dedup; raster hex). Global SUM reproduces the published carbon total."
+      },
+      {
+       "name": "h9",
+       "type": "uint64",
+       "description": "H3 cell ID at resolution 9 (native resolution; exactly one row per h9 cell)."
+      },
+      {
+       "name": "h8",
+       "type": "uint64",
+       "description": "H3 cell ID at resolution 8 (parent rollup)."
+      },
+      {
+       "name": "h7",
+       "type": "uint64",
+       "description": "H3 cell ID at resolution 7 (parent rollup)."
+      },
+      {
+       "name": "h6",
+       "type": "uint64",
+       "description": "H3 cell ID at resolution 6 (parent rollup)."
+      },
+      {
+       "name": "h5",
+       "type": "uint64",
+       "description": "H3 cell ID at resolution 5 (parent rollup)."
+      },
+      {
+       "name": "h0",
+       "type": "int64",
+       "description": "H3 cell ID at resolution 0, used as the hive partition key for partitioned reads."
+      }
+     ]
+    },
+    "v2-vulnerable-2024-hex": {
+     "href": "https://s3-west.nrp-nautilus.io/public-carbon/vulnerable-carbon-2024/hex/h0=*/data_0.parquet",
+     "type": "application/vnd.apache.parquet",
+     "title": "v2: Vulnerable Carbon 2024 - H3 Hexagonal Tiling (res 9)",
+     "roles": [
+      "h3-parquet",
+      "data"
+     ],
+     "description": "Total carbon (Mg C) at H3 resolution 9, area-corrected from the ~300 m Mg C/ha source density (density \u00d7 pixel ground area, area-weighted via exact_extract; one row per h9 cell). SUM(carbon) is directly valid as a total \u2014 no GROUP BY/dedup. Validated global SUM \u2248 470.2 Gt C. Hive-partitioned by h0.",
+     "h3:native_resolution": 9,
+     "h3:parent_resolutions": [
+      8,
+      7,
+      6,
+      5,
+      0
+     ],
+     "table:columns": [
+      {
+       "name": "carbon",
+       "type": "double",
+       "description": "Total carbon stock in this H3 cell, in Mg C (megagrams = tonnes). Computed as source carbon density (Mg C ha\u207b\u00b9) \u00d7 cell ground area, area-weighted via exact_extract from the ~300 m source. ONE row per h9 cell \u2014 SAFE to SUM(carbon) directly across rows (no GROUP BY, no dedup; raster hex). Global SUM reproduces the published carbon total."
+      },
+      {
+       "name": "h9",
+       "type": "uint64",
+       "description": "H3 cell ID at resolution 9 (native resolution; exactly one row per h9 cell)."
+      },
+      {
+       "name": "h8",
+       "type": "uint64",
+       "description": "H3 cell ID at resolution 8 (parent rollup)."
+      },
+      {
+       "name": "h7",
+       "type": "uint64",
+       "description": "H3 cell ID at resolution 7 (parent rollup)."
+      },
+      {
+       "name": "h6",
+       "type": "uint64",
+       "description": "H3 cell ID at resolution 6 (parent rollup)."
+      },
+      {
+       "name": "h5",
+       "type": "uint64",
+       "description": "H3 cell ID at resolution 5 (parent rollup)."
+      },
+      {
+       "name": "h0",
+       "type": "int64",
+       "description": "H3 cell ID at resolution 0, used as the hive partition key for partitioned reads."
+      }
+     ]
+    },
+    "v2-vulnerable-2018-hex": {
+     "href": "https://s3-west.nrp-nautilus.io/public-carbon/vulnerable-carbon-2018/hex/h0=*/data_0.parquet",
+     "type": "application/vnd.apache.parquet",
+     "title": "v2: Vulnerable Carbon 2018 - H3 Hexagonal Tiling (res 9)",
+     "roles": [
+      "h3-parquet",
+      "data"
+     ],
+     "description": "Total carbon (Mg C) at H3 resolution 9, area-corrected from the ~300 m Mg C/ha source density (density \u00d7 pixel ground area, area-weighted via exact_extract; one row per h9 cell). SUM(carbon) is directly valid as a total \u2014 no GROUP BY/dedup. Validated global SUM \u2248 487.7 Gt C. Hive-partitioned by h0.",
+     "h3:native_resolution": 9,
+     "h3:parent_resolutions": [
+      8,
+      7,
+      6,
+      5,
+      0
+     ],
+     "table:columns": [
+      {
+       "name": "carbon",
+       "type": "double",
+       "description": "Total carbon stock in this H3 cell, in Mg C (megagrams = tonnes). Computed as source carbon density (Mg C ha\u207b\u00b9) \u00d7 cell ground area, area-weighted via exact_extract from the ~300 m source. ONE row per h9 cell \u2014 SAFE to SUM(carbon) directly across rows (no GROUP BY, no dedup; raster hex). Global SUM reproduces the published carbon total."
+      },
+      {
+       "name": "h9",
+       "type": "uint64",
+       "description": "H3 cell ID at resolution 9 (native resolution; exactly one row per h9 cell)."
+      },
+      {
+       "name": "h8",
+       "type": "uint64",
+       "description": "H3 cell ID at resolution 8 (parent rollup)."
+      },
+      {
+       "name": "h7",
+       "type": "uint64",
+       "description": "H3 cell ID at resolution 7 (parent rollup)."
+      },
+      {
+       "name": "h6",
+       "type": "uint64",
+       "description": "H3 cell ID at resolution 6 (parent rollup)."
+      },
+      {
+       "name": "h5",
+       "type": "uint64",
+       "description": "H3 cell ID at resolution 5 (parent rollup)."
+      },
+      {
+       "name": "h0",
+       "type": "int64",
+       "description": "H3 cell ID at resolution 0, used as the hive partition key for partitioned reads."
+      }
+     ]
+    },
+    "v2-vulnerable-2010-hex": {
+     "href": "https://s3-west.nrp-nautilus.io/public-carbon/vulnerable-carbon-2010/hex/h0=*/data_0.parquet",
+     "type": "application/vnd.apache.parquet",
+     "title": "v2: Vulnerable Carbon 2010 - H3 Hexagonal Tiling (res 9)",
+     "roles": [
+      "h3-parquet",
+      "data"
+     ],
+     "description": "Total carbon (Mg C) at H3 resolution 9, area-corrected from the ~300 m Mg C/ha source density (density \u00d7 pixel ground area, area-weighted via exact_extract; one row per h9 cell). SUM(carbon) is directly valid as a total \u2014 no GROUP BY/dedup. Validated global SUM \u2248 495.6 Gt C. Hive-partitioned by h0.",
+     "h3:native_resolution": 9,
+     "h3:parent_resolutions": [
+      8,
+      7,
+      6,
+      5,
+      0
+     ],
+     "table:columns": [
+      {
+       "name": "carbon",
+       "type": "double",
+       "description": "Total carbon stock in this H3 cell, in Mg C (megagrams = tonnes). Computed as source carbon density (Mg C ha\u207b\u00b9) \u00d7 cell ground area, area-weighted via exact_extract from the ~300 m source. ONE row per h9 cell \u2014 SAFE to SUM(carbon) directly across rows (no GROUP BY, no dedup; raster hex). Global SUM reproduces the published carbon total."
+      },
+      {
+       "name": "h9",
+       "type": "uint64",
+       "description": "H3 cell ID at resolution 9 (native resolution; exactly one row per h9 cell)."
+      },
+      {
+       "name": "h8",
+       "type": "uint64",
+       "description": "H3 cell ID at resolution 8 (parent rollup)."
+      },
+      {
+       "name": "h7",
+       "type": "uint64",
+       "description": "H3 cell ID at resolution 7 (parent rollup)."
+      },
+      {
+       "name": "h6",
+       "type": "uint64",
+       "description": "H3 cell ID at resolution 6 (parent rollup)."
+      },
+      {
+       "name": "h5",
+       "type": "uint64",
+       "description": "H3 cell ID at resolution 5 (parent rollup)."
+      },
+      {
+       "name": "h0",
+       "type": "int64",
+       "description": "H3 cell ID at resolution 0, used as the hive partition key for partitioned reads."
+      }
+     ]
+    },
+    "v2-manageable-2024-hex": {
+     "href": "https://s3-west.nrp-nautilus.io/public-carbon/manageable-carbon-2024/hex/h0=*/data_0.parquet",
+     "type": "application/vnd.apache.parquet",
+     "title": "v2: Manageable Carbon 2024 - H3 Hexagonal Tiling (res 9)",
+     "roles": [
+      "h3-parquet",
+      "data"
+     ],
+     "description": "Total carbon (Mg C) at H3 resolution 9, area-corrected from the ~300 m Mg C/ha source density (density \u00d7 pixel ground area, area-weighted via exact_extract; one row per h9 cell). SUM(carbon) is directly valid as a total \u2014 no GROUP BY/dedup. Validated global SUM \u2248 777.3 Gt C. Hive-partitioned by h0.",
+     "h3:native_resolution": 9,
+     "h3:parent_resolutions": [
+      8,
+      7,
+      6,
+      5,
+      0
+     ],
+     "table:columns": [
+      {
+       "name": "carbon",
+       "type": "double",
+       "description": "Total carbon stock in this H3 cell, in Mg C (megagrams = tonnes). Computed as source carbon density (Mg C ha\u207b\u00b9) \u00d7 cell ground area, area-weighted via exact_extract from the ~300 m source. ONE row per h9 cell \u2014 SAFE to SUM(carbon) directly across rows (no GROUP BY, no dedup; raster hex). Global SUM reproduces the published carbon total."
+      },
+      {
+       "name": "h9",
+       "type": "uint64",
+       "description": "H3 cell ID at resolution 9 (native resolution; exactly one row per h9 cell)."
+      },
+      {
+       "name": "h8",
+       "type": "uint64",
+       "description": "H3 cell ID at resolution 8 (parent rollup)."
+      },
+      {
+       "name": "h7",
+       "type": "uint64",
+       "description": "H3 cell ID at resolution 7 (parent rollup)."
+      },
+      {
+       "name": "h6",
+       "type": "uint64",
+       "description": "H3 cell ID at resolution 6 (parent rollup)."
+      },
+      {
+       "name": "h5",
+       "type": "uint64",
+       "description": "H3 cell ID at resolution 5 (parent rollup)."
+      },
+      {
+       "name": "h0",
+       "type": "int64",
+       "description": "H3 cell ID at resolution 0, used as the hive partition key for partitioned reads."
+      }
+     ]
+    },
+    "v2-manageable-2018-hex": {
+     "href": "https://s3-west.nrp-nautilus.io/public-carbon/manageable-carbon-2018/hex/h0=*/data_0.parquet",
+     "type": "application/vnd.apache.parquet",
+     "title": "v2: Manageable Carbon 2018 - H3 Hexagonal Tiling (res 9)",
+     "roles": [
+      "h3-parquet",
+      "data"
+     ],
+     "description": "Total carbon (Mg C) at H3 resolution 9, area-corrected from the ~300 m Mg C/ha source density (density \u00d7 pixel ground area, area-weighted via exact_extract; one row per h9 cell). SUM(carbon) is directly valid as a total \u2014 no GROUP BY/dedup. Validated global SUM \u2248 798.5 Gt C. Hive-partitioned by h0.",
+     "h3:native_resolution": 9,
+     "h3:parent_resolutions": [
+      8,
+      7,
+      6,
+      5,
+      0
+     ],
+     "table:columns": [
+      {
+       "name": "carbon",
+       "type": "double",
+       "description": "Total carbon stock in this H3 cell, in Mg C (megagrams = tonnes). Computed as source carbon density (Mg C ha\u207b\u00b9) \u00d7 cell ground area, area-weighted via exact_extract from the ~300 m source. ONE row per h9 cell \u2014 SAFE to SUM(carbon) directly across rows (no GROUP BY, no dedup; raster hex). Global SUM reproduces the published carbon total."
+      },
+      {
+       "name": "h9",
+       "type": "uint64",
+       "description": "H3 cell ID at resolution 9 (native resolution; exactly one row per h9 cell)."
+      },
+      {
+       "name": "h8",
+       "type": "uint64",
+       "description": "H3 cell ID at resolution 8 (parent rollup)."
+      },
+      {
+       "name": "h7",
+       "type": "uint64",
+       "description": "H3 cell ID at resolution 7 (parent rollup)."
+      },
+      {
+       "name": "h6",
+       "type": "uint64",
+       "description": "H3 cell ID at resolution 6 (parent rollup)."
+      },
+      {
+       "name": "h5",
+       "type": "uint64",
+       "description": "H3 cell ID at resolution 5 (parent rollup)."
+      },
+      {
+       "name": "h0",
+       "type": "int64",
+       "description": "H3 cell ID at resolution 0, used as the hive partition key for partitioned reads."
+      }
+     ]
+    },
+    "v2-manageable-2010-hex": {
+     "href": "https://s3-west.nrp-nautilus.io/public-carbon/manageable-carbon-2010/hex/h0=*/data_0.parquet",
+     "type": "application/vnd.apache.parquet",
+     "title": "v2: Manageable Carbon 2010 - H3 Hexagonal Tiling (res 9)",
+     "roles": [
+      "h3-parquet",
+      "data"
+     ],
+     "description": "Total carbon (Mg C) at H3 resolution 9, area-corrected from the ~300 m Mg C/ha source density (density \u00d7 pixel ground area, area-weighted via exact_extract; one row per h9 cell). SUM(carbon) is directly valid as a total \u2014 no GROUP BY/dedup. Validated global SUM \u2248 780.3 Gt C. Hive-partitioned by h0.",
+     "h3:native_resolution": 9,
+     "h3:parent_resolutions": [
+      8,
+      7,
+      6,
+      5,
+      0
+     ],
+     "table:columns": [
+      {
+       "name": "carbon",
+       "type": "double",
+       "description": "Total carbon stock in this H3 cell, in Mg C (megagrams = tonnes). Computed as source carbon density (Mg C ha\u207b\u00b9) \u00d7 cell ground area, area-weighted via exact_extract from the ~300 m source. ONE row per h9 cell \u2014 SAFE to SUM(carbon) directly across rows (no GROUP BY, no dedup; raster hex). Global SUM reproduces the published carbon total."
+      },
+      {
+       "name": "h9",
+       "type": "uint64",
+       "description": "H3 cell ID at resolution 9 (native resolution; exactly one row per h9 cell)."
+      },
+      {
+       "name": "h8",
+       "type": "uint64",
+       "description": "H3 cell ID at resolution 8 (parent rollup)."
+      },
+      {
+       "name": "h7",
+       "type": "uint64",
+       "description": "H3 cell ID at resolution 7 (parent rollup)."
+      },
+      {
+       "name": "h6",
+       "type": "uint64",
+       "description": "H3 cell ID at resolution 6 (parent rollup)."
+      },
+      {
+       "name": "h5",
+       "type": "uint64",
+       "description": "H3 cell ID at resolution 5 (parent rollup)."
+      },
+      {
+       "name": "h0",
+       "type": "int64",
+       "description": "H3 cell ID at resolution 0, used as the hive partition key for partitioned reads."
+      }
+     ]
+    }
+   }
+  },
+  {
+   "type": "Collection",
+   "stac_version": "1.0.0",
+   "id": "pad-us-4.1-combined",
+   "title": "PAD-US 4.1 Combined - All Protection Types",
+   "license": "public-domain",
+   "providers": [
+    {
+     "name": "USGS Gap Analysis Project",
+     "roles": [
+      "producer",
+      "licensor"
+     ],
+     "url": "https://www.usgs.gov/programs/gap-analysis-project"
+    },
+    {
+     "name": "Boettiger Lab",
+     "roles": [
+      "processor",
+      "host"
+     ],
+     "url": "https://github.com/boettiger-lab"
+    }
+   ],
+   "links": [
+    {
+     "rel": "self",
+     "href": "https://s3-west.nrp-nautilus.io/public-padus/padus-4-1/combined/stac-collection.json",
+     "type": "application/json"
+    },
+    {
+     "rel": "root",
+     "href": "https://s3-west.nrp-nautilus.io/public-data/stac/catalog.json",
+     "type": "application/json"
+    },
+    {
+     "rel": "parent",
+     "href": "https://s3-west.nrp-nautilus.io/public-padus/stac-collection.json",
+     "type": "application/json"
+    },
+    {
+     "rel": "describedby",
+     "href": "https://s3-west.nrp-nautilus.io/public-padus/README.md",
+     "type": "text/markdown",
+     "title": "Detailed Data Documentation and Usage Examples"
+    },
+    {
+     "rel": "cite-as",
+     "href": "https://doi.org/10.5066/P96WBCHS",
+     "title": "PAD-US 4.1 DOI"
+    },
+    {
+     "rel": "about",
+     "href": "https://www.usgs.gov/programs/gap-analysis-project/science/pad-us-data-overview",
+     "title": "PAD-US Data Overview"
+    },
+    {
+     "rel": "license",
+     "href": "https://www.usa.gov/government-works",
+     "title": "U.S. Government Works"
+    }
+   ],
+   "assets": {
+    "combined-parquet": {
+     "href": "https://s3-west.nrp-nautilus.io/public-padus/padus-4-1/combined.parquet",
+     "type": "application/vnd.apache.parquet",
+     "title": "GeoParquet file with all 656,986 protected areas",
+     "description": "Cloud-native GeoParquet format optimized for analytical queries. Use with DuckDB, Polars, pandas, or any GeoParquet-compatible tool. Geometries in EPSG:4326.",
+     "roles": [
+      "data"
+     ],
+     "table:columns": [
+      {
+       "name": "_cng_fid",
+       "type": "int64",
+       "description": "Cloud-native geometry feature ID. Unique identifier for each protected area feature. Use this for joining between GeoParquet and H3 hex formats."
+      },
+      {
+       "name": "FeatClass",
+       "type": "string",
+       "description": "Feature class indicating the type of protection: 'Fee' (owned), 'Easement' (conservation easement), 'Designation' (administrative boundary), 'Marine' (marine protected area), or 'Proclamation' (authorized boundary). Values: Designation=Designation (management overlay on other lands), Easement=Easement interest, Fee=Fee simple ownership interest, Marine=Marine protected area, Proclamation=Approved, proclamation or extent boundary",
+       "values": [
+        "Designation",
+        "Easement",
+        "Fee",
+        "Marine",
+        "Proclamation"
+       ]
+      },
+      {
+       "name": "Category",
+       "type": "string",
+       "description": "Protection type category indicating which PAD-US layer the feature comes from. Values: Designation=Designation (management overlay on other lands), Easement=Easement interest, Fee=Fee simple ownership interest, Marine=Marine protected area, Other=Other protection mechanism, Proclamation=Approved, proclamation or extent boundary, Unknown=Unknown protection mechanism",
+       "values": [
+        "Designation",
+        "Easement",
+        "Fee",
+        "Marine",
+        "Other",
+        "Proclamation",
+        "Unknown"
+       ]
+      },
+      {
+       "name": "Own_Type",
+       "type": "string",
+       "description": "Owner type code. Values: DESG=Designation, DIST=Regional agency / special district, FED=Federal, JNT=Joint (multiple owners/managers), LOC=Local government, NGO=Non-governmental organization, PVT=Private, STAT=State, TERR=Territorial, TRIB=American Indian / Tribal lands, UNK=Unknown",
+       "values": [
+        "DESG",
+        "DIST",
+        "FED",
+        "JNT",
+        "LOC",
+        "NGO",
+        "PVT",
+        "STAT",
+        "TERR",
+        "TRIB",
+        "UNK"
+       ]
+      },
+      {
+       "name": "Own_Name",
+       "type": "string",
+       "description": "Owner name. Specific agency, organization, or entity that holds legal title to the protected area. Examples: 'Department of Defense', 'The Nature Conservancy', 'California State Parks'."
+      },
+      {
+       "name": "Loc_Own",
+       "type": "string",
+       "description": "Local owner name. Owner name in local terminology or original language when different from Own_Name. May be null if same as Own_Name."
+      },
+      {
+       "name": "Mang_Type",
+       "type": "string",
+       "description": "Manager type code. Same code set as Own_Type. Values: DIST=Regional agency / special district, FED=Federal, JNT=Joint (multiple owners/managers), LOC=Local government, NGO=Non-governmental organization, PVT=Private, STAT=State, TERR=Territorial, TRIB=American Indian / Tribal lands, UNK=Unknown",
+       "values": [
+        "DIST",
+        "FED",
+        "JNT",
+        "LOC",
+        "NGO",
+        "PVT",
+        "STAT",
+        "TERR",
+        "TRIB",
+        "UNK"
+       ]
+      },
+      {
+       "name": "Mang_Name",
+       "type": "string",
+       "description": "Manager name. Agency or organization responsible for day-to-day management and operations. Examples: 'National Park Service', 'U.S. Forest Service', 'State Wildlife Agency'. May differ from Owner."
+      },
+      {
+       "name": "Loc_Mang",
+       "type": "string",
+       "description": "Local manager name. Manager name in local terminology when different from Mang_Name. May be null if same as Mang_Name."
+      },
+      {
+       "name": "Des_Tp",
+       "type": "string",
+       "description": "Designation type code. Standardized code for the type of designation (e.g., 'NP' for National Park, 'NWR' for National Wildlife Refuge, 'WILD' for Wilderness). See PAD-US Designation_Type lookup table for complete list. Values: ACC=Access Area, ACEC=Area of Critical Environmental Concern, AGRE=Agricultural Easement, CONE=Conservation Easement, FORE=Forest Stewardship Easement, FOTH=Federal Other or Unknown, HCA=Historic or Cultural Area, HCAE=Historic or Cultural Easement, IRA=Inventoried Roadless Area, LCA=Local Conservation Area, LHCA=Local Historic or Cultural Area, LOTH=Local Other or Unknown, LP=Local Park, LREC=Local Recreation Area, LRMA=Local Resource Management Area, MIL=Military Land, MIT=Mitigation Land or Bank, MPA=Marine Protected Area, NCA=Conservation Area, ND=Not Designated, NF=National Forest, NG=National Grassland, NLS=National Lakeshore or Seashore, NM=National Monument, NP=National Park, NRA=National Recreation Area, NSBV=National Scenic, Botanical or Volcanic Area, NT=National Scenic or Historic Trail, NWR=National Wildlife Refuge, OCS=Outer Continental Shelf Area, OTHE=Other Easement, PAGR=Private Agricultural, PCON=Private Conservation, PFOR=Private Forest Stewardship, PHCA=Private Historic or Cultural, POTH=Private Other or Unknown, PPRK=Private Park, PRAN=Private Ranch, PREC=Private Recreation or Education, PROC=Approved or Proclamation Boundary, PUB=National Public Lands, RANE=Ranch Easement, REA=Research or Educational Area, REC=Recreation Management Area, RECE=Recreation or Education Easement, RMA=Resource Management Area, RNA=Research Natural Area, SCA=State Conservation Area, SDA=Special Designation Area, SHCA=State Historic or Cultural Area, SOTH=State Other or Unknown, SP=State Park, SREC=State Recreation Area, SRMA=State Resource Management Area, SW=State Wilderness, TRIBL=Native American Land Area, UNK=Unknown, UNKE=Unknown Easement, WA=Wilderness Area, WPA=Watershed Protection Area, WSA=Wilderness Study Area, WSR=Wild and Scenic River",
+       "values": [
+        "ACC",
+        "ACEC",
+        "AGRE",
+        "CONE",
+        "FORE",
+        "FOTH",
+        "HCA",
+        "HCAE",
+        "IRA",
+        "LCA",
+        "LHCA",
+        "LOTH",
+        "LP",
+        "LREC",
+        "LRMA",
+        "MIL",
+        "MIT",
+        "MPA",
+        "NCA",
+        "ND",
+        "NF",
+        "NG",
+        "NLS",
+        "NM",
+        "NP",
+        "NRA",
+        "NSBV",
+        "NT",
+        "NWR",
+        "OCS",
+        "OTHE",
+        "PAGR",
+        "PCON",
+        "PFOR",
+        "PHCA",
+        "POTH",
+        "PPRK",
+        "PRAN",
+        "PREC",
+        "PROC",
+        "PUB",
+        "RANE",
+        "REA",
+        "REC",
+        "RECE",
+        "RMA",
+        "RNA",
+        "SCA",
+        "SDA",
+        "SHCA",
+        "SOTH",
+        "SP",
+        "SREC",
+        "SRMA",
+        "SW",
+        "TRIBL",
+        "UNK",
+        "UNKE",
+        "WA",
+        "WPA",
+        "WSA",
+        "WSR"
+       ]
+      },
+      {
+       "name": "Loc_Ds",
+       "type": "string",
+       "description": "Local designation. Official designation name in original language or local terminology. Examples: 'Parque Nacional', '\u00c1rea Natural Protegida'."
+      },
+      {
+       "name": "Unit_Nm",
+       "type": "string",
+       "description": "Unit name. Official name of the protected area as designated by the managing authority. Primary identifier for the site."
+      },
+      {
+       "name": "Loc_Nm",
+       "type": "string",
+       "description": "Local name. Alternative, historical, or local name for the protected area when different from Unit_Nm. May be null if no alternative name exists."
+      },
+      {
+       "name": "State_Nm",
+       "type": "string",
+       "description": "State name. U.S. state, territory, or freely associated state where the protected area is located. Two-letter postal abbreviations (e.g., 'CA', 'PR', 'GU'). Values: AK=Alaska, AL=Alabama, AR=Arkansas, AS=American Samoa, AZ=Arizona, CA=California, CO=Colorado, CT=Connecticut, DC=District of Columbia, DE=Delaware, FL=Florida, GA=Georgia, GU=Guam, HI=Hawaii, IA=Iowa, ID=Idaho, IL=Illinois, IN=Indiana, KS=Kansas, KY=Kentucky, LA=Louisiana, MA=Massachusetts, MD=Maryland, ME=Maine, MI=Michigan, MN=Minnesota, MO=Missouri, MP=Northern Mariana Islands, MS=Mississippi, MT=Montana, NC=North Carolina, ND=North Dakota, NE=Nebraska, NH=New Hampshire, NJ=New Jersey, NM=New Mexico, NV=Nevada, NY=New York, OH=Ohio, OK=Oklahoma, OR=Oregon, PA=Pennsylvania, PR=Puerto Rico, RI=Rhode Island, SC=South Carolina, SD=South Dakota, TN=Tennessee, TX=Texas, UM=U.S. Minor Outlying Islands, UNKF=Unknown (state/territory not determined), UT=Utah, VA=Virginia, VI=U.S. Virgin Islands, VT=Vermont, WA=Washington, WI=Wisconsin, WV=West Virginia, WY=Wyoming",
+       "values": [
+        "AK",
+        "AL",
+        "AR",
+        "AS",
+        "AZ",
+        "CA",
+        "CO",
+        "CT",
+        "DC",
+        "DE",
+        "FL",
+        "GA",
+        "GU",
+        "HI",
+        "IA",
+        "ID",
+        "IL",
+        "IN",
+        "KS",
+        "KY",
+        "LA",
+        "MA",
+        "MD",
+        "ME",
+        "MI",
+        "MN",
+        "MO",
+        "MP",
+        "MS",
+        "MT",
+        "NC",
+        "ND",
+        "NE",
+        "NH",
+        "NJ",
+        "NM",
+        "NV",
+        "NY",
+        "OH",
+        "OK",
+        "OR",
+        "PA",
+        "PR",
+        "RI",
+        "SC",
+        "SD",
+        "TN",
+        "TX",
+        "UM",
+        "UNKF",
+        "UT",
+        "VA",
+        "VI",
+        "VT",
+        "WA",
+        "WI",
+        "WV",
+        "WY"
+       ]
+      },
+      {
+       "name": "Agg_Src",
+       "type": "string",
+       "description": "Aggregator source. Organization that compiled or aggregated the data, often state agencies or regional coordination entities that collected source data into PAD-US."
+      },
+      {
+       "name": "GIS_Src",
+       "type": "string",
+       "description": "GIS source. Original GIS data provider or source dataset name. Indicates where the spatial data came from (e.g., agency name, dataset title)."
+      },
+      {
+       "name": "Src_Date",
+       "type": "string",
+       "description": "Source date. Date of the source GIS data in YYYYMMDD or YYYY format. Indicates when the source spatial data was created or last updated by the providing agency."
+      },
+      {
+       "name": "GIS_Acres",
+       "type": "int32",
+       "description": "GIS-calculated area in acres of the source polygon. Most reliable area measure, calculated from the geometry."
+      },
+      {
+       "name": "Source_PAID",
+       "type": "string",
+       "description": "Source Protected Area ID. Unique identifier from the source agency's dataset. Used to track provenance and updates from source systems."
+      },
+      {
+       "name": "WDPA_Cd",
+       "type": "int32",
+       "description": "World Database on Protected Areas (WDPA) site code. Assigned to sites that are internationally recognized and included in the WDPA. Null for sites not in WDPA."
+      },
+      {
+       "name": "Pub_Access",
+       "type": "string",
+       "description": "Public access code. Values: OA=Open Access, RA=Restricted Access, UK=Unknown, XA=Closed Access",
+       "values": [
+        "OA",
+        "RA",
+        "UK",
+        "XA"
+       ]
+      },
+      {
+       "name": "Access_Src",
+       "type": "string",
+       "description": "Access source. Source of the public access information (e.g., agency website, management plan, direct contact with manager)."
+      },
+      {
+       "name": "Access_Dt",
+       "type": "string",
+       "description": "Access date. Date the public access status was determined or verified in YYYYMMDD or YYYY format."
+      },
+      {
+       "name": "GAP_Sts",
+       "type": "string",
+       "description": "GAP Status Code indicating level of biodiversity management protection. Values: 1=Permanent protection, biodiversity the primary management goal; natural disturbance proceeds or is mimicked, 2=Permanent protection, biodiversity the primary management goal; natural disturbance suppressed, 3=Permanent protection, managed for multiple uses subject to extractive (e.g. mining, logging) or OHV use, 4=No known mandate for biodiversity protection",
+       "values": [
+        "1",
+        "2",
+        "3",
+        "4"
+       ]
+      },
+      {
+       "name": "GAPCdSrc",
+       "type": "string",
+       "description": "GAP Code source. Source document or authority used to assign the GAP Status Code (e.g., enabling legislation, management plan, agency policy)."
+      },
+      {
+       "name": "GAPCdDt",
+       "type": "string",
+       "description": "GAP Code date. Date the GAP Status Code was assigned or verified in YYYYMMDD or YYYY format."
+      },
+      {
+       "name": "IUCN_Cat",
+       "type": "string",
+       "description": "IUCN Protected Area Management Category. Values: II=National Park, III=Natural Monument or Feature, IV=Habitat/Species Management Area, Ia=Strict Nature Reserve, Ib=Wilderness Area, Other Conservation Area=Other conservation area (does not meet IUCN protected-area definition), Unassigned=Not assigned an IUCN management category, V=Protected Landscape/Seascape, VI=Protected area with sustainable use of natural resources",
+       "values": [
+        "II",
+        "III",
+        "IV",
+        "Ia",
+        "Ib",
+        "Other Conservation Area",
+        "Unassigned",
+        "V",
+        "VI"
+       ]
+      },
+      {
+       "name": "IUCNCtSrc",
+       "type": "string",
+       "description": "IUCN Category source. Source document or authority used to assign the IUCN Category (e.g., management objectives, legislation)."
+      },
+      {
+       "name": "IUCNCtDt",
+       "type": "string",
+       "description": "IUCN Category date. Date the IUCN Category was assigned or verified in YYYYMMDD or YYYY format."
+      },
+      {
+       "name": "Date_Est",
+       "type": "string",
+       "description": "Date established. When the protected area protection was formally established (legislation signed, easement recorded, etc.). Format varies: YYYYMMDD, YYYY, or text description for historical areas."
+      },
+      {
+       "name": "Comments",
+       "type": "string",
+       "description": "Comments. Additional information, caveats, special notes, or clarifications about the protected area feature. May include data quality notes, boundary uncertainties, or historical context."
+      },
+      {
+       "name": "Term",
+       "type": "int32",
+       "description": "Term flag. Indicates temporary protection: 1 = temporary or term-limited protection; 0 or NULL = permanent protection. Used to identify conservation easements or agreements with expiration dates."
+      },
+      {
+       "name": "Duration",
+       "type": "string",
+       "description": "Duration. Description of protection duration for term-limited protections (e.g., '20 years', 'until 2050', 'renewable 10-year terms'). Null for permanent protections."
+      },
+      {
+       "name": "SHAPE_Length",
+       "type": "float64",
+       "description": "Shape length. Perimeter length in meters calculated in the original coordinate reference system (USA Contiguous Albers Equal Area Conic). For reference only - recalculate in appropriate CRS for analysis."
+      },
+      {
+       "name": "SHAPE_Area",
+       "type": "float64",
+       "description": "Shape area. Area in square meters calculated in the original coordinate reference system (USA Contiguous Albers Equal Area Conic). For reference only - use GIS_Acres for area comparisons."
+      },
+      {
+       "name": "SHAPE",
+       "type": "bytes",
+       "description": "Geometry. Well-Known Binary (WKB) representation of the protected area boundary in EPSG:4326 (WGS84). Typically MULTIPOLYGON geometry type. Use for spatial operations and mapping."
+      },
+      {
+       "name": "bbox",
+       "type": "struct<xmin: double, ymin: double, xmax: double, ymax: double>",
+       "description": "Bounding box. Minimum bounding rectangle of the geometry with coordinates in EPSG:4326. Useful for spatial indexing and quick extent checks without processing full geometry."
+      }
+     ]
+    },
+    "combined-hex": {
+     "href": "https://s3-west.nrp-nautilus.io/public-padus/padus-4-1/combined/hex/h0=*/data_0.parquet",
+     "type": "application/vnd.apache.parquet",
+     "title": "H3 hex-indexed parquet files",
+     "description": "Parquet files partitioned by H3 cell at resolution 10 (15m\u00b2) and resolution 8 (0.74 km\u00b2) for 20 complex features. Partitioned by h0 for efficient spatial queries. Each row contains a protected area feature with its intersecting H3 cell. Per-feature attribute columns (GIS_Acres) are repeated on every hex cell the feature covers, so a raw SUM over hex rows double-counts; dedup by _cng_fid first, e.g. SELECT DISTINCT _cng_fid, GIS_Acres. 138,834 of 656,986 source features are smaller than one native H3 cell and polyfill to zero cells, so they are absent from the hex; query the flat GeoParquet for complete feature coverage.",
+     "roles": [
+      "data"
+     ],
+     "table:storage_options": {
+      "partitioning": "h0"
+     },
+     "table:columns": [
+      {
+       "name": "_cng_fid",
+       "type": "int64",
+       "description": "Cloud-native geometry feature ID. Unique identifier for each protected area feature. Use this for joining between GeoParquet and H3 hex formats."
+      },
+      {
+       "name": "FeatClass",
+       "type": "string",
+       "description": "Feature class indicating the type of protection: 'Fee' (owned), 'Easement' (conservation easement), 'Designation' (administrative boundary), 'Marine' (marine protected area), or 'Proclamation' (authorized boundary). Values: Designation=Designation (management overlay on other lands), Easement=Easement interest, Fee=Fee simple ownership interest, Marine=Marine protected area, Proclamation=Approved, proclamation or extent boundary",
+       "values": [
+        "Designation",
+        "Easement",
+        "Fee",
+        "Marine",
+        "Proclamation"
+       ]
+      },
+      {
+       "name": "Category",
+       "type": "string",
+       "description": "Protection type category indicating which PAD-US layer the feature comes from. Values: Designation=Designation (management overlay on other lands), Easement=Easement interest, Fee=Fee simple ownership interest, Marine=Marine protected area, Other=Other protection mechanism, Proclamation=Approved, proclamation or extent boundary, Unknown=Unknown protection mechanism",
+       "values": [
+        "Designation",
+        "Easement",
+        "Fee",
+        "Marine",
+        "Other",
+        "Proclamation",
+        "Unknown"
+       ]
+      },
+      {
+       "name": "Own_Type",
+       "type": "string",
+       "description": "Owner type code. Values: DESG=Designation, DIST=Regional agency / special district, FED=Federal, JNT=Joint (multiple owners/managers), LOC=Local government, NGO=Non-governmental organization, PVT=Private, STAT=State, TERR=Territorial, TRIB=American Indian / Tribal lands, UNK=Unknown",
+       "values": [
+        "DESG",
+        "DIST",
+        "FED",
+        "JNT",
+        "LOC",
+        "NGO",
+        "PVT",
+        "STAT",
+        "TERR",
+        "TRIB",
+        "UNK"
+       ]
+      },
+      {
+       "name": "Own_Name",
+       "type": "string",
+       "description": "Owner name. Specific agency, organization, or entity that holds legal title to the protected area. Examples: 'Department of Defense', 'The Nature Conservancy', 'California State Parks'."
+      },
+      {
+       "name": "Loc_Own",
+       "type": "string",
+       "description": "Local owner name. Owner name in local terminology or original language when different from Own_Name. May be null if same as Own_Name."
+      },
+      {
+       "name": "Mang_Type",
+       "type": "string",
+       "description": "Manager type code. Same code set as Own_Type. Values: DIST=Regional agency / special district, FED=Federal, JNT=Joint (multiple owners/managers), LOC=Local government, NGO=Non-governmental organization, PVT=Private, STAT=State, TERR=Territorial, TRIB=American Indian / Tribal lands, UNK=Unknown",
+       "values": [
+        "DIST",
+        "FED",
+        "JNT",
+        "LOC",
+        "NGO",
+        "PVT",
+        "STAT",
+        "TERR",
+        "TRIB",
+        "UNK"
+       ]
+      },
+      {
+       "name": "Mang_Name",
+       "type": "string",
+       "description": "Manager name. Agency or organization responsible for day-to-day management and operations. Examples: 'National Park Service', 'U.S. Forest Service', 'State Wildlife Agency'. May differ from Owner."
+      },
+      {
+       "name": "Loc_Mang",
+       "type": "string",
+       "description": "Local manager name. Manager name in local terminology when different from Mang_Name. May be null if same as Mang_Name."
+      },
+      {
+       "name": "Des_Tp",
+       "type": "string",
+       "description": "Designation type code. Standardized code for the type of designation (e.g., 'NP' for National Park, 'NWR' for National Wildlife Refuge, 'WILD' for Wilderness). See PAD-US Designation_Type lookup table for complete list. Values: ACC=Access Area, ACEC=Area of Critical Environmental Concern, AGRE=Agricultural Easement, CONE=Conservation Easement, FORE=Forest Stewardship Easement, FOTH=Federal Other or Unknown, HCA=Historic or Cultural Area, HCAE=Historic or Cultural Easement, IRA=Inventoried Roadless Area, LCA=Local Conservation Area, LHCA=Local Historic or Cultural Area, LOTH=Local Other or Unknown, LP=Local Park, LREC=Local Recreation Area, LRMA=Local Resource Management Area, MIL=Military Land, MIT=Mitigation Land or Bank, MPA=Marine Protected Area, NCA=Conservation Area, ND=Not Designated, NF=National Forest, NG=National Grassland, NLS=National Lakeshore or Seashore, NM=National Monument, NP=National Park, NRA=National Recreation Area, NSBV=National Scenic, Botanical or Volcanic Area, NT=National Scenic or Historic Trail, NWR=National Wildlife Refuge, OCS=Outer Continental Shelf Area, OTHE=Other Easement, PAGR=Private Agricultural, PCON=Private Conservation, PFOR=Private Forest Stewardship, PHCA=Private Historic or Cultural, POTH=Private Other or Unknown, PPRK=Private Park, PRAN=Private Ranch, PREC=Private Recreation or Education, PROC=Approved or Proclamation Boundary, PUB=National Public Lands, RANE=Ranch Easement, REA=Research or Educational Area, REC=Recreation Management Area, RECE=Recreation or Education Easement, RMA=Resource Management Area, RNA=Research Natural Area, SCA=State Conservation Area, SDA=Special Designation Area, SHCA=State Historic or Cultural Area, SOTH=State Other or Unknown, SP=State Park, SREC=State Recreation Area, SRMA=State Resource Management Area, SW=State Wilderness, TRIBL=Native American Land Area, UNK=Unknown, UNKE=Unknown Easement, WA=Wilderness Area, WPA=Watershed Protection Area, WSA=Wilderness Study Area, WSR=Wild and Scenic River",
+       "values": [
+        "ACC",
+        "ACEC",
+        "AGRE",
+        "CONE",
+        "FORE",
+        "FOTH",
+        "HCA",
+        "HCAE",
+        "IRA",
+        "LCA",
+        "LHCA",
+        "LOTH",
+        "LP",
+        "LREC",
+        "LRMA",
+        "MIL",
+        "MIT",
+        "MPA",
+        "NCA",
+        "ND",
+        "NF",
+        "NG",
+        "NLS",
+        "NM",
+        "NP",
+        "NRA",
+        "NSBV",
+        "NT",
+        "NWR",
+        "OCS",
+        "OTHE",
+        "PAGR",
+        "PCON",
+        "PFOR",
+        "PHCA",
+        "POTH",
+        "PPRK",
+        "PRAN",
+        "PREC",
+        "PROC",
+        "PUB",
+        "RANE",
+        "REA",
+        "REC",
+        "RECE",
+        "RMA",
+        "RNA",
+        "SCA",
+        "SDA",
+        "SHCA",
+        "SOTH",
+        "SP",
+        "SREC",
+        "SRMA",
+        "SW",
+        "TRIBL",
+        "UNK",
+        "UNKE",
+        "WA",
+        "WPA",
+        "WSA",
+        "WSR"
+       ]
+      },
+      {
+       "name": "Loc_Ds",
+       "type": "string",
+       "description": "Local designation. Official designation name in original language or local terminology. Examples: 'Parque Nacional', '\u00c1rea Natural Protegida'."
+      },
+      {
+       "name": "Unit_Nm",
+       "type": "string",
+       "description": "Unit name. Official name of the protected area as designated by the managing authority. Primary identifier for the site."
+      },
+      {
+       "name": "Loc_Nm",
+       "type": "string",
+       "description": "Local name. Alternative, historical, or local name for the protected area when different from Unit_Nm. May be null if no alternative name exists."
+      },
+      {
+       "name": "State_Nm",
+       "type": "string",
+       "description": "State name. U.S. state, territory, or freely associated state where the protected area is located. Two-letter postal abbreviations (e.g., 'CA', 'PR', 'GU'). Values: AK=Alaska, AL=Alabama, AR=Arkansas, AS=American Samoa, AZ=Arizona, CA=California, CO=Colorado, CT=Connecticut, DC=District of Columbia, DE=Delaware, FL=Florida, GA=Georgia, GU=Guam, HI=Hawaii, IA=Iowa, ID=Idaho, IL=Illinois, IN=Indiana, KS=Kansas, KY=Kentucky, LA=Louisiana, MA=Massachusetts, MD=Maryland, ME=Maine, MI=Michigan, MN=Minnesota, MO=Missouri, MP=Northern Mariana Islands, MS=Mississippi, MT=Montana, NC=North Carolina, ND=North Dakota, NE=Nebraska, NH=New Hampshire, NJ=New Jersey, NM=New Mexico, NV=Nevada, NY=New York, OH=Ohio, OK=Oklahoma, OR=Oregon, PA=Pennsylvania, PR=Puerto Rico, RI=Rhode Island, SC=South Carolina, SD=South Dakota, TN=Tennessee, TX=Texas, UM=U.S. Minor Outlying Islands, UNKF=Unknown (state/territory not determined), UT=Utah, VA=Virginia, VI=U.S. Virgin Islands, VT=Vermont, WA=Washington, WI=Wisconsin, WV=West Virginia, WY=Wyoming",
+       "values": [
+        "AK",
+        "AL",
+        "AR",
+        "AS",
+        "AZ",
+        "CA",
+        "CO",
+        "CT",
+        "DC",
+        "DE",
+        "FL",
+        "GA",
+        "GU",
+        "HI",
+        "IA",
+        "ID",
+        "IL",
+        "IN",
+        "KS",
+        "KY",
+        "LA",
+        "MA",
+        "MD",
+        "ME",
+        "MI",
+        "MN",
+        "MO",
+        "MP",
+        "MS",
+        "MT",
+        "NC",
+        "ND",
+        "NE",
+        "NH",
+        "NJ",
+        "NM",
+        "NV",
+        "NY",
+        "OH",
+        "OK",
+        "OR",
+        "PA",
+        "PR",
+        "RI",
+        "SC",
+        "SD",
+        "TN",
+        "TX",
+        "UM",
+        "UNKF",
+        "UT",
+        "VA",
+        "VI",
+        "VT",
+        "WA",
+        "WI",
+        "WV",
+        "WY"
+       ]
+      },
+      {
+       "name": "Agg_Src",
+       "type": "string",
+       "description": "Aggregator source. Organization that compiled or aggregated the data, often state agencies or regional coordination entities that collected source data into PAD-US."
+      },
+      {
+       "name": "GIS_Src",
+       "type": "string",
+       "description": "GIS source. Original GIS data provider or source dataset name. Indicates where the spatial data came from (e.g., agency name, dataset title)."
+      },
+      {
+       "name": "Src_Date",
+       "type": "string",
+       "description": "Source date. Date of the source GIS data in YYYYMMDD or YYYY format. Indicates when the source spatial data was created or last updated by the providing agency."
+      },
+      {
+       "name": "GIS_Acres",
+       "type": "int32",
+       "description": "GIS-calculated area in acres of the source polygon. Most reliable area measure, calculated from the geometry."
+      },
+      {
+       "name": "Source_PAID",
+       "type": "string",
+       "description": "Source Protected Area ID. Unique identifier from the source agency's dataset. Used to track provenance and updates from source systems."
+      },
+      {
+       "name": "WDPA_Cd",
+       "type": "int32",
+       "description": "World Database on Protected Areas (WDPA) site code. Assigned to sites that are internationally recognized and included in the WDPA. Null for sites not in WDPA."
+      },
+      {
+       "name": "Pub_Access",
+       "type": "string",
+       "description": "Public access code. Values: OA=Open Access, RA=Restricted Access, UK=Unknown, XA=Closed Access",
+       "values": [
+        "OA",
+        "RA",
+        "UK",
+        "XA"
+       ]
+      },
+      {
+       "name": "Access_Src",
+       "type": "string",
+       "description": "Access source. Source of the public access information (e.g., agency website, management plan, direct contact with manager)."
+      },
+      {
+       "name": "Access_Dt",
+       "type": "string",
+       "description": "Access date. Date the public access status was determined or verified in YYYYMMDD or YYYY format."
+      },
+      {
+       "name": "GAP_Sts",
+       "type": "string",
+       "description": "GAP Status Code indicating level of biodiversity management protection. Values: 1=Permanent protection, biodiversity the primary management goal; natural disturbance proceeds or is mimicked, 2=Permanent protection, biodiversity the primary management goal; natural disturbance suppressed, 3=Permanent protection, managed for multiple uses subject to extractive (e.g. mining, logging) or OHV use, 4=No known mandate for biodiversity protection",
+       "values": [
+        "1",
+        "2",
+        "3",
+        "4"
+       ]
+      },
+      {
+       "name": "GAPCdSrc",
+       "type": "string",
+       "description": "GAP Code source. Source document or authority used to assign the GAP Status Code (e.g., enabling legislation, management plan, agency policy)."
+      },
+      {
+       "name": "GAPCdDt",
+       "type": "string",
+       "description": "GAP Code date. Date the GAP Status Code was assigned or verified in YYYYMMDD or YYYY format."
+      },
+      {
+       "name": "IUCN_Cat",
+       "type": "string",
+       "description": "IUCN Protected Area Management Category. Values: II=National Park, III=Natural Monument or Feature, IV=Habitat/Species Management Area, Ia=Strict Nature Reserve, Ib=Wilderness Area, Other Conservation Area=Other conservation area (does not meet IUCN protected-area definition), Unassigned=Not assigned an IUCN management category, V=Protected Landscape/Seascape, VI=Protected area with sustainable use of natural resources",
+       "values": [
+        "II",
+        "III",
+        "IV",
+        "Ia",
+        "Ib",
+        "Other Conservation Area",
+        "Unassigned",
+        "V",
+        "VI"
+       ]
+      },
+      {
+       "name": "IUCNCtSrc",
+       "type": "string",
+       "description": "IUCN Category source. Source document or authority used to assign the IUCN Category (e.g., management objectives, legislation)."
+      },
+      {
+       "name": "IUCNCtDt",
+       "type": "string",
+       "description": "IUCN Category date. Date the IUCN Category was assigned or verified in YYYYMMDD or YYYY format."
+      },
+      {
+       "name": "Date_Est",
+       "type": "string",
+       "description": "Date established. When the protected area protection was formally established (legislation signed, easement recorded, etc.). Format varies: YYYYMMDD, YYYY, or text description for historical areas."
+      },
+      {
+       "name": "Comments",
+       "type": "string",
+       "description": "Comments. Additional information, caveats, special notes, or clarifications about the protected area feature. May include data quality notes, boundary uncertainties, or historical context."
+      },
+      {
+       "name": "Term",
+       "type": "int32",
+       "description": "Term flag. Indicates temporary protection: 1 = temporary or term-limited protection; 0 or NULL = permanent protection. Used to identify conservation easements or agreements with expiration dates."
+      },
+      {
+       "name": "Duration",
+       "type": "string",
+       "description": "Duration. Description of protection duration for term-limited protections (e.g., '20 years', 'until 2050', 'renewable 10-year terms'). Null for permanent protections."
+      },
+      {
+       "name": "SHAPE_Length",
+       "type": "float64",
+       "description": "Shape length. Perimeter length in meters calculated in the original coordinate reference system (USA Contiguous Albers Equal Area Conic). For reference only - recalculate in appropriate CRS for analysis."
+      },
+      {
+       "name": "SHAPE_Area",
+       "type": "float64",
+       "description": "Shape area. Area in square meters calculated in the original coordinate reference system (USA Contiguous Albers Equal Area Conic). For reference only - use GIS_Acres for area comparisons."
+      },
+      {
+       "name": "bbox",
+       "type": "struct<xmin: double, ymin: double, xmax: double, ymax: double>",
+       "description": "Bounding box. Minimum bounding rectangle of the geometry with coordinates in EPSG:4326. Useful for spatial indexing and quick extent checks without processing full geometry."
+      },
+      {
+       "name": "h8",
+       "type": "uint64",
+       "description": "H3 cell ID at resolution 8 (~0.737 km\u00b2 \u2248 182 acres)."
+      },
+      {
+       "name": "h0",
+       "type": "int64",
+       "description": "H3 cell ID at resolution 0, used as the partition key for hive-partitioned reads."
+      }
+     ],
+     "h3:native_resolution": 8,
+     "h3:parent_resolutions": [
+      0
+     ]
+    }
+   }
+  },
+  {
+   "type": "Collection",
+   "stac_version": "1.0.0",
+   "id": "nlcd",
+   "title": "Annual NLCD Land Cover & Land-Cover Change, CONUS 1985-2025 (Collection 1.2)",
+   "license": "public-domain",
+   "providers": [
+    {
+     "name": "Multi-Resolution Land Characteristics (MRLC) Consortium / USGS EROS",
+     "roles": [
+      "producer",
+      "licensor"
+     ],
+     "url": "https://www.mrlc.gov/data/project/annual-nlcd"
+    },
+    {
+     "name": "Boettiger Lab (cng-datasets H3 processing)",
+     "roles": [
+      "processor"
+     ],
+     "url": "https://s3-west.nrp-nautilus.io/public-land-cover/nlcd/"
+    }
+   ],
+   "links": [
+    {
+     "rel": "self",
+     "href": "https://s3-west.nrp-nautilus.io/public-land-cover/nlcd/stac-collection.json",
+     "type": "application/json"
+    },
+    {
+     "rel": "root",
+     "href": "https://s3-west.nrp-nautilus.io/public-data/stac/catalog.json",
+     "type": "application/json"
+    },
+    {
+     "rel": "parent",
+     "href": "https://s3-west.nrp-nautilus.io/public-land-cover/stac-collection.json",
+     "type": "application/json"
+    }
+   ],
+   "assets": {
+    "nlcd-hex": {
+     "href": "https://s3-west.nrp-nautilus.io/public-land-cover/nlcd/hex/year=*/h0=*/data_0.parquet",
+     "type": "application/x-parquet",
+     "title": "Annual NLCD land cover \u2014 H3 hex (mode), all years",
+     "roles": [
+      "data"
+     ],
+     "h3:native_resolution": 10,
+     "h3:parent_resolutions": [
+      9,
+      8,
+      7,
+      6,
+      5,
+      0
+     ],
+     "description": "Dominant-class (mode reducer) H3 hex of Annual NLCD land cover, ALL 20 years in one hive-partitioned dataset keyed by `year` and `h0`. One row per (year, cell). Filter a single year with `WHERE year=YYYY`. **Cross-year land-cover CHANGE is a self-join on the H3 cell across two years** (e.g. `... year=A a JOIN ... year=B b USING(h10) WHERE a.nlcd<>b.nlcd`); no separate change table is needed. The grid is identical across years (same source COG grid), so diffs are exact. Columns are safe to GROUP BY / COUNT; there is no per-feature magnitude column to guard against SUM-ing.",
+     "table:columns": [
+      {
+       "name": "nlcd",
+       "type": "uint8",
+       "description": "Annual NLCD land-cover class code (MRLC/USGS Collection 1.2). Values: 11=Open Water, 12=Perennial Ice/Snow, 21=Developed, Open Space, 22=Developed, Low Intensity, 23=Developed, Medium Intensity, 24=Developed, High Intensity, 31=Barren Land (Rock/Sand/Clay), 41=Deciduous Forest, 42=Evergreen Forest, 43=Mixed Forest, 52=Shrub/Scrub, 71=Herbaceous (Grassland), 81=Hay/Pasture, 82=Cultivated Crops, 90=Woody Wetlands, 95=Emergent Herbaceous Wetlands, 250=NoData.",
+       "values": [
+        11,
+        12,
+        21,
+        22,
+        23,
+        24,
+        31,
+        41,
+        42,
+        43,
+        52,
+        71,
+        81,
+        82,
+        90,
+        95
+       ]
+      },
+      {
+       "name": "h10",
+       "type": "uint64",
+       "description": "H3 cell ID at resolution 10."
+      },
+      {
+       "name": "h9",
+       "type": "uint64",
+       "description": "H3 cell ID at resolution 9 (parent)."
+      },
+      {
+       "name": "h8",
+       "type": "uint64",
+       "description": "H3 cell ID at resolution 8 (parent; catalog universal join key)."
+      },
+      {
+       "name": "h7",
+       "type": "uint64",
+       "description": "H3 cell ID at resolution 7 (parent)."
+      },
+      {
+       "name": "h6",
+       "type": "uint64",
+       "description": "H3 cell ID at resolution 6 (parent)."
+      },
+      {
+       "name": "h5",
+       "type": "uint64",
+       "description": "H3 cell ID at resolution 5 (parent)."
+      },
+      {
+       "name": "h0",
+       "type": "int64",
+       "description": "H3 cell ID at resolution 0 (hive partition key)."
+      },
+      {
+       "name": "year",
+       "type": "int64",
+       "description": "NLCD map year (hive partition). Filter one year with WHERE year=YYYY. Values span 1985-2025 (see collection)."
+      }
+     ]
+    },
+    "nlcd-hex-fractions": {
+     "href": "https://s3-west.nrp-nautilus.io/public-land-cover/nlcd/hex-fractions/year=*/h0=*/data_0.parquet",
+     "type": "application/x-parquet",
+     "title": "Annual NLCD land cover \u2014 H3 hex per-class fractional coverage, all years",
+     "roles": [
+      "data"
+     ],
+     "h3:native_resolution": 10,
+     "h3:parent_resolutions": [
+      9,
+      8,
+      7,
+      6,
+      5,
+      0
+     ],
+     "description": "Per-class fractional-coverage H3 hex of Annual NLCD, ALL 20 years, hive-partitioned by `year` and `h0`. **Long format: one row per (year, cell, class)** with `frac` = the class's fractional coverage of the cell (0-1); SUM(frac) over classes within a cell ~= 1. Answers 'what share of an area was class X in year A vs B' directly (filter WHERE year=YYYY; compare across years by cell). Per-class ground area = `frac` * H3 cell area (see the catalog h3-guide; do not use a nominal per-resolution constant).",
+     "table:columns": [
+      {
+       "name": "nlcd",
+       "type": "uint8",
+       "description": "Annual NLCD land-cover class code (MRLC/USGS Collection 1.2). Values: 11=Open Water, 12=Perennial Ice/Snow, 21=Developed, Open Space, 22=Developed, Low Intensity, 23=Developed, Medium Intensity, 24=Developed, High Intensity, 31=Barren Land (Rock/Sand/Clay), 41=Deciduous Forest, 42=Evergreen Forest, 43=Mixed Forest, 52=Shrub/Scrub, 71=Herbaceous (Grassland), 81=Hay/Pasture, 82=Cultivated Crops, 90=Woody Wetlands, 95=Emergent Herbaceous Wetlands, 250=NoData.",
+       "values": [
+        11,
+        12,
+        21,
+        22,
+        23,
+        24,
+        31,
+        41,
+        42,
+        43,
+        52,
+        71,
+        81,
+        82,
+        90,
+        95,
+        250
+       ]
+      },
+      {
+       "name": "frac",
+       "type": "double",
+       "description": "Fractional coverage of the H3 cell by this land-cover class (0-1). One row per (year, cell, class); SUM(frac) over classes within a cell ~= 1. Per-class area = frac * h3 cell area (see h3-guide)."
+      },
+      {
+       "name": "h10",
+       "type": "uint64",
+       "description": "H3 cell ID at resolution 10."
+      },
+      {
+       "name": "h9",
+       "type": "uint64",
+       "description": "H3 cell ID at resolution 9 (parent)."
+      },
+      {
+       "name": "h8",
+       "type": "uint64",
+       "description": "H3 cell ID at resolution 8 (parent; catalog universal join key)."
+      },
+      {
+       "name": "h7",
+       "type": "uint64",
+       "description": "H3 cell ID at resolution 7 (parent)."
+      },
+      {
+       "name": "h6",
+       "type": "uint64",
+       "description": "H3 cell ID at resolution 6 (parent)."
+      },
+      {
+       "name": "h5",
+       "type": "uint64",
+       "description": "H3 cell ID at resolution 5 (parent)."
+      },
+      {
+       "name": "h0",
+       "type": "int64",
+       "description": "H3 cell ID at resolution 0 (hive partition key)."
+      },
+      {
+       "name": "year",
+       "type": "int64",
+       "description": "NLCD map year (hive partition). Filter one year with WHERE year=YYYY. Values span 1985-2025 (see collection)."
+      }
+     ]
+    }
+   }
+  }
+ ]
+}

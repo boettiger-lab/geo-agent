@@ -272,7 +272,7 @@ describe('exported document: printing (#368 §1)', () => {
         const print = /@media print \{([\s\S]*)\}/.exec(css)[1];
         expect(print).toContain('break-inside: avoid');       // queries split across pages
         expect(print).toContain('max-height: none');          // scroll boxes clipped to a screenful
-        expect(print).toContain('.report-controls');          // controls on paper
+        expect(print).toContain('.report-rail');              // controls on paper
         expect(print).toContain('data-print="report"');       // the report variant
     });
 });

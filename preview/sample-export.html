@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="generator" content="GLEN">
-<title>TPL — Protected Lands Explorer — session report, 2026-10-05</title>
+<title>TPL — Protected Lands Explorer — session report, 2026-10-06</title>
 <style>
 :root { --fg: #212529; --muted: #6c757d; --rule: #dee2e6; --code-bg: #f6f8fa;
         --accent: #2c5282; --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
@@ -20,32 +20,40 @@ p code, li code, td code { background: rgba(0,0,0,0.04); padding: 0.1em 0.3em; b
 .report-header { margin-bottom: 1.5rem; }
 .report-title { font-size: 2.1rem; line-height: 1.2; margin: 0 0 0.25rem; font-weight: 600; }
 .report-subtitle { color: var(--muted); margin: 0 0 1rem; font-size: 1.05rem; }
+.report-disclosure-speed { display: block; margin-top: 0.35rem; }
 .report-disclosure { border-left: 4px solid #0d6efd; background: #f3f7ff; padding: 0.6rem 0.9rem;
                      border-radius: 0 4px 4px 0; font-size: 0.92rem; margin: 0 0 1rem; }
-.report-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; font-size: 13px; }
-.report-controls button { font: inherit; font-size: 12px; padding: 3px 10px; cursor: pointer;
-                          border: 1px solid #ced4da; background: #fff; color: #495057; }
-.code-fold-toggle, .code-lang-toggle { display: flex; align-items: center; }
-.code-fold-toggle button:first-child, .code-lang-toggle button:nth-child(2) { border-radius: 4px 0 0 4px; }
-.code-fold-toggle button:last-child, .code-lang-toggle button:last-child { border-radius: 0 4px 4px 0; }
-.code-fold-toggle button + button, .code-lang-toggle button + button { border-left: 0; }
-.code-lang-label { color: var(--muted); margin-right: 6px; }
-.code-lang-toggle button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
-.export-print-controls { display: flex; align-items: center; gap: 8px; color: var(--muted); margin-left: auto; }
-.export-print-report { display: flex; align-items: center; gap: 4px; cursor: pointer; }
-.export-print-btn { border-radius: 4px; }
+.report-rail { border: 1px solid var(--rule); border-radius: 6px; padding: 0.75rem 1rem; margin: 0 0 1.5rem; }
+.report-rail-title { font-weight: 600; font-size: 0.9rem; margin: 0 0 0.25rem; }
 
-.report-toc { font-size: 0.9rem; border: 1px solid var(--rule); border-radius: 6px; padding: 0.6rem 1rem; margin: 0 0 1.5rem; }
-.report-toc-title { font-weight: 600; margin: 0 0 0.25rem; }
+/* Controls: label column + control column, so the buttons line up. */
+.report-controls { display: grid; grid-template-columns: max-content 1fr; gap: 8px 12px; align-items: center; font-size: 13px; margin-top: 0.4rem; }
+.ctl-label { color: var(--muted); font-size: 12px; }
+.report-controls button { font: inherit; font-size: 12px; padding: 3px 10px; cursor: pointer;
+                          border: 1px solid #ced4da; border-radius: 4px; background: #fff; color: #495057; }
+.report-controls button:hover { background: #f1f3f5; }
+.ctl-seg { display: flex; flex-wrap: wrap; }
+.ctl-seg button { border-radius: 0; }
+.ctl-seg button:first-child { border-radius: 4px 0 0 4px; }
+.ctl-seg button:last-child { border-radius: 0 4px 4px 0; }
+.ctl-seg button + button { border-left: 0; }
+.code-lang-toggle button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
+.export-print-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; color: var(--muted); font-size: 12px; }
+.export-print-report { display: flex; align-items: center; gap: 4px; cursor: pointer; }
+
+.report-toc { font-size: 0.9rem; margin: 0.9rem 0 0; padding-top: 0.75rem; border-top: 1px solid var(--rule); }
 .report-toc ol { margin: 0; padding-left: 1.4rem; }
 .report-toc li { margin: 0.15rem 0; }
 .report-toc a { text-decoration: none; }
 .report-toc a:hover { text-decoration: underline; }
 .report-toc-log { list-style: none; margin-left: -1.4rem !important; margin-top: 0.4rem !important; }
-@media (min-width: 1360px) {
-  .report-toc { position: fixed; top: 2rem; left: calc(50% - 430px - 270px); width: 240px;
-                border: 0; border-left: 1px solid var(--rule); border-radius: 0; padding: 0 0 0 1rem;
-                max-height: calc(100vh - 4rem); overflow-y: auto; }
+/* Beside the document once there is room for it: 260px + a 30px gutter
+   left of the 860px column, plus a 20px margin, needs 1480px. */
+@media (min-width: 1480px) {
+  .report-rail .report-controls button { padding: 3px 7px; }
+  .report-rail { position: fixed; top: 2rem; left: calc(50% - 430px - 290px); width: 260px; margin: 0;
+                 border: 0; border-left: 1px solid var(--rule); border-radius: 0; padding: 0 0 0 1rem;
+                 max-height: calc(100vh - 4rem); overflow-y: auto; }
 }
 
 /* Code chunks: folded by default, like R Markdown's code_folding: hide. */
@@ -107,6 +115,16 @@ pre.chunk-output { padding: 0.5rem 1rem; border: 1px solid var(--rule); border-r
                      border: 1px solid #ced4da; border-radius: 4px; background: #fff; color: #495057; }
 .export-embed-note { font-size: 12px; color: var(--muted); margin: 8px 0 0; }
 
+/* Data sources */
+.report-sources { margin: 3rem 0 0; padding-top: 1rem; border-top: 2px solid var(--rule); }
+.report-sources h2 { font-size: 1.2rem; margin: 0 0 0.25rem; }
+.ds-list { padding-left: 1.4rem; margin: 0.75rem 0 0; }
+.ds-list li { margin: 0 0 0.9rem; }
+.ds-list p { margin: 0.1rem 0; }
+.ds-citation { font-size: 0.9rem; }
+.ds-none { color: var(--muted); font-style: italic; }
+.ds-meta { color: var(--muted); font-size: 0.82rem; }
+
 /* Appendix */
 .report-appendix { margin: 3.5rem 0 0; padding-top: 1rem; border-top: 2px solid var(--rule); }
 .report-appendix h2 { font-size: 1.2rem; margin: 0 0 0.25rem; }
@@ -135,13 +153,12 @@ body[data-view="map"] .export-map { height: 100vh; border: 0; border-radius: 0; 
 @media (max-width: 600px) {
   body { padding-top: 1rem; font-size: 15px; }
   .report-title { font-size: 1.6rem; }
-  .export-print-controls { margin-left: 0; }
 }
 
 /* Print: the report goes to a board or a funder, so it prints as a document. */
 @media print {
   body { max-width: none; margin: 0; padding: 0; }
-  .report-controls, .export-embed, .report-toc { display: none !important; }
+  .report-rail, .export-embed { display: none !important; }
   a { color: inherit; text-decoration: none; }
   .chunk, .chunk-figure, .code-variants, pre, .export-map-section, .report-prose table, .log-call { break-inside: avoid; }
   .report-section h2 { break-after: avoid; }
@@ -166,27 +183,39 @@ body[data-view="map"] .export-map { height: 100vh; border: 0; border-radius: 0; 
     Outputs generated with <a href="https://boettiger-lab.github.io/geo-agent/">GLEN</a> using GLM-5.2 (OpenRouter) (<code>z-ai/glm-5.2</code>) on October 1, 2026.
     The code below is exactly what the agent ran; the text around it was written by the model —
     check it against the code and its output.
+    <span class="report-disclosure-speed">GLEN apps run these queries on
+    <a href="https://boettiger-lab.github.io/geo-agent/">high-speed servers</a> next to the data.
+    Re-run on a personal computer, large queries may take much longer.</span>
   </aside>
-  <div class="report-controls">
-    <div class="code-fold-toggle" role="group" aria-label="Code">
-      <button type="button" data-code-all="show">Show all code</button><button type="button" data-code-all="hide">Hide all code</button>
+</header>
+<aside class="report-rail">
+  <p class="report-rail-title" id="report-options-title">Options</p>
+  <div class="report-controls" role="group" aria-labelledby="report-options-title">
+    <span class="ctl-label">Code</span>
+    <div class="ctl-seg code-fold-toggle" role="group" aria-label="Code">
+      <button type="button" data-code-all="show">Show</button><button type="button" data-code-all="hide">Hide</button>
     </div>
-    <div class="code-lang-toggle" role="group" aria-label="Show code as">
-      <span class="code-lang-label">Code as</span><button type="button" data-set-lang="sql" aria-pressed="true">SQL</button><button type="button" data-set-lang="r" aria-pressed="false">R</button><button type="button" data-set-lang="python" aria-pressed="false">Python</button>
-    </div>
+    <span class="ctl-label">Code as</span>
+    <div class="ctl-seg code-lang-toggle" role="group" aria-label="Show code as"><button type="button" data-set-lang="sql" aria-pressed="true">SQL</button><button type="button" data-set-lang="r" aria-pressed="false">R</button><button type="button" data-set-lang="python" aria-pressed="false">Python</button></div>
+    <span class="ctl-label">Download</span>
+    <div class="ctl-seg export-download-controls" role="group" aria-label="Download code"><button type="button" data-download="glen-session-2026-10-06-1622.R" title="R script">.R</button><button type="button" data-download="glen-session-2026-10-06-1622.py" title="Python script">.py</button><button type="button" data-download="glen-session-2026-10-06-1622.qmd" title="Quarto notebook (R)">.qmd</button><button type="button" data-download="glen-session-2026-10-06-1622.ipynb" title="Jupyter notebook (Python)">.ipynb</button></div>
+    <span class="ctl-label">Print</span>
     <div class="export-print-controls">
-      <label class="export-print-report"><input type="checkbox" id="export-report-style"> Print without code</label>
-      <button type="button" class="export-print-btn">Print / Save as PDF</button>
+      <button type="button" class="export-print-btn">Print / PDF</button>
+      <label class="export-print-report"><input type="checkbox" id="export-report-style"> without code</label>
     </div>
   </div>
-</header>
-<nav class="report-toc" aria-label="Contents"><p class="report-toc-title">Contents</p><ol><li><a href="#q-1">what are the top 30% of us h8 hexes in terms of equal weight ca…</a></li><li><a href="#q-2">what NCLD land cover is represented here?</a></li><li><a href="#q-3">chart that as a bar chart</a></li><li class="report-toc-log"><a href="#session-log">Session log</a></li></ol></nav>
+  <nav class="report-toc" aria-label="Contents"><p class="report-rail-title">Contents</p><ol><li><a href="#q-1">what are the top 30% of us h8 hexes in terms of equal weight ca…</a></li><li><a href="#q-2">what NCLD land cover is represented here?</a></li><li><a href="#q-3">chart that as a bar chart</a></li><li class="report-toc-log"><a href="#data-sources">Data sources</a></li><li class="report-toc-log"><a href="#session-log">Session log</a></li></ol></nav>
+</aside>
 <section class="report-setup" id="setup">
   <details class="chunk-code"><summary>Code <span class="chunk-tool">setup</span></summary><div class="code-variants"><pre class="code-variant" data-lang="sql"><code class="language-sql">INSTALL httpfs; LOAD httpfs;
+INSTALL h3 FROM community; LOAD h3;
 
 CREATE OR REPLACE SECRET public_s3 (
     TYPE s3,
     PROVIDER config,
+    KEY_ID &#39;&#39;,
+    SECRET &#39;&#39;,
     ENDPOINT &#39;s3-west.nrp-nautilus.io&#39;,
     URL_STYLE &#39;path&#39;,
     USE_SSL true
@@ -195,16 +224,17 @@ library(duckdb)
 
 con &lt;- dbConnect(duckdb())
 # invisible() keeps dbExecute&#39;s row count from printing at the console
-invisible(dbExecute(con, &quot;INSTALL httpfs; LOAD httpfs;&quot;))
-invisible(dbExecute(con, &quot;CREATE OR REPLACE SECRET public_s3 (TYPE s3, PROVIDER config, ENDPOINT &#39;s3-west.nrp-nautilus.io&#39;, URL_STYLE &#39;path&#39;, USE_SSL true);&quot;))</code></pre><pre class="code-variant" data-lang="python"><code class="language-python"># pip install duckdb pandas          # first time only
+invisible(dbExecute(con, &quot;INSTALL httpfs; LOAD httpfs; INSTALL h3 FROM community; LOAD h3;&quot;))
+invisible(dbExecute(con, &quot;CREATE OR REPLACE SECRET public_s3 (TYPE s3, PROVIDER config, KEY_ID &#39;&#39;, SECRET &#39;&#39;, ENDPOINT &#39;s3-west.nrp-nautilus.io&#39;, URL_STYLE &#39;path&#39;, USE_SSL true);&quot;))</code></pre><pre class="code-variant" data-lang="python"><code class="language-python"># pip install duckdb pandas          # first time only
 import duckdb
 
 con = duckdb.connect()
-con.execute(&quot;INSTALL httpfs; LOAD httpfs;&quot;)
-con.execute(&quot;CREATE OR REPLACE SECRET public_s3 (TYPE s3, PROVIDER config, ENDPOINT &#39;s3-west.nrp-nautilus.io&#39;, URL_STYLE &#39;path&#39;, USE_SSL true);&quot;)</code></pre></div></details>
+con.execute(&quot;INSTALL httpfs; LOAD httpfs; INSTALL h3 FROM community; LOAD h3;&quot;)
+con.execute(&quot;CREATE OR REPLACE SECRET public_s3 (TYPE s3, PROVIDER config, KEY_ID &#39;&#39;, SECRET &#39;&#39;, ENDPOINT &#39;s3-west.nrp-nautilus.io&#39;, URL_STYLE &#39;path&#39;, USE_SSL true);&quot;)</code></pre></div></details>
   <p class="report-setup-note">To re-run this analysis yourself, run the setup chunk once: it points <code>s3://</code> paths at the
      public endpoint (<code>s3-west.nrp-nautilus.io</code>) with anonymous access.
-     Public buckets only — private data is not reachable this way.</p>
+     Public buckets only — private data is not reachable this way.
+     Or download the whole session as a script or notebook (<em>Download</em>, under Options).</p>
 </section>
 <section class="export-map-section">
   <h2 class="export-map-title">Map at time of export</h2>
@@ -218,10 +248,10 @@ con.execute(&quot;CREATE OR REPLACE SECRET public_s3 (TYPE s3, PROVIDER config, 
       <p>This map can go on your own website. It is one self-contained file — no server, no
          account, no build step.</p>
       <ol>
-        <li>Send this file (<code>glen-session-2026-10-05-0415.html</code>) to whoever looks after your website and
+        <li>Send this file (<code>glen-session-2026-10-06-1622.html</code>) to whoever looks after your website and
             ask them to upload it. Any web host will do.</li>
         <li>Ask them to paste this where the map should appear:
-          <pre class="export-embed-snippet"><code>&lt;iframe src=&quot;glen-session-2026-10-05-0415.html#map&quot; width=&quot;100%&quot; height=&quot;480&quot;
+          <pre class="export-embed-snippet"><code>&lt;iframe src=&quot;glen-session-2026-10-06-1622.html#map&quot; width=&quot;100%&quot; height=&quot;480&quot;
         style=&quot;border:0&quot; loading=&quot;lazy&quot; title=&quot;Map&quot;&gt;&lt;/iframe&gt;</code></pre>
           <button type="button" class="export-embed-copy">Copy snippet</button>
         </li>
@@ -625,149 +655,9 @@ WHERE combined_score &gt;= 0.06129718948
 </section>
 <section class="report-section" id="q-2">
 <h2><span class="q-num">2.</span> what NCLD land cover is represented here?</h2>
-<p class="report-meta">7 tool calls</p>
+<p class="report-meta">7 tool calls · 1 failed or retried, omitted here — see the <a href="#session-log-2">session log</a></p>
 
 <p class="report-consulted">Consulted schemas for <code>nlcd</code>, <code>irrecoverable-carbon</code>, <code>mobi-species-richness-all</code>, <code>pad-us-4.1-combined</code>.</p>
-<div class="chunk" data-tool="query">
-<details class="chunk-code"><summary>Code <span class="chunk-tool">query</span></summary><div class="code-variants"><pre class="code-variant" data-lang="sql"><code class="language-sql">WITH mobi AS (
-  SELECT h8, h0, species_richness
-  FROM read_parquet(&#39;s3://public-mobi/mobi-species-richness-all/hex/h0=*/data_0.parquet&#39;)
-  WHERE species_richness &gt; 0
-),
-carbon_h8 AS (
-  SELECT c.h8, c.h0, SUM(c.carbon) AS total_carbon
-  FROM read_parquet(&#39;s3://public-carbon/irrecoverable-carbon-2024/hex/h0=*/data_0.parquet&#39;) c
-  SEMI JOIN mobi m ON c.h8 = m.h8 AND c.h0 = m.h0
-  WHERE c.carbon &gt; 0
-  GROUP BY c.h8, c.h0
-),
-gap12 AS (
-  SELECT DISTINCT h8, h0
-  FROM read_parquet(&#39;s3://public-padus/padus-4-1/combined/hex/h0=*/data_0.parquet&#39;)
-  WHERE GAP_Sts IN (&#39;1&#39;, &#39;2&#39;)
-),
-eligible AS (
-  SELECT c.h8, c.h0, c.total_carbon, m.species_richness
-  FROM carbon_h8 c
-  JOIN mobi m ON c.h8 = m.h8 AND c.h0 = m.h0
-  ANTI JOIN gap12 g USING (h8, h0)
-),
-normed AS (
-  SELECT h8, h0,
-    total_carbon / MAX(total_carbon) OVER () AS carbon_norm,
-    species_richness / MAX(species_richness) OVER () AS mobi_norm
-  FROM eligible
-),
-scored AS (
-  SELECT h8, h0,
-    (carbon_norm + mobi_norm) / 2.0 AS score,
-    PERCENT_RANK() OVER (ORDER BY (carbon_norm + mobi_norm) / 2.0) AS pct
-  FROM normed
-),
-top30 AS (
-  SELECT h8, h0 FROM scored WHERE pct &gt;= 0.70
-)
-SELECT n.nlcd,
-  SUM(n.frac * h3_cell_area(n.h10, &#39;km^2&#39;)) AS area_km2
-FROM read_parquet(&#39;s3://public-land-cover/nlcd/hex-fractions/year=2024/h0=*/data_0.parquet&#39;) n
-SEMI JOIN top30 t ON n.h8 = t.h8 AND n.h0 = t.h0
-WHERE n.nlcd &lt;&gt; 250
-GROUP BY n.nlcd
-ORDER BY area_km2 DESC;</code></pre><pre class="code-variant" data-lang="r"><code class="language-r">df &lt;- dbGetQuery(con, r&quot;(
-WITH mobi AS (
-  SELECT h8, h0, species_richness
-  FROM read_parquet(&#39;s3://public-mobi/mobi-species-richness-all/hex/h0=*/data_0.parquet&#39;)
-  WHERE species_richness &gt; 0
-),
-carbon_h8 AS (
-  SELECT c.h8, c.h0, SUM(c.carbon) AS total_carbon
-  FROM read_parquet(&#39;s3://public-carbon/irrecoverable-carbon-2024/hex/h0=*/data_0.parquet&#39;) c
-  SEMI JOIN mobi m ON c.h8 = m.h8 AND c.h0 = m.h0
-  WHERE c.carbon &gt; 0
-  GROUP BY c.h8, c.h0
-),
-gap12 AS (
-  SELECT DISTINCT h8, h0
-  FROM read_parquet(&#39;s3://public-padus/padus-4-1/combined/hex/h0=*/data_0.parquet&#39;)
-  WHERE GAP_Sts IN (&#39;1&#39;, &#39;2&#39;)
-),
-eligible AS (
-  SELECT c.h8, c.h0, c.total_carbon, m.species_richness
-  FROM carbon_h8 c
-  JOIN mobi m ON c.h8 = m.h8 AND c.h0 = m.h0
-  ANTI JOIN gap12 g USING (h8, h0)
-),
-normed AS (
-  SELECT h8, h0,
-    total_carbon / MAX(total_carbon) OVER () AS carbon_norm,
-    species_richness / MAX(species_richness) OVER () AS mobi_norm
-  FROM eligible
-),
-scored AS (
-  SELECT h8, h0,
-    (carbon_norm + mobi_norm) / 2.0 AS score,
-    PERCENT_RANK() OVER (ORDER BY (carbon_norm + mobi_norm) / 2.0) AS pct
-  FROM normed
-),
-top30 AS (
-  SELECT h8, h0 FROM scored WHERE pct &gt;= 0.70
-)
-SELECT n.nlcd,
-  SUM(n.frac * h3_cell_area(n.h10, &#39;km^2&#39;)) AS area_km2
-FROM read_parquet(&#39;s3://public-land-cover/nlcd/hex-fractions/year=2024/h0=*/data_0.parquet&#39;) n
-SEMI JOIN top30 t ON n.h8 = t.h8 AND n.h0 = t.h0
-WHERE n.nlcd &lt;&gt; 250
-GROUP BY n.nlcd
-ORDER BY area_km2 DESC;
-)&quot;)</code></pre><pre class="code-variant" data-lang="python"><code class="language-python">df = con.sql(r&quot;&quot;&quot;
-WITH mobi AS (
-  SELECT h8, h0, species_richness
-  FROM read_parquet(&#39;s3://public-mobi/mobi-species-richness-all/hex/h0=*/data_0.parquet&#39;)
-  WHERE species_richness &gt; 0
-),
-carbon_h8 AS (
-  SELECT c.h8, c.h0, SUM(c.carbon) AS total_carbon
-  FROM read_parquet(&#39;s3://public-carbon/irrecoverable-carbon-2024/hex/h0=*/data_0.parquet&#39;) c
-  SEMI JOIN mobi m ON c.h8 = m.h8 AND c.h0 = m.h0
-  WHERE c.carbon &gt; 0
-  GROUP BY c.h8, c.h0
-),
-gap12 AS (
-  SELECT DISTINCT h8, h0
-  FROM read_parquet(&#39;s3://public-padus/padus-4-1/combined/hex/h0=*/data_0.parquet&#39;)
-  WHERE GAP_Sts IN (&#39;1&#39;, &#39;2&#39;)
-),
-eligible AS (
-  SELECT c.h8, c.h0, c.total_carbon, m.species_richness
-  FROM carbon_h8 c
-  JOIN mobi m ON c.h8 = m.h8 AND c.h0 = m.h0
-  ANTI JOIN gap12 g USING (h8, h0)
-),
-normed AS (
-  SELECT h8, h0,
-    total_carbon / MAX(total_carbon) OVER () AS carbon_norm,
-    species_richness / MAX(species_richness) OVER () AS mobi_norm
-  FROM eligible
-),
-scored AS (
-  SELECT h8, h0,
-    (carbon_norm + mobi_norm) / 2.0 AS score,
-    PERCENT_RANK() OVER (ORDER BY (carbon_norm + mobi_norm) / 2.0) AS pct
-  FROM normed
-),
-top30 AS (
-  SELECT h8, h0 FROM scored WHERE pct &gt;= 0.70
-)
-SELECT n.nlcd,
-  SUM(n.frac * h3_cell_area(n.h10, &#39;km^2&#39;)) AS area_km2
-FROM read_parquet(&#39;s3://public-land-cover/nlcd/hex-fractions/year=2024/h0=*/data_0.parquet&#39;) n
-SEMI JOIN top30 t ON n.h8 = t.h8 AND n.h0 = t.h0
-WHERE n.nlcd &lt;&gt; 250
-GROUP BY n.nlcd
-ORDER BY area_km2 DESC;
-&quot;&quot;&quot;).df()</code></pre></div></details>
-<pre class="chunk-output"><code>SQL Error: Binder Error: Ambiguous reference to column name &quot;h8&quot; (use: &quot;c.h8&quot; or &quot;m.h8&quot;)</code></pre>
-</div>
 <div class="chunk" data-tool="query">
 <details class="chunk-code"><summary>Code <span class="chunk-tool">query</span></summary><div class="code-variants"><pre class="code-variant" data-lang="sql"><code class="language-sql">WITH mobi AS (
   SELECT h8, h0, species_richness
@@ -1452,6 +1342,16 @@ ORDER BY area_km2 DESC;
 
 </section>
 </main>
+<section class="report-sources" id="data-sources">
+<h2>Data sources</h2>
+<p class="report-appendix-note">The datasets this session's queries read or its map showed, with the citation their catalog record gives.</p>
+<ol class="ds-list">
+<li><p class="ds-title"><strong>MOBI Species Richness (All Taxa)</strong> — NatureServe, Esri, The Nature Conservancy</p><p class="ds-citation">Hamilton, H., Smyth, R. L., Young, B. E., Howard, T. G., Tracey, C., Breyer, S., Cameron, D. R., Chazal, A., Conley, A. K., Frye, C., &amp; Schloss, C. (2022). Increasing taxonomic diversity and spatial resolution clarifies opportunities for protecting US imperiled species. Ecological Applications, 32(3), e2534. <a href="https://doi.org/10.1002/eap.2534">https://doi.org/10.1002/eap.2534</a></p><p class="ds-meta">License: <a href="https://creativecommons.org/licenses/by-nc/4.0/">CC-BY-NC-4.0</a> · <a href="https://s3-west.nrp-nautilus.io/public-mobi/mobi-species-richness-all/stac-collection.json">STAC record</a> · queried in this session</p></li>
+<li><p class="ds-title"><strong>Irrecoverable Earth: Carbon Reserves (v2, 2025 release)</strong> — Conservation International</p><p class="ds-citation">Cite as <a href="https://doi.org/10.1038/s41893-021-00803-6">https://doi.org/10.1038/s41893-021-00803-6</a></p><p class="ds-meta">License: <a href="https://creativecommons.org/licenses/by-nc/4.0/">CC-BY-NC-4.0</a> · <a href="https://s3-west.nrp-nautilus.io/public-carbon/stac-collection.json">STAC record</a> · <a href="https://www.conservation.org/irrecoverable-carbon">About</a> · queried in this session</p></li>
+<li><p class="ds-title"><strong>PAD-US 4.1 Combined - All Protection Types</strong> — USGS Gap Analysis Project</p><p class="ds-citation">Cite as <a href="https://doi.org/10.5066/P96WBCHS">https://doi.org/10.5066/P96WBCHS</a></p><p class="ds-meta">License: <a href="https://www.usa.gov/government-works">public-domain</a> · <a href="https://s3-west.nrp-nautilus.io/public-padus/padus-4-1/combined/stac-collection.json">STAC record</a> · <a href="https://www.usgs.gov/programs/gap-analysis-project/science/pad-us-data-overview">About</a> · queried in this session</p></li>
+<li><p class="ds-title"><strong>Annual NLCD Land Cover &amp; Land-Cover Change, CONUS 1985-2025 (Collection 1.2)</strong> — Multi-Resolution Land Characteristics (MRLC) Consortium / USGS EROS</p><p class="ds-citation ds-none">The catalog gives no formal citation; cite the producer.</p><p class="ds-meta">License: public-domain · <a href="https://s3-west.nrp-nautilus.io/public-land-cover/nlcd/stac-collection.json">STAC record</a> · queried in this session</p></li>
+</ol>
+</section>
 <section class="report-appendix" id="session-log">
 <h2>Session log</h2>
 <p class="report-appendix-note">Every tool call the agent made, in order, with its arguments and result — including the lookups and failed attempts the sections above leave out. Credentials are scrubbed; long results are cut.</p>
@@ -1736,8 +1636,8 @@ SQL data (use with `query` tool):
     - columns: `_cng_fid` (int64), `FeatClass` (string), `Category` (string), `Own_Type` (string), `Own_Name` (string), `Loc_Own` (string), `Mang_Type` (string), `Mang_Name` (string), `Loc_Mang` (string), `Des_Tp` (string), `Loc_Ds` (string), `Unit_Nm` (string), `Loc_Nm` (string), `State_Nm` (string), `Agg_Src` (string), `GIS_Src` (string), `Src_Date` (string), `GIS_Acres` (int32), `Source_PAID` (string), `WDPA_Cd` (int32), `Pub_Access` (string), `Access_Src` (string), `Access_Dt` (string), `GAP_Sts` (string), `GAPCdSrc` (string), `GAPCdDt` (string), `IUCN_Cat` (string), `IUCNCtSrc` (stri
 ... (truncated)</code></pre>
 </div>
-<div class="log-call">
-<p class="log-call-name">✓ <code>query</code> <span class="log-tag">MCP</span></p>
+<div class="log-call failed">
+<p class="log-call-name">✗ <code>query</code> <span class="log-tag">MCP</span></p>
 <pre class="log-args"><code>{
   &quot;sql_query&quot;: &quot;WITH mobi AS (\n  SELECT h8, h0, species_richness\n  FROM read_parquet(&#39;s3://public-mobi/mobi-species-richness-all/hex/h0=*/data_0.parquet&#39;)\n  WHERE species_richness &gt; 0\n),\ncarbon_h8 AS (\n  SELECT c.h8, c.h0, SUM(c.carbon) AS total_carbon\n  FROM read_parquet(&#39;s3://public-carbon/irrecoverable-carbon-2024/hex/h0=*/data_0.parquet&#39;) c\n  SEMI JOIN mobi m ON c.h8 = m.h8 AND c.h0 = m.h0\n  WHERE c.carbon &gt; 0\n  GROUP BY c.h8, c.h0\n),\ngap12 AS (\n  SELECT DISTINCT h8, h0\n  FROM read_parquet(&#39;s3://public-padus/padus-4-1/combined/hex/h0=*/data_0.parquet&#39;)\n  WHERE GAP_Sts IN (&#39;1&#39;, &#39;2&#39;)\n),\neligible AS (\n  SELECT c.h8, c.h0, c.total_carbon, m.species_richness\n  FROM carbon_h8 c\n  JOIN mobi m ON c.h8 = m.h8 AND c.h0 = m.h0\n  ANTI JOIN gap12 g USING (h8, h0)\n),\nnormed AS (\n  SELECT h8, h0,\n    total_carbon / MAX(total_carbon) OVER () AS carbon_norm,\n    species_richness / MAX(species_richness) OVER () AS mobi_norm\n  FROM eligible\n),\nscored AS (\n  SELECT h8, h0,\n    (carbon_norm + mobi_norm) / 2.0 AS score,\n    PERCENT_RANK() OVER (ORDER BY (carbon_norm + mobi_norm) / 2.0) AS pct\n  FROM normed\n),\ntop30 AS (\n  SELECT h8, h0 FROM scored WHERE pct &gt;= 0.70\n)\nSELECT n.nlcd,\n  SUM(n.frac * h3_cell_area(n.h10, &#39;km^2&#39;)) AS area_km2\nFROM read_parquet(&#39;s3://public-land-cover/nlcd/hex-fractions/year=2024/h0=*/data_0.parquet&#39;) n\nSEMI JOIN top30 t ON n.h8 = t.h8 AND n.h0 = t.h0\nWHERE n.nlcd &lt;&gt; 250\nGROUP BY n.nlcd\nORDER BY area_km2 DESC;&quot;
 }</code></pre>
@@ -1878,7 +1778,7 @@ SQL data (use with `query` tool):
 </section>
 <footer class="report-colophon">
   <p>Generated with a development build of GLEN in <a href="https://boettiger-lab.github.io/geo-agent/preview/">TPL — Protected Lands Explorer</a>.
-     Exported 10/5/2026, 4:15:22 AM.</p>
+     Exported 10/6/2026, 4:22:45 PM.</p>
 </footer>
 <script>
 (function () {
@@ -1936,6 +1836,28 @@ SQL data (use with `query` tool):
   });
   var btn = document.querySelector('.export-print-btn');
   if (btn) btn.addEventListener('click', function () { window.print(); });
+})();
+</script>
+<script type="application/json" id="export-session-files">{"glen-session-2026-10-06-1622.R":{"mime":"text/plain","text":"# TPL — Protected Lands Explorer - analysis session, October 1, 2026\n#\n# Generated with GLEN (https://boettiger-lab.github.io/geo-agent/) using z-ai/glm-5.2.\n# The queries are exactly what the agent ran; the questions are the user's words.\n# Answers in the report were written by the model - check them against the code and its output.\n# GLEN apps run these queries on high-speed servers next to the data. Re-run on a personal computer, large queries may take much longer.\n# Needs R >= 4.0 for the raw strings around each query.\n\n# install.packages(\"duckdb\")        # first time only\nlibrary(duckdb)\n\ncon \u003c- dbConnect(duckdb())\n# invisible() keeps dbExecute's row count from printing at the console\ninvisible(dbExecute(con, \"INSTALL httpfs; LOAD httpfs; INSTALL h3 FROM community; LOAD h3;\"))\ninvisible(dbExecute(con, \"CREATE OR REPLACE SECRET public_s3 (TYPE s3, PROVIDER config, KEY_ID '', SECRET '', ENDPOINT 's3-west.nrp-nautilus.io', URL_STYLE 'path', USE_SSL true);\"))\n\n# ---- 1. what are the top 30% of us h8 hexes in terms of equal weight carbon, mobi score, that are not gap 1 or gap 2 (normalize) ----\n\ndf1 \u003c- dbGetQuery(con, r\"(\nWITH mobi AS (\n  SELECT h8, h0, species_richness\n  FROM read_parquet('s3://public-mobi/mobi-species-richness-all/hex/h0=*/data_0.parquet', hive_partitioning = true)\n  WHERE species_richness IS NOT NULL\n),\ncarbon_h8 AS (\n  SELECT c.h8, c.h0, SUM(c.carbon) AS carbon_total\n  FROM read_parquet('s3://public-carbon/irrecoverable-carbon-2024/hex/h0=*/data_0.parquet', hive_partitioning = true) c\n  SEMI JOIN mobi m ON c.h8 = m.h8 AND c.h0 = m.h0\n  WHERE c.carbon IS NOT NULL AND NOT isnan(c.carbon)\n  GROUP BY c.h8, c.h0\n),\ngap12 AS (\n  SELECT DISTINCT h8, h0\n  FROM read_parquet('s3://public-padus/padus-4-1/combined/hex/h0=*/data_0.parquet', hive_partitioning = true)\n  WHERE GAP_Sts IN ('1', '2')\n),\ncombined AS (\n  SELECT m.h8, m.h0, m.species_richness, c.carbon_total\n  FROM mobi m\n  JOIN carbon_h8 c ON m.h8 = c.h8 AND m.h0 = c.h0\n  ANTI JOIN gap12 g ON m.h8 = g.h8 AND m.h0 = g.h0\n),\nnormalized AS (\n  SELECT \n    h8, h0, species_richness, carbon_total,\n    (species_richness - MIN(species_richness) OVER ()) / NULLIF(MAX(species_richness) OVER () - MIN(species_richness) OVER (), 0) AS mobi_norm,\n    (carbon_total - MIN(carbon_total) OVER ()) / NULLIF(MAX(carbon_total) OVER () - MIN(carbon_total) OVER (), 0) AS carbon_norm\n  FROM combined\n),\nscored AS (\n  SELECT \n    h8, h0, species_richness, carbon_total,\n    (mobi_norm + carbon_norm) / 2.0 AS combined_score\n  FROM normalized\n)\nSELECT \n  COUNT(*) AS total_hexes,\n  MIN(combined_score) AS min_score,\n  MAX(combined_score) AS max_score,\n  AVG(combined_score) AS avg_score,\n  quantile(combined_score, 0.70) AS p70_threshold,\n  MIN(species_richness) AS min_mobi,\n  MAX(species_richness) AS max_mobi,\n  MIN(carbon_total) AS min_carbon,\n  MAX(carbon_total) AS max_carbon\nFROM scored;\n)\")\nprint(head(df1, 20))\n\n# In the app, this query was drawn on the map as hex tiles.\ndf2 \u003c- dbGetQuery(con, r\"(\nWITH mobi AS (\n  SELECT h8, h0, species_richness\n  FROM read_parquet('s3://public-mobi/mobi-species-richness-all/hex/h0=*/data_0.parquet', hive_partitioning = true)\n  WHERE species_richness IS NOT NULL\n),\ncarbon_h8 AS (\n  SELECT c.h8, c.h0, SUM(c.carbon) AS carbon_total\n  FROM read_parquet('s3://public-carbon/irrecoverable-carbon-2024/hex/h0=*/data_0.parquet', hive_partitioning = true) c\n  SEMI JOIN mobi m ON c.h8 = m.h8 AND c.h0 = m.h0\n  WHERE c.carbon IS NOT NULL AND NOT isnan(c.carbon)\n  GROUP BY c.h8, c.h0\n),\ngap12 AS (\n  SELECT DISTINCT h8, h0\n  FROM read_parquet('s3://public-padus/padus-4-1/combined/hex/h0=*/data_0.parquet', hive_partitioning = true)\n  WHERE GAP_Sts IN ('1', '2')\n),\ncombined AS (\n  SELECT m.h8, m.h0,\n    (m.species_richness / 32.0 + c.carbon_total / 28341.98819) / 2.0 AS combined_score\n  FROM mobi m\n  JOIN carbon_h8 c ON m.h8 = c.h8 AND m.h0 = c.h0\n  ANTI JOIN gap12 g ON m.h8 = g.h8 AND m.h0 = g.h0\n)\nSELECT h8, combined_score\nFROM combined\nWHERE combined_score >= 0.06129718948\n)\")\nprint(head(df2, 20))\n\n# ---- 2. what NCLD land cover is represented here? ----\n\ndf3 \u003c- dbGetQuery(con, r\"(\nWITH mobi AS (\n  SELECT h8, h0, species_richness\n  FROM read_parquet('s3://public-mobi/mobi-species-richness-all/hex/h0=*/data_0.parquet')\n  WHERE species_richness > 0\n),\ncarbon_h8 AS (\n  SELECT c.h8, c.h0, SUM(c.carbon) AS total_carbon\n  FROM read_parquet('s3://public-carbon/irrecoverable-carbon-2024/hex/h0=*/data_0.parquet') c\n  SEMI JOIN mobi m ON c.h8 = m.h8 AND c.h0 = m.h0\n  WHERE c.carbon > 0\n  GROUP BY c.h8, c.h0\n),\ngap12 AS (\n  SELECT DISTINCT h8, h0\n  FROM read_parquet('s3://public-padus/padus-4-1/combined/hex/h0=*/data_0.parquet')\n  WHERE GAP_Sts IN ('1', '2')\n),\neligible AS (\n  SELECT c.h8 AS h8, c.h0 AS h0, c.total_carbon, m.species_richness\n  FROM carbon_h8 c\n  JOIN mobi m ON c.h8 = m.h8 AND c.h0 = m.h0\n  ANTI JOIN gap12 g ON c.h8 = g.h8 AND c.h0 = g.h0\n),\nnormed AS (\n  SELECT h8, h0,\n    total_carbon / MAX(total_carbon) OVER () AS carbon_norm,\n    species_richness / MAX(species_richness) OVER () AS mobi_norm\n  FROM eligible\n),\nscored AS (\n  SELECT h8, h0,\n    (carbon_norm + mobi_norm) / 2.0 AS score,\n    PERCENT_RANK() OVER (ORDER BY (carbon_norm + mobi_norm) / 2.0) AS pct\n  FROM normed\n),\ntop30 AS (\n  SELECT h8, h0 FROM scored WHERE pct >= 0.70\n)\nSELECT n.nlcd,\n  SUM(n.frac * h3_cell_area(n.h10, 'km^2')) AS area_km2\nFROM read_parquet('s3://public-land-cover/nlcd/hex-fractions/year=2024/h0=*/data_0.parquet') n\nSEMI JOIN top30 t ON n.h8 = t.h8 AND n.h0 = t.h0\nWHERE n.nlcd \u003c> 250\nGROUP BY n.nlcd\nORDER BY area_km2 DESC;\n)\")\nprint(head(df3, 20))\n\ndf4 \u003c- dbGetQuery(con, r\"(\nWITH mobi AS (\n  SELECT h8, h0, species_richness\n  FROM read_parquet('s3://public-mobi/mobi-species-richness-all/hex/h0=*/data_0.parquet')\n  WHERE species_richness > 0\n),\ncarbon_h8 AS (\n  SELECT c.h8, c.h0, SUM(c.carbon) AS total_carbon\n  FROM read_parquet('s3://public-carbon/irrecoverable-carbon-2024/hex/h0=*/data_0.parquet') c\n  SEMI JOIN mobi m ON c.h8 = m.h8 AND c.h0 = m.h0\n  WHERE c.carbon > 0\n  GROUP BY c.h8, c.h0\n),\ngap12 AS (\n  SELECT DISTINCT h8, h0\n  FROM read_parquet('s3://public-padus/padus-4-1/combined/hex/h0=*/data_0.parquet')\n  WHERE GAP_Sts IN ('1', '2')\n),\neligible AS (\n  SELECT c.h8 AS h8, c.h0 AS h0, c.total_carbon, m.species_richness\n  FROM carbon_h8 c\n  JOIN mobi m ON c.h8 = m.h8 AND c.h0 = m.h0\n  ANTI JOIN gap12 g ON c.h8 = g.h8 AND c.h0 = g.h0\n),\nnormed AS (\n  SELECT h8, h0,\n    total_carbon / MAX(total_carbon) OVER () AS carbon_norm,\n    species_richness / MAX(species_richness) OVER () AS mobi_norm\n  FROM eligible\n),\nscored AS (\n  SELECT h8, h0,\n    (carbon_norm + mobi_norm) / 2.0 AS score,\n    PERCENT_RANK() OVER (ORDER BY (carbon_norm + mobi_norm) / 2.0) AS pct\n  FROM normed\n),\ntop30 AS (\n  SELECT h8, h0 FROM scored WHERE pct >= 0.70\n),\nclass_area AS (\n  SELECT n.nlcd,\n    SUM(n.frac * h3_cell_area(n.h10, 'km^2')) AS area_km2\n  FROM read_parquet('s3://public-land-cover/nlcd/hex-fractions/year=2024/h0=*/data_0.parquet') n\n  SEMI JOIN top30 t ON n.h8 = t.h8 AND n.h0 = t.h0\n  WHERE n.nlcd \u003c> 250\n  GROUP BY n.nlcd\n)\nSELECT\n  nlcd,\n  CASE nlcd\n    WHEN 11 THEN 'Open Water'\n    WHEN 12 THEN 'Perennial Ice/Snow'\n    WHEN 21 THEN 'Developed, Open Space'\n    WHEN 22 THEN 'Developed, Low Intensity'\n    WHEN 23 THEN 'Developed, Medium Intensity'\n    WHEN 24 THEN 'Developed, High Intensity'\n    WHEN 31 THEN 'Barren Land'\n    WHEN 41 THEN 'Deciduous Forest'\n    WHEN 42 THEN 'Evergreen Forest'\n    WHEN 43 THEN 'Mixed Forest'\n    WHEN 52 THEN 'Shrub/Scrub'\n    WHEN 71 THEN 'Herbaceous (Grassland)'\n    WHEN 81 THEN 'Hay/Pasture'\n    WHEN 82 THEN 'Cultivated Crops'\n    WHEN 90 THEN 'Woody Wetlands'\n    WHEN 95 THEN 'Emergent Herbaceous Wetlands'\n  END AS land_cover_class,\n  ROUND(area_km2, 1) AS area_km2,\n  ROUND(100.0 * area_km2 / SUM(area_km2) OVER (), 2) AS pct_of_total\nFROM class_area\nORDER BY area_km2 DESC;\n)\")\nprint(head(df4, 20))\n\n# ---- 3. chart that as a bar chart ----\n# No queries ran for this question.\n\n# ---- Data sources ----\n#\n# - MOBI Species Richness (All Taxa) - NatureServe, Esri, The Nature Conservancy.\n#   Hamilton, H., Smyth, R. L., Young, B. E., Howard, T. G., Tracey, C., Breyer, S., Cameron, D. R., Chazal, A., Conley, A. K., Frye, C., & Schloss, C. (2022). Increasing taxonomic diversity and spatial resolution clarifies opportunities for protecting US imperiled species. Ecological Applications, 32(3), e2534. https://doi.org/10.1002/eap.2534\n#   License: CC-BY-NC-4.0 (https://creativecommons.org/licenses/by-nc/4.0/)\n#   STAC: https://s3-west.nrp-nautilus.io/public-mobi/mobi-species-richness-all/stac-collection.json\n#\n# - Irrecoverable Earth: Carbon Reserves (v2, 2025 release) - Conservation International.\n#   Cite as: https://doi.org/10.1038/s41893-021-00803-6\n#   License: CC-BY-NC-4.0 (https://creativecommons.org/licenses/by-nc/4.0/)\n#   STAC: https://s3-west.nrp-nautilus.io/public-carbon/stac-collection.json\n#\n# - PAD-US 4.1 Combined - All Protection Types - USGS Gap Analysis Project.\n#   Cite as: https://doi.org/10.5066/P96WBCHS\n#   License: public-domain (https://www.usa.gov/government-works)\n#   STAC: https://s3-west.nrp-nautilus.io/public-padus/padus-4-1/combined/stac-collection.json\n#\n# - Annual NLCD Land Cover & Land-Cover Change, CONUS 1985-2025 (Collection 1.2) - Multi-Resolution Land Characteristics (MRLC) Consortium / USGS EROS.\n#   License: public-domain\n#   STAC: https://s3-west.nrp-nautilus.io/public-land-cover/nlcd/stac-collection.json\n"},"glen-session-2026-10-06-1622.py":{"mime":"text/x-python","text":"# TPL — Protected Lands Explorer - analysis session, October 1, 2026\n#\n# Generated with GLEN (https://boettiger-lab.github.io/geo-agent/) using z-ai/glm-5.2.\n# The queries are exactly what the agent ran; the questions are the user's words.\n# Answers in the report were written by the model - check them against the code and its output.\n# GLEN apps run these queries on high-speed servers next to the data. Re-run on a personal computer, large queries may take much longer.\n\n# pip install duckdb pandas          # first time only\nimport duckdb\n\ncon = duckdb.connect()\ncon.execute(\"INSTALL httpfs; LOAD httpfs; INSTALL h3 FROM community; LOAD h3;\")\ncon.execute(\"CREATE OR REPLACE SECRET public_s3 (TYPE s3, PROVIDER config, KEY_ID '', SECRET '', ENDPOINT 's3-west.nrp-nautilus.io', URL_STYLE 'path', USE_SSL true);\")\n\n# %% 1. what are the top 30% of us h8 hexes in terms of equal weight carbon, mobi score, that are not gap 1 or gap 2 (normalize)\n\ndf1 = con.sql(r\"\"\"\nWITH mobi AS (\n  SELECT h8, h0, species_richness\n  FROM read_parquet('s3://public-mobi/mobi-species-richness-all/hex/h0=*/data_0.parquet', hive_partitioning = true)\n  WHERE species_richness IS NOT NULL\n),\ncarbon_h8 AS (\n  SELECT c.h8, c.h0, SUM(c.carbon) AS carbon_total\n  FROM read_parquet('s3://public-carbon/irrecoverable-carbon-2024/hex/h0=*/data_0.parquet', hive_partitioning = true) c\n  SEMI JOIN mobi m ON c.h8 = m.h8 AND c.h0 = m.h0\n  WHERE c.carbon IS NOT NULL AND NOT isnan(c.carbon)\n  GROUP BY c.h8, c.h0\n),\ngap12 AS (\n  SELECT DISTINCT h8, h0\n  FROM read_parquet('s3://public-padus/padus-4-1/combined/hex/h0=*/data_0.parquet', hive_partitioning = true)\n  WHERE GAP_Sts IN ('1', '2')\n),\ncombined AS (\n  SELECT m.h8, m.h0, m.species_richness, c.carbon_total\n  FROM mobi m\n  JOIN carbon_h8 c ON m.h8 = c.h8 AND m.h0 = c.h0\n  ANTI JOIN gap12 g ON m.h8 = g.h8 AND m.h0 = g.h0\n),\nnormalized AS (\n  SELECT \n    h8, h0, species_richness, carbon_total,\n    (species_richness - MIN(species_richness) OVER ()) / NULLIF(MAX(species_richness) OVER () - MIN(species_richness) OVER (), 0) AS mobi_norm,\n    (carbon_total - MIN(carbon_total) OVER ()) / NULLIF(MAX(carbon_total) OVER () - MIN(carbon_total) OVER (), 0) AS carbon_norm\n  FROM combined\n),\nscored AS (\n  SELECT \n    h8, h0, species_richness, carbon_total,\n    (mobi_norm + carbon_norm) / 2.0 AS combined_score\n  FROM normalized\n)\nSELECT \n  COUNT(*) AS total_hexes,\n  MIN(combined_score) AS min_score,\n  MAX(combined_score) AS max_score,\n  AVG(combined_score) AS avg_score,\n  quantile(combined_score, 0.70) AS p70_threshold,\n  MIN(species_richness) AS min_mobi,\n  MAX(species_richness) AS max_mobi,\n  MIN(carbon_total) AS min_carbon,\n  MAX(carbon_total) AS max_carbon\nFROM scored;\n\"\"\").df()\nprint(df1)\n\n# In the app, this query was drawn on the map as hex tiles.\ndf2 = con.sql(r\"\"\"\nWITH mobi AS (\n  SELECT h8, h0, species_richness\n  FROM read_parquet('s3://public-mobi/mobi-species-richness-all/hex/h0=*/data_0.parquet', hive_partitioning = true)\n  WHERE species_richness IS NOT NULL\n),\ncarbon_h8 AS (\n  SELECT c.h8, c.h0, SUM(c.carbon) AS carbon_total\n  FROM read_parquet('s3://public-carbon/irrecoverable-carbon-2024/hex/h0=*/data_0.parquet', hive_partitioning = true) c\n  SEMI JOIN mobi m ON c.h8 = m.h8 AND c.h0 = m.h0\n  WHERE c.carbon IS NOT NULL AND NOT isnan(c.carbon)\n  GROUP BY c.h8, c.h0\n),\ngap12 AS (\n  SELECT DISTINCT h8, h0\n  FROM read_parquet('s3://public-padus/padus-4-1/combined/hex/h0=*/data_0.parquet', hive_partitioning = true)\n  WHERE GAP_Sts IN ('1', '2')\n),\ncombined AS (\n  SELECT m.h8, m.h0,\n    (m.species_richness / 32.0 + c.carbon_total / 28341.98819) / 2.0 AS combined_score\n  FROM mobi m\n  JOIN carbon_h8 c ON m.h8 = c.h8 AND m.h0 = c.h0\n  ANTI JOIN gap12 g ON m.h8 = g.h8 AND m.h0 = g.h0\n)\nSELECT h8, combined_score\nFROM combined\nWHERE combined_score >= 0.06129718948\n\"\"\").df()\nprint(df2)\n\n# %% 2. what NCLD land cover is represented here?\n\ndf3 = con.sql(r\"\"\"\nWITH mobi AS (\n  SELECT h8, h0, species_richness\n  FROM read_parquet('s3://public-mobi/mobi-species-richness-all/hex/h0=*/data_0.parquet')\n  WHERE species_richness > 0\n),\ncarbon_h8 AS (\n  SELECT c.h8, c.h0, SUM(c.carbon) AS total_carbon\n  FROM read_parquet('s3://public-carbon/irrecoverable-carbon-2024/hex/h0=*/data_0.parquet') c\n  SEMI JOIN mobi m ON c.h8 = m.h8 AND c.h0 = m.h0\n  WHERE c.carbon > 0\n  GROUP BY c.h8, c.h0\n),\ngap12 AS (\n  SELECT DISTINCT h8, h0\n  FROM read_parquet('s3://public-padus/padus-4-1/combined/hex/h0=*/data_0.parquet')\n  WHERE GAP_Sts IN ('1', '2')\n),\neligible AS (\n  SELECT c.h8 AS h8, c.h0 AS h0, c.total_carbon, m.species_richness\n  FROM carbon_h8 c\n  JOIN mobi m ON c.h8 = m.h8 AND c.h0 = m.h0\n  ANTI JOIN gap12 g ON c.h8 = g.h8 AND c.h0 = g.h0\n),\nnormed AS (\n  SELECT h8, h0,\n    total_carbon / MAX(total_carbon) OVER () AS carbon_norm,\n    species_richness / MAX(species_richness) OVER () AS mobi_norm\n  FROM eligible\n),\nscored AS (\n  SELECT h8, h0,\n    (carbon_norm + mobi_norm) / 2.0 AS score,\n    PERCENT_RANK() OVER (ORDER BY (carbon_norm + mobi_norm) / 2.0) AS pct\n  FROM normed\n),\ntop30 AS (\n  SELECT h8, h0 FROM scored WHERE pct >= 0.70\n)\nSELECT n.nlcd,\n  SUM(n.frac * h3_cell_area(n.h10, 'km^2')) AS area_km2\nFROM read_parquet('s3://public-land-cover/nlcd/hex-fractions/year=2024/h0=*/data_0.parquet') n\nSEMI JOIN top30 t ON n.h8 = t.h8 AND n.h0 = t.h0\nWHERE n.nlcd \u003c> 250\nGROUP BY n.nlcd\nORDER BY area_km2 DESC;\n\"\"\").df()\nprint(df3)\n\ndf4 = con.sql(r\"\"\"\nWITH mobi AS (\n  SELECT h8, h0, species_richness\n  FROM read_parquet('s3://public-mobi/mobi-species-richness-all/hex/h0=*/data_0.parquet')\n  WHERE species_richness > 0\n),\ncarbon_h8 AS (\n  SELECT c.h8, c.h0, SUM(c.carbon) AS total_carbon\n  FROM read_parquet('s3://public-carbon/irrecoverable-carbon-2024/hex/h0=*/data_0.parquet') c\n  SEMI JOIN mobi m ON c.h8 = m.h8 AND c.h0 = m.h0\n  WHERE c.carbon > 0\n  GROUP BY c.h8, c.h0\n),\ngap12 AS (\n  SELECT DISTINCT h8, h0\n  FROM read_parquet('s3://public-padus/padus-4-1/combined/hex/h0=*/data_0.parquet')\n  WHERE GAP_Sts IN ('1', '2')\n),\neligible AS (\n  SELECT c.h8 AS h8, c.h0 AS h0, c.total_carbon, m.species_richness\n  FROM carbon_h8 c\n  JOIN mobi m ON c.h8 = m.h8 AND c.h0 = m.h0\n  ANTI JOIN gap12 g ON c.h8 = g.h8 AND c.h0 = g.h0\n),\nnormed AS (\n  SELECT h8, h0,\n    total_carbon / MAX(total_carbon) OVER () AS carbon_norm,\n    species_richness / MAX(species_richness) OVER () AS mobi_norm\n  FROM eligible\n),\nscored AS (\n  SELECT h8, h0,\n    (carbon_norm + mobi_norm) / 2.0 AS score,\n    PERCENT_RANK() OVER (ORDER BY (carbon_norm + mobi_norm) / 2.0) AS pct\n  FROM normed\n),\ntop30 AS (\n  SELECT h8, h0 FROM scored WHERE pct >= 0.70\n),\nclass_area AS (\n  SELECT n.nlcd,\n    SUM(n.frac * h3_cell_area(n.h10, 'km^2')) AS area_km2\n  FROM read_parquet('s3://public-land-cover/nlcd/hex-fractions/year=2024/h0=*/data_0.parquet') n\n  SEMI JOIN top30 t ON n.h8 = t.h8 AND n.h0 = t.h0\n  WHERE n.nlcd \u003c> 250\n  GROUP BY n.nlcd\n)\nSELECT\n  nlcd,\n  CASE nlcd\n    WHEN 11 THEN 'Open Water'\n    WHEN 12 THEN 'Perennial Ice/Snow'\n    WHEN 21 THEN 'Developed, Open Space'\n    WHEN 22 THEN 'Developed, Low Intensity'\n    WHEN 23 THEN 'Developed, Medium Intensity'\n    WHEN 24 THEN 'Developed, High Intensity'\n    WHEN 31 THEN 'Barren Land'\n    WHEN 41 THEN 'Deciduous Forest'\n    WHEN 42 THEN 'Evergreen Forest'\n    WHEN 43 THEN 'Mixed Forest'\n    WHEN 52 THEN 'Shrub/Scrub'\n    WHEN 71 THEN 'Herbaceous (Grassland)'\n    WHEN 81 THEN 'Hay/Pasture'\n    WHEN 82 THEN 'Cultivated Crops'\n    WHEN 90 THEN 'Woody Wetlands'\n    WHEN 95 THEN 'Emergent Herbaceous Wetlands'\n  END AS land_cover_class,\n  ROUND(area_km2, 1) AS area_km2,\n  ROUND(100.0 * area_km2 / SUM(area_km2) OVER (), 2) AS pct_of_total\nFROM class_area\nORDER BY area_km2 DESC;\n\"\"\").df()\nprint(df4)\n\n# %% 3. chart that as a bar chart\n# No queries ran for this question.\n\n# %% Data sources\n#\n# - MOBI Species Richness (All Taxa) - NatureServe, Esri, The Nature Conservancy.\n#   Hamilton, H., Smyth, R. L., Young, B. E., Howard, T. G., Tracey, C., Breyer, S., Cameron, D. R., Chazal, A., Conley, A. K., Frye, C., & Schloss, C. (2022). Increasing taxonomic diversity and spatial resolution clarifies opportunities for protecting US imperiled species. Ecological Applications, 32(3), e2534. https://doi.org/10.1002/eap.2534\n#   License: CC-BY-NC-4.0 (https://creativecommons.org/licenses/by-nc/4.0/)\n#   STAC: https://s3-west.nrp-nautilus.io/public-mobi/mobi-species-richness-all/stac-collection.json\n#\n# - Irrecoverable Earth: Carbon Reserves (v2, 2025 release) - Conservation International.\n#   Cite as: https://doi.org/10.1038/s41893-021-00803-6\n#   License: CC-BY-NC-4.0 (https://creativecommons.org/licenses/by-nc/4.0/)\n#   STAC: https://s3-west.nrp-nautilus.io/public-carbon/stac-collection.json\n#\n# - PAD-US 4.1 Combined - All Protection Types - USGS Gap Analysis Project.\n#   Cite as: https://doi.org/10.5066/P96WBCHS\n#   License: public-domain (https://www.usa.gov/government-works)\n#   STAC: https://s3-west.nrp-nautilus.io/public-padus/padus-4-1/combined/stac-collection.json\n#\n# - Annual NLCD Land Cover & Land-Cover Change, CONUS 1985-2025 (Collection 1.2) - Multi-Resolution Land Characteristics (MRLC) Consortium / USGS EROS.\n#   License: public-domain\n#   STAC: https://s3-west.nrp-nautilus.io/public-land-cover/nlcd/stac-collection.json\n"},"glen-session-2026-10-06-1622.qmd":{"mime":"text/markdown","text":"---\ntitle: \"TPL — Protected Lands Explorer - analysis session, October 1, 2026\"\nformat: html\n---\n\n::: {.callout-note}\nGenerated with GLEN (https://boettiger-lab.github.io/geo-agent/) using z-ai/glm-5.2. The queries are exactly what the agent ran; the questions are the user's words. The answers between the code were written by the model - check them against the code and its output. GLEN apps run these queries on high-speed servers next to the data. Re-run on a personal computer, large queries may take much longer.\n:::\n\n```{r}\n#| label: setup\n# install.packages(\"duckdb\")        # first time only\nlibrary(duckdb)\n\ncon \u003c- dbConnect(duckdb())\n# invisible() keeps dbExecute's row count from printing at the console\ninvisible(dbExecute(con, \"INSTALL httpfs; LOAD httpfs; INSTALL h3 FROM community; LOAD h3;\"))\ninvisible(dbExecute(con, \"CREATE OR REPLACE SECRET public_s3 (TYPE s3, PROVIDER config, KEY_ID '', SECRET '', ENDPOINT 's3-west.nrp-nautilus.io', URL_STYLE 'path', USE_SSL true);\"))\n```\n\n## 1. what are the top 30% of us h8 hexes in terms of equal weight carbon, mobi score, that are not gap 1 or gap 2 (normalize)\n\n```{r}\ndf1 \u003c- dbGetQuery(con, r\"(\nWITH mobi AS (\n  SELECT h8, h0, species_richness\n  FROM read_parquet('s3://public-mobi/mobi-species-richness-all/hex/h0=*/data_0.parquet', hive_partitioning = true)\n  WHERE species_richness IS NOT NULL\n),\ncarbon_h8 AS (\n  SELECT c.h8, c.h0, SUM(c.carbon) AS carbon_total\n  FROM read_parquet('s3://public-carbon/irrecoverable-carbon-2024/hex/h0=*/data_0.parquet', hive_partitioning = true) c\n  SEMI JOIN mobi m ON c.h8 = m.h8 AND c.h0 = m.h0\n  WHERE c.carbon IS NOT NULL AND NOT isnan(c.carbon)\n  GROUP BY c.h8, c.h0\n),\ngap12 AS (\n  SELECT DISTINCT h8, h0\n  FROM read_parquet('s3://public-padus/padus-4-1/combined/hex/h0=*/data_0.parquet', hive_partitioning = true)\n  WHERE GAP_Sts IN ('1', '2')\n),\ncombined AS (\n  SELECT m.h8, m.h0, m.species_richness, c.carbon_total\n  FROM mobi m\n  JOIN carbon_h8 c ON m.h8 = c.h8 AND m.h0 = c.h0\n  ANTI JOIN gap12 g ON m.h8 = g.h8 AND m.h0 = g.h0\n),\nnormalized AS (\n  SELECT \n    h8, h0, species_richness, carbon_total,\n    (species_richness - MIN(species_richness) OVER ()) / NULLIF(MAX(species_richness) OVER () - MIN(species_richness) OVER (), 0) AS mobi_norm,\n    (carbon_total - MIN(carbon_total) OVER ()) / NULLIF(MAX(carbon_total) OVER () - MIN(carbon_total) OVER (), 0) AS carbon_norm\n  FROM combined\n),\nscored AS (\n  SELECT \n    h8, h0, species_richness, carbon_total,\n    (mobi_norm + carbon_norm) / 2.0 AS combined_score\n  FROM normalized\n)\nSELECT \n  COUNT(*) AS total_hexes,\n  MIN(combined_score) AS min_score,\n  MAX(combined_score) AS max_score,\n  AVG(combined_score) AS avg_score,\n  quantile(combined_score, 0.70) AS p70_threshold,\n  MIN(species_richness) AS min_mobi,\n  MAX(species_richness) AS max_mobi,\n  MIN(carbon_total) AS min_carbon,\n  MAX(carbon_total) AS max_carbon\nFROM scored;\n)\")\nhead(df1, 20)\n```\n\nIn the app, this query was drawn on the map as hex tiles.\n\n```{r}\ndf2 \u003c- dbGetQuery(con, r\"(\nWITH mobi AS (\n  SELECT h8, h0, species_richness\n  FROM read_parquet('s3://public-mobi/mobi-species-richness-all/hex/h0=*/data_0.parquet', hive_partitioning = true)\n  WHERE species_richness IS NOT NULL\n),\ncarbon_h8 AS (\n  SELECT c.h8, c.h0, SUM(c.carbon) AS carbon_total\n  FROM read_parquet('s3://public-carbon/irrecoverable-carbon-2024/hex/h0=*/data_0.parquet', hive_partitioning = true) c\n  SEMI JOIN mobi m ON c.h8 = m.h8 AND c.h0 = m.h0\n  WHERE c.carbon IS NOT NULL AND NOT isnan(c.carbon)\n  GROUP BY c.h8, c.h0\n),\ngap12 AS (\n  SELECT DISTINCT h8, h0\n  FROM read_parquet('s3://public-padus/padus-4-1/combined/hex/h0=*/data_0.parquet', hive_partitioning = true)\n  WHERE GAP_Sts IN ('1', '2')\n),\ncombined AS (\n  SELECT m.h8, m.h0,\n    (m.species_richness / 32.0 + c.carbon_total / 28341.98819) / 2.0 AS combined_score\n  FROM mobi m\n  JOIN carbon_h8 c ON m.h8 = c.h8 AND m.h0 = c.h0\n  ANTI JOIN gap12 g ON m.h8 = g.h8 AND m.h0 = g.h0\n)\nSELECT h8, combined_score\nFROM combined\nWHERE combined_score >= 0.06129718948\n)\")\nhead(df2, 20)\n```\n\nThe map is now displaying the **top 30% of US h8 hexes** by a combined, equal-weight score of irrecoverable carbon and MOBI species richness, excluding areas already protected under GAP Status 1 or 2.\n\nHere's a summary of the methodology and results:\n\n### Methodology\n\n1.  **Irrecoverable Carbon (2024)**: Aggregated from native h9 resolution to h8 by SUMming total carbon (Mg C) per cell\n2.  **MOBI Species Richness**: Used directly at h8 (max species count per cell, range 0–32)\n3.  **Exclusion**: Removed all h8 cells overlapping any PAD-US feature with `GAP_Sts` = '1' or '2' (permanently protected for biodiversity)\n4.  **Normalization**: Min-max normalized both variables to 0–1 (min = 0 for both; max = 32 for MOBI, 28,342 Mg C for carbon)\n5.  **Combined score**: Equal weight average → `(mobi_norm + carbon_norm) / 2`\n6.  **Top 30% filter**: Kept cells with combined score ≥ 0.0613 (the 70th percentile)\n\n### Key Numbers\n\n| Metric                               | Value                 |\n|--------------------------------------|-----------------------|\n| Total eligible hexes (excl. GAP 1/2) | 9,238,348             |\n| Top 30% hexes shown on map           | 2,771,504             |\n| Combined score range (top 30%)       | 0.061 – 0.564         |\n| Coverage                             | Contiguous US (CONUS) |\n\n### What the map shows\n\nThe **viridis color ramp** (dark purple → yellow) indicates combined priority score — yellow hexes are the highest-priority cells with both high irrecoverable carbon stocks and high species richness that are **not** already under strict biodiversity protection (GAP 1/2). These represent potential conservation opportunity areas where both climate and biodiversity values converge.\n\n## 2. what NCLD land cover is represented here?\n\n```{r}\ndf3 \u003c- dbGetQuery(con, r\"(\nWITH mobi AS (\n  SELECT h8, h0, species_richness\n  FROM read_parquet('s3://public-mobi/mobi-species-richness-all/hex/h0=*/data_0.parquet')\n  WHERE species_richness > 0\n),\ncarbon_h8 AS (\n  SELECT c.h8, c.h0, SUM(c.carbon) AS total_carbon\n  FROM read_parquet('s3://public-carbon/irrecoverable-carbon-2024/hex/h0=*/data_0.parquet') c\n  SEMI JOIN mobi m ON c.h8 = m.h8 AND c.h0 = m.h0\n  WHERE c.carbon > 0\n  GROUP BY c.h8, c.h0\n),\ngap12 AS (\n  SELECT DISTINCT h8, h0\n  FROM read_parquet('s3://public-padus/padus-4-1/combined/hex/h0=*/data_0.parquet')\n  WHERE GAP_Sts IN ('1', '2')\n),\neligible AS (\n  SELECT c.h8 AS h8, c.h0 AS h0, c.total_carbon, m.species_richness\n  FROM carbon_h8 c\n  JOIN mobi m ON c.h8 = m.h8 AND c.h0 = m.h0\n  ANTI JOIN gap12 g ON c.h8 = g.h8 AND c.h0 = g.h0\n),\nnormed AS (\n  SELECT h8, h0,\n    total_carbon / MAX(total_carbon) OVER () AS carbon_norm,\n    species_richness / MAX(species_richness) OVER () AS mobi_norm\n  FROM eligible\n),\nscored AS (\n  SELECT h8, h0,\n    (carbon_norm + mobi_norm) / 2.0 AS score,\n    PERCENT_RANK() OVER (ORDER BY (carbon_norm + mobi_norm) / 2.0) AS pct\n  FROM normed\n),\ntop30 AS (\n  SELECT h8, h0 FROM scored WHERE pct >= 0.70\n)\nSELECT n.nlcd,\n  SUM(n.frac * h3_cell_area(n.h10, 'km^2')) AS area_km2\nFROM read_parquet('s3://public-land-cover/nlcd/hex-fractions/year=2024/h0=*/data_0.parquet') n\nSEMI JOIN top30 t ON n.h8 = t.h8 AND n.h0 = t.h0\nWHERE n.nlcd \u003c> 250\nGROUP BY n.nlcd\nORDER BY area_km2 DESC;\n)\")\nhead(df3, 20)\n```\n\n```{r}\ndf4 \u003c- dbGetQuery(con, r\"(\nWITH mobi AS (\n  SELECT h8, h0, species_richness\n  FROM read_parquet('s3://public-mobi/mobi-species-richness-all/hex/h0=*/data_0.parquet')\n  WHERE species_richness > 0\n),\ncarbon_h8 AS (\n  SELECT c.h8, c.h0, SUM(c.carbon) AS total_carbon\n  FROM read_parquet('s3://public-carbon/irrecoverable-carbon-2024/hex/h0=*/data_0.parquet') c\n  SEMI JOIN mobi m ON c.h8 = m.h8 AND c.h0 = m.h0\n  WHERE c.carbon > 0\n  GROUP BY c.h8, c.h0\n),\ngap12 AS (\n  SELECT DISTINCT h8, h0\n  FROM read_parquet('s3://public-padus/padus-4-1/combined/hex/h0=*/data_0.parquet')\n  WHERE GAP_Sts IN ('1', '2')\n),\neligible AS (\n  SELECT c.h8 AS h8, c.h0 AS h0, c.total_carbon, m.species_richness\n  FROM carbon_h8 c\n  JOIN mobi m ON c.h8 = m.h8 AND c.h0 = m.h0\n  ANTI JOIN gap12 g ON c.h8 = g.h8 AND c.h0 = g.h0\n),\nnormed AS (\n  SELECT h8, h0,\n    total_carbon / MAX(total_carbon) OVER () AS carbon_norm,\n    species_richness / MAX(species_richness) OVER () AS mobi_norm\n  FROM eligible\n),\nscored AS (\n  SELECT h8, h0,\n    (carbon_norm + mobi_norm) / 2.0 AS score,\n    PERCENT_RANK() OVER (ORDER BY (carbon_norm + mobi_norm) / 2.0) AS pct\n  FROM normed\n),\ntop30 AS (\n  SELECT h8, h0 FROM scored WHERE pct >= 0.70\n),\nclass_area AS (\n  SELECT n.nlcd,\n    SUM(n.frac * h3_cell_area(n.h10, 'km^2')) AS area_km2\n  FROM read_parquet('s3://public-land-cover/nlcd/hex-fractions/year=2024/h0=*/data_0.parquet') n\n  SEMI JOIN top30 t ON n.h8 = t.h8 AND n.h0 = t.h0\n  WHERE n.nlcd \u003c> 250\n  GROUP BY n.nlcd\n)\nSELECT\n  nlcd,\n  CASE nlcd\n    WHEN 11 THEN 'Open Water'\n    WHEN 12 THEN 'Perennial Ice/Snow'\n    WHEN 21 THEN 'Developed, Open Space'\n    WHEN 22 THEN 'Developed, Low Intensity'\n    WHEN 23 THEN 'Developed, Medium Intensity'\n    WHEN 24 THEN 'Developed, High Intensity'\n    WHEN 31 THEN 'Barren Land'\n    WHEN 41 THEN 'Deciduous Forest'\n    WHEN 42 THEN 'Evergreen Forest'\n    WHEN 43 THEN 'Mixed Forest'\n    WHEN 52 THEN 'Shrub/Scrub'\n    WHEN 71 THEN 'Herbaceous (Grassland)'\n    WHEN 81 THEN 'Hay/Pasture'\n    WHEN 82 THEN 'Cultivated Crops'\n    WHEN 90 THEN 'Woody Wetlands'\n    WHEN 95 THEN 'Emergent Herbaceous Wetlands'\n  END AS land_cover_class,\n  ROUND(area_km2, 1) AS area_km2,\n  ROUND(100.0 * area_km2 / SUM(area_km2) OVER (), 2) AS pct_of_total\nFROM class_area\nORDER BY area_km2 DESC;\n)\")\nhead(df4, 20)\n```\n\nHere's the NLCD land cover composition (2024) for the top 30% combined-score hexes:\n\n### NLCD Land Cover in the Top 30% Priority Hexes\n\n| NLCD Code | Land Cover Class             | Area (km²) | % of Total |\n|----------:|------------------------------|-----------:|-----------:|\n|        41 | **Deciduous Forest**         |    252,157 | **32.80%** |\n|        42 | **Evergreen Forest**         |    104,010 | **13.53%** |\n|        81 | Hay/Pasture                  |     78,490 |     10.21% |\n|        90 | **Woody Wetlands**           |     77,418 | **10.07%** |\n|        43 | **Mixed Forest**             |     65,954 |  **8.58%** |\n|        21 | Developed, Open Space        |     42,418 |      5.52% |\n|        52 | Shrub/Scrub                  |     40,111 |      5.22% |\n|        71 | Herbaceous (Grassland)       |     23,355 |      3.04% |\n|        82 | Cultivated Crops             |     22,640 |      2.94% |\n|        22 | Developed, Low Intensity     |     20,874 |      2.72% |\n|        95 | Emergent Herbaceous Wetlands |     16,043 |      2.09% |\n|        11 | Open Water                   |     13,935 |      1.81% |\n|        23 | Developed, Medium Intensity  |      7,121 |      0.93% |\n|        31 | Barren Land                  |      2,818 |      0.37% |\n|        24 | Developed, High Intensity    |      1,461 |      0.19% |\n|        12 | Perennial Ice/Snow           |        0.1 |        ~0% |\n\n**Total area: ~769,000 km²**\n\n### Key Takeaways\n\n- **Forests dominate** — Deciduous (32.8%), Evergreen (13.5%), and Mixed (8.6%) forest together account for **~55%** of the top-priority area. This aligns with both high irrecoverable carbon storage (forest biomass and soils) and high species richness (forest habitat diversity).\n\n- **Wetlands are disproportionately represented** — Woody Wetlands (10.1%) and Emergent Herbaceous Wetlands (2.1%) together make up **~12%**, well above their typical CONUS land cover share. Wetlands are critical for both carbon sequestration and biodiversity, which drives their high combined scores.\n\n- **Agricultural lands** (Hay/Pasture + Cultivated Crops) account for **~13%**, suggesting some priority areas overlap with working lands — potential conservation easement or sustainable agriculture opportunities.\n\n- **Developed land** is relatively low at **~9.4%** (mostly open-space development), reflecting that the highest-value carbon + biodiversity cells tend to be in less-urbanized landscapes.\n\n- **Shrub/Scrub and Grassland** together account for **~8.3%**, representing arid and semi-arid ecosystems that may have lower carbon but high species richness (especially in the Southwest).\n\n## 3. chart that as a bar chart\n\nHere is the land cover composition of the top 30% priority hexes as a bar chart. Deciduous forest leads at about 252,000 km², followed by evergreen forest and hay/pasture.\n\n## Data sources\n\n- MOBI Species Richness (All Taxa) - NatureServe, Esri, The Nature Conservancy.\n  Hamilton, H., Smyth, R. L., Young, B. E., Howard, T. G., Tracey, C., Breyer, S., Cameron, D. R., Chazal, A., Conley, A. K., Frye, C., & Schloss, C. (2022). Increasing taxonomic diversity and spatial resolution clarifies opportunities for protecting US imperiled species. Ecological Applications, 32(3), e2534. https://doi.org/10.1002/eap.2534\n  License: CC-BY-NC-4.0 (https://creativecommons.org/licenses/by-nc/4.0/)\n  STAC: https://s3-west.nrp-nautilus.io/public-mobi/mobi-species-richness-all/stac-collection.json\n- Irrecoverable Earth: Carbon Reserves (v2, 2025 release) - Conservation International.\n  Cite as: https://doi.org/10.1038/s41893-021-00803-6\n  License: CC-BY-NC-4.0 (https://creativecommons.org/licenses/by-nc/4.0/)\n  STAC: https://s3-west.nrp-nautilus.io/public-carbon/stac-collection.json\n- PAD-US 4.1 Combined - All Protection Types - USGS Gap Analysis Project.\n  Cite as: https://doi.org/10.5066/P96WBCHS\n  License: public-domain (https://www.usa.gov/government-works)\n  STAC: https://s3-west.nrp-nautilus.io/public-padus/padus-4-1/combined/stac-collection.json\n- Annual NLCD Land Cover & Land-Cover Change, CONUS 1985-2025 (Collection 1.2) - Multi-Resolution Land Characteristics (MRLC) Consortium / USGS EROS.\n  License: public-domain\n  STAC: https://s3-west.nrp-nautilus.io/public-land-cover/nlcd/stac-collection.json\n"},"glen-session-2026-10-06-1622.ipynb":{"mime":"application/x-ipynb+json","text":"{\n \"cells\": [\n  {\n   \"cell_type\": \"markdown\",\n   \"id\": \"cell-1\",\n   \"metadata\": {},\n   \"source\": \"# TPL — Protected Lands Explorer - analysis session, October 1, 2026\\n\\n> Generated with GLEN (https://boettiger-lab.github.io/geo-agent/) using z-ai/glm-5.2. The queries are exactly what the agent ran; the questions are the user's words. The answers between the code were written by the model - check them against the code and its output. GLEN apps run these queries on high-speed servers next to the data. Re-run on a personal computer, large queries may take much longer.\"\n  },\n  {\n   \"cell_type\": \"code\",\n   \"id\": \"cell-2\",\n   \"metadata\": {},\n   \"execution_count\": null,\n   \"outputs\": [],\n   \"source\": \"# pip install duckdb pandas          # first time only\\nimport duckdb\\n\\ncon = duckdb.connect()\\ncon.execute(\\\"INSTALL httpfs; LOAD httpfs; INSTALL h3 FROM community; LOAD h3;\\\")\\ncon.execute(\\\"CREATE OR REPLACE SECRET public_s3 (TYPE s3, PROVIDER config, KEY_ID '', SECRET '', ENDPOINT 's3-west.nrp-nautilus.io', URL_STYLE 'path', USE_SSL true);\\\")\"\n  },\n  {\n   \"cell_type\": \"markdown\",\n   \"id\": \"cell-3\",\n   \"metadata\": {},\n   \"source\": \"## 1. what are the top 30% of us h8 hexes in terms of equal weight carbon, mobi score, that are not gap 1 or gap 2 (normalize)\"\n  },\n  {\n   \"cell_type\": \"code\",\n   \"id\": \"cell-4\",\n   \"metadata\": {},\n   \"execution_count\": null,\n   \"outputs\": [],\n   \"source\": \"df1 = con.sql(r\\\"\\\"\\\"\\nWITH mobi AS (\\n  SELECT h8, h0, species_richness\\n  FROM read_parquet('s3://public-mobi/mobi-species-richness-all/hex/h0=*/data_0.parquet', hive_partitioning = true)\\n  WHERE species_richness IS NOT NULL\\n),\\ncarbon_h8 AS (\\n  SELECT c.h8, c.h0, SUM(c.carbon) AS carbon_total\\n  FROM read_parquet('s3://public-carbon/irrecoverable-carbon-2024/hex/h0=*/data_0.parquet', hive_partitioning = true) c\\n  SEMI JOIN mobi m ON c.h8 = m.h8 AND c.h0 = m.h0\\n  WHERE c.carbon IS NOT NULL AND NOT isnan(c.carbon)\\n  GROUP BY c.h8, c.h0\\n),\\ngap12 AS (\\n  SELECT DISTINCT h8, h0\\n  FROM read_parquet('s3://public-padus/padus-4-1/combined/hex/h0=*/data_0.parquet', hive_partitioning = true)\\n  WHERE GAP_Sts IN ('1', '2')\\n),\\ncombined AS (\\n  SELECT m.h8, m.h0, m.species_richness, c.carbon_total\\n  FROM mobi m\\n  JOIN carbon_h8 c ON m.h8 = c.h8 AND m.h0 = c.h0\\n  ANTI JOIN gap12 g ON m.h8 = g.h8 AND m.h0 = g.h0\\n),\\nnormalized AS (\\n  SELECT \\n    h8, h0, species_richness, carbon_total,\\n    (species_richness - MIN(species_richness) OVER ()) / NULLIF(MAX(species_richness) OVER () - MIN(species_richness) OVER (), 0) AS mobi_norm,\\n    (carbon_total - MIN(carbon_total) OVER ()) / NULLIF(MAX(carbon_total) OVER () - MIN(carbon_total) OVER (), 0) AS carbon_norm\\n  FROM combined\\n),\\nscored AS (\\n  SELECT \\n    h8, h0, species_richness, carbon_total,\\n    (mobi_norm + carbon_norm) / 2.0 AS combined_score\\n  FROM normalized\\n)\\nSELECT \\n  COUNT(*) AS total_hexes,\\n  MIN(combined_score) AS min_score,\\n  MAX(combined_score) AS max_score,\\n  AVG(combined_score) AS avg_score,\\n  quantile(combined_score, 0.70) AS p70_threshold,\\n  MIN(species_richness) AS min_mobi,\\n  MAX(species_richness) AS max_mobi,\\n  MIN(carbon_total) AS min_carbon,\\n  MAX(carbon_total) AS max_carbon\\nFROM scored;\\n\\\"\\\"\\\").df()\\ndf1\"\n  },\n  {\n   \"cell_type\": \"markdown\",\n   \"id\": \"cell-5\",\n   \"metadata\": {},\n   \"source\": \"In the app, this query was drawn on the map as hex tiles.\"\n  },\n  {\n   \"cell_type\": \"code\",\n   \"id\": \"cell-6\",\n   \"metadata\": {},\n   \"execution_count\": null,\n   \"outputs\": [],\n   \"source\": \"df2 = con.sql(r\\\"\\\"\\\"\\nWITH mobi AS (\\n  SELECT h8, h0, species_richness\\n  FROM read_parquet('s3://public-mobi/mobi-species-richness-all/hex/h0=*/data_0.parquet', hive_partitioning = true)\\n  WHERE species_richness IS NOT NULL\\n),\\ncarbon_h8 AS (\\n  SELECT c.h8, c.h0, SUM(c.carbon) AS carbon_total\\n  FROM read_parquet('s3://public-carbon/irrecoverable-carbon-2024/hex/h0=*/data_0.parquet', hive_partitioning = true) c\\n  SEMI JOIN mobi m ON c.h8 = m.h8 AND c.h0 = m.h0\\n  WHERE c.carbon IS NOT NULL AND NOT isnan(c.carbon)\\n  GROUP BY c.h8, c.h0\\n),\\ngap12 AS (\\n  SELECT DISTINCT h8, h0\\n  FROM read_parquet('s3://public-padus/padus-4-1/combined/hex/h0=*/data_0.parquet', hive_partitioning = true)\\n  WHERE GAP_Sts IN ('1', '2')\\n),\\ncombined AS (\\n  SELECT m.h8, m.h0,\\n    (m.species_richness / 32.0 + c.carbon_total / 28341.98819) / 2.0 AS combined_score\\n  FROM mobi m\\n  JOIN carbon_h8 c ON m.h8 = c.h8 AND m.h0 = c.h0\\n  ANTI JOIN gap12 g ON m.h8 = g.h8 AND m.h0 = g.h0\\n)\\nSELECT h8, combined_score\\nFROM combined\\nWHERE combined_score >= 0.06129718948\\n\\\"\\\"\\\").df()\\ndf2\"\n  },\n  {\n   \"cell_type\": \"markdown\",\n   \"id\": \"cell-7\",\n   \"metadata\": {},\n   \"source\": \"The map is now displaying the **top 30% of US h8 hexes** by a combined, equal-weight score of irrecoverable carbon and MOBI species richness, excluding areas already protected under GAP Status 1 or 2.\\n\\nHere's a summary of the methodology and results:\\n\\n### Methodology\\n\\n1.  **Irrecoverable Carbon (2024)**: Aggregated from native h9 resolution to h8 by SUMming total carbon (Mg C) per cell\\n2.  **MOBI Species Richness**: Used directly at h8 (max species count per cell, range 0–32)\\n3.  **Exclusion**: Removed all h8 cells overlapping any PAD-US feature with `GAP_Sts` = '1' or '2' (permanently protected for biodiversity)\\n4.  **Normalization**: Min-max normalized both variables to 0–1 (min = 0 for both; max = 32 for MOBI, 28,342 Mg C for carbon)\\n5.  **Combined score**: Equal weight average → `(mobi_norm + carbon_norm) / 2`\\n6.  **Top 30% filter**: Kept cells with combined score ≥ 0.0613 (the 70th percentile)\\n\\n### Key Numbers\\n\\n| Metric                               | Value                 |\\n|--------------------------------------|-----------------------|\\n| Total eligible hexes (excl. GAP 1/2) | 9,238,348             |\\n| Top 30% hexes shown on map           | 2,771,504             |\\n| Combined score range (top 30%)       | 0.061 – 0.564         |\\n| Coverage                             | Contiguous US (CONUS) |\\n\\n### What the map shows\\n\\nThe **viridis color ramp** (dark purple → yellow) indicates combined priority score — yellow hexes are the highest-priority cells with both high irrecoverable carbon stocks and high species richness that are **not** already under strict biodiversity protection (GAP 1/2). These represent potential conservation opportunity areas where both climate and biodiversity values converge.\"\n  },\n  {\n   \"cell_type\": \"markdown\",\n   \"id\": \"cell-8\",\n   \"metadata\": {},\n   \"source\": \"## 2. what NCLD land cover is represented here?\"\n  },\n  {\n   \"cell_type\": \"code\",\n   \"id\": \"cell-9\",\n   \"metadata\": {},\n   \"execution_count\": null,\n   \"outputs\": [],\n   \"source\": \"df3 = con.sql(r\\\"\\\"\\\"\\nWITH mobi AS (\\n  SELECT h8, h0, species_richness\\n  FROM read_parquet('s3://public-mobi/mobi-species-richness-all/hex/h0=*/data_0.parquet')\\n  WHERE species_richness > 0\\n),\\ncarbon_h8 AS (\\n  SELECT c.h8, c.h0, SUM(c.carbon) AS total_carbon\\n  FROM read_parquet('s3://public-carbon/irrecoverable-carbon-2024/hex/h0=*/data_0.parquet') c\\n  SEMI JOIN mobi m ON c.h8 = m.h8 AND c.h0 = m.h0\\n  WHERE c.carbon > 0\\n  GROUP BY c.h8, c.h0\\n),\\ngap12 AS (\\n  SELECT DISTINCT h8, h0\\n  FROM read_parquet('s3://public-padus/padus-4-1/combined/hex/h0=*/data_0.parquet')\\n  WHERE GAP_Sts IN ('1', '2')\\n),\\neligible AS (\\n  SELECT c.h8 AS h8, c.h0 AS h0, c.total_carbon, m.species_richness\\n  FROM carbon_h8 c\\n  JOIN mobi m ON c.h8 = m.h8 AND c.h0 = m.h0\\n  ANTI JOIN gap12 g ON c.h8 = g.h8 AND c.h0 = g.h0\\n),\\nnormed AS (\\n  SELECT h8, h0,\\n    total_carbon / MAX(total_carbon) OVER () AS carbon_norm,\\n    species_richness / MAX(species_richness) OVER () AS mobi_norm\\n  FROM eligible\\n),\\nscored AS (\\n  SELECT h8, h0,\\n    (carbon_norm + mobi_norm) / 2.0 AS score,\\n    PERCENT_RANK() OVER (ORDER BY (carbon_norm + mobi_norm) / 2.0) AS pct\\n  FROM normed\\n),\\ntop30 AS (\\n  SELECT h8, h0 FROM scored WHERE pct >= 0.70\\n)\\nSELECT n.nlcd,\\n  SUM(n.frac * h3_cell_area(n.h10, 'km^2')) AS area_km2\\nFROM read_parquet('s3://public-land-cover/nlcd/hex-fractions/year=2024/h0=*/data_0.parquet') n\\nSEMI JOIN top30 t ON n.h8 = t.h8 AND n.h0 = t.h0\\nWHERE n.nlcd \u003c> 250\\nGROUP BY n.nlcd\\nORDER BY area_km2 DESC;\\n\\\"\\\"\\\").df()\\ndf3\"\n  },\n  {\n   \"cell_type\": \"code\",\n   \"id\": \"cell-10\",\n   \"metadata\": {},\n   \"execution_count\": null,\n   \"outputs\": [],\n   \"source\": \"df4 = con.sql(r\\\"\\\"\\\"\\nWITH mobi AS (\\n  SELECT h8, h0, species_richness\\n  FROM read_parquet('s3://public-mobi/mobi-species-richness-all/hex/h0=*/data_0.parquet')\\n  WHERE species_richness > 0\\n),\\ncarbon_h8 AS (\\n  SELECT c.h8, c.h0, SUM(c.carbon) AS total_carbon\\n  FROM read_parquet('s3://public-carbon/irrecoverable-carbon-2024/hex/h0=*/data_0.parquet') c\\n  SEMI JOIN mobi m ON c.h8 = m.h8 AND c.h0 = m.h0\\n  WHERE c.carbon > 0\\n  GROUP BY c.h8, c.h0\\n),\\ngap12 AS (\\n  SELECT DISTINCT h8, h0\\n  FROM read_parquet('s3://public-padus/padus-4-1/combined/hex/h0=*/data_0.parquet')\\n  WHERE GAP_Sts IN ('1', '2')\\n),\\neligible AS (\\n  SELECT c.h8 AS h8, c.h0 AS h0, c.total_carbon, m.species_richness\\n  FROM carbon_h8 c\\n  JOIN mobi m ON c.h8 = m.h8 AND c.h0 = m.h0\\n  ANTI JOIN gap12 g ON c.h8 = g.h8 AND c.h0 = g.h0\\n),\\nnormed AS (\\n  SELECT h8, h0,\\n    total_carbon / MAX(total_carbon) OVER () AS carbon_norm,\\n    species_richness / MAX(species_richness) OVER () AS mobi_norm\\n  FROM eligible\\n),\\nscored AS (\\n  SELECT h8, h0,\\n    (carbon_norm + mobi_norm) / 2.0 AS score,\\n    PERCENT_RANK() OVER (ORDER BY (carbon_norm + mobi_norm) / 2.0) AS pct\\n  FROM normed\\n),\\ntop30 AS (\\n  SELECT h8, h0 FROM scored WHERE pct >= 0.70\\n),\\nclass_area AS (\\n  SELECT n.nlcd,\\n    SUM(n.frac * h3_cell_area(n.h10, 'km^2')) AS area_km2\\n  FROM read_parquet('s3://public-land-cover/nlcd/hex-fractions/year=2024/h0=*/data_0.parquet') n\\n  SEMI JOIN top30 t ON n.h8 = t.h8 AND n.h0 = t.h0\\n  WHERE n.nlcd \u003c> 250\\n  GROUP BY n.nlcd\\n)\\nSELECT\\n  nlcd,\\n  CASE nlcd\\n    WHEN 11 THEN 'Open Water'\\n    WHEN 12 THEN 'Perennial Ice/Snow'\\n    WHEN 21 THEN 'Developed, Open Space'\\n    WHEN 22 THEN 'Developed, Low Intensity'\\n    WHEN 23 THEN 'Developed, Medium Intensity'\\n    WHEN 24 THEN 'Developed, High Intensity'\\n    WHEN 31 THEN 'Barren Land'\\n    WHEN 41 THEN 'Deciduous Forest'\\n    WHEN 42 THEN 'Evergreen Forest'\\n    WHEN 43 THEN 'Mixed Forest'\\n    WHEN 52 THEN 'Shrub/Scrub'\\n    WHEN 71 THEN 'Herbaceous (Grassland)'\\n    WHEN 81 THEN 'Hay/Pasture'\\n    WHEN 82 THEN 'Cultivated Crops'\\n    WHEN 90 THEN 'Woody Wetlands'\\n    WHEN 95 THEN 'Emergent Herbaceous Wetlands'\\n  END AS land_cover_class,\\n  ROUND(area_km2, 1) AS area_km2,\\n  ROUND(100.0 * area_km2 / SUM(area_km2) OVER (), 2) AS pct_of_total\\nFROM class_area\\nORDER BY area_km2 DESC;\\n\\\"\\\"\\\").df()\\ndf4\"\n  },\n  {\n   \"cell_type\": \"markdown\",\n   \"id\": \"cell-11\",\n   \"metadata\": {},\n   \"source\": \"Here's the NLCD land cover composition (2024) for the top 30% combined-score hexes:\\n\\n### NLCD Land Cover in the Top 30% Priority Hexes\\n\\n| NLCD Code | Land Cover Class             | Area (km²) | % of Total |\\n|----------:|------------------------------|-----------:|-----------:|\\n|        41 | **Deciduous Forest**         |    252,157 | **32.80%** |\\n|        42 | **Evergreen Forest**         |    104,010 | **13.53%** |\\n|        81 | Hay/Pasture                  |     78,490 |     10.21% |\\n|        90 | **Woody Wetlands**           |     77,418 | **10.07%** |\\n|        43 | **Mixed Forest**             |     65,954 |  **8.58%** |\\n|        21 | Developed, Open Space        |     42,418 |      5.52% |\\n|        52 | Shrub/Scrub                  |     40,111 |      5.22% |\\n|        71 | Herbaceous (Grassland)       |     23,355 |      3.04% |\\n|        82 | Cultivated Crops             |     22,640 |      2.94% |\\n|        22 | Developed, Low Intensity     |     20,874 |      2.72% |\\n|        95 | Emergent Herbaceous Wetlands |     16,043 |      2.09% |\\n|        11 | Open Water                   |     13,935 |      1.81% |\\n|        23 | Developed, Medium Intensity  |      7,121 |      0.93% |\\n|        31 | Barren Land                  |      2,818 |      0.37% |\\n|        24 | Developed, High Intensity    |      1,461 |      0.19% |\\n|        12 | Perennial Ice/Snow           |        0.1 |        ~0% |\\n\\n**Total area: ~769,000 km²**\\n\\n### Key Takeaways\\n\\n- **Forests dominate** — Deciduous (32.8%), Evergreen (13.5%), and Mixed (8.6%) forest together account for **~55%** of the top-priority area. This aligns with both high irrecoverable carbon storage (forest biomass and soils) and high species richness (forest habitat diversity).\\n\\n- **Wetlands are disproportionately represented** — Woody Wetlands (10.1%) and Emergent Herbaceous Wetlands (2.1%) together make up **~12%**, well above their typical CONUS land cover share. Wetlands are critical for both carbon sequestration and biodiversity, which drives their high combined scores.\\n\\n- **Agricultural lands** (Hay/Pasture + Cultivated Crops) account for **~13%**, suggesting some priority areas overlap with working lands — potential conservation easement or sustainable agriculture opportunities.\\n\\n- **Developed land** is relatively low at **~9.4%** (mostly open-space development), reflecting that the highest-value carbon + biodiversity cells tend to be in less-urbanized landscapes.\\n\\n- **Shrub/Scrub and Grassland** together account for **~8.3%**, representing arid and semi-arid ecosystems that may have lower carbon but high species richness (especially in the Southwest).\"\n  },\n  {\n   \"cell_type\": \"markdown\",\n   \"id\": \"cell-12\",\n   \"metadata\": {},\n   \"source\": \"## 3. chart that as a bar chart\"\n  },\n  {\n   \"cell_type\": \"markdown\",\n   \"id\": \"cell-13\",\n   \"metadata\": {},\n   \"source\": \"Here is the land cover composition of the top 30% priority hexes as a bar chart. Deciduous forest leads at about 252,000 km², followed by evergreen forest and hay/pasture.\"\n  },\n  {\n   \"cell_type\": \"markdown\",\n   \"id\": \"cell-14\",\n   \"metadata\": {},\n   \"source\": \"## Data sources\\n\\n- MOBI Species Richness (All Taxa) - NatureServe, Esri, The Nature Conservancy.\\n  Hamilton, H., Smyth, R. L., Young, B. E., Howard, T. G., Tracey, C., Breyer, S., Cameron, D. R., Chazal, A., Conley, A. K., Frye, C., & Schloss, C. (2022). Increasing taxonomic diversity and spatial resolution clarifies opportunities for protecting US imperiled species. Ecological Applications, 32(3), e2534. https://doi.org/10.1002/eap.2534\\n  License: CC-BY-NC-4.0 (https://creativecommons.org/licenses/by-nc/4.0/)\\n  STAC: https://s3-west.nrp-nautilus.io/public-mobi/mobi-species-richness-all/stac-collection.json\\n- Irrecoverable Earth: Carbon Reserves (v2, 2025 release) - Conservation International.\\n  Cite as: https://doi.org/10.1038/s41893-021-00803-6\\n  License: CC-BY-NC-4.0 (https://creativecommons.org/licenses/by-nc/4.0/)\\n  STAC: https://s3-west.nrp-nautilus.io/public-carbon/stac-collection.json\\n- PAD-US 4.1 Combined - All Protection Types - USGS Gap Analysis Project.\\n  Cite as: https://doi.org/10.5066/P96WBCHS\\n  License: public-domain (https://www.usa.gov/government-works)\\n  STAC: https://s3-west.nrp-nautilus.io/public-padus/padus-4-1/combined/stac-collection.json\\n- Annual NLCD Land Cover & Land-Cover Change, CONUS 1985-2025 (Collection 1.2) - Multi-Resolution Land Characteristics (MRLC) Consortium / USGS EROS.\\n  License: public-domain\\n  STAC: https://s3-west.nrp-nautilus.io/public-land-cover/nlcd/stac-collection.json\"\n  }\n ],\n \"metadata\": {\n  \"kernelspec\": {\n   \"display_name\": \"Python 3\",\n   \"language\": \"python\",\n   \"name\": \"python3\"\n  },\n  \"language_info\": {\n   \"name\": \"python\"\n  }\n },\n \"nbformat\": 4,\n \"nbformat_minor\": 5\n}\n"}}</script>
+<script>
+(function () {
+  var data = document.getElementById('export-session-files');
+  var strip = document.querySelector('.export-download-controls');
+  if (!data || !strip) return;
+  var files = JSON.parse(data.textContent);
+  strip.addEventListener('click', function (e) {
+    var b = e.target && e.target.closest ? e.target.closest('button[data-download]') : null;
+    var f = b && files[b.getAttribute('data-download')];
+    if (!f) return;
+    var url = URL.createObjectURL(new Blob([f.text], { type: f.mime }));
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = b.getAttribute('data-download');
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(function () { URL.revokeObjectURL(url); }, 0);
+  });
 })();
 </script>
 </body>
