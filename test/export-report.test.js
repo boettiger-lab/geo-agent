@@ -3,6 +3,8 @@ import { describe, it, expect } from 'vitest';
 import {
     buildReportHtml, classifyStep, stepSql, isFailedStep, libraryVersion,
     sessionModels, chartIdOf, GLEN_PROJECT_URL,
+    sessionQueries, buildScript, buildQmd, buildIpynb, buildSessionFiles, wrapQuery, SPEED_NOTE,
+    datasetCitation, sessionDatasets,
 } from '../app/export-report.js';
 import { ChatUI, resolveExportConfig } from '../app/chat-ui.js';
 
@@ -49,6 +51,8 @@ describe('classifyStep', () => {
 
     it('sets failures aside, including a success:false envelope the registry let through', () => {
         expect(classifyStep(query(Q, 'Error: Binder Error'))).toBe('failed');
+        // The MCP server's spelling (seen in the 2026-10-01 TPL session).
+        expect(classifyStep(query(Q, 'SQL Error: Binder Error: Ambiguous reference to column name "h8"'))).toBe('failed');
         expect(isFailedStep(step({ name: 'set_legend', source: 'local', result: '{"success": false}' }))).toBe(true);
         expect(classifyStep(step({ name: 'query', source: 'error', result: 'x' }))).toBe('failed');
     });
@@ -325,5 +329,209 @@ describe('ChatUI session record', () => {
         ui.addMessage('error', 'LLM timeout');
         expect(ui.session.turns[0].notes).toEqual([{ role: 'error', text: 'LLM timeout' }]);
         expect(ui.session.turns[0].status).toBe('error');
+    });
+});
+
+describe('the session as a file to run', () => {
+    const HEX = "SELECT h8 FROM read_parquet('s3://public-x/hex/h0=*/data_0.parquet')";
+    const session = { turns: [
+        turn({ prompt: 'how many?\nper hex', steps: [
+            step({ name: 'get_schema', source: 'local', args: { dataset_id: 'x' } }),
+            query("SELECT nope FROM t", 'Error: Binder Error'),
+            query(),
+        ], answer: 'There are **3**.' }),
+        turn({ prompt: 'map it', steps: [step({ name: 'register_hex_tiles', args: { sql_query: HEX } })] }),
+        turn({ prompt: 'thanks' }),
+    ] };
+
+    it('keeps the queries that ran, numbered across the session, and drops failures and lookups', () => {
+        const turns = sessionQueries(session);
+        expect(turns.map(t => t.queries.map(q => [q.n, q.tool])))
+            .toEqual([[[1, 'query']], [[2, 'register_hex_tiles']], []]);
+        expect(turns[0].queries[0].sql).toBe(Q);
+    });
+
+    it('writes an R script: disclosure, setup, one outline section per question', () => {
+        const r = buildScript(session, 'r', { appTitle: 'App' });
+        expect(r).toMatch(/^# App - analysis session, October 1, 2026\n/);
+        expect(r).toContain(`# ${SPEED_NOTE}`);
+        expect(r).toContain('library(duckdb)');
+        // The prompt's newline must not escape the comment.
+        expect(r).toContain('# ---- 1. how many? per hex ----');
+        expect(r).toContain(wrapQuery(Q, 'r', 'df1'));
+        expect(r).toContain('print(head(df1, 20))');
+        expect(r).toContain('# In the app, this query was drawn on the map as hex tiles.\ndf2 <- ');
+        expect(r).toContain('# ---- 3. thanks ----\n# No queries ran for this question.');
+        expect(r).not.toContain('nope');
+    });
+
+    it('writes a Python script with editor cell markers', () => {
+        const py = buildScript(session, 'python', {});
+        expect(py).toContain('import duckdb');
+        expect(py).toContain('# %% 1. how many? per hex');
+        expect(py).toContain(`${wrapQuery(Q, 'python', 'df1')}\nprint(df1)`);
+    });
+
+    it('writes a Quarto document with the answers as prose', () => {
+        const qmd = buildQmd(session, { appTitle: 'Say "hi"' });
+        expect(qmd).toMatch(/^---\ntitle: "Say \\"hi\\" - analysis session, October 1, 2026"\nformat: html\n---/);
+        expect(qmd).toContain('::: {.callout-note}');
+        expect(qmd).toContain(SPEED_NOTE);
+        expect(qmd).toContain('```{r}\n#| label: setup\n');
+        expect(qmd).toContain('## 1. how many? per hex');
+        expect(qmd).toContain(`\`\`\`{r}\n${wrapQuery(Q, 'r', 'df1')}\nhead(df1, 20)\n\`\`\``);
+        expect(qmd).toContain('There are **3**.');
+    });
+
+    it('writes a valid nbformat 4.5 notebook with Python cells', () => {
+        const nb = JSON.parse(buildIpynb(session, {}));
+        expect(nb.nbformat).toBe(4);
+        expect(nb.nbformat_minor).toBe(5);
+        expect(nb.metadata.kernelspec.name).toBe('python3');
+        const ids = nb.cells.map(c => c.id);
+        expect(new Set(ids).size).toBe(ids.length);
+        for (const c of nb.cells.filter(c => c.cell_type === 'code')) {
+            expect(c.outputs).toEqual([]);
+            expect(c.execution_count).toBe(null);
+        }
+        const code = nb.cells.filter(c => c.cell_type === 'code').map(c => c.source);
+        expect(code[0]).toContain('import duckdb');
+        expect(code[1]).toBe(`${wrapQuery(Q, 'python', 'df1')}\ndf1`);
+        expect(nb.cells[0].source).toContain(SPEED_NOTE);
+        expect(nb.cells.map(c => c.source)).toContain('There are **3**.');
+    });
+
+    it('scrubs credentials from every form', () => {
+        const leaky = { turns: [turn({ steps: [query(
+            "SELECT 1 FROM read_parquet('https://b.s3.amazonaws.com/k?X-Amz-Signature=deadbeef1234')")] })] };
+        for (const f of buildSessionFiles(leaky)) expect(f.text).not.toContain('deadbeef1234');
+    });
+
+    it('names the files after the report', () => {
+        expect(buildSessionFiles(session, { basename: 'glen-session-x' }).map(f => f.filename))
+            .toEqual(['glen-session-x.R', 'glen-session-x.py', 'glen-session-x.qmd', 'glen-session-x.ipynb']);
+    });
+});
+
+describe('the report: downloads and the speed note', () => {
+    it('offers each file, embedded, when the session ran a query', () => {
+        const { html, doc } = report([turn({ steps: [query()] })], { basename: 'b' });
+        expect([...doc.querySelectorAll('.export-download-controls button')].map(b => b.dataset.download))
+            .toEqual(['b.R', 'b.py', 'b.qmd', 'b.ipynb']);
+        const files = JSON.parse(doc.getElementById('export-session-files').textContent);
+        expect(files['b.R'].text).toContain(wrapQuery(Q, 'r', 'df1'));
+        expect(html).toContain("getElementById('export-session-files')");
+    });
+
+    it('cannot be broken out of by a query that closes a script tag', () => {
+        const sql = "SELECT '</script><img src=x onerror=alert(1)>' AS s";
+        const { html, doc } = report([turn({ steps: [query(sql)] })]);
+        const block = /<script type="application\/json" id="export-session-files">([\s\S]*?)<\/script>/.exec(html)[1];
+        expect(block).not.toContain('<');
+        const files = JSON.parse(doc.getElementById('export-session-files').textContent);
+        expect(Object.values(files)[0].text).toContain(sql);
+    });
+
+    it('offers nothing to download when no query ran', () => {
+        const { doc } = report([turn({})]);
+        expect(doc.querySelector('.export-download-controls')).toBe(null);
+        expect(doc.getElementById('export-session-files')).toBe(null);
+        expect(doc.querySelector('.export-print-btn')).not.toBe(null);
+    });
+
+    it('says the queries ran on fast servers, and links them', () => {
+        const { doc } = report([turn({})], { projectUrl: 'https://glen.example.org/' });
+        const speed = doc.querySelector('.report-disclosure-speed');
+        expect(speed.textContent).toMatch(/high-speed servers/);
+        expect(speed.textContent).toMatch(/personal computer/);
+        expect(speed.querySelector('a').getAttribute('href')).toBe('https://glen.example.org/');
+    });
+});
+
+describe('data sources', () => {
+    const stac = (id, assets, over = {}) => ({
+        id, title: `${id} title`, license: 'CC-BY-4.0',
+        providers: [{ name: `${id} lab`, roles: ['producer'] }, { name: 'Boettiger Lab', roles: ['host'] }],
+        links: [{ rel: 'self', href: `https://stac.example/${id}.json` }],
+        assets: Object.fromEntries(assets.map((href, i) => [`a${i}`, { href, type: 'application/vnd.apache.parquet' }])),
+        ...over,
+    });
+    const entry = (c) => ({ id: c.id, _rawStac: c });
+    const H = 'https://s3-west.nrp-nautilus.io';
+    const mobi = stac('mobi', [`${H}/public-mobi/richness/hex/h0=*/data_0.parquet`], {
+        'sci:citation': 'Hamilton, H. et al. (2022). Ecological Applications. https://doi.org/10.1002/eap.2534',
+        'sci:doi': '10.1002/eap.2534',
+    });
+    const nlcd = stac('nlcd', [`${H}/public-land-cover/nlcd/hex-fractions/year=*/h0=*/data_0.parquet`]);
+    // A parent that lists its child's asset, as catalog containers do.
+    // Its asset is a shorter prefix of the child's path; the child must win.
+    const parent = stac('land-cover', [`${H}/public-land-cover/nlcd/`]);
+    const carbon = stac('carbon', [`${H}/public-carbon/hex/h0=*/data_0.parquet`], {
+        links: [{ rel: 'self', href: 'https://stac.example/carbon.json' },
+                { rel: 'cite-as', href: 'https://doi.org/10.1038/s41893-021-00803-6' },
+                { rel: 'about', href: 'https://example.org/carbon' }],
+    });
+    const entries = [mobi, nlcd, parent, carbon].map(entry);
+    const q = (sql, result = '| n |\n|---|\n| 1 |') => query(sql, result);
+
+    it('takes the citation, DOI, license, producers and STAC link from the record', () => {
+        const d = datasetCitation(mobi);
+        expect(d).toMatchObject({ title: 'mobi title', license: 'CC-BY-4.0', producers: ['mobi lab'],
+            stacUrl: 'https://stac.example/mobi.json', doiUrl: 'https://doi.org/10.1002/eap.2534' });
+        expect(d.citation).toMatch(/^Hamilton/);
+        expect(datasetCitation(carbon)).toMatchObject({ citation: null,
+            doiUrl: 'https://doi.org/10.1038/s41893-021-00803-6', aboutUrl: 'https://example.org/carbon' });
+        expect(datasetCitation({ id: 'bare', links: [] }, 'https://x/bare.json'))
+            .toMatchObject({ title: 'bare', stacUrl: 'https://x/bare.json', doiUrl: null, producers: [] });
+    });
+
+    it('finds what the queries read, in order, through globs, and cites the child over its parent', () => {
+        const ds = sessionDatasets({ turns: [
+            turn({ steps: [q("SELECT * FROM read_parquet('s3://public-land-cover/nlcd/hex-fractions/year=2024/h0=*/data_0.parquet')")] }),
+            turn({ steps: [q(`SELECT * FROM read_parquet('s3://public-mobi/richness/hex/**') m JOIN '${H}/public-carbon/hex/h0=3/data_0.parquet' c USING (h8)`)] }),
+        ] }, entries);
+        expect(ds.map(d => d.id)).toEqual(['nlcd', 'mobi', 'carbon']);
+        expect(ds.every(d => d.queried && !d.mapped)).toBe(true);
+    });
+
+    it('ignores failed queries, and adds datasets shown on the map', () => {
+        const ds = sessionDatasets({ turns: [turn({ steps: [
+            q("SELECT * FROM read_parquet('s3://public-mobi/richness/hex/**')", 'SQL Error: nope'),
+        ] })] }, entries, ['carbon', 'not-in-catalog']);
+        expect(ds.map(d => [d.id, d.queried, d.mapped])).toEqual([['carbon', false, true]]);
+    });
+
+    it('renders a Data sources section with a contents entry', () => {
+        const ds = sessionDatasets({ turns: [turn({ steps: [q("SELECT 1 FROM 's3://public-mobi/richness/hex/**'")] })] },
+            [entry({ ...mobi, title: 'Mobi <b>' }), entry(carbon)], ['carbon']);
+        const { doc } = report([turn({ prompt: 'a' }), turn({ prompt: 'b' })], { datasets: ds });
+        const items = [...doc.querySelectorAll('#data-sources li')];
+        expect(items.length).toBe(2);
+        expect(items[0].querySelector('.ds-title').textContent).toContain('Mobi <b>');
+        // The DOI is already in the citation, so it is not repeated.
+        expect(items[0].querySelector('.ds-citation').textContent.match(/10\.1002\/eap\.2534/g).length).toBe(1);
+        expect(items[0].querySelector('a[href="https://stac.example/mobi.json"]')).not.toBe(null);
+        // …and the DOI inside the citation text is a link, without its trailing punctuation.
+        expect(items[0].querySelector('.ds-citation a').getAttribute('href')).toBe('https://doi.org/10.1002/eap.2534');
+        expect(items[1].querySelector('.ds-citation').textContent).toContain('Cite as https://doi.org/10.1038/s41893-021-00803-6');
+        expect(items[1].querySelector('.ds-meta').textContent).toContain('mapped in this session');
+        expect(doc.querySelector('.report-toc a[href="#data-sources"]')).not.toBe(null);
+    });
+
+    it('leaves the section out when nothing was cited', () => {
+        const { doc } = report([turn({ prompt: 'a' }), turn({ prompt: 'b' })]);
+        expect(doc.getElementById('data-sources')).toBe(null);
+        expect(doc.querySelector('.report-toc a[href="#data-sources"]')).toBe(null);
+    });
+
+    it('carries the citations into every downloaded file', () => {
+        const record = { turns: [turn({ steps: [query()] })] };
+        const datasets = [{ ...datasetCitation(carbon), queried: true, mapped: false }];
+        for (const f of buildSessionFiles(record, { datasets })) {
+            expect(f.text).toContain('Data sources');
+            expect(f.text).toContain('https://doi.org/10.1038/s41893-021-00803-6');
+            expect(f.text).toContain('https://stac.example/carbon.json');
+        }
+        expect(buildScript(record, 'r', { datasets })).toContain('# ---- Data sources ----');
     });
 });

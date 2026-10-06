@@ -25,6 +25,7 @@ import {
     buildReportHtml,
     chartIdOf,
     libraryVersion,
+    sessionDatasets,
 } from './export-report.js';
 
 // Re-exported so existing importers (and tests) keep resolving them here.
@@ -67,6 +68,8 @@ export class ChatUI {
         this.exportConfig = resolveExportConfig(config);
         this.mapManager = mapManager;
         this.chartRenderer = chartRenderer;
+        // Set by main.js; the export cites the datasets a session used from it.
+        this.catalog = null;
         this.busy = false;
 
         // Cache DOM refs from layout-manager (no getElementById here).
@@ -1185,6 +1188,8 @@ export class ChatUI {
             projectUrl: exportCfg.projectUrl,
             version: libraryVersion(),
             mapEmbed: buildMapEmbedHtml(mapState, { filename: this._exportFilename() }),
+            basename: this._exportFilename().replace(/\.html$/, ''),
+            datasets: this._exportDatasets(),
         });
 
         try {
@@ -1201,6 +1206,22 @@ export class ChatUI {
             console.error('[ChatUI] Export failed:', err);
             this.addMessage('error',
                 "couldn't generate download — your browser may not support file downloads");
+        }
+    }
+
+    /**
+     * The datasets the session used, for the report's Data sources section.
+     * Guarded like the map: a failure costs the citations, not the export.
+     */
+    _exportDatasets() {
+        try {
+            const entries = this.catalog?.getAll?.() || [];
+            const onMap = [...(this.mapManager?.layers?.values?.() || [])]
+                .filter(s => s.visible && s.datasetId).map(s => s.datasetId);
+            return sessionDatasets(this._session(), entries, onMap);
+        } catch (err) {
+            console.warn('[ChatUI] data-source capture for export failed:', err);
+            return [];
         }
     }
 

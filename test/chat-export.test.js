@@ -162,7 +162,7 @@ describe('buildSetupSnippet (#368 §3)', () => {
         const out = buildSetupSnippet('r');
         expect(out).toContain('library(duckdb)');
         expect(out).toContain('con <- dbConnect(duckdb())');
-        expect(out).toContain('dbExecute(con, "INSTALL httpfs; LOAD httpfs;")');
+        expect(out).toContain('dbExecute(con, "INSTALL httpfs; LOAD httpfs; INSTALL h3 FROM community; LOAD h3;")');
         expect(out).toContain(`ENDPOINT '${PUBLIC_S3_ENDPOINT}'`);
     });
 
@@ -203,9 +203,15 @@ describe('buildDuckdbSetupSql', () => {
 
     it('carries no credentials — anonymous access is the point', () => {
         const sql = buildDuckdbSetupSql();
-        expect(sql).not.toMatch(/KEY_ID/i);
-        // `SECRET` appears only as the CREATE SECRET keyword, never as a value.
-        expect(sql).not.toMatch(/\bSECRET\s+'/i);
+        // Explicitly empty: omitted, DuckDB picks up any AWS credentials in
+        // the reader's environment and the public bucket refuses them (403).
+        expect(sql).toMatch(/KEY_ID '',/);
+        expect(sql).toMatch(/\bSECRET '',/);
+        expect(sql).not.toMatch(/(KEY_ID|\bSECRET)\s+'[^']+'/i);
+    });
+
+    it('loads h3, which the agent\'s queries call and a fresh DuckDB lacks', () => {
+        expect(buildDuckdbSetupSql()).toContain('INSTALL h3 FROM community; LOAD h3;');
     });
 
     it('survives the credential scrub unchanged', () => {
@@ -294,6 +300,11 @@ describe('scrubCredentials', () => {
     it('leaves plain prose mentioning KEY_ID alone (no quoted value follows)', () => {
         const prose = 'You must provide your KEY_ID before running this query.';
         expect(scrubCredentials(prose)).toBe(prose);
+    });
+
+    it("leaves an empty KEY_ID '' / SECRET '' alone — that is the anonymous spelling", () => {
+        const sql = "CREATE SECRET p (TYPE s3, KEY_ID '', SECRET '', ENDPOINT 'x')";
+        expect(scrubCredentials(sql)).toBe(sql);
     });
 
     it('returns empty input unchanged', () => {

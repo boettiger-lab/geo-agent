@@ -92,9 +92,17 @@ export function resolveExportConfig(config = {}) {
  * expand a glob over plain HTTP — there is no listing. Under a configured
  * S3 secret DuckDB lists via the S3 API and the glob resolves.
  *
- * Deliberately credential-free: an omitted KEY_ID/SECRET means unsigned
- * requests, which is what public buckets want, and keeps the block clear of
- * {@link scrubCredentials}' `SECRET '…'` pattern.
+ * Deliberately credential-free, and explicitly so: `KEY_ID ''` / `SECRET ''`
+ * means unsigned requests, which is what public buckets want. Omitting the
+ * pair is not enough: DuckDB then falls back to any AWS credentials in the
+ * reader's environment (`AWS_ACCESS_KEY_ID`, an R user's `~/.Renviron`),
+ * signs with them, and the public bucket answers 403 InvalidAccessKeyId.
+ * {@link scrubCredentials} leaves empty values alone, so the block survives
+ * it.
+ *
+ * Also loads the `h3` community extension: the data is H3-indexed and the
+ * agent's queries call `h3_*` functions, which the server has loaded and a
+ * fresh DuckDB does not.
  *
  * @param {string} [endpoint] - S3 host, no scheme
  * @returns {string} SQL to run once before the transcript's queries
@@ -102,10 +110,13 @@ export function resolveExportConfig(config = {}) {
 export function buildDuckdbSetupSql(endpoint = PUBLIC_S3_ENDPOINT) {
     const host = normalizeS3Host(endpoint);
     return `INSTALL httpfs; LOAD httpfs;
+INSTALL h3 FROM community; LOAD h3;
 
 CREATE OR REPLACE SECRET public_s3 (
     TYPE s3,
     PROVIDER config,
+    KEY_ID '',
+    SECRET '',
     ENDPOINT '${host}',
     URL_STYLE 'path',
     USE_SSL true
@@ -169,7 +180,7 @@ function pyString(sql) {
 export function buildSetupSnippet(lang, endpoint = PUBLIC_S3_ENDPOINT) {
     const host = normalizeS3Host(endpoint);
     const secret =
-        `CREATE OR REPLACE SECRET public_s3 (TYPE s3, PROVIDER config, ` +
+        `CREATE OR REPLACE SECRET public_s3 (TYPE s3, PROVIDER config, KEY_ID '', SECRET '', ` +
         `ENDPOINT '${host}', URL_STYLE 'path', USE_SSL true);`;
 
     if (lang === 'r') {
@@ -178,7 +189,7 @@ library(duckdb)
 
 con <- dbConnect(duckdb())
 # invisible() keeps dbExecute's row count from printing at the console
-invisible(dbExecute(con, "INSTALL httpfs; LOAD httpfs;"))
+invisible(dbExecute(con, "INSTALL httpfs; LOAD httpfs; INSTALL h3 FROM community; LOAD h3;"))
 invisible(dbExecute(con, "${secret}"))`;
     }
 
@@ -187,7 +198,7 @@ invisible(dbExecute(con, "${secret}"))`;
 import duckdb
 
 con = duckdb.connect()
-con.execute("INSTALL httpfs; LOAD httpfs;")
+con.execute("INSTALL httpfs; LOAD httpfs; INSTALL h3 FROM community; LOAD h3;")
 con.execute("${secret}")`;
     }
 
@@ -201,12 +212,13 @@ con.execute("${secret}")`;
  *
  * @param {string} sql
  * @param {string} lang - 'sql' | 'r' | 'python'
+ * @param {string} [name] - the variable the result lands in
  * @returns {string}
  */
-export function wrapQuery(sql, lang) {
+export function wrapQuery(sql, lang, name = 'df') {
     const body = String(sql ?? '').replace(/\s+$/, '');
-    if (lang === 'r') return `df <- dbGetQuery(con, ${rRawString(body)})`;
-    if (lang === 'python') return `df = con.sql(${pyString(body)}).df()`;
+    if (lang === 'r') return `${name} <- dbGetQuery(con, ${rRawString(body)})`;
+    if (lang === 'python') return `${name} = con.sql(${pyString(body)}).df()`;
     return body;
 }
 
@@ -285,9 +297,10 @@ export function scrubCredentials(text) {
 
     let out = text;
 
-    // DuckDB CREATE SECRET — KEY_ID 'value' / SECRET 'value'
-    out = out.replace(/(KEY_ID)\s+'[^']*'/gi, '$1 [REDACTED]');
-    out = out.replace(/(\bSECRET)\s+'[^']*'/gi, '$1 [REDACTED]');
+    // DuckDB CREATE SECRET — KEY_ID 'value' / SECRET 'value'. An empty value
+    // is the anonymous-access spelling and hides nothing, so it stays.
+    out = out.replace(/(KEY_ID)\s+'[^']+'/gi, '$1 [REDACTED]');
+    out = out.replace(/(\bSECRET)\s+'[^']+'/gi, '$1 [REDACTED]');
 
     // json/yaml/python access key assignments
     out = out.replace(
@@ -561,15 +574,17 @@ export function stepSql(step) {
 }
 
 /**
- * Whether a step failed. Mirrors `Agent#_isFailedResult`: a registry error,
- * an `Error…` string, or a tool's `{"success": false}` envelope — the
- * registry marks `success: true` whenever the tool didn't throw.
+ * Whether a step failed: a registry error, an `Error…` string, the MCP
+ * server's `SQL Error: …`, or a tool's `{"success": false}` envelope — the
+ * registry marks `success: true` whenever the tool didn't throw. Stricter
+ * than `Agent#_isFailedResult`, which misses `SQL Error`: a failed query in
+ * the report body is a failed line in every downloaded script.
  */
 export function isFailedStep(step) {
     if (!step) return false;
     if (step.success === false || step.source === 'error') return true;
     const s = typeof step.result === 'string' ? step.result : '';
-    return /^\s*Error\b/.test(s) || /"success"\s*:\s*false/.test(s);
+    return /^\s*(SQL\s+)?Error\b/.test(s) || /"success"\s*:\s*false/.test(s);
 }
 
 /**
@@ -820,6 +835,425 @@ ${items}
 </section>`;
 }
 
+/* ------------------------------------------------------------------ */
+/*  Data sources: which datasets the session used, and how to cite them */
+/* ------------------------------------------------------------------ */
+
+/**
+ * The citation fields of one STAC collection, as a plain object the report
+ * and the scripts render. The catalog's metadata is uneven — some collections
+ * carry a full `sci:citation`, some only a `cite-as` DOI link, some neither —
+ * so every field but the title and STAC link may be missing.
+ *
+ * @param {object} stac - a STAC collection
+ * @param {string} [fallbackUrl] - where it was fetched from, if it has no `self` link
+ * @returns {{id: string, title: string, stacUrl: string|null, aboutUrl: string|null,
+ *            producers: string[], license: string|null, licenseUrl: string|null,
+ *            citation: string|null, doiUrl: string|null}}
+ */
+export function datasetCitation(stac, fallbackUrl = null) {
+    const links = Array.isArray(stac?.links) ? stac.links : [];
+    const link = (...rels) => links.find(l => rels.includes(l.rel) && l.href)?.href || null;
+    const doi = typeof stac?.['sci:doi'] === 'string' && stac['sci:doi'].trim();
+    const producers = (stac?.providers || [])
+        .filter(p => p?.name && (p.roles || []).some(r => r === 'producer' || r === 'licensor'))
+        .map(p => p.name);
+    return {
+        id: stac?.id || '',
+        title: stac?.title || stac?.id || 'Untitled dataset',
+        stacUrl: link('self') || fallbackUrl,
+        aboutUrl: link('about'),
+        producers,
+        license: stac?.license || null,
+        licenseUrl: link('license'),
+        citation: typeof stac?.['sci:citation'] === 'string' ? stac['sci:citation'].trim() || null : null,
+        doiUrl: doi ? (/^https?:\/\//.test(doi) ? doi : `https://doi.org/${doi}`) : link('cite-as'),
+    };
+}
+
+/** Every `s3://` or `http(s)://` path a query names. */
+function sqlPaths(sql) {
+    return String(sql || '').match(/\b(?:s3|https?):\/\/[^\s'"`)]+/g) || [];
+}
+
+/**
+ * A path as a comparable prefix: `https://host/bucket/key` and
+ * `s3://bucket/key` are the same object under the export's path-style setup,
+ * and the directory a glob sits in ends the part that names the dataset
+ * (`…/hex-fractions/year=*` → `…/hex-fractions`, so `year=2024/…` matches).
+ */
+function pathPrefix(path) {
+    let p = String(path).replace(/^https?:\/\/[^/]+\//, 's3://');
+    const glob = p.search(/[*?[{]/);
+    if (glob >= 0) p = p.slice(0, p.lastIndexOf('/', glob));
+    return p.replace(/\/+$/, '');
+}
+
+/** The parquet asset prefixes a collection itself holds (not its children's). */
+function ownParquetPrefixes(stac) {
+    return Object.values(stac?.assets || {})
+        .filter(a => a?.href && (String(a.type || '').includes('parquet') ||
+            /\.parquet$|\/hex\/*$/.test(a.href)))
+        .map(a => pathPrefix(a.href))
+        // A bare bucket would claim every query that reads from it.
+        .filter(p => /^s3:\/\/[^/]+\/.+/.test(p));
+}
+
+/**
+ * The datasets a session used: those its successful queries read, in the
+ * order first read, then those shown on the exported map. A query path goes
+ * to the collection whose own asset is the longest prefix of it, so a child
+ * collection is cited rather than the parent that lists it.
+ *
+ * @param {{turns: object[]}} record - the session
+ * @param {{id: string, _rawStac: object}[]} entries - catalog entries (DatasetCatalog#getAll)
+ * @param {string[]} [mapDatasetIds] - datasets with a layer visible on the exported map
+ * @returns {(ReturnType<typeof datasetCitation> & {queried: boolean, mapped: boolean})[]}
+ */
+export function sessionDatasets(record, entries = [], mapDatasetIds = []) {
+    const prefixes = [];
+    for (const e of entries) {
+        for (const p of ownParquetPrefixes(e?._rawStac)) prefixes.push({ p, e });
+    }
+    prefixes.sort((a, b) => b.p.length - a.p.length);
+
+    const used = new Map();
+    const use = (e, how) => {
+        if (!used.has(e.id)) used.set(e.id, { ...datasetCitation(e._rawStac), queried: false, mapped: false });
+        used.get(e.id)[how] = true;
+    };
+    for (const t of record?.turns || []) {
+        for (const s of t.steps || []) {
+            if (classifyStep(s) !== 'chunk') continue;
+            for (const path of sqlPaths(stepSql(s))) {
+                const target = pathPrefix(path);
+                const hit = prefixes.find(({ p }) => target === p || target.startsWith(p + '/'));
+                if (hit) use(hit.e, 'queried');
+            }
+        }
+    }
+    const byId = new Map(entries.filter(e => e?._rawStac).map(e => [e.id, e]));
+    for (const id of mapDatasetIds) if (byId.has(id)) use(byId.get(id), 'mapped');
+    return [...used.values()];
+}
+
+/** How the session used a dataset, in a few words. */
+function datasetUse(d) {
+    return d.queried && d.mapped ? 'queried and mapped' : d.queried ? 'queried' : 'mapped';
+}
+
+/** One dataset as plain text lines, for a script comment or a notebook. */
+function datasetTextLines(d) {
+    const lines = [d.title + (d.producers.length ? ` - ${d.producers.join(', ')}` : '') + '.'];
+    if (d.citation) lines.push(d.citation);
+    if (d.doiUrl && !(d.citation || '').includes(d.doiUrl.replace(/^https?:\/\/(dx\.)?doi\.org\//, ''))) {
+        lines.push(`Cite as: ${d.doiUrl}`);
+    }
+    if (d.license) lines.push(`License: ${d.license}${d.licenseUrl ? ` (${d.licenseUrl})` : ''}`);
+    if (d.stacUrl) lines.push(`STAC: ${d.stacUrl}`);
+    return lines;
+}
+
+/** The Data sources section as markdown, for the notebooks. */
+function datasetsMarkdown(datasets) {
+    return '## Data sources\n\n' + datasets.map(d => {
+        const [first, ...rest] = datasetTextLines(d);
+        return `- ${oneLine(first)}` + rest.map(l => `\n  ${oneLine(l)}`).join('');
+    }).join('\n');
+}
+
+/** Make the DOI URLs in already-escaped citation text into links. */
+function linkDois(html) {
+    return html.replace(/https?:\/\/(?:dx\.)?doi\.org\/[^\s<]+?(?=[.,;)]?(?:\s|$))/g, u => `<a href="${u}">${u}</a>`);
+}
+
+/** The report's Data sources section. */
+function dataSourcesHtml(datasets) {
+    if (!datasets?.length) return '';
+    const a = (href, text) => href ? `<a href="${escapeHtmlText(href)}">${text}</a>` : text;
+    const items = datasets.map(d => {
+        const title = `<strong>${escapeHtmlText(d.title)}</strong>`;
+        const by = d.producers.length ? ` — ${escapeHtmlText(d.producers.join(', '))}` : '';
+        const doiShown = d.doiUrl && (d.citation || '').includes(d.doiUrl.replace(/^https?:\/\/(dx\.)?doi\.org\//, ''));
+        const cite = d.citation
+            ? `<p class="ds-citation">${linkDois(escapeHtmlText(d.citation))}${d.doiUrl && !doiShown ? ` ${a(d.doiUrl, escapeHtmlText(d.doiUrl))}` : ''}</p>`
+            : d.doiUrl ? `<p class="ds-citation">Cite as ${a(d.doiUrl, escapeHtmlText(d.doiUrl))}</p>`
+            : `<p class="ds-citation ds-none">The catalog gives no formal citation; cite the producer.</p>`;
+        const meta = [
+            d.license ? `License: ${a(d.licenseUrl, escapeHtmlText(d.license))}` : '',
+            d.stacUrl ? a(d.stacUrl, 'STAC record') : '',
+            d.aboutUrl ? a(d.aboutUrl, 'About') : '',
+            escapeHtmlText(datasetUse(d)) + ' in this session',
+        ].filter(Boolean).join(' · ');
+        return `<li><p class="ds-title">${title}${by}</p>${cite}<p class="ds-meta">${meta}</p></li>`;
+    }).join('\n');
+    return `<section class="report-sources" id="data-sources">
+<h2>Data sources</h2>
+<p class="report-appendix-note">The datasets this session's queries read or its map showed, with the citation their catalog record gives.</p>
+<ol class="ds-list">
+${items}
+</ol>
+</section>`;
+}
+
+/* ------------------------------------------------------------------ */
+/*  The session as a file to run: .R, .py, .qmd, .ipynb                */
+/* ------------------------------------------------------------------ */
+
+/**
+ * The note every exported form carries beside the AI disclosure: the app ran
+ * these queries on servers sitting next to the data, and a laptop pulling the
+ * same parquet over the internet will not keep pace. Without it, a reader
+ * whose re-run takes twenty minutes concludes the code is broken.
+ */
+export const SPEED_NOTE =
+    'GLEN apps run these queries on high-speed servers next to the data. ' +
+    'Re-run on a personal computer, large queries may take much longer.';
+// The report's HTML disclosure says the same, with the link inline.
+
+/**
+ * Files the report offers beside print-to-PDF. Scripts for people who will
+ * run it top to bottom; notebooks for people who will step through it with
+ * the questions and answers in between. One language per notebook, the one
+ * each format's users mostly reach for.
+ */
+export const SCRIPT_FORMATS = [
+    { id: 'r', ext: 'R', label: 'R script', mime: 'text/plain' },
+    { id: 'python', ext: 'py', label: 'Python script', mime: 'text/x-python' },
+    { id: 'qmd', ext: 'qmd', label: 'Quarto notebook (R)', mime: 'text/markdown' },
+    { id: 'ipynb', ext: 'ipynb', label: 'Jupyter notebook (Python)', mime: 'application/x-ipynb+json' },
+];
+
+/** What a chunk's query became in the app, when that was not a table. */
+const QUERY_EFFECT = {
+    register_hex_tiles: 'In the app, this query was drawn on the map as hex tiles.',
+    filter_by_query: 'In the app, this query filtered the map.',
+    render_chart: 'In the app, this query was plotted as a chart.',
+};
+
+/**
+ * The runnable part of a session: each question with the queries that
+ * succeeded under it, numbered across the whole session so every result keeps
+ * its own variable. Failed attempts and lookups stay in the report's log.
+ *
+ * @param {{turns: object[]}} record
+ * @returns {{prompt: string, answer: string|null, queries: {sql: string, tool: string, n: number}[]}[]}
+ */
+export function sessionQueries(record) {
+    let n = 0;
+    return (record?.turns || []).filter(t => t.prompt != null).map(t => ({
+        prompt: scrubCredentials(String(t.prompt)),
+        answer: t.answer ? scrubCredentials(t.answer) : null,
+        queries: (t.steps || [])
+            .filter(s => classifyStep(s) === 'chunk' && stepSql(s))
+            .map(s => ({ sql: scrubCredentials(stepSql(s)), tool: s.name, n: ++n })),
+    }));
+}
+
+/** A single line, safe inside a `#` comment or a markdown heading. */
+function oneLine(text) {
+    return String(text ?? '').replace(/\s+/g, ' ').trim();
+}
+
+/**
+ * The disclosure, as plain sentences for a comment or a callout. Notebooks
+ * carry the model's answers; scripts leave them in the report.
+ */
+function plainDisclosure(record, opts, answersHere = false) {
+    const models = sessionModels(record).map(m => m.id);
+    const using = models.length ? ` using ${models.join(', ')}` : '';
+    const version = opts.version ? ` ${opts.version}` : '';
+    return [
+        `Generated with GLEN${version} (${opts.projectUrl || GLEN_PROJECT_URL})${using}.`,
+        'The queries are exactly what the agent ran; the questions are the user\'s words.',
+        `${answersHere ? 'The answers between the code' : 'Answers in the report'} were written by the model - ` +
+            'check them against the code and its output.',
+        SPEED_NOTE,
+    ];
+}
+
+/** Title line, dated by the session as the report's subtitle is. */
+function scriptTitle(record, opts) {
+    const dates = [...new Set((record?.turns || []).map(t => formatDate(t.startedAt)).filter(Boolean))];
+    const date = dates.length ? dates.join(' - ') : formatDate((opts.exportedAt || new Date()).toISOString());
+    return `${opts.appTitle || 'GLEN'} - analysis session${date ? ', ' + date : ''}`;
+}
+
+/**
+ * The line that shows a result. R prints a data frame in full, which for a
+ * hex-tile query is every hex, so it gets the report's row cap; pandas
+ * truncates its own display.
+ */
+function showResult(name, lang) {
+    return lang === 'r' ? `head(${name}, ${OUTPUT_TABLE_ROWS})` : name;
+}
+
+/**
+ * The session as a plain `.R` or `.py` script: the setup block, then each
+ * question as a section header with its queries beneath, each result printed.
+ * Sections use the editors' outline markers (`# ---- … ----` in RStudio,
+ * `# %%` cells in VS Code and Spyder).
+ *
+ * @param {{turns: object[]}} record
+ * @param {'r'|'python'} lang
+ * @param {object} [opts] - as {@link buildReportHtml}
+ * @returns {string}
+ */
+export function buildScript(record, lang, opts = {}) {
+    const out = [];
+    const comment = (line) => out.push(line ? `# ${line}` : '#');
+    comment(oneLine(scriptTitle(record, opts)));
+    comment('');
+    plainDisclosure(record, opts).forEach(comment);
+    if (lang === 'r') comment('Needs R >= 4.0 for the raw strings around each query.');
+    out.push('');
+    out.push(buildSetupSnippet(lang, opts.s3Endpoint));
+
+    for (const [i, t] of sessionQueries(record).entries()) {
+        out.push('');
+        const heading = `${i + 1}. ${oneLine(t.prompt)}`;
+        out.push(lang === 'r' ? `# ---- ${heading} ----` : `# %% ${heading}`);
+        if (!t.queries.length) comment('No queries ran for this question.');
+        for (const q of t.queries) {
+            out.push('');
+            if (QUERY_EFFECT[q.tool]) comment(QUERY_EFFECT[q.tool]);
+            out.push(wrapQuery(q.sql, lang, `df${q.n}`));
+            out.push(`print(${showResult(`df${q.n}`, lang)})`);
+        }
+    }
+    if (opts.datasets?.length) {
+        out.push('', lang === 'r' ? '# ---- Data sources ----' : '# %% Data sources');
+        for (const d of opts.datasets) {
+            comment('');
+            datasetTextLines(d).forEach((l, i) => comment(i ? `  ${oneLine(l)}` : `- ${oneLine(l)}`));
+        }
+    }
+    return out.join('\n') + '\n';
+}
+
+/**
+ * The session as a Quarto document with R chunks: the disclosure as a
+ * callout, the setup chunk, then each question as a heading with its queries
+ * and the model's answer as prose — the report, but live.
+ *
+ * @param {{turns: object[]}} record
+ * @param {object} [opts] - as {@link buildReportHtml}
+ * @returns {string}
+ */
+export function buildQmd(record, opts = {}) {
+    const chunk = (code, label) =>
+        '```{r}\n' + (label ? `#| label: ${label}\n` : '') + code + '\n```';
+    const out = [
+        '---',
+        // A JSON string is a valid YAML double-quoted scalar.
+        `title: ${JSON.stringify(oneLine(scriptTitle(record, opts)))}`,
+        'format: html',
+        '---',
+        '',
+        '::: {.callout-note}',
+        plainDisclosure(record, opts, true).join(' '),
+        ':::',
+        '',
+        chunk(buildSetupSnippet('r', opts.s3Endpoint), 'setup'),
+    ];
+    for (const [i, t] of sessionQueries(record).entries()) {
+        out.push('', `## ${i + 1}. ${oneLine(t.prompt)}`);
+        for (const q of t.queries) {
+            out.push('');
+            if (QUERY_EFFECT[q.tool]) out.push(QUERY_EFFECT[q.tool], '');
+            out.push(chunk(`${wrapQuery(q.sql, 'r', `df${q.n}`)}\n${showResult(`df${q.n}`, 'r')}`));
+        }
+        if (t.answer) out.push('', t.answer.trim());
+    }
+    if (opts.datasets?.length) out.push('', datasetsMarkdown(opts.datasets));
+    return out.join('\n') + '\n';
+}
+
+/**
+ * The session as a Jupyter notebook (nbformat 4.5) with Python cells, laid
+ * out as {@link buildQmd}: disclosure, setup, then question → queries → answer.
+ *
+ * @param {{turns: object[]}} record
+ * @param {object} [opts] - as {@link buildReportHtml}
+ * @returns {string} the notebook JSON
+ */
+export function buildIpynb(record, opts = {}) {
+    const cells = [];
+    const md = (text) => cells.push({
+        cell_type: 'markdown', id: `cell-${cells.length + 1}`, metadata: {}, source: text,
+    });
+    const code = (text) => cells.push({
+        cell_type: 'code', id: `cell-${cells.length + 1}`, metadata: {},
+        execution_count: null, outputs: [], source: text,
+    });
+
+    md(`# ${oneLine(scriptTitle(record, opts))}\n\n> ${plainDisclosure(record, opts, true).join(' ')}`);
+    code(buildSetupSnippet('python', opts.s3Endpoint));
+    for (const [i, t] of sessionQueries(record).entries()) {
+        md(`## ${i + 1}. ${oneLine(t.prompt)}`);
+        for (const q of t.queries) {
+            if (QUERY_EFFECT[q.tool]) md(QUERY_EFFECT[q.tool]);
+            code(`${wrapQuery(q.sql, 'python', `df${q.n}`)}\ndf${q.n}`);
+        }
+        if (t.answer) md(t.answer.trim());
+    }
+    if (opts.datasets?.length) md(datasetsMarkdown(opts.datasets));
+    return JSON.stringify({
+        cells,
+        metadata: {
+            kernelspec: { display_name: 'Python 3', language: 'python', name: 'python3' },
+            language_info: { name: 'python' },
+        },
+        nbformat: 4,
+        nbformat_minor: 5,
+    }, null, 1) + '\n';
+}
+
+/**
+ * Every downloadable form of the session, keyed by filename.
+ *
+ * @param {{turns: object[]}} record
+ * @param {object} [opts] - as {@link buildReportHtml}, plus `basename`
+ * @returns {{format: object, filename: string, text: string}[]}
+ */
+export function buildSessionFiles(record, opts = {}) {
+    const base = opts.basename || 'glen-session';
+    const build = {
+        r: () => buildScript(record, 'r', opts),
+        python: () => buildScript(record, 'python', opts),
+        qmd: () => buildQmd(record, opts),
+        ipynb: () => buildIpynb(record, opts),
+    };
+    return SCRIPT_FORMATS.map(f => ({ format: f, filename: `${base}.${f.ext}`, text: build[f.id]() }));
+}
+
+/**
+ * Inline script for the exported document: the download buttons. The files
+ * ride in the page as one JSON block and become a Blob on click, so the
+ * report stays a single self-contained file that works offline.
+ */
+const EXPORT_DOWNLOAD_SCRIPT = `<script>
+(function () {
+  var data = document.getElementById('export-session-files');
+  var strip = document.querySelector('.export-download-controls');
+  if (!data || !strip) return;
+  var files = JSON.parse(data.textContent);
+  strip.addEventListener('click', function (e) {
+    var b = e.target && e.target.closest ? e.target.closest('button[data-download]') : null;
+    var f = b && files[b.getAttribute('data-download')];
+    if (!f) return;
+    var url = URL.createObjectURL(new Blob([f.text], { type: f.mime }));
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = b.getAttribute('data-download');
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(function () { URL.revokeObjectURL(url); }, 0);
+  });
+})();
+<\/script>`;
+
 /**
  * Build the exported report.
  *
@@ -835,6 +1269,8 @@ ${items}
  * @param {string|null} [opts.version] - GLEN build, from {@link libraryVersion}
  * @param {{headTags: string, body: string}} [opts.mapEmbed] - from {@link buildMapEmbedHtml}
  * @param {Map<string, string>} [opts.figures] - chart_id → static chart markup (ChartRenderer#exportFigure)
+ * @param {string} [opts.basename] - filename stem for the .R / .py / .qmd / .ipynb downloads
+ * @param {object[]} [opts.datasets] - the datasets used, from {@link sessionDatasets}
  * @param {(md: string) => string} [opts.renderMarkdown]
  * @returns {string} a complete HTML document
  */
@@ -866,12 +1302,46 @@ export function buildReportHtml(record, opts = {}) {
         `<button type="button" data-set-lang="${l.id}" aria-pressed="${l.id === codeLang}">${escapeHtmlText(l.label)}</button>`
     ).join('');
 
+    // The downloads only earn their place when there is a query to run.
+    const hasQueries = sessionQueries({ turns }).some(t => t.queries.length);
+    const sessionFiles = hasQueries ? buildSessionFiles({ turns }, {
+        ...opts, appTitle, exportedAt, projectUrl,
+    }) : [];
+    const downloadButtons = sessionFiles.map(f =>
+        `<button type="button" data-download="${attr(f.filename)}" title="${attr(f.format.label)}">.${escapeHtmlText(f.format.ext)}</button>`
+    ).join('');
+    // `<` escaped so nothing in a query or answer can close the script element.
+    const filesJson = JSON.stringify(Object.fromEntries(sessionFiles.map(f =>
+        [f.filename, { mime: f.format.mime, text: f.text }]))).replace(/</g, '\\u003c');
+
     const toc = turns.length > 1
-        ? `<nav class="report-toc" aria-label="Contents"><p class="report-toc-title">Contents</p><ol>` +
+        ? `<nav class="report-toc" aria-label="Contents"><p class="report-rail-title">Contents</p><ol>` +
           turns.map((t, i) => `<li><a href="#q-${i + 1}">${escapeHtmlText(tocLabel(t.prompt))}</a></li>`).join('') +
+          (opts.datasets?.length ? `<li class="report-toc-log"><a href="#data-sources">Data sources</a></li>` : '') +
           (turns.some(t => (t.steps || []).length) ? `<li class="report-toc-log"><a href="#session-log">Session log</a></li>` : '') +
           `</ol></nav>`
         : '';
+
+    // The controls: a two-column grid, label then buttons, so every row's
+    // buttons start on one line however long its label. They live in the
+    // rail beside the document (above it on narrow screens), apart from the
+    // content they act on.
+    const controls = `<p class="report-rail-title" id="report-options-title">Options</p>
+  <div class="report-controls" role="group" aria-labelledby="report-options-title">
+    <span class="ctl-label">Code</span>
+    <div class="ctl-seg code-fold-toggle" role="group" aria-label="Code">
+      <button type="button" data-code-all="show">Show</button><button type="button" data-code-all="hide">Hide</button>
+    </div>
+    <span class="ctl-label">Code as</span>
+    <div class="ctl-seg code-lang-toggle" role="group" aria-label="Show code as">${langButtons}</div>
+    ${downloadButtons ? `<span class="ctl-label">Download</span>
+    <div class="ctl-seg export-download-controls" role="group" aria-label="Download code">${downloadButtons}</div>` : ''}
+    <span class="ctl-label">Print</span>
+    <div class="export-print-controls">
+      <button type="button" class="export-print-btn">Print / PDF</button>
+      <label class="export-print-report"><input type="checkbox" id="export-report-style"> without code</label>
+    </div>
+  </div>`;
 
     return `<!doctype html>
 <html lang="en">
@@ -891,31 +1361,27 @@ ${mapEmbed.headTags}
     Outputs generated with <a href="${attr(projectUrl)}">GLEN</a> using ${modelsText} on ${escapeHtmlText(sessionDate)}.
     The code below is exactly what the agent ran; the text around it was written by the model —
     check it against the code and its output.
+    <span class="report-disclosure-speed">GLEN apps run these queries on
+    <a href="${attr(projectUrl)}">high-speed servers</a> next to the data.
+    Re-run on a personal computer, large queries may take much longer.</span>
   </aside>
-  <div class="report-controls">
-    <div class="code-fold-toggle" role="group" aria-label="Code">
-      <button type="button" data-code-all="show">Show all code</button><button type="button" data-code-all="hide">Hide all code</button>
-    </div>
-    <div class="code-lang-toggle" role="group" aria-label="Show code as">
-      <span class="code-lang-label">Code as</span>${langButtons}
-    </div>
-    <div class="export-print-controls">
-      <label class="export-print-report"><input type="checkbox" id="export-report-style"> Print without code</label>
-      <button type="button" class="export-print-btn">Print / Save as PDF</button>
-    </div>
-  </div>
 </header>
-${toc}
+<aside class="report-rail">
+  ${controls}
+  ${toc}
+</aside>
 <section class="report-setup" id="setup">
   <details class="chunk-code"><summary>Code <span class="chunk-tool">setup</span></summary><div class="code-variants">${setupChunks}</div></details>
   <p class="report-setup-note">To re-run this analysis yourself, run the setup chunk once: it points <code>s3://</code> paths at the
      public endpoint (<code>${escapeHtmlText(opts.s3Endpoint || PUBLIC_S3_ENDPOINT)}</code>) with anonymous access.
-     Public buckets only — private data is not reachable this way.</p>
+     Public buckets only — private data is not reachable this way.${downloadButtons ? `
+     Or download the whole session as a script or notebook (<em>Download</em>, under Options).` : ''}</p>
 </section>
 ${mapEmbed.body}
 <main class="report-body">
 ${turns.map((t, i) => sectionHtml(t, i, renderMd, multiModel, opts.figures)).join('\n')}
 </main>
+${dataSourcesHtml(opts.datasets)}
 ${sessionLogHtml({ turns })}
 <footer class="report-colophon">
   <p>Generated with ${version}${appUrl ? ` in <a href="${attr(appUrl)}">${escapeHtmlText(appTitle)}</a>` : ''}.
@@ -924,6 +1390,8 @@ ${sessionLogHtml({ turns })}
 ${EXPORT_CODE_LANG_SCRIPT}
 ${EXPORT_CODE_FOLD_SCRIPT}
 ${EXPORT_PRINT_SCRIPT}
+${downloadButtons ? `<script type="application/json" id="export-session-files">${filesJson}</script>
+${EXPORT_DOWNLOAD_SCRIPT}` : ''}
 </body>
 </html>`;
 }
@@ -962,32 +1430,40 @@ p code, li code, td code { background: rgba(0,0,0,0.04); padding: 0.1em 0.3em; b
 .report-header { margin-bottom: 1.5rem; }
 .report-title { font-size: 2.1rem; line-height: 1.2; margin: 0 0 0.25rem; font-weight: 600; }
 .report-subtitle { color: var(--muted); margin: 0 0 1rem; font-size: 1.05rem; }
+.report-disclosure-speed { display: block; margin-top: 0.35rem; }
 .report-disclosure { border-left: 4px solid #0d6efd; background: #f3f7ff; padding: 0.6rem 0.9rem;
                      border-radius: 0 4px 4px 0; font-size: 0.92rem; margin: 0 0 1rem; }
-.report-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; font-size: 13px; }
-.report-controls button { font: inherit; font-size: 12px; padding: 3px 10px; cursor: pointer;
-                          border: 1px solid #ced4da; background: #fff; color: #495057; }
-.code-fold-toggle, .code-lang-toggle { display: flex; align-items: center; }
-.code-fold-toggle button:first-child, .code-lang-toggle button:nth-child(2) { border-radius: 4px 0 0 4px; }
-.code-fold-toggle button:last-child, .code-lang-toggle button:last-child { border-radius: 0 4px 4px 0; }
-.code-fold-toggle button + button, .code-lang-toggle button + button { border-left: 0; }
-.code-lang-label { color: var(--muted); margin-right: 6px; }
-.code-lang-toggle button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
-.export-print-controls { display: flex; align-items: center; gap: 8px; color: var(--muted); margin-left: auto; }
-.export-print-report { display: flex; align-items: center; gap: 4px; cursor: pointer; }
-.export-print-btn { border-radius: 4px; }
+.report-rail { border: 1px solid var(--rule); border-radius: 6px; padding: 0.75rem 1rem; margin: 0 0 1.5rem; }
+.report-rail-title { font-weight: 600; font-size: 0.9rem; margin: 0 0 0.25rem; }
 
-.report-toc { font-size: 0.9rem; border: 1px solid var(--rule); border-radius: 6px; padding: 0.6rem 1rem; margin: 0 0 1.5rem; }
-.report-toc-title { font-weight: 600; margin: 0 0 0.25rem; }
+/* Controls: label column + control column, so the buttons line up. */
+.report-controls { display: grid; grid-template-columns: max-content 1fr; gap: 8px 12px; align-items: center; font-size: 13px; margin-top: 0.4rem; }
+.ctl-label { color: var(--muted); font-size: 12px; }
+.report-controls button { font: inherit; font-size: 12px; padding: 3px 10px; cursor: pointer;
+                          border: 1px solid #ced4da; border-radius: 4px; background: #fff; color: #495057; }
+.report-controls button:hover { background: #f1f3f5; }
+.ctl-seg { display: flex; flex-wrap: wrap; }
+.ctl-seg button { border-radius: 0; }
+.ctl-seg button:first-child { border-radius: 4px 0 0 4px; }
+.ctl-seg button:last-child { border-radius: 0 4px 4px 0; }
+.ctl-seg button + button { border-left: 0; }
+.code-lang-toggle button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
+.export-print-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; color: var(--muted); font-size: 12px; }
+.export-print-report { display: flex; align-items: center; gap: 4px; cursor: pointer; }
+
+.report-toc { font-size: 0.9rem; margin: 0.9rem 0 0; padding-top: 0.75rem; border-top: 1px solid var(--rule); }
 .report-toc ol { margin: 0; padding-left: 1.4rem; }
 .report-toc li { margin: 0.15rem 0; }
 .report-toc a { text-decoration: none; }
 .report-toc a:hover { text-decoration: underline; }
 .report-toc-log { list-style: none; margin-left: -1.4rem !important; margin-top: 0.4rem !important; }
-@media (min-width: 1360px) {
-  .report-toc { position: fixed; top: 2rem; left: calc(50% - 430px - 270px); width: 240px;
-                border: 0; border-left: 1px solid var(--rule); border-radius: 0; padding: 0 0 0 1rem;
-                max-height: calc(100vh - 4rem); overflow-y: auto; }
+/* Beside the document once there is room for it: 260px + a 30px gutter
+   left of the 860px column, plus a 20px margin, needs 1480px. */
+@media (min-width: 1480px) {
+  .report-rail .report-controls button { padding: 3px 7px; }
+  .report-rail { position: fixed; top: 2rem; left: calc(50% - 430px - 290px); width: 260px; margin: 0;
+                 border: 0; border-left: 1px solid var(--rule); border-radius: 0; padding: 0 0 0 1rem;
+                 max-height: calc(100vh - 4rem); overflow-y: auto; }
 }
 
 /* Code chunks: folded by default, like R Markdown's code_folding: hide. */
@@ -1049,6 +1525,16 @@ pre.chunk-output { padding: 0.5rem 1rem; border: 1px solid var(--rule); border-r
                      border: 1px solid #ced4da; border-radius: 4px; background: #fff; color: #495057; }
 .export-embed-note { font-size: 12px; color: var(--muted); margin: 8px 0 0; }
 
+/* Data sources */
+.report-sources { margin: 3rem 0 0; padding-top: 1rem; border-top: 2px solid var(--rule); }
+.report-sources h2 { font-size: 1.2rem; margin: 0 0 0.25rem; }
+.ds-list { padding-left: 1.4rem; margin: 0.75rem 0 0; }
+.ds-list li { margin: 0 0 0.9rem; }
+.ds-list p { margin: 0.1rem 0; }
+.ds-citation { font-size: 0.9rem; }
+.ds-none { color: var(--muted); font-style: italic; }
+.ds-meta { color: var(--muted); font-size: 0.82rem; }
+
 /* Appendix */
 .report-appendix { margin: 3.5rem 0 0; padding-top: 1rem; border-top: 2px solid var(--rule); }
 .report-appendix h2 { font-size: 1.2rem; margin: 0 0 0.25rem; }
@@ -1077,13 +1563,12 @@ body[data-view="map"] .export-map { height: 100vh; border: 0; border-radius: 0; 
 @media (max-width: 600px) {
   body { padding-top: 1rem; font-size: 15px; }
   .report-title { font-size: 1.6rem; }
-  .export-print-controls { margin-left: 0; }
 }
 
 /* Print: the report goes to a board or a funder, so it prints as a document. */
 @media print {
   body { max-width: none; margin: 0; padding: 0; }
-  .report-controls, .export-embed, .report-toc { display: none !important; }
+  .report-rail, .export-embed { display: none !important; }
   a { color: inherit; text-decoration: none; }
   .chunk, .chunk-figure, .code-variants, pre, .export-map-section, .report-prose table, .log-call { break-inside: avoid; }
   .report-section h2 { break-after: avoid; }
