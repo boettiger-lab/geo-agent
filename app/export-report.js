@@ -1,3 +1,5 @@
+import { sqlArg } from './tool-registry.js';
+
 /**
  * The exported session report (#388): a self-contained HTML document that
  * reads like a Quarto / R Markdown report — one section per question, the
@@ -558,20 +560,18 @@ export const CONSULT_TOOLS = new Set([
 ]);
 
 /**
- * The SQL a step carried, if any. Remote tools name it `sql_query`, or the
- * aliases `sql` and `query` the MCP server also accepts (the same rule the
- * registry uses for `sqlQuery`); local tools (`render_chart`,
- * `filter_by_query`) name it `sql`. A local `query` arg is not SQL —
- * `geocode` uses it for a place name.
+ * The SQL a step carried, if any — by the registry's one rule for which
+ * argument holds it ({@link sqlArg}), so a remote `sql` alias counts and a
+ * local `query` (geocode's place name) does not.
  *
  * @param {object} step
  * @returns {string|null}
  */
 export function stepSql(step) {
-    const a = (step && typeof step.args === 'object' && step.args) || {};
-    const pick = (...vals) => vals.find(v => typeof v === 'string' && v.trim()) || null;
-    if (step?.source === 'remote') return pick(step.sqlQuery, a.sql_query, a.sql, a.query);
-    return pick(a.sql, step?.sqlQuery);
+    const remote = step?.source === 'remote';
+    const fromArgs = sqlArg(step?.args, remote)?.sql;
+    const recorded = typeof step?.sqlQuery === 'string' && step.sqlQuery.trim() ? step.sqlQuery : null;
+    return (remote ? recorded || fromArgs : fromArgs || recorded) || null;
 }
 
 /**
