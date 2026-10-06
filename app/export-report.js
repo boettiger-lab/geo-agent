@@ -558,10 +558,11 @@ export const CONSULT_TOOLS = new Set([
 ]);
 
 /**
- * The SQL a step carried, if any. Remote tools name it `sql_query` or
- * `query` (the same rule the registry uses for `sqlQuery`); local tools
- * (`render_chart`, `filter_by_query`) name it `sql`. A local `query` arg is
- * not SQL — `geocode` uses it for a place name.
+ * The SQL a step carried, if any. Remote tools name it `sql_query`, or the
+ * aliases `sql` and `query` the MCP server also accepts (the same rule the
+ * registry uses for `sqlQuery`); local tools (`render_chart`,
+ * `filter_by_query`) name it `sql`. A local `query` arg is not SQL —
+ * `geocode` uses it for a place name.
  *
  * @param {object} step
  * @returns {string|null}
@@ -569,7 +570,7 @@ export const CONSULT_TOOLS = new Set([
 export function stepSql(step) {
     const a = (step && typeof step.args === 'object' && step.args) || {};
     const pick = (...vals) => vals.find(v => typeof v === 'string' && v.trim()) || null;
-    if (step?.source === 'remote') return pick(step.sqlQuery, a.sql_query, a.query);
+    if (step?.source === 'remote') return pick(step.sqlQuery, a.sql_query, a.sql, a.query);
     return pick(a.sql, step?.sqlQuery);
 }
 

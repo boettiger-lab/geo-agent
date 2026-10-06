@@ -43,6 +43,17 @@ describe('classifyStep', () => {
         expect(classifyStep(step({ name: 'set_legend', source: 'local' }))).toBe('map');
     });
 
+    it('reads the `sql` alias on a remote query, so it is a chunk and not a lookup', () => {
+        // A real ca-30x30 session (v3.34.0): the model passed {sql: …}, the
+        // registry left sqlQuery unset, and the query landed in "Consulted".
+        const s = step({ name: 'query', args: { sql: Q }, result: '| n |\n|---|\n| 3 |' });
+        expect(stepSql(s)).toBe(Q);
+        expect(classifyStep(s)).toBe('chunk');
+        const { doc } = report([turn({ steps: [s] })], { basename: 'b' });
+        expect(doc.querySelectorAll('main .chunk').length).toBe(1);
+        expect(doc.querySelectorAll('.export-download-controls button').length).toBe(4);
+    });
+
     it("does not mistake geocode's place-name `query` for SQL", () => {
         const s = step({ name: 'geocode', source: 'local', args: { query: 'Yosemite' } });
         expect(stepSql(s)).toBe(null);

@@ -218,7 +218,10 @@ export class ToolRegistry {
                     name,
                     result: raw,
                     source: 'remote',
-                    sqlQuery: args.sql_query || args.query || null,
+                    // `sql` is an alias the MCP server's query tools accept, and
+                    // models use it: missing it hid the SQL from the chat panel
+                    // and the export.
+                    sqlQuery: args.sql_query || args.sql || args.query || null,
                 };
             }
         } catch (error) {
