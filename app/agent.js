@@ -20,6 +20,12 @@ import { isFailedToolResult } from './tool-registry.js';
 // only for the X-Client log-attribution header (#254). See `_clientHeaders`.
 const APP_VERSION = import.meta.url.match(/geo-agent@([^/]+)/)?.[1] || 'dev';
 
+// How each LLM response ended — `finish_reason`, OpenRouter's
+// `native_finish_reason`, and `usage.completion_tokens` — keyed by its message
+// object. Kept off the message itself because messages go back upstream as
+// history.
+const RESPONSE_END = new WeakMap();
+
 export class Agent {
     /**
      * @param {Object} config
@@ -215,6 +221,17 @@ export class Agent {
             // the message so it isn't re-sent on subsequent turns.
             const reasoning = this.extractReasoning(message);
             if (reasoning) this.onReasoning(reasoning, iterations);
+
+            // Cut off at the output limit (#387): the configured max_tokens, or
+            // the model's own ceiling when none is set. Its tool calls can't be
+            // trusted — the last one's arguments may be half-written, and a
+            // runaway has emitted thousands of identical calls (18,579 in one
+            // response, open-llm-proxy#150) — so none run. Text that did arrive
+            // is still shown, marked as cut off.
+            if (this._hitOutputLimit(message, modelConfig)) {
+                return this._lengthLimited(message, modelConfig, sqlQueries);
+            }
+
             // Canonicalize native tool-call arguments before they enter history
             // (#288, failure mode 2): a malformed `arguments` string (e.g. an
             // extra trailing brace) is parseable-for-execution below but, left
@@ -382,6 +399,37 @@ export class Agent {
     }
 
     /**
+     * End a turn whose response stopped at the output limit. A text answer is
+     * returned with a note that it was cut off; a response that was cut off
+     * mid tool call, or before any text (reasoning ran out the budget), throws
+     * a readable error instead, so nothing half-formed runs or enters history.
+     */
+    _lengthLimited(message, modelConfig, sqlQueries) {
+        const limit = this._samplingParams(modelConfig).max_tokens;
+        const where = limit
+            ? `the response limit (max_tokens: ${limit})`
+            : "the model's maximum response length";
+        const hadCalls = (message.tool_calls || []).length > 0
+            || this.parseEmbeddedToolCalls(message.content || '').length > 0;
+        const text = (message.content || '').trim();
+
+        if (text && !hadCalls) {
+            const note = `*(This answer was cut off at ${where}.${limit ? ' Raise max_tokens for this model to allow longer answers.' : ''})*`;
+            const response = `${text}\n\n${note}`;
+            this.messages.push({ role: 'assistant', content: response });
+            this.suspendedTurn = null;
+            return { response, sqlQueries, cancelled: false, truncated: true };
+        }
+
+        const what = hadCalls ? 'while writing a tool call, so the call was not run'
+            : 'before it produced an answer';
+        const err = new Error(`The model's response hit ${where} ${what}. `
+            + (limit ? 'Try again, or raise max_tokens for this model.' : 'Try again, or choose a different model.'));
+        err.lengthLimited = true;
+        throw err;
+    }
+
+    /**
      * Pause the turn at a checkpoint: make one no-tools LLM call to produce a
      * human-readable progress report, persist the in-flight turn so the next
      * user message resumes it, and emit onCheckpoint. Returns a result the UI
@@ -429,8 +477,8 @@ export class Agent {
     }
 
     /**
-     * Resolve sampling params (temperature, top_p, seed) for the outgoing
-     * chat-completion payload. Each is read per-model first, then falls back
+     * Resolve sampling params (temperature, top_p, seed, max_tokens) for the
+     * outgoing chat-completion payload. Each is read per-model first, then falls back
      * to a global config default. Per-model `null` opts back out of a value
      * (omits the key) even when a global default exists.
      *
@@ -440,19 +488,53 @@ export class Agent {
      * whose own defaults vary (0.7 and up) — so we pin a reproducible value
      * client-side rather than inheriting whatever the endpoint happens to use.
      * `top_p`/`seed` have no sensible universal default, so they stay omitted.
+     *
+     * `max_tokens` (#387) has no default either: unset stays unset. Setting it
+     * bounds a runaway generation (models have run 30+ minutes to a 131k
+     * ceiling, open-llm-proxy#150) and stops OpenRouter reserving credit for a
+     * model's full output ceiling, which 402s a modest balance (#386). A
+     * generated config.json can carry it as a string, so it is coerced; anything
+     * but a positive integer is dropped with a warning rather than sent.
      */
     _samplingParams(modelConfig) {
         const defaults = { temperature: 0 };
         const params = {};
-        for (const key of ['temperature', 'top_p', 'seed']) {
+        for (const key of ['temperature', 'top_p', 'seed', 'max_tokens']) {
             // Per-model wins; `null` there is an explicit opt-out (skip the key).
             // Otherwise fall back to global config, then to the built-in default.
-            const value = key in (modelConfig ?? {})
+            let value = key in (modelConfig ?? {})
                 ? modelConfig[key]
                 : this.config[key] ?? defaults[key];
+            if (key === 'max_tokens' && value !== undefined && value !== null) {
+                // Numbers and numeric strings only: Number(true) is 1, which
+                // would send a one-token cap.
+                const n = typeof value === 'number' ? value
+                    : typeof value === 'string' && value.trim() ? Number(value) : NaN;
+                if (Number.isInteger(n) && n > 0) value = n;
+                else {
+                    console.warn(`[Agent] Ignoring max_tokens ${JSON.stringify(value)}: expected a positive integer.`);
+                    value = undefined;
+                }
+            }
             if (value !== undefined && value !== null) params[key] = value;
         }
         return params;
+    }
+
+    /**
+     * Whether a response stopped at the output limit (#387): the max_tokens we
+     * sent, or the model's own ceiling. `finish_reason` alone is not enough.
+     * GLM-5.2 via OpenRouter reports `tool_calls` for a tool call cut off
+     * mid-arguments (invalid JSON), with only `native_finish_reason: "length"`
+     * and a completion count equal to the cap to show it (verified live,
+     * 2026-10-06). So any of the three counts.
+     */
+    _hitOutputLimit(message, modelConfig) {
+        const end = RESPONSE_END.get(message);
+        if (!end) return false;
+        if (end.finishReason === 'length' || end.nativeFinishReason === 'length') return true;
+        const cap = this._samplingParams(modelConfig).max_tokens;
+        return !!cap && typeof end.completionTokens === 'number' && end.completionTokens >= cap;
     }
 
     /**
@@ -679,7 +761,16 @@ export class Agent {
             }
 
             const data = await response.json();
-            return data.choices[0].message;
+            const choice = data.choices[0];
+            const message = choice.message;
+            if (message && typeof message === 'object') {
+                RESPONSE_END.set(message, {
+                    finishReason: choice.finish_reason ?? null,
+                    nativeFinishReason: choice.native_finish_reason ?? null,
+                    completionTokens: data.usage?.completion_tokens ?? null,
+                });
+            }
+            return message;
         } catch (error) {
             if (error.name === 'AbortError') {
                 if (timedOut) {

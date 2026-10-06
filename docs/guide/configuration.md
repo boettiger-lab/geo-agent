@@ -896,7 +896,7 @@ The `llm` section controls how the chat agent connects to a language model. Two 
 
 The agent sends **`temperature: 0` by default**, so identical questions give as reproducible an answer as the model allows. This is a deliberate client-side default: geo-agent talks to many OpenAI-compatible endpoints (the NRP llm-proxy, OpenRouter, a user's own key) whose own defaults vary (0.7 and up), so reproducibility shouldn't depend on which endpoint is behind it.
 
-To change sampling, set any of `temperature`, `top_p`, or `seed`. Each is read **per-model first**, then falls back to a **top-level global default**, then to the built-in default (`temperature: 0`; `top_p`/`seed` unset). Per-model overrides the global.
+To change sampling, set any of `temperature`, `top_p`, `seed`, or `max_tokens`. Each is read **per-model first**, then falls back to a **top-level global default**, then to the built-in default (`temperature: 0`; the rest unset). Per-model overrides the global.
 
 ```json
 {
@@ -913,7 +913,25 @@ To change sampling, set any of `temperature`, `top_p`, or `seed`. Each is read *
 | `temperature` | per-model and/or top-level | `0` | Sampling temperature. `0` is the most deterministic; raise it for more varied/creative output. Set to `null` on a model to omit it entirely and inherit the endpoint's own default. |
 | `top_p` | per-model and/or top-level | unset | Nucleus-sampling cutoff. |
 | `seed` | per-model and/or top-level | unset | Fixed RNG seed, where the provider honors it. |
+| `max_tokens` | per-model and/or top-level | unset | Cap on the length of each model response. Unset, a response may run to the model's own ceiling (65,536 or 131,072 tokens on some models). A positive integer; a numeric string from a generated `config.json` is accepted, and anything else is ignored with a console warning. Set to `null` on a model to opt it out of a global cap. See [Capping response length](#capping-response-length). |
 | `llm_timeout_seconds` | per-model and/or top-level | `600` | Per-attempt client-side timeout for an LLM request. Resolved per-model first, then top-level. The default matches the upstream llm-proxy's own timeout; a shorter value aborts responses the proxy would still deliver, which makes slow-decode models (e.g. `glm-5.2`, or anything on the gb10) unusable. Raise it per-model for slow reasoning models when the whole request chain is configured to run longer. |
+
+#### Capping response length
+
+`max_tokens` does two things:
+
+- **Bounds a runaway.** Models occasionally degenerate and generate until they hit their ceiling: proxy logs show 22 responses running 33k–131k tokens over 5–40 minutes, one emitting 18,579 identical tool calls. A cap ends that early.
+- **Avoids an OpenRouter 402 on a small balance.** With no `max_tokens`, OpenRouter reserves credit for the model's whole output ceiling up front. For a Claude-class model that is 65,536 tokens, which fails the first question on a modest balance even though the request would cost cents.
+
+Choose the value from what your answers need. Most responses are a few hundred tokens; a long analysis with tables can run to several thousand. Reasoning models count their thinking against the same budget on some providers, so a low cap on a reasoning model can leave no room for the answer.
+
+Whenever a response stops at the limit, yours or the model's own (`finish_reason: "length"`), the agent says so instead of acting on a half-finished response:
+
+- **A text answer** is shown as far as it got, followed by a note that it was cut off.
+- **A tool call** is not run, since its arguments may be half-written, and nor is any other call in that response. A runaway can emit thousands of them. The turn ends with an error that names the limit.
+- **A response with no answer**, where reasoning spent the whole budget, ends with an error.
+
+A cut-off tool call or empty response leaves nothing in the conversation history, so the next question starts clean.
 
 > **Reproducibility caveat:** open-weights MoE inference (e.g. minimax-m2) is not bit-reproducible even at `temperature: 0`, so this is necessary-but-not-sufficient — pair it with a pinned methodology for headline numbers.
 
