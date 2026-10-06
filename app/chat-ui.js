@@ -7,6 +7,7 @@
 
 import { CARBON_DASHBOARD_URL } from './app-header.js';
 import { ensurePanelActions } from './panel-actions.js';
+import { sqlArg } from './tool-registry.js';
 import { githubIcon, leafIcon } from './icons.js';
 
 import {
@@ -983,8 +984,9 @@ export class ChatUI {
 
         let argDisplay = '';
         if (typeof args === 'object' && args !== null) {
-            const sqlText = args.sql_query || args.query || args.sql || null;
-            const sqlKey = args.sql_query !== undefined ? 'sql_query' : args.query !== undefined ? 'query' : 'sql';
+            const found = sqlArg(args, this._isRemoteTool(tc.function?.name));
+            const sqlText = found?.sql ?? null;
+            const sqlKey = found?.key;
             if (sqlText) {
                 argDisplay += `<details class="sql-detail"><summary>SQL</summary><pre><code class="language-sql">${this.escapeHtml(sqlText)}</code></pre></details>`;
                 const otherArgs = Object.fromEntries(
@@ -1286,11 +1288,19 @@ export class ChatUI {
      * when the model does not provide reasoning text alongside tool calls.
      * See docs/agent-loop.md for why this fallback exists and alternatives.
      */
+    /**
+     * Whether a tool runs on the MCP server. Unknown to the registry (or no
+     * registry, as in tests) counts as remote, the more permissive reading.
+     */
+    _isRemoteTool(name) {
+        return !this.agent?.toolRegistry?.isLocal?.(name);
+    }
+
     describeToolCalls(calls) {
         const parts = calls.map(tc => {
             let args;
             try { args = JSON.parse(tc.function.arguments); } catch { args = {}; }
-            const sql = args.sql_query || args.query || args.sql;
+            const sql = sqlArg(args, this._isRemoteTool(tc.function?.name))?.sql;
             if (sql) return this.describeSql(sql);
             return `Will call \`${tc.function.name}\`.`;
         });
