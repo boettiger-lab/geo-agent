@@ -94,10 +94,11 @@ export function resolveExportConfig(config = {}) {
  *
  * Deliberately credential-free, and explicitly so: `KEY_ID ''` / `SECRET ''`
  * means unsigned requests, which is what public buckets want. Omitting the
- * pair used to mean the same, but DuckDB 1.5 then signs with an empty key and
- * the bucket answers 403 InvalidAccessKeyId — verified against 1.4.5 and
- * 1.5.6. {@link scrubCredentials} leaves empty values alone, so the block
- * survives it.
+ * pair is not enough: DuckDB then falls back to any AWS credentials in the
+ * reader's environment (`AWS_ACCESS_KEY_ID`, an R user's `~/.Renviron`),
+ * signs with them, and the public bucket answers 403 InvalidAccessKeyId.
+ * {@link scrubCredentials} leaves empty values alone, so the block survives
+ * it.
  *
  * Also loads the `h3` community extension: the data is H3-indexed and the
  * agent's queries call `h3_*` functions, which the server has loaded and a
@@ -1143,11 +1144,31 @@ export function buildReportHtml(record, opts = {}) {
         [f.filename, { mime: f.format.mime, text: f.text }]))).replace(/</g, '\\u003c');
 
     const toc = turns.length > 1
-        ? `<nav class="report-toc" aria-label="Contents"><p class="report-toc-title">Contents</p><ol>` +
+        ? `<nav class="report-toc" aria-label="Contents"><p class="report-rail-title">Contents</p><ol>` +
           turns.map((t, i) => `<li><a href="#q-${i + 1}">${escapeHtmlText(tocLabel(t.prompt))}</a></li>`).join('') +
           (turns.some(t => (t.steps || []).length) ? `<li class="report-toc-log"><a href="#session-log">Session log</a></li>` : '') +
           `</ol></nav>`
         : '';
+
+    // The controls: a two-column grid, label then buttons, so every row's
+    // buttons start on one line however long its label. They live in the
+    // rail beside the document (above it on narrow screens), apart from the
+    // content they act on.
+    const controls = `<div class="report-controls" role="group" aria-label="Report controls">
+    <span class="ctl-label">Code</span>
+    <div class="ctl-seg code-fold-toggle" role="group" aria-label="Code">
+      <button type="button" data-code-all="show">Show</button><button type="button" data-code-all="hide">Hide</button>
+    </div>
+    <span class="ctl-label">Code as</span>
+    <div class="ctl-seg code-lang-toggle" role="group" aria-label="Show code as">${langButtons}</div>
+    ${downloadButtons ? `<span class="ctl-label">Download</span>
+    <div class="ctl-seg export-download-controls" role="group" aria-label="Download code">${downloadButtons}</div>` : ''}
+    <span class="ctl-label">Print</span>
+    <div class="export-print-controls">
+      <button type="button" class="export-print-btn">Print / PDF</button>
+      <label class="export-print-report"><input type="checkbox" id="export-report-style"> without code</label>
+    </div>
+  </div>`;
 
     return `<!doctype html>
 <html lang="en">
@@ -1171,31 +1192,17 @@ ${mapEmbed.headTags}
     <a href="${attr(projectUrl)}">high-speed servers</a> next to the data.
     Re-run on a personal computer, large queries may take much longer.</span>
   </aside>
-  <div class="report-controls">
-    <div class="code-fold-toggle" role="group" aria-label="Code">
-      <button type="button" data-code-all="show">Show all code</button><button type="button" data-code-all="hide">Hide all code</button>
-    </div>
-    <div class="code-lang-toggle" role="group" aria-label="Show code as">
-      <span class="code-lang-label">Code as</span>${langButtons}
-    </div>
-    <div class="export-file-controls">
-      ${downloadButtons ? `<div class="export-download-controls" role="group" aria-label="Download code">
-        <span class="code-lang-label">Download</span>${downloadButtons}
-      </div>` : ''}
-      <div class="export-print-controls">
-        <label class="export-print-report"><input type="checkbox" id="export-report-style"> Print without code</label>
-        <button type="button" class="export-print-btn">Print / Save as PDF</button>
-      </div>
-    </div>
-  </div>
 </header>
-${toc}
+<aside class="report-rail">
+  ${controls}
+  ${toc}
+</aside>
 <section class="report-setup" id="setup">
   <details class="chunk-code"><summary>Code <span class="chunk-tool">setup</span></summary><div class="code-variants">${setupChunks}</div></details>
   <p class="report-setup-note">To re-run this analysis yourself, run the setup chunk once: it points <code>s3://</code> paths at the
      public endpoint (<code>${escapeHtmlText(opts.s3Endpoint || PUBLIC_S3_ENDPOINT)}</code>) with anonymous access.
      Public buckets only — private data is not reachable this way.${downloadButtons ? `
-     Or download the whole session as a script or notebook from the header.` : ''}</p>
+     Or download the whole session as a script or notebook (<em>Download</em>, in the controls).` : ''}</p>
 </section>
 ${mapEmbed.body}
 <main class="report-body">
@@ -1252,35 +1259,37 @@ p code, li code, td code { background: rgba(0,0,0,0.04); padding: 0.1em 0.3em; b
 .report-disclosure-speed { display: block; margin-top: 0.35rem; }
 .report-disclosure { border-left: 4px solid #0d6efd; background: #f3f7ff; padding: 0.6rem 0.9rem;
                      border-radius: 0 4px 4px 0; font-size: 0.92rem; margin: 0 0 1rem; }
-.report-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; font-size: 13px; }
-.report-controls button { font: inherit; font-size: 12px; padding: 3px 10px; cursor: pointer;
-                          border: 1px solid #ced4da; background: #fff; color: #495057; }
-.code-fold-toggle, .code-lang-toggle { display: flex; align-items: center; }
-.code-fold-toggle button:first-child, .code-lang-toggle button:nth-child(2) { border-radius: 4px 0 0 4px; }
-.code-fold-toggle button:last-child, .code-lang-toggle button:last-child { border-radius: 0 4px 4px 0; }
-.code-fold-toggle button + button, .code-lang-toggle button + button { border-left: 0; }
-.code-lang-label { color: var(--muted); margin-right: 6px; }
-.code-lang-toggle button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
-.export-file-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; margin-left: auto; }
-.export-download-controls { display: flex; align-items: center; }
-.export-download-controls button:nth-child(2) { border-radius: 4px 0 0 4px; }
-.export-download-controls button:last-child { border-radius: 0 4px 4px 0; }
-.export-download-controls button + button { border-left: 0; }
-.export-print-controls { display: flex; align-items: center; gap: 8px; color: var(--muted); }
-.export-print-report { display: flex; align-items: center; gap: 4px; cursor: pointer; }
-.export-print-btn { border-radius: 4px; }
+.report-rail { border: 1px solid var(--rule); border-radius: 6px; padding: 0.75rem 1rem; margin: 0 0 1.5rem; }
+.report-rail-title { font-weight: 600; font-size: 0.9rem; margin: 0 0 0.25rem; }
 
-.report-toc { font-size: 0.9rem; border: 1px solid var(--rule); border-radius: 6px; padding: 0.6rem 1rem; margin: 0 0 1.5rem; }
-.report-toc-title { font-weight: 600; margin: 0 0 0.25rem; }
+/* Controls: label column + control column, so the buttons line up. */
+.report-controls { display: grid; grid-template-columns: max-content 1fr; gap: 8px 12px; align-items: center; font-size: 13px; }
+.ctl-label { color: var(--muted); font-size: 12px; }
+.report-controls button { font: inherit; font-size: 12px; padding: 3px 10px; cursor: pointer;
+                          border: 1px solid #ced4da; border-radius: 4px; background: #fff; color: #495057; }
+.report-controls button:hover { background: #f1f3f5; }
+.ctl-seg { display: flex; flex-wrap: wrap; }
+.ctl-seg button { border-radius: 0; }
+.ctl-seg button:first-child { border-radius: 4px 0 0 4px; }
+.ctl-seg button:last-child { border-radius: 0 4px 4px 0; }
+.ctl-seg button + button { border-left: 0; }
+.code-lang-toggle button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
+.export-print-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; color: var(--muted); font-size: 12px; }
+.export-print-report { display: flex; align-items: center; gap: 4px; cursor: pointer; }
+
+.report-toc { font-size: 0.9rem; margin: 0.9rem 0 0; padding-top: 0.75rem; border-top: 1px solid var(--rule); }
 .report-toc ol { margin: 0; padding-left: 1.4rem; }
 .report-toc li { margin: 0.15rem 0; }
 .report-toc a { text-decoration: none; }
 .report-toc a:hover { text-decoration: underline; }
 .report-toc-log { list-style: none; margin-left: -1.4rem !important; margin-top: 0.4rem !important; }
-@media (min-width: 1360px) {
-  .report-toc { position: fixed; top: 2rem; left: calc(50% - 430px - 270px); width: 240px;
-                border: 0; border-left: 1px solid var(--rule); border-radius: 0; padding: 0 0 0 1rem;
-                max-height: calc(100vh - 4rem); overflow-y: auto; }
+/* Beside the document once there is room for it: 260px + a 30px gutter
+   left of the 860px column, plus a 20px margin, needs 1480px. */
+@media (min-width: 1480px) {
+  .report-rail .report-controls button { padding: 3px 7px; }
+  .report-rail { position: fixed; top: 2rem; left: calc(50% - 430px - 290px); width: 260px; margin: 0;
+                 border: 0; border-left: 1px solid var(--rule); border-radius: 0; padding: 0 0 0 1rem;
+                 max-height: calc(100vh - 4rem); overflow-y: auto; }
 }
 
 /* Code chunks: folded by default, like R Markdown's code_folding: hide. */
@@ -1370,13 +1379,12 @@ body[data-view="map"] .export-map { height: 100vh; border: 0; border-radius: 0; 
 @media (max-width: 600px) {
   body { padding-top: 1rem; font-size: 15px; }
   .report-title { font-size: 1.6rem; }
-  .export-file-controls { margin-left: 0; }
 }
 
 /* Print: the report goes to a board or a funder, so it prints as a document. */
 @media print {
   body { max-width: none; margin: 0; padding: 0; }
-  .report-controls, .export-embed, .report-toc { display: none !important; }
+  .report-rail, .export-embed { display: none !important; }
   a { color: inherit; text-decoration: none; }
   .chunk, .chunk-figure, .code-variants, pre, .export-map-section, .report-prose table, .log-call { break-inside: avoid; }
   .report-section h2 { break-after: avoid; }

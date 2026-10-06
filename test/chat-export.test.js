@@ -203,8 +203,8 @@ describe('buildDuckdbSetupSql', () => {
 
     it('carries no credentials — anonymous access is the point', () => {
         const sql = buildDuckdbSetupSql();
-        // Explicitly empty: DuckDB 1.5 signs with an empty key when the pair
-        // is omitted, and the public bucket refuses it (403).
+        // Explicitly empty: omitted, DuckDB picks up any AWS credentials in
+        // the reader's environment and the public bucket refuses them (403).
         expect(sql).toMatch(/KEY_ID '',/);
         expect(sql).toMatch(/\bSECRET '',/);
         expect(sql).not.toMatch(/(KEY_ID|\bSECRET)\s+'[^']+'/i);

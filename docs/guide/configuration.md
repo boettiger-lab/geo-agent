@@ -1183,7 +1183,7 @@ For an app serving private data the export is worse than useless. The credential
 The saved file is a **session report** (#388), laid out like a Quarto or R Markdown document rather than a copy of the chat panel:
 
 - **A disclosure** under the title: *outputs generated with GLEN using* the model(s) *on* the date. The model is recorded per question, so a mid-session switch shows, and each section names its own when more than one was used. A second line notes that GLEN apps run the queries on high-speed servers next to the data, so a re-run on a personal computer can be much slower. Its link goes to `project_url`.
-- **One section per question**, headed by the user's words verbatim. In the order they ran come the SQL-carrying calls (`query`, `register_hex_tiles`, `render_chart`, `filter_by_query`), each a **folded code chunk** with its output beneath it, and then the model's answer as prose. *Show all code / Hide all code* and the R · Python · SQL switch apply to every chunk.
+- **One section per question**, headed by the user's words verbatim. In the order they ran come the SQL-carrying calls (`query`, `register_hex_tiles`, `render_chart`, `filter_by_query`), each a **folded code chunk** with its output beneath it, and then the model's answer as prose. The *Code: Show / Hide* and *Code as* R · Python · SQL controls apply to every chunk.
 - **Charts are figures.** Each `render_chart` the session drew is re-drawn at report width as a static figure under its chunk, captioned with its title, even if the user closed its panel. A chart drawn from rows the model passed inline (rather than SQL) says so, and the rows are in the session log.
 - **Lookups are summarised, not shown.** Schema and catalog reads and status polls (`get_schema`, `get_hex_tile_status`, …) become one *Consulted …* line. Map actions become one line each. Failed or retried calls are left out, with a count.
 - **A session log appendix**, collapsed, holding every call with its arguments and result, lookups and failures included. The body is curated; the log shows nothing was hidden.
@@ -1208,7 +1208,7 @@ Two guarantees apply to the export:
     );
     ```
 
-    Run it once per DuckDB session and every query in the transcript works as written. The secret carries no credentials: the empty `KEY_ID`/`SECRET` means unsigned requests, which is what public buckets want. It has to be spelled out. Since DuckDB 1.5, leaving the pair out signs requests with an empty key, and the bucket answers *403 InvalidAccessKeyId*. The `h3` extension is loaded because the agent's queries call `h3_*` functions, which the server has loaded and a fresh DuckDB does not. Apps on other storage set `export.public_s3_endpoint` (above); private buckets are out of scope, since the credentials that would reach them are scrubbed.
+    Run it once per DuckDB session and every query in the transcript works as written. The secret carries no credentials: the empty `KEY_ID`/`SECRET` means unsigned requests, which is what public buckets want. It has to be spelled out: left out, DuckDB falls back to any AWS credentials in the reader's environment (`AWS_ACCESS_KEY_ID`, or an R user's `~/.Renviron`), signs with them, and the public bucket answers *403 InvalidAccessKeyId*. The `h3` extension is loaded because the agent's queries call `h3_*` functions, which the server has loaded and a fresh DuckDB does not. Apps on other storage set `export.public_s3_endpoint` (above); private buckets are out of scope, since the credentials that would reach them are scrubbed.
 
 - **Credential scrubbing.** On top of the live-chat redaction described in the agent-loop docs, the export pass replaces credential-shaped tokens with `[REDACTED]` — DuckDB `CREATE SECRET` key/value pairs, AWS access keys (`aws_access_key_id`, `aws_secret_access_key`), `Authorization: Bearer …` tokens, and pre-signed-URL `X-Amz-Signature` / `X-Amz-Credential` / `X-Amz-Security-Token` query parameters. This scrubbing also covers the embedded map state (below).
 
@@ -1218,7 +1218,7 @@ Earlier versions rewrote each `s3://bucket/key` to `https://s3-west.nrp-nautilus
 
 ### Printing, and PDF
 
-There is no PDF export, deliberately: a PDF generator means a new dependency and a flattened map for an artifact the browser already produces. What was missing was the print stylesheet, so the export now carries one, and **Print / Save as PDF** in the document's header hands off to the browser's own print dialog.
+There is no PDF export, deliberately: a PDF generator means a new dependency and a flattened map for an artifact the browser already produces. What was missing was the print stylesheet, so the export now carries one, and **Print / PDF** in the document's controls hands off to the browser's own print dialog.
 
 Three things the stylesheet handles, each of which quietly ruined a printed export before:
 
@@ -1226,13 +1226,13 @@ Three things the stylesheet handles, each of which quietly ruined a printed expo
 - **Page breaks.** Turns, queries, results and the map are `break-inside: avoid`, so a query never splits across a page boundary.
 - **Scroll boxes.** Tool output is capped to a screenful on screen; on paper it prints in full.
 
-The **Report style** checkbox beside the button prints the prose, the answers and the map without the tool machinery or the setup block — the version for a board packet rather than a colleague reproducing the work. It affects the printed output only; the document on screen is unchanged.
+The **without code** checkbox beside the button prints the prose, the answers and the map without the tool machinery or the setup block — the version for a board packet rather than a colleague reproducing the work. It affects the printed output only; the document on screen is unchanged.
 
 The map prints as it appears, because the embedded map sets `preserveDrawingBuffer` — without it a WebGL canvas can print blank.
 
 ### Code in R, Python or SQL
 
-Most people who receive one of these files can drive R or Python and do not write SQL — and both languages hand SQL to DuckDB in three lines, which is the part nobody knows. So the saved document carries every query in all three languages, with a **Show code as** toggle in its header that switches the whole document at once. The choice is remembered for the next export the reader opens.
+Most people who receive one of these files can drive R or Python and do not write SQL — and both languages hand SQL to DuckDB in three lines, which is the part nobody knows. So the saved document carries every query in all three languages, with a **Code as** toggle in its controls that switches the whole document at once. The choice is remembered for the next export the reader opens.
 
 The SQL inside each wrapper is byte-identical to what ran — the wrapper is presentation, or the export stops being a record of the analysis. In R:
 
@@ -1252,9 +1252,13 @@ SELECT count(*) FROM read_parquet('s3://public-iucn/hex/mammals_sr/h0=*/data_0.p
 
 Both are raw strings, so a query containing a backslash or a quote survives intact; a query that collides with every raw-string delimiter falls back to an escaped literal. The *Run this first* block gets the same treatment — `library(duckdb)` / `import duckdb` with the same anonymous S3 secret.
 
+### The controls
+
+The report's controls sit in a rail to the left of the document, above the contents, on a wide screen, and in a panel above the document on a narrow one, so they read as controls rather than as part of the report. Each row is a label and its buttons, laid out as a two-column grid so the buttons line up: **Code** (Show / Hide every chunk), **Code as** (SQL · R · Python), **Download** (below) and **Print** (Print / PDF, with a *without code* checkbox). None of it prints.
+
 ### Download as a script or notebook
 
-The R · Python · SQL switch is fine for reading, but to *run* the analysis a reader has to copy every chunk out by hand. So the report's header also offers the whole session as one file:
+The R · Python · SQL switch is fine for reading, but to *run* the analysis a reader has to copy every chunk out by hand. So the report's controls also offer the whole session as one file:
 
 | Button | File | What's in it |
 |---|---|---|
