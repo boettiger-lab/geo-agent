@@ -491,6 +491,15 @@ describe('_isFailedResult (#313)', () => {
     it('flags an "Error:" result string', () => {
         expect(a._isFailedResult({ source: 'remote', result: 'Error: bad SQL' })).toBe(true);
     });
+    it("flags mcp-data-server's \"SQL Error:\" result (#395)", () => {
+        expect(a._isFailedResult({ source: 'remote', success: true,
+            result: 'SQL Error: Binder Error: Ambiguous reference to column name "h8"' })).toBe(true);
+        expect(a._isFailedResult({ source: 'remote', success: true,
+            result: 'SQL Error: no query provided — pass the SQL as `sql_query`' })).toBe(true);
+    });
+    it('does not flag a result that merely mentions an error in its rows', () => {
+        expect(a._isFailedResult({ source: 'remote', result: '| note |\n|---|\n| SQL Error rate fell |' })).toBe(false);
+    });
     it('does not flag a successful result', () => {
         expect(a._isFailedResult({ source: 'local', result: '{"success":true,"layer_id":"hex-abc"}' })).toBe(false);
     });
@@ -561,6 +570,34 @@ describe('agent loop — dialect-leak recovery + repeated-failure short-circuit 
         expect(global.fetch.mock.calls.length).toBe(4);
         expect(result.checkpoint).toBe(true);
         expect(result.response).toBe('Checkpoint: the hex call keeps failing.');
+    });
+
+    it('nudges once then checkpoints when an identical query keeps returning "SQL Error:" (#395)', async () => {
+        // mcp-data-server returns SQL failures as text, and the registry marks
+        // them success: true. Before #395 the guard never saw them as failures,
+        // so a stuck model looped to the iteration cap.
+        const sqlArgs = JSON.stringify({ sql_query: "SELECT h8 FROM read_parquet('s3://x/a.parquet') a JOIN read_parquet('s3://x/b.parquet') b USING (h0)" });
+        const SQL_ERR = 'SQL Error: Binder Error: Ambiguous reference to column name "h8" (use: "a.h8" or "b.h8")';
+        global.fetch = vi.fn()
+            .mockResolvedValueOnce(okToolCall('query', sqlArgs)) // round 1: fail, record sig
+            .mockResolvedValueOnce(okToolCall('query', sqlArgs)) // round 2: repeat → nudge
+            .mockResolvedValueOnce(okToolCall('query', sqlArgs)) // round 3: repeat → checkpoint
+            .mockResolvedValueOnce(okText('Checkpoint: the join keeps failing on an ambiguous h8.'));
+        const agent = agentFor({
+            isLocal: () => false, has: () => true,
+            execute: async (name, args) => ({ success: true, name, source: 'remote', result: SQL_ERR, sqlQuery: args.sql_query }),
+        });
+        agent.autoApprove = true;
+
+        const result = await agent.processMessage('which hexes overlap?');
+
+        expect(global.fetch.mock.calls.length).toBe(4);
+        expect(result.checkpoint).toBe(true);
+        // The nudge reached the model, quoting the SQL error.
+        const third = JSON.parse(global.fetch.mock.calls[2][1].body).messages;
+        const nudge = third.filter(m => m.role === 'user').pop().content;
+        expect(nudge).toContain('failed with the same error');
+        expect(nudge).toContain('Ambiguous reference to column name');
     });
 
     it('does not short-circuit when the model recovers after the nudge', async () => {
