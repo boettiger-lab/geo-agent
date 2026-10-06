@@ -12,6 +12,8 @@
  * Handles embedded tool calls (XML tags) from models that don't use structured tool_calls.
  */
 
+import { isFailedToolResult } from './tool-registry.js';
+
 // The pinned ref the app was loaded from lives in the module URL itself
 // (…/geo-agent@v3.13.1/app/agent.js), so it identifies the exact build with no
 // build step. Falls back to 'dev' for local/headless runs (a file:// URL). Used
@@ -1025,17 +1027,14 @@ export class Agent {
     }
 
     /**
-     * Whether a tool-execution result represents a failure (#313). Covers a
-     * registry-level error / unknown tool (`source: 'error'`), a local tool's
-     * logical-failure envelope (`{"success": false, …}` — note the registry marks
-     * `success: true` whenever the tool didn't *throw*, so the flag alone is not
-     * enough), and the invalid-JSON sentinel pushed for an unparseable args blob.
+     * Whether a tool-execution result represents a failure (#313), by the
+     * registry's one rule ({@link isFailedToolResult}): a registry error or
+     * unknown tool, the invalid-JSON sentinel, an `Error…` or MCP `SQL Error…`
+     * string (#395), or a `{"success": false}` envelope. Drives the
+     * repeated-failure short-circuit.
      */
     _isFailedResult(r) {
-        if (!r) return false;
-        if (r.source === 'error') return true;
-        const s = typeof r.result === 'string' ? r.result : '';
-        return /^\s*Error\b/.test(s) || /"success"\s*:\s*false/.test(s);
+        return isFailedToolResult(r);
     }
 
     /**
