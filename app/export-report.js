@@ -1154,7 +1154,8 @@ export function buildReportHtml(record, opts = {}) {
     // buttons start on one line however long its label. They live in the
     // rail beside the document (above it on narrow screens), apart from the
     // content they act on.
-    const controls = `<div class="report-controls" role="group" aria-label="Report controls">
+    const controls = `<p class="report-rail-title" id="report-options-title">Options</p>
+  <div class="report-controls" role="group" aria-labelledby="report-options-title">
     <span class="ctl-label">Code</span>
     <div class="ctl-seg code-fold-toggle" role="group" aria-label="Code">
       <button type="button" data-code-all="show">Show</button><button type="button" data-code-all="hide">Hide</button>
@@ -1202,7 +1203,7 @@ ${mapEmbed.headTags}
   <p class="report-setup-note">To re-run this analysis yourself, run the setup chunk once: it points <code>s3://</code> paths at the
      public endpoint (<code>${escapeHtmlText(opts.s3Endpoint || PUBLIC_S3_ENDPOINT)}</code>) with anonymous access.
      Public buckets only — private data is not reachable this way.${downloadButtons ? `
-     Or download the whole session as a script or notebook (<em>Download</em>, in the controls).` : ''}</p>
+     Or download the whole session as a script or notebook (<em>Download</em>, under Options).` : ''}</p>
 </section>
 ${mapEmbed.body}
 <main class="report-body">
@@ -1263,7 +1264,7 @@ p code, li code, td code { background: rgba(0,0,0,0.04); padding: 0.1em 0.3em; b
 .report-rail-title { font-weight: 600; font-size: 0.9rem; margin: 0 0 0.25rem; }
 
 /* Controls: label column + control column, so the buttons line up. */
-.report-controls { display: grid; grid-template-columns: max-content 1fr; gap: 8px 12px; align-items: center; font-size: 13px; }
+.report-controls { display: grid; grid-template-columns: max-content 1fr; gap: 8px 12px; align-items: center; font-size: 13px; margin-top: 0.4rem; }
 .ctl-label { color: var(--muted); font-size: 12px; }
 .report-controls button { font: inherit; font-size: 12px; padding: 3px 10px; cursor: pointer;
                           border: 1px solid #ced4da; border-radius: 4px; background: #fff; color: #495057; }

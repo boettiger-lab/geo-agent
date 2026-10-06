@@ -1254,7 +1254,7 @@ Both are raw strings, so a query containing a backslash or a quote survives inta
 
 ### The controls
 
-The report's controls sit in a rail to the left of the document, above the contents, on a wide screen, and in a panel above the document on a narrow one, so they read as controls rather than as part of the report. Each row is a label and its buttons, laid out as a two-column grid so the buttons line up: **Code** (Show / Hide every chunk), **Code as** (SQL · R · Python), **Download** (below) and **Print** (Print / PDF, with a *without code* checkbox). None of it prints.
+The report's controls sit in a rail to the left of the document, above the contents, on a wide screen, and in a panel above the document on a narrow one, so they read as controls rather than as part of the report. They sit under an **Options** heading, matching **Contents** below them. Each row is a label and its buttons, laid out as a two-column grid so the buttons line up: **Code** (Show / Hide every chunk), **Code as** (SQL · R · Python), **Download** (below) and **Print** (Print / PDF, with a *without code* checkbox). None of it prints.
 
 ### Download as a script or notebook
 
