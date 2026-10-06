@@ -1,5 +1,5 @@
 /**
- * panel-actions.js — the row of panel-level buttons under the layer list.
+ * panel-actions.js — the row of panel-level buttons above the layer list.
  *
  * Shared by three features that each may or may not be present: the map-wide
  * actions built with the menu (globe, send-to-back), the optional upload
@@ -15,10 +15,14 @@
 export const PANEL_ACTIONS_ID = 'panel-actions';
 
 /**
- * Get the actions row, creating it after `controls` on first use.
+ * Get the actions row, creating it before `controls` on first use.
+ *
+ * Above the list, not below it: under the basemap buttons the row stays in
+ * view, where below a long layer list it scrolled out of sight and people
+ * could not find export.
  *
  * @param {HTMLElement} controls — #layer-controls-container, the layer list
- *   the row sits beneath
+ *   the row sits above
  * @returns {HTMLElement}
  */
 export function ensurePanelActions(controls) {
@@ -29,6 +33,6 @@ export function ensurePanelActions(controls) {
     const row = doc.createElement('div');
     row.id = PANEL_ACTIONS_ID;
     row.className = 'panel-actions';
-    controls.after(row);
+    controls.before(row);
     return row;
 }
