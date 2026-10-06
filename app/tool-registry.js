@@ -44,6 +44,31 @@ export function sqlArg(args, remote) {
     return null;
 }
 
+/**
+ * Whether a tool result is a failure. The registry marks `success: true`
+ * whenever a tool didn't throw, so a tool that reports its own failure has to
+ * be read from its text:
+ *
+ *   - a registry error (`source: 'error'`, `success: false`)
+ *   - an `Error…` string
+ *   - mcp-data-server's `SQL Error: …`, which its query tools return rather
+ *     than raise (#395: missing it kept the agent's repeat-failure guard from
+ *     ever firing on SQL)
+ *   - a tool's `{"success": false}` envelope
+ *
+ * One rule for the agent loop and the export, which kept separate copies and
+ * drifted.
+ *
+ * @param {{success?: boolean, source?: string, result?: *}} r - a registry result or a recorded step
+ * @returns {boolean}
+ */
+export function isFailedToolResult(r) {
+    if (!r) return false;
+    if (r.success === false || r.source === 'error') return true;
+    const s = typeof r.result === 'string' ? r.result : '';
+    return /^\s*(SQL\s+)?Error\b/.test(s) || /"success"\s*:\s*false/.test(s);
+}
+
 // Idempotent read tools whose result is a pure function of their args for the
 // life of a session. Memoizing these (#281) skips duplicate round-trips *and*
 // keeps repeated calls from re-growing the message suffix with byte-identical

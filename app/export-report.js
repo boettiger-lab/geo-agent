@@ -1,5 +1,3 @@
-import { sqlArg } from './tool-registry.js';
-
 /**
  * The exported session report (#388): a self-contained HTML document that
  * reads like a Quarto / R Markdown report — one section per question, the
@@ -11,6 +9,8 @@ import { sqlArg } from './tool-registry.js';
  * (see `ChatUI#_recordTurn` and friends) and hands that record to
  * {@link buildReportHtml}.
  */
+
+import { sqlArg, isFailedToolResult } from './tool-registry.js';
 
 /**
  * Where the disclosure's "GLEN" link points: the project's deployed page,
@@ -574,18 +574,9 @@ export function stepSql(step) {
     return (remote ? recorded || fromArgs : fromArgs || recorded) || null;
 }
 
-/**
- * Whether a step failed: a registry error, an `Error…` string, the MCP
- * server's `SQL Error: …`, or a tool's `{"success": false}` envelope — the
- * registry marks `success: true` whenever the tool didn't throw. Stricter
- * than `Agent#_isFailedResult`, which misses `SQL Error`: a failed query in
- * the report body is a failed line in every downloaded script.
- */
+/** Whether a step failed — the registry's one rule ({@link isFailedToolResult}). */
 export function isFailedStep(step) {
-    if (!step) return false;
-    if (step.success === false || step.source === 'error') return true;
-    const s = typeof step.result === 'string' ? step.result : '';
-    return /^\s*(SQL\s+)?Error\b/.test(s) || /"success"\s*:\s*false/.test(s);
+    return isFailedToolResult(step);
 }
 
 /**
