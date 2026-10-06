@@ -157,12 +157,13 @@ export class UploadManager {
         this._status = document.createElement('div');
         this._status.className = 'upload-status';
 
-        // Sit at the bottom of the Overlays section, below the layer list
-        // (uploaded rows append into the list above, so the button stays
-        // last). The actions row is shared with the save button so the two
-        // sit side by side rather than stacking full-width.
-        ensurePanelActions(controls).appendChild(btn);
-        controls.after(input, this._status);
+        // The button joins the shared actions row above the layer list;
+        // uploaded rows append into the list itself. The status line goes
+        // straight under the row, so a message appears beside the button
+        // that caused it rather than below a long list.
+        const row = ensurePanelActions(controls);
+        row.appendChild(btn);
+        row.after(input, this._status);
 
         this._wireDragDrop();
         console.log('[upload] ready');

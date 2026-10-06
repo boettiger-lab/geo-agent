@@ -1619,10 +1619,9 @@ export class MapManager {
         basemapSection.className = 'menu-section';
 
         // Map-wide controls: globe projection and send-to-back. Built here
-        // but mounted below the layer list (see ensurePanelActions at the
-        // end of this method), with the other panel actions — they act on
-        // the whole map, so they belong with the actions, not above the
-        // basemap row they have nothing to do with.
+        // but mounted in the panel actions row (see ensurePanelActions at
+        // the end of this method), which sits under the basemap row and
+        // above the layer list.
         const globeBtn = document.createElement('button');
         globeBtn.id = 'globe-btn';
         globeBtn.className = 'panel-btn globe-btn' + (this._globeEnabled ? ' active' : '');
@@ -1673,7 +1672,7 @@ export class MapManager {
 
         container.appendChild(menuBody);
 
-        // The actions row sits under the layer list. Globe and send-back go
+        // The actions row sits above the layer list. Globe and send-back go
         // in first so they precede the data actions (upload, export) that
         // mount into the same row later.
         ensurePanelActions(layerControls).append(globeBtn, cycleBtn);
