@@ -836,6 +836,167 @@ ${items}
 }
 
 /* ------------------------------------------------------------------ */
+/*  Data sources: which datasets the session used, and how to cite them */
+/* ------------------------------------------------------------------ */
+
+/**
+ * The citation fields of one STAC collection, as a plain object the report
+ * and the scripts render. The catalog's metadata is uneven — some collections
+ * carry a full `sci:citation`, some only a `cite-as` DOI link, some neither —
+ * so every field but the title and STAC link may be missing.
+ *
+ * @param {object} stac - a STAC collection
+ * @param {string} [fallbackUrl] - where it was fetched from, if it has no `self` link
+ * @returns {{id: string, title: string, stacUrl: string|null, aboutUrl: string|null,
+ *            producers: string[], license: string|null, licenseUrl: string|null,
+ *            citation: string|null, doiUrl: string|null}}
+ */
+export function datasetCitation(stac, fallbackUrl = null) {
+    const links = Array.isArray(stac?.links) ? stac.links : [];
+    const link = (...rels) => links.find(l => rels.includes(l.rel) && l.href)?.href || null;
+    const doi = typeof stac?.['sci:doi'] === 'string' && stac['sci:doi'].trim();
+    const producers = (stac?.providers || [])
+        .filter(p => p?.name && (p.roles || []).some(r => r === 'producer' || r === 'licensor'))
+        .map(p => p.name);
+    return {
+        id: stac?.id || '',
+        title: stac?.title || stac?.id || 'Untitled dataset',
+        stacUrl: link('self') || fallbackUrl,
+        aboutUrl: link('about'),
+        producers,
+        license: stac?.license || null,
+        licenseUrl: link('license'),
+        citation: typeof stac?.['sci:citation'] === 'string' ? stac['sci:citation'].trim() || null : null,
+        doiUrl: doi ? (/^https?:\/\//.test(doi) ? doi : `https://doi.org/${doi}`) : link('cite-as'),
+    };
+}
+
+/** Every `s3://` or `http(s)://` path a query names. */
+function sqlPaths(sql) {
+    return String(sql || '').match(/\b(?:s3|https?):\/\/[^\s'"`)]+/g) || [];
+}
+
+/**
+ * A path as a comparable prefix: `https://host/bucket/key` and
+ * `s3://bucket/key` are the same object under the export's path-style setup,
+ * and the directory a glob sits in ends the part that names the dataset
+ * (`…/hex-fractions/year=*` → `…/hex-fractions`, so `year=2024/…` matches).
+ */
+function pathPrefix(path) {
+    let p = String(path).replace(/^https?:\/\/[^/]+\//, 's3://');
+    const glob = p.search(/[*?[{]/);
+    if (glob >= 0) p = p.slice(0, p.lastIndexOf('/', glob));
+    return p.replace(/\/+$/, '');
+}
+
+/** The parquet asset prefixes a collection itself holds (not its children's). */
+function ownParquetPrefixes(stac) {
+    return Object.values(stac?.assets || {})
+        .filter(a => a?.href && (String(a.type || '').includes('parquet') ||
+            /\.parquet$|\/hex\/*$/.test(a.href)))
+        .map(a => pathPrefix(a.href))
+        // A bare bucket would claim every query that reads from it.
+        .filter(p => /^s3:\/\/[^/]+\/.+/.test(p));
+}
+
+/**
+ * The datasets a session used: those its successful queries read, in the
+ * order first read, then those shown on the exported map. A query path goes
+ * to the collection whose own asset is the longest prefix of it, so a child
+ * collection is cited rather than the parent that lists it.
+ *
+ * @param {{turns: object[]}} record - the session
+ * @param {{id: string, _rawStac: object}[]} entries - catalog entries (DatasetCatalog#getAll)
+ * @param {string[]} [mapDatasetIds] - datasets with a layer visible on the exported map
+ * @returns {(ReturnType<typeof datasetCitation> & {queried: boolean, mapped: boolean})[]}
+ */
+export function sessionDatasets(record, entries = [], mapDatasetIds = []) {
+    const prefixes = [];
+    for (const e of entries) {
+        for (const p of ownParquetPrefixes(e?._rawStac)) prefixes.push({ p, e });
+    }
+    prefixes.sort((a, b) => b.p.length - a.p.length);
+
+    const used = new Map();
+    const use = (e, how) => {
+        if (!used.has(e.id)) used.set(e.id, { ...datasetCitation(e._rawStac), queried: false, mapped: false });
+        used.get(e.id)[how] = true;
+    };
+    for (const t of record?.turns || []) {
+        for (const s of t.steps || []) {
+            if (classifyStep(s) !== 'chunk') continue;
+            for (const path of sqlPaths(stepSql(s))) {
+                const target = pathPrefix(path);
+                const hit = prefixes.find(({ p }) => target === p || target.startsWith(p + '/'));
+                if (hit) use(hit.e, 'queried');
+            }
+        }
+    }
+    const byId = new Map(entries.filter(e => e?._rawStac).map(e => [e.id, e]));
+    for (const id of mapDatasetIds) if (byId.has(id)) use(byId.get(id), 'mapped');
+    return [...used.values()];
+}
+
+/** How the session used a dataset, in a few words. */
+function datasetUse(d) {
+    return d.queried && d.mapped ? 'queried and mapped' : d.queried ? 'queried' : 'mapped';
+}
+
+/** One dataset as plain text lines, for a script comment or a notebook. */
+function datasetTextLines(d) {
+    const lines = [d.title + (d.producers.length ? ` - ${d.producers.join(', ')}` : '') + '.'];
+    if (d.citation) lines.push(d.citation);
+    if (d.doiUrl && !(d.citation || '').includes(d.doiUrl.replace(/^https?:\/\/(dx\.)?doi\.org\//, ''))) {
+        lines.push(`Cite as: ${d.doiUrl}`);
+    }
+    if (d.license) lines.push(`License: ${d.license}${d.licenseUrl ? ` (${d.licenseUrl})` : ''}`);
+    if (d.stacUrl) lines.push(`STAC: ${d.stacUrl}`);
+    return lines;
+}
+
+/** The Data sources section as markdown, for the notebooks. */
+function datasetsMarkdown(datasets) {
+    return '## Data sources\n\n' + datasets.map(d => {
+        const [first, ...rest] = datasetTextLines(d);
+        return `- ${oneLine(first)}` + rest.map(l => `\n  ${oneLine(l)}`).join('');
+    }).join('\n');
+}
+
+/** Make the DOI URLs in already-escaped citation text into links. */
+function linkDois(html) {
+    return html.replace(/https?:\/\/(?:dx\.)?doi\.org\/[^\s<]+?(?=[.,;)]?(?:\s|$))/g, u => `<a href="${u}">${u}</a>`);
+}
+
+/** The report's Data sources section. */
+function dataSourcesHtml(datasets) {
+    if (!datasets?.length) return '';
+    const a = (href, text) => href ? `<a href="${escapeHtmlText(href)}">${text}</a>` : text;
+    const items = datasets.map(d => {
+        const title = `<strong>${escapeHtmlText(d.title)}</strong>`;
+        const by = d.producers.length ? ` — ${escapeHtmlText(d.producers.join(', '))}` : '';
+        const doiShown = d.doiUrl && (d.citation || '').includes(d.doiUrl.replace(/^https?:\/\/(dx\.)?doi\.org\//, ''));
+        const cite = d.citation
+            ? `<p class="ds-citation">${linkDois(escapeHtmlText(d.citation))}${d.doiUrl && !doiShown ? ` ${a(d.doiUrl, escapeHtmlText(d.doiUrl))}` : ''}</p>`
+            : d.doiUrl ? `<p class="ds-citation">Cite as ${a(d.doiUrl, escapeHtmlText(d.doiUrl))}</p>`
+            : `<p class="ds-citation ds-none">The catalog gives no formal citation; cite the producer.</p>`;
+        const meta = [
+            d.license ? `License: ${a(d.licenseUrl, escapeHtmlText(d.license))}` : '',
+            d.stacUrl ? a(d.stacUrl, 'STAC record') : '',
+            d.aboutUrl ? a(d.aboutUrl, 'About') : '',
+            escapeHtmlText(datasetUse(d)) + ' in this session',
+        ].filter(Boolean).join(' · ');
+        return `<li><p class="ds-title">${title}${by}</p>${cite}<p class="ds-meta">${meta}</p></li>`;
+    }).join('\n');
+    return `<section class="report-sources" id="data-sources">
+<h2>Data sources</h2>
+<p class="report-appendix-note">The datasets this session's queries read or its map showed, with the citation their catalog record gives.</p>
+<ol class="ds-list">
+${items}
+</ol>
+</section>`;
+}
+
+/* ------------------------------------------------------------------ */
 /*  The session as a file to run: .R, .py, .qmd, .ipynb                */
 /* ------------------------------------------------------------------ */
 
@@ -960,6 +1121,13 @@ export function buildScript(record, lang, opts = {}) {
             out.push(`print(${showResult(`df${q.n}`, lang)})`);
         }
     }
+    if (opts.datasets?.length) {
+        out.push('', lang === 'r' ? '# ---- Data sources ----' : '# %% Data sources');
+        for (const d of opts.datasets) {
+            comment('');
+            datasetTextLines(d).forEach((l, i) => comment(i ? `  ${oneLine(l)}` : `- ${oneLine(l)}`));
+        }
+    }
     return out.join('\n') + '\n';
 }
 
@@ -997,6 +1165,7 @@ export function buildQmd(record, opts = {}) {
         }
         if (t.answer) out.push('', t.answer.trim());
     }
+    if (opts.datasets?.length) out.push('', datasetsMarkdown(opts.datasets));
     return out.join('\n') + '\n';
 }
 
@@ -1028,6 +1197,7 @@ export function buildIpynb(record, opts = {}) {
         }
         if (t.answer) md(t.answer.trim());
     }
+    if (opts.datasets?.length) md(datasetsMarkdown(opts.datasets));
     return JSON.stringify({
         cells,
         metadata: {
@@ -1100,6 +1270,7 @@ const EXPORT_DOWNLOAD_SCRIPT = `<script>
  * @param {{headTags: string, body: string}} [opts.mapEmbed] - from {@link buildMapEmbedHtml}
  * @param {Map<string, string>} [opts.figures] - chart_id → static chart markup (ChartRenderer#exportFigure)
  * @param {string} [opts.basename] - filename stem for the .R / .py / .qmd / .ipynb downloads
+ * @param {object[]} [opts.datasets] - the datasets used, from {@link sessionDatasets}
  * @param {(md: string) => string} [opts.renderMarkdown]
  * @returns {string} a complete HTML document
  */
@@ -1146,6 +1317,7 @@ export function buildReportHtml(record, opts = {}) {
     const toc = turns.length > 1
         ? `<nav class="report-toc" aria-label="Contents"><p class="report-rail-title">Contents</p><ol>` +
           turns.map((t, i) => `<li><a href="#q-${i + 1}">${escapeHtmlText(tocLabel(t.prompt))}</a></li>`).join('') +
+          (opts.datasets?.length ? `<li class="report-toc-log"><a href="#data-sources">Data sources</a></li>` : '') +
           (turns.some(t => (t.steps || []).length) ? `<li class="report-toc-log"><a href="#session-log">Session log</a></li>` : '') +
           `</ol></nav>`
         : '';
@@ -1209,6 +1381,7 @@ ${mapEmbed.body}
 <main class="report-body">
 ${turns.map((t, i) => sectionHtml(t, i, renderMd, multiModel, opts.figures)).join('\n')}
 </main>
+${dataSourcesHtml(opts.datasets)}
 ${sessionLogHtml({ turns })}
 <footer class="report-colophon">
   <p>Generated with ${version}${appUrl ? ` in <a href="${attr(appUrl)}">${escapeHtmlText(appTitle)}</a>` : ''}.
@@ -1351,6 +1524,16 @@ pre.chunk-output { padding: 0.5rem 1rem; border: 1px solid var(--rule); border-r
 .export-embed-copy { font: inherit; font-size: 11px; padding: 2px 8px; cursor: pointer;
                      border: 1px solid #ced4da; border-radius: 4px; background: #fff; color: #495057; }
 .export-embed-note { font-size: 12px; color: var(--muted); margin: 8px 0 0; }
+
+/* Data sources */
+.report-sources { margin: 3rem 0 0; padding-top: 1rem; border-top: 2px solid var(--rule); }
+.report-sources h2 { font-size: 1.2rem; margin: 0 0 0.25rem; }
+.ds-list { padding-left: 1.4rem; margin: 0.75rem 0 0; }
+.ds-list li { margin: 0 0 0.9rem; }
+.ds-list p { margin: 0.1rem 0; }
+.ds-citation { font-size: 0.9rem; }
+.ds-none { color: var(--muted); font-style: italic; }
+.ds-meta { color: var(--muted); font-size: 0.82rem; }
 
 /* Appendix */
 .report-appendix { margin: 3.5rem 0 0; padding-top: 1rem; border-top: 2px solid var(--rule); }

@@ -502,6 +502,8 @@ async function main() {
 
     /* ── 8. Create UI ─────────────────────────────────────────────────── */
     const ui = new ChatUI(agent, appConfig, layoutRefs.chatMount, mapManager, chartRenderer);
+    // The export's Data sources section cites from the catalog's STAC records.
+    ui.catalog = catalog;
 
     // Draw event → chat notifications.
     // Replace (not append) synthetic draw messages so repeated draw/clear

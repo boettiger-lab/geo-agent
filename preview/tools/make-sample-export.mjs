@@ -84,6 +84,10 @@ ui.agent = { selectedModel: 'z-ai/glm-5.2' };
 ui.messagesEl = window.document.createElement('div');
 ui.messagesEl.id = 'chat-messages';
 ui.mapManager = { getExportState: () => fixture.mapState };
+// The catalog the Data sources section cites from: the real STAC records of
+// the datasets the session read (sample-catalog.json, verbatim but trimmed).
+const stac = JSON.parse(readFileSync(join(dirname(fileURLToPath(import.meta.url)), 'sample-catalog.json'), 'utf8'));
+ui.catalog = { getAll: () => stac.collections.map(c => ({ id: c.id, _rawStac: c })) };
 ui.chartRenderer = chartRenderer;
 window.document.body.appendChild(ui.messagesEl);
 
