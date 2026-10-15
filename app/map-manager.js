@@ -942,6 +942,7 @@ export class MapManager {
             // the resolution last rendered so relabeling has a fallback.
             hexValueStats: valueStats,
             hexPalette: palette,
+            hexFlat: isGeoJson,   // one flat ramp (buildFlatFillColorExpression)
             hexCurrentRes: null,
             extruded: is3D,
         });
@@ -2382,15 +2383,16 @@ export class MapManager {
 
     /**
      * The fill colour of a hex layer whose value domain is a single number
-     * (min === max), or null. The fill builders paint such a layer in the
-     * palette's middle stop, so the legend swatch uses the same. Only for the
+     * (min === max), or null — the colour the fill builders paint it: the
+     * top stop for a flat GeoJSON layer, the midpoint for one pyramid
+     * resolution. Only for the
      * layer's own ramp: a restyled layer's legend mirrors its new expression.
      */
     _singleValueHexColor(state) {
         if (state.legendType !== 'hex' || this._colorPaintChanged(state)) return null;
         const hex = this._hexLegend(state);
         if (!hex || hex.range[0] !== hex.range[1]) return null;
-        return hex.colors[1] ?? null;
+        return hex.colors[state.hexFlat ? hex.colors.length - 1 : 1] ?? null;
     }
 
     /** Format a legend value: grouped integers, floats to 3 significant digits. */
