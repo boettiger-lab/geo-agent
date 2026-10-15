@@ -942,6 +942,7 @@ export class MapManager {
             // the resolution last rendered so relabeling has a fallback.
             hexValueStats: valueStats,
             hexPalette: palette,
+            hexFlat: isGeoJson,   // one flat ramp (buildFlatFillColorExpression)
             hexCurrentRes: null,
             extruded: is3D,
         });
@@ -2380,6 +2381,20 @@ export class MapManager {
         return { colors, range: [stats.min, stats.max], res };
     }
 
+    /**
+     * The fill colour of a hex layer whose value domain is a single number
+     * (min === max), or null — the colour the fill builders paint it: the
+     * top stop for a flat GeoJSON layer, the midpoint for one pyramid
+     * resolution. Only for the
+     * layer's own ramp: a restyled layer's legend mirrors its new expression.
+     */
+    _singleValueHexColor(state) {
+        if (state.legendType !== 'hex' || this._colorPaintChanged(state)) return null;
+        const hex = this._hexLegend(state);
+        if (!hex || hex.range[0] !== hex.range[1]) return null;
+        return hex.colors[state.hexFlat ? hex.colors.length - 1 : 1] ?? null;
+    }
+
     /** Format a legend value: grouped integers, floats to 3 significant digits. */
     _fmtLegendValue(v) {
         if (typeof v !== 'number' || !isFinite(v)) return String(v);
@@ -2522,11 +2537,15 @@ export class MapManager {
         // which restates nothing, so its layer still needs its heading (#334).
         const singleCategorical = categorical && !categorical.derived
             && categorical.classes.length === 1;
+        // Same for a hex layer whose values are all one number (glen-sdm's
+        // modelled range: every cell is 1). A min→max colorbar from 1 to 1
+        // says nothing; one swatch labelled with the layer name does.
+        const singleHexColor = this._singleValueHexColor(state);
 
         // Display name, class names, and color hints come from STAC metadata
         // (untrusted) — build the legend via textContent and validate colors
         // before they reach a style attribute.
-        if (!singleCategorical) {
+        if (!singleCategorical && !singleHexColor) {
             const heading = document.createElement('h4');
             heading.textContent = state.displayName;
             item.appendChild(heading);
@@ -2567,6 +2586,14 @@ export class MapManager {
             }
             item.appendChild(bar);
             item.appendChild(labels);
+        } else if (singleHexColor) {
+            const row = document.createElement('div');
+            row.className = 'legend-item';
+            const swatch = document.createElement('span');
+            swatch.style.background = this._safeColorHint(singleHexColor);
+            row.appendChild(swatch);
+            row.appendChild(document.createTextNode(state.displayName));
+            item.appendChild(row);
         } else if (state.legendType === 'hex') {
             // Hex choropleth (#316): fixed 3-stop palette, min→max, over the
             // value domain of the resolution currently on screen. Labels update

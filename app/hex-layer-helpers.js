@@ -152,8 +152,8 @@ export function rewriteValueColumn(expr, valueColumn) {
  * emits would render every feature transparent (match fallback). This helper
  * interpolates directly over a single `{min, max}` instead.
  *
- * Null values render transparent; a collapsed range (min == max) renders a flat
- * palette-midpoint color.
+ * Null values render transparent; a collapsed range (min == max) renders the
+ * palette's top color.
  *
  * @param {string} valueColumn - Feature property to color by.
  * @param {{min: number, max: number}} stats - Single-resolution value range.
@@ -172,7 +172,12 @@ export function buildFlatFillColorExpression(valueColumn, stats, palette) {
     const { min, max } = stats;
     const branch = (min < max)
         ? ['interpolate', ['linear'], ['get', valueColumn], min, c0, (min + max) / 2, c1, max, c2]
-        : c1;
+        // A single value over the whole layer is a mask (glen-sdm's modelled
+        // range), not one zoom level of a varying layer as in
+        // buildFillColorExpression, where the neutral midpoint stays. Paint it
+        // the top stop: the middle can vanish (bluered's is near-white) or
+        // blend into an overlay beneath.
+        : c2;
 
     return [
         'case',
