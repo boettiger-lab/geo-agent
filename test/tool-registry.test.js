@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { ToolRegistry } from '../app/tool-registry.js';
 
 const stubMcpTool = (name = 'get_stac_details') => ({
@@ -430,5 +430,114 @@ describe('ToolRegistry idempotent-read memoization (#281)', () => {
         await reg.execute('get_stac_details', { dataset_id: 'foo' });
 
         expect(callTool).toHaveBeenCalledTimes(2);
+    });
+});
+
+describe('ToolRegistry with several MCP servers (#338)', () => {
+    const tool = (name) => ({ name, description: name, inputSchema: { type: 'object', properties: {} } });
+    const client = () => ({ callTool: vi.fn(async (name) => `from ${name}`) });
+
+    it('routes each tool to the client that registered it', async () => {
+        const duck = client();
+        const sdm = client();
+        const reg = new ToolRegistry();
+        reg.registerRemote([tool('query')], duck, null, { rank: 0 });
+        reg.registerRemote([tool('fit_sdm')], sdm, null, { rank: 1 });
+
+        await reg.execute('query', { sql_query: 'select 1' });
+        await reg.execute('fit_sdm', { occurrences: {} });
+
+        expect(duck.callTool).toHaveBeenCalledWith('query', { sql_query: 'select 1' });
+        expect(sdm.callTool).toHaveBeenCalledWith('fit_sdm', { occurrences: {} });
+        expect(duck.callTool).toHaveBeenCalledTimes(1);
+        expect(sdm.callTool).toHaveBeenCalledTimes(1);
+    });
+
+    it('applies an argsRewriter only to its own server\'s tools', async () => {
+        const duck = client();
+        const sdm = client();
+        const rewriter = vi.fn((n, a) => ({ ...a, injected: true }));
+        const reg = new ToolRegistry();
+        reg.registerRemote([tool('get_stac_details')], duck, rewriter, { rank: 0 });
+        reg.registerRemote([tool('fit_sdm')], sdm, null, { rank: 1 });
+
+        await reg.execute('fit_sdm', { a: 1 });
+        expect(rewriter).not.toHaveBeenCalled();
+        expect(sdm.callTool).toHaveBeenCalledWith('fit_sdm', { a: 1 });
+
+        await reg.execute('get_stac_details', { dataset_id: 'x' });
+        expect(duck.callTool).toHaveBeenCalledWith('get_stac_details', { dataset_id: 'x', injected: true });
+    });
+
+    it('clearRemote(client) drops only that server\'s tools', () => {
+        const duck = client();
+        const sdm = client();
+        const reg = new ToolRegistry();
+        reg.registerLocal({ name: 'show_layer', description: '', inputSchema: {}, execute: () => 'ok' });
+        reg.registerRemote([tool('query'), tool('register_hex_tiles')], duck, null, { rank: 0 });
+        reg.registerRemote([tool('fit_sdm'), tool('get_sdm_result')], sdm, null, { rank: 1 });
+
+        reg.clearRemote(sdm);
+        expect(reg.getNames().sort()).toEqual(['query', 'register_hex_tiles', 'show_layer']);
+
+        reg.registerRemote([tool('fit_sdm')], sdm, null, { rank: 1 });
+        reg.clearRemote(duck);
+        expect(reg.getNames().sort()).toEqual(['fit_sdm', 'show_layer']);
+    });
+
+    it('clearRemote() with no client still drops every remote tool', () => {
+        const reg = new ToolRegistry();
+        reg.registerLocal({ name: 'show_layer', description: '', inputSchema: {}, execute: () => 'ok' });
+        reg.registerRemote([tool('query')], client(), null, { rank: 0 });
+        reg.registerRemote([tool('fit_sdm')], client(), null, { rank: 1 });
+        reg.clearRemote();
+        expect(reg.getNames()).toEqual(['show_layer']);
+    });
+
+    describe('name collisions: the earlier server wins', () => {
+        let warn;
+        beforeEach(() => { warn = vi.spyOn(console, 'warn').mockImplementation(() => {}); });
+        afterEach(() => warn.mockRestore());
+
+        it('skips a later server\'s tool of the same name', async () => {
+            const duck = client();
+            const other = client();
+            const reg = new ToolRegistry();
+            reg.registerRemote([tool('query')], duck, null, { rank: 0 });
+            const n = reg.registerRemote([tool('query'), tool('extra')], other, null, { rank: 1 });
+
+            expect(n).toBe(1);
+            await reg.execute('query', {});
+            expect(duck.callTool).toHaveBeenCalled();
+            expect(other.callTool).not.toHaveBeenCalled();
+            expect(warn).toHaveBeenCalled();
+        });
+
+        it('replaces a later server\'s tool when the earlier one registers afterwards', async () => {
+            // e.g. an optional server connected before the primary's retry succeeded
+            const duck = client();
+            const other = client();
+            const reg = new ToolRegistry();
+            reg.registerRemote([tool('query')], other, null, { rank: 1 });
+            reg.registerRemote([tool('query')], duck, null, { rank: 0 });
+
+            await reg.execute('query', {});
+            expect(duck.callTool).toHaveBeenCalled();
+            expect(other.callTool).not.toHaveBeenCalled();
+
+            // and the later server's reconnect neither re-takes nor drops it
+            reg.clearRemote(other);
+            reg.registerRemote([tool('query')], other, null, { rank: 1 });
+            await reg.execute('query', {});
+            expect(duck.callTool).toHaveBeenCalledTimes(2);
+        });
+
+        it('lets a server re-register its own tools on reconnect', () => {
+            const duck = client();
+            const reg = new ToolRegistry();
+            reg.registerRemote([tool('query')], duck, null, { rank: 0 });
+            expect(reg.registerRemote([tool('query')], duck, null, { rank: 0 })).toBe(1);
+            expect(warn).not.toHaveBeenCalled();
+        });
     });
 });

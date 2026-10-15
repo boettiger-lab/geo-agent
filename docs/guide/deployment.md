@@ -52,8 +52,8 @@ The deploy-time `config.json` sits beside `layers-input.json` and is merged over
 |---|---|
 | `llm_models` | Array of `{ value, label, endpoint, api_key }`, the models offered in the chat footer. |
 | `llm_model` | Which of them is selected on load. Defaults to the first. |
-| `mcp_server_url` | MCP server URL. Overrides `mcp_url` from `layers-input.json`. |
-| `mcp_auth_token` | Sent to the MCP server as `Authorization: Bearer …`. |
+| `mcp_server_url` | MCP server URL. Overrides `mcp_url` from `layers-input.json`; with [`mcp_servers`](./configuration#multiple-mcp-servers), it replaces only the first (primary) server's URL. |
+| `mcp_auth_token` | Sent to the MCP server (the primary, with `mcp_servers`) as `Authorization: Bearer …`. |
 | `transcription_model` | Enables voice input. See [Voice input](./configuration#voice-input-optional). |
 | `draw_enabled`, `geolocate` | Override the same keys in `layers-input.json`. |
 | `max_tool_calls`, `max_tool_calls_manual` | Override the checkpoint caps. `0` disables a cap. |
