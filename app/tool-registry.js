@@ -4,7 +4,8 @@
  * Single source of truth for ALL tools the LLM can use.
  * Registers tools from two sources:
  *   - "local" tools (map control, dataset catalog) — executed in-browser
- *   - "remote" tools (MCP server) — executed via MCPClient
+ *   - "remote" tools (one or more MCP servers) — executed via the
+ *     MCPClient of the server that listed them
  * 
  * Provides:
  *   - getToolsForLLM() → unified tools[] array in OpenAI function-calling format
@@ -138,16 +139,37 @@ export class ToolRegistry {
     }
 
     /**
-     * Register remote MCP tools.
+     * Register remote MCP tools from one server.
+     *
+     * Several servers can register (#338). Each tool is owned by the client
+     * that listed it, and calls route to that client. On a name collision
+     * between servers, the server ranked first in the app's config wins: a
+     * lower-ranked server's tool of the same name is skipped (logged), and a
+     * higher-ranked server's tool replaces it. The shadowed tool does not
+     * come back on its own if the winner later drops it; it returns when its
+     * own server next reconnects.
      *
      * @param {Array} mcpTools - Tool definitions from MCPClient.getTools()
      * @param {MCPClient} mcpClient - Client instance for execution
      * @param {Function} [argsRewriter] - Optional (toolName, args) => args hook
      *   applied before forwarding to MCP. Used to inject cached STAC content
      *   inline for in-app calls (skips an upstream fetch).
+     * @param {Object} [options]
+     * @param {number} [options.rank=0] - the server's position in the app's
+     *   config; lower wins collisions.
+     * @returns {number} how many tools were registered
      */
-    registerRemote(mcpTools, mcpClient, argsRewriter = null) {
+    registerRemote(mcpTools, mcpClient, argsRewriter = null, { rank = 0 } = {}) {
+        let count = 0;
         for (const tool of mcpTools) {
+            const held = this.tools.get(tool.name);
+            if (held?.source === 'remote' && held.mcpClient !== mcpClient) {
+                if ((held.rank ?? 0) <= rank) {
+                    console.warn(`[Tools] Skipping remote tool ${tool.name}: already provided by an earlier MCP server`);
+                    continue;
+                }
+                console.warn(`[Tools] Remote tool ${tool.name} replaces a later MCP server's tool of the same name`);
+            }
             this.tools.set(tool.name, {
                 name: tool.name,
                 description: tool.description,
@@ -159,19 +181,27 @@ export class ToolRegistry {
                 source: 'remote',
                 mcpClient,
                 argsRewriter,
+                rank,
             });
+            count++;
         }
-        console.log(`[Tools] Registered ${mcpTools.length} remote tools`);
+        console.log(`[Tools] Registered ${count} remote tools`);
+        return count;
     }
 
     /**
-     * Drop every remote tool from the registry. Use before re-registering
-     * after a reconnect to avoid leaving stale entries when the server's
-     * tool list has changed.
+     * Drop remote tools from the registry. Use before re-registering after a
+     * reconnect to avoid leaving stale entries when the server's tool list has
+     * changed.
+     *
+     * @param {MCPClient} [mcpClient] - drop only this server's tools, so one
+     *   server reconnecting leaves the others' in place. Omit to drop all.
      */
-    clearRemote() {
+    clearRemote(mcpClient) {
         for (const [name, tool] of this.tools) {
-            if (tool.source === 'remote') this.tools.delete(name);
+            if (tool.source === 'remote' && (!mcpClient || tool.mcpClient === mcpClient)) {
+                this.tools.delete(name);
+            }
         }
     }
 

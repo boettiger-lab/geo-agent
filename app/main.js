@@ -8,6 +8,7 @@
 import { DatasetCatalog } from './dataset-catalog.js';
 import { MapManager } from './map-manager.js';
 import { ToolRegistry } from './tool-registry.js';
+import { resolveMcpServers } from './mcp-servers.js';
 import { createMapTools, createRenderChartTool } from './map-tools.js';
 import { createGeocoder } from './geocoder.js';
 import { Agent } from './agent.js';
@@ -64,12 +65,13 @@ async function main() {
      * MCP cold-start, the STAC catalog walk, the map style, and the static
      * system-prompt fetch are mutually independent. Fire the slow ones now and
      * await them together below, instead of serializing each round trip. */
-    const mcpUrl = appConfig.mcp_url || 'https://duckdb-mcp.nrp-nautilus.io/mcp';
-    const mcpHeaders = {};
-    if (appConfig.mcp_auth_token) {
-        mcpHeaders['Authorization'] = `Bearer ${appConfig.mcp_auth_token}`;
+    // One entry per MCP server (#338); the first is the primary data engine.
+    // See mcp-servers.js for how `mcp_url` and `mcp_servers` combine.
+    const mcpServers = resolveMcpServers(appConfig);
+    for (const s of mcpServers) {
+        console.log('[main] MCP server:', s.url, s.primary ? '(primary)' : '',
+            s.optional ? '(optional)' : '', 'auth token present:', !!s.headers.Authorization);
     }
-    console.log('[main] MCP URL:', mcpUrl, 'auth token present:', !!appConfig.mcp_auth_token);
 
     // Loaded with dynamic import(), not a static one. A static import puts the
     // transport (and everything it imports) in the boot module graph, which the
@@ -80,13 +82,16 @@ async function main() {
     // future unloadable dependency costs the assistant, not the whole page.
     // Still fired here rather than at step 7 so the connect keeps overlapping
     // the catalog walk and map style load (#265).
-    let mcp = null;
+    let mcp = null;   // the primary server's client
     let mcpLoadError = null;
     try {
         const { MCPClient } = await import('./mcp-client.js');
-        mcp = new MCPClient(mcpUrl, mcpHeaders);
-        // Connect eagerly but don't block boot — overlaps catalog + map load below.
-        mcp.connect().catch(err => console.warn('[main] Initial MCP connect failed (will retry):', err.message));
+        for (const s of mcpServers) {
+            s.client = new MCPClient(s.url, s.headers);
+            // Connect eagerly but don't block boot — overlaps catalog + map load below.
+            s.client.connect().catch(err => console.warn(`[main] Initial MCP connect to ${s.url} failed:`, err.message));
+        }
+        mcp = mcpServers[0].client;
     } catch (err) {
         // Module *load* failure (blocked host, 404, syntax error) — distinct from
         // a connect failure, which the .catch above already tolerates.
@@ -397,20 +402,20 @@ async function main() {
         return { ...args, collection };
     };
 
-    // Register remote MCP tools. The initial listTools() can time out when
-    // the MCP pod is cold-starting; retry a few times before falling back to
-    // a minimal hardcoded `query` tool. If the fallback fires, the
-    // onReconnect hook below will refresh the registry once the transport
-    // finally connects.
-    const listMcpToolsWithRetry = async (attempts = 3) => {
+    // Register remote MCP tools, one server at a time. The initial
+    // listTools() can time out when an MCP pod is cold-starting; retry a few
+    // times before falling back to a minimal hardcoded `query` tool (primary
+    // only). If the fallback fires, the server's onReconnect hook below will
+    // refresh the registry once the transport finally connects.
+    const listMcpToolsWithRetry = async (client, attempts = 3) => {
         let lastErr;
         for (let i = 0; i < attempts; i++) {
             try {
                 // connect() dedupes with the eager connect fired at boot and
                 // caches the tool list internally, so getTools() avoids the
                 // extra listTools() round trip the old path incurred.
-                await mcp.connect();
-                const tools = mcp.getTools();
+                await client.connect();
+                const tools = client.getTools();
                 // An empty list here means the connect resolved before its tool
                 // cache was populated — treat it as a failure so we retry, and
                 // fall back to the hardcoded `query` tool rather than silently
@@ -427,38 +432,59 @@ async function main() {
         throw lastErr;
     };
 
-    if (mcp) mcp.setOnReconnect((tools) => {
-        toolRegistry.clearRemote();
-        toolRegistry.registerRemote(tools, mcp, injectInlineStac);
-        console.log(`[main] Refreshed MCP tools after reconnect: ${tools.length} tools`);
+    // The inline-STAC rewriter only knows the primary (duckdb-mcp) server's
+    // STAC tools; other servers' arguments pass through untouched.
+    const rewriterFor = (s) => s.primary ? injectInlineStac : null;
+    const registerServer = (s, rank, tools) =>
+        toolRegistry.registerRemote(tools, s.client, rewriterFor(s), { rank });
+
+    // Per-server reconnect: a server that reconnects refreshes only its own
+    // tools, so one flapping server can't drop another's.
+    if (mcp) mcpServers.forEach((s, rank) => s.client.setOnReconnect((tools) => {
+        toolRegistry.clearRemote(s.client);
+        const n = registerServer(s, rank, tools);
+        console.log(`[main] Refreshed ${s.url} tools after reconnect: ${n} tools`);
+    }));
+
+    // Optional servers don't hold up boot: their tools join the registry when
+    // they connect, and a failed connection only leaves their tools out — no
+    // fallback tool, no error in the chat.
+    if (mcp) mcpServers.forEach((s, rank) => {
+        if (!s.optional) return;
+        listMcpToolsWithRetry(s.client, 1)
+            .then(tools => console.log(`[main] ${registerServer(s, rank, tools)} tools registered from optional MCP server ${s.url}`))
+            .catch(err => console.warn(`[main] Optional MCP server ${s.url} unavailable; its tools are left out:`, err.message));
     });
 
     // Skipped wholesale when the transport never loaded: with no client there is
     // nothing for even the hardcoded fallback `query` tool to call. Boot stops at
     // step 6b below with a chat-panel notice instead.
-    if (mcp) try {
-        const mcpTools = await listMcpToolsWithRetry();
-        toolRegistry.registerRemote(mcpTools, mcp, injectInlineStac);
-        console.log(`[main] ${mcpTools.length} MCP tools registered`);
-    } catch (err) {
-        console.warn('[main] Could not list MCP tools after retries (will refresh on reconnect):', err.message);
-        // Hardcoded fallback so the LLM always has at least the query tool.
-        // The onReconnect hook replaces this entry once the transport connects.
-        toolRegistry.registerRemote([{
-            name: 'query',
-            description: 'Execute a read-only SQL query against a DuckDB database that is pre-loaded with H3 geospatial extensions, spatial functions, and httpfs for accessing remote parquet data. The database supports partitioned hive-style parquet files on S3.',
-            inputSchema: {
-                type: 'object',
-                properties: {
-                    sql_query: {
-                        type: 'string',
-                        description: 'The SQL query to execute. Must be a read-only SELECT statement.'
-                    }
-                },
-                required: ['sql_query']
-            }
-        }], mcp, injectInlineStac);
-    }
+    if (mcp) await Promise.all(mcpServers.map(async (s, rank) => {
+        if (s.optional) return;
+        try {
+            const tools = await listMcpToolsWithRetry(s.client);
+            console.log(`[main] ${registerServer(s, rank, tools)} MCP tools registered from ${s.url}`);
+        } catch (err) {
+            console.warn(`[main] Could not list MCP tools from ${s.url} after retries (will refresh on reconnect):`, err.message);
+            if (!s.primary) return;
+            // Hardcoded fallback so the LLM always has at least the query tool.
+            // The onReconnect hook replaces this entry once the transport connects.
+            registerServer(s, rank, [{
+                name: 'query',
+                description: 'Execute a read-only SQL query against a DuckDB database that is pre-loaded with H3 geospatial extensions, spatial functions, and httpfs for accessing remote parquet data. The database supports partitioned hive-style parquet files on S3.',
+                inputSchema: {
+                    type: 'object',
+                    properties: {
+                        sql_query: {
+                            type: 'string',
+                            description: 'The SQL query to execute. Must be a read-only SELECT statement.'
+                        }
+                    },
+                    required: ['sql_query']
+                }
+            }]);
+        }
+    }));
 
     /* ── 6. Build system prompt ────────────────────────────────────────── */
     const basePrompt = await basePromptP;   // fetch was kicked off at step 1c

@@ -9,7 +9,8 @@ Client apps configure GLEN via `layers-input.json`. All fields except `catalog` 
 | `catalog` | Yes | STAC catalog root URL. The app traverses child links to find collection metadata. |
 | `collections` | Yes | Array of collection specs — see below. |
 | `titiler_url` | No | TiTiler server for COG/raster tile rendering. Defaults to `https://titiler.nrp-nautilus.io`. |
-| `mcp_url` | No | MCP server URL for DuckDB SQL queries. Omit to disable analytics. |
+| `mcp_url` | No | MCP server URL for DuckDB SQL queries. Defaults to `https://duckdb-mcp.nrp-nautilus.io/mcp`. With `mcp_servers`, it sets the URL of the first (primary) server. |
+| `mcp_servers` | No | Several MCP servers, e.g. duckdb-mcp plus a domain server. See [Multiple MCP servers](#multiple-mcp-servers). |
 | `view` | No | Initial map view — see below. |
 | `llm` | No | LLM configuration — see below. Omit for server-provided mode. |
 | `welcome` | No | Welcome message: `{ "message": "...", "examples": ["...", "..."] }` |
@@ -1124,6 +1125,31 @@ Only Polygon and MultiPolygon features are accepted. Larger or other data is out
 ::: warning The bucket must accept anonymous browser uploads
 The browser writes the file directly, so the bucket needs anonymous `PUT` **and** a CORS rule allowing `PUT` from your app's origin. Read-only CORS is the common default, and uploads fail at the preflight with a 403. On Ceph RGW the first rule whose `AllowedOrigin` matches wins, so put a specific-origin `PUT` rule before any broad `*` rule. Uploaded files are public.
 :::
+
+## Multiple MCP servers
+
+`mcp_url` connects one MCP server. To give the agent tools from more than one, list them in `mcp_servers`:
+
+```json
+"mcp_servers": [
+  { "url": "https://duckdb-mcp.nrp-nautilus.io/mcp" },
+  { "url": "https://sdm-mcp.nrp-nautilus.io/mcp", "optional": true }
+]
+```
+
+| Field | Description |
+|---|---|
+| `url` | The server's Streamable HTTP endpoint. |
+| `auth_token` | Optional. Sent to this server only, as `Authorization: Bearer …`. |
+| `optional` | `true`: if the server can't be reached, its tools are left out and the app boots normally. Its connection does not hold up boot either; its tools join when it connects. Default `false`. |
+
+**The first entry is the primary server**, the data engine (duckdb-mcp). Only the primary gets the inline STAC lookup for `get_stac_details` / `get_collection`, the fallback `query` tool if it is slow to connect, and the server's `geospatial-analyst` prompt; `get_schema` and `render_chart` query it too.
+
+**The single-server keys address the primary only.** `mcp_url` replaces the first entry's URL, and `mcp_auth_token` its token. The same holds for `mcp_server_url` and `mcp_auth_token` in the deploy-time `config.json`, so a deployment can inject the duckdb-mcp URL there while the other servers stay listed in `layers-input.json`.
+
+**Each server reconnects on its own.** A server that drops and reconnects refreshes only its own tools.
+
+**Tool-name collisions:** the server listed first wins. A later server's tool with the same name is skipped, with a console warning.
 
 ## Tool call auto-approve
 
