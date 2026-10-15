@@ -132,9 +132,11 @@ describe('buildFlatFillColorExpression', () => {
       1, '#440154', 50.5, '#21918c', 100, '#fde725']);
   });
 
-  it('collapses a min == max range to the palette midpoint color', () => {
+  it('collapses a min == max range to the palette top color', () => {
     const expr = buildFlatFillColorExpression('count', { min: 5, max: 5 }, 'viridis');
-    expect(expr[3]).toBe('#21918c');
+    expect(expr[3]).toBe('#fde725');
+    // bluered's midpoint is near-white; the top stop stays visible
+    expect(buildFlatFillColorExpression('v', { min: 1, max: 1 }, 'bluered')[3]).toBe('#b2182b');
   });
 
   it('throws on unknown palette', () => {
