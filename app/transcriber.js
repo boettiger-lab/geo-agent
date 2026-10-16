@@ -6,9 +6,10 @@
  * reasoning model the user has selected for the agentic loop.
  *
  * Backend-agnostic: any OpenAI-compatible chat-completions endpoint that
- * accepts the `input_audio` content part will work. Currently tested against
- * gemma4 on the NRP llm-proxy; a dedicated Whisper deployment can be
- * substituted by changing `transcription_model` in config.json.
+ * accepts the `input_audio` content part will work. Tested 2026-10-16 against
+ * `gemma-small` (google/gemma-4-12B-it) on the open-llm-proxy; a dedicated
+ * Whisper deployment can be substituted by changing `transcription_model` in
+ * config.json. Most chat models don't take audio — see the voice-input docs.
  */
 
 export class Transcriber {
@@ -33,7 +34,7 @@ export class Transcriber {
      * @returns {Promise<string>} trimmed transcript
      */
     async transcribe(audio, opts = {}) {
-        let endpoint = this.modelCfg.endpoint || 'https://llm-proxy.nrp-nautilus.io/v1';
+        let endpoint = this.modelCfg.endpoint || 'https://open-llm-proxy.nrp-nautilus.io/v1';
         if (!endpoint.endsWith('/chat/completions')) {
             endpoint = endpoint.replace(/\/$/, '') + '/chat/completions';
         }

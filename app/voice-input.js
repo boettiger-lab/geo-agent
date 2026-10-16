@@ -3,7 +3,7 @@
  *
  * Exploratory: records audio via the browser mic, returns a base64-encoded
  * blob ready to be passed as an OpenAI `input_audio` content part to
- * audio-capable chat models (gemma4 in our configured stack).
+ * audio-capable chat models (gemma-small on the open-llm-proxy).
  *
  * Capability gating lives in chat-ui.js — this file only handles capture.
  */
