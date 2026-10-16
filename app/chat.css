@@ -199,32 +199,44 @@
     background: #c82333;
 }
 
-/* ── Voice input (exploratory) ──────────────────────────── */
+/* ── Voice input ─────────────────────────────────────────── */
 
+/* A secondary control: a small line icon in the panel's text colour, no fill
+   or border until hover, so Send stays the loudest thing in the row. */
 #chat-mic {
-    padding: 9px 12px;
-    background: rgba(255, 255, 255, 0.08);
-    color: #fff;
-    border: 1px solid rgba(255, 255, 255, 0.2);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px;
+    background: transparent;
+    color: var(--chat-fg);
+    opacity: 0.7;
+    border: 1px solid transparent;
     border-radius: 6px;
     cursor: pointer;
-    font-size: 15px;
-    line-height: 1;
+    line-height: 0;
 }
 
-#chat-mic:hover {
-    background: rgba(255, 255, 255, 0.15);
+#chat-mic:hover,
+#chat-mic:focus-visible {
+    opacity: 1;
+    border-color: color-mix(in srgb, var(--chat-fg) 25%, transparent);
 }
 
+/* Live: the icon turns red and pulses gently; no solid fill. */
 #chat-mic.recording {
-    background: rgba(220, 53, 69, 0.85);
-    border-color: rgba(220, 53, 69, 1);
-    animation: mic-pulse 1.2s ease-in-out infinite;
+    color: var(--danger-fg);
+    opacity: 1;
+    animation: mic-pulse 1.4s ease-in-out infinite;
 }
 
 @keyframes mic-pulse {
-    0%, 100% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.6); }
-    50%      { box-shadow: 0 0 0 6px rgba(220, 53, 69, 0); }
+    0%, 100% { opacity: 1; }
+    50%      { opacity: 0.45; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    #chat-mic.recording { animation: none; }
 }
 
 /* ── Footer / model selector ────────────────────────────── */

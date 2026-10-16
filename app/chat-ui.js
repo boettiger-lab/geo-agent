@@ -8,7 +8,7 @@
 import { CARBON_DASHBOARD_URL } from './app-header.js';
 import { ensurePanelActions } from './panel-actions.js';
 import { sqlArg } from './tool-registry.js';
-import { githubIcon, leafIcon } from './icons.js';
+import { githubIcon, leafIcon, micIcon, stopIcon } from './icons.js';
 
 import {
     PUBLIC_S3_ENDPOINT,
@@ -256,9 +256,7 @@ export class ChatUI {
                 try {
                     await this.voice.start();
                     this.recording = true;
-                    this.micBtn.classList.add('recording');
-                    this.micBtn.textContent = '⏹';
-                    this.micBtn.title = 'Stop recording';
+                    this._setMicState(true);
                 } catch (err) {
                     console.error('[ChatUI] Mic start failed:', err);
                     this.addMessage('error', `Microphone error: ${err.message || err}`);
@@ -269,9 +267,7 @@ export class ChatUI {
             try {
                 const audio = await this.voice.stop();
                 this.recording = false;
-                this.micBtn.classList.remove('recording');
-                this.micBtn.textContent = '🎤';
-                this.micBtn.title = 'Record voice input';
+                this._setMicState(false);
 
                 const prevPlaceholder = this.inputEl.placeholder;
                 this.inputEl.placeholder = 'Transcribing…';
@@ -293,10 +289,18 @@ export class ChatUI {
                 console.error('[ChatUI] Mic stop / transcription failed:', err);
                 this.addMessage('error', `Voice input error: ${err.message || err}`);
                 this.recording = false;
-                this.micBtn.classList.remove('recording');
-                this.micBtn.textContent = '🎤';
+                this._setMicState(false);
             }
         });
+    }
+
+    /** Mic button: icon, label and styling for recording vs. idle. */
+    _setMicState(recording) {
+        const label = recording ? 'Stop recording' : 'Record voice input';
+        this.micBtn.classList.toggle('recording', recording);
+        this.micBtn.innerHTML = recording ? stopIcon() : micIcon();
+        this.micBtn.title = label;
+        this.micBtn.setAttribute('aria-label', label);
     }
 
     /* ------------------------------------------------------------------ */

@@ -59,7 +59,7 @@ describe('Transcriber.transcribe', () => {
         global.fetch = vi.fn(async () => okResponse('x'));
         const t = new Transcriber({ value: 'm' });
         await t.transcribe({ data: 'b', format: 'wav' });
-        expect(global.fetch.mock.calls[0][0]).toBe('https://llm-proxy.nrp-nautilus.io/v1/chat/completions');
+        expect(global.fetch.mock.calls[0][0]).toBe('https://open-llm-proxy.nrp-nautilus.io/v1/chat/completions');
     });
 
     it('falls back to "EMPTY" Authorization when api_key is absent', async () => {

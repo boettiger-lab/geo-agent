@@ -20,6 +20,7 @@
 import { buildAppHeader } from './app-header.js';
 import { applyTheme } from './theme.js';
 import { initMobileSheet } from './mobile-sheet.js';
+import { micIcon } from './icons.js';
 
 // State exposed to main.js so it can wire map.resize() into the drag loop.
 export const sidebarHooks = {
@@ -77,10 +78,11 @@ function buildFloatingLayout(_appConfig, title, linksAbsorbed = false) {
     });
     const mic = el('button', {
         id: 'chat-mic',
-        title: 'Hold to record voice input',
+        title: 'Record voice input',
+        'aria-label': 'Record voice input',
     });
     mic.hidden = true;
-    mic.textContent = '\uD83C\uDFA4';
+    mic.innerHTML = micIcon();
     const send = el('button', { id: 'chat-send' });
     send.textContent = 'Send';
     inputContainer.append(input, mic, send);
@@ -170,10 +172,11 @@ function buildSidebarLayout(appConfig, title, linksAbsorbed = false) {
     });
     const mic = el('button', {
         id: 'chat-mic',
-        title: 'Hold to record voice input',
+        title: 'Record voice input',
+        'aria-label': 'Record voice input',
     });
     mic.hidden = true;
-    mic.textContent = '🎤';
+    mic.innerHTML = micIcon();
     const send = el('button', { id: 'chat-send' });
     send.textContent = 'Send';
     inputContainer.append(input, mic, send);

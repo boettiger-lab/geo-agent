@@ -991,7 +991,7 @@ The agentic tool-use loop is heavily prefill-dominated — every turn re-sends t
 
 ## Voice input (optional)
 
-Voice input is opt-in via a `transcription_model` entry in `config.json`. When present, a 🎤 button appears in the chat footer; when absent, the button stays hidden and the voice/transcription JS modules are never loaded (zero footprint).
+Voice input is opt-in via a `transcription_model` entry in `config.json`. When present, a microphone button appears beside Send; when absent, the button stays hidden and the voice/transcription JS modules are never loaded (zero footprint).
 
 The voice pipeline runs in two phases:
 
@@ -1003,8 +1003,8 @@ The voice pipeline runs in two phases:
 ```json
 {
   "transcription_model": {
-    "value": "google/gemma-3n-e4b-it",
-    "endpoint": "https://llm-proxy.nrp-nautilus.io/v1",
+    "value": "gemma-small",
+    "endpoint": "/api/llm",
     "api_key": "EMPTY"
   }
 }
@@ -1018,12 +1018,24 @@ The voice pipeline runs in two phases:
     "user_provided": true,
     "default_endpoint": "https://open-llm-proxy.nrp-nautilus.io/v1",
     "models": [ /* ... */ ],
-    "transcription_model": { "value": "gemma" }
+    "transcription_model": { "value": "gemma-small" }
   }
 }
 ```
 
-The `endpoint` must be an OpenAI-compatible chat-completions URL whose model accepts the `input_audio` content part. Any backend that meets that contract works — gemma4 on the NRP llm-proxy is the current reference implementation; a dedicated Whisper deployment can be substituted by swapping this config block.
+`/api/llm` is the path deployed apps use to reach the [open-llm-proxy](https://github.com/boettiger-lab/open-llm-proxy) through their nginx sidecar. Outside such a deployment, use `https://open-llm-proxy.nrp-nautilus.io/v1`.
+
+The `endpoint` must be an OpenAI-compatible chat-completions URL whose model accepts the `input_audio` content part. A model that serves chat is not enough: most don't take audio. `gemma-small` (`google/gemma-4-12B-it`) on the open-llm-proxy is the current reference implementation (checked 2026-10-16). NRP renames and retires model ids without notice, so check a new id with one request before configuring it:
+
+```bash
+curl -s https://open-llm-proxy.nrp-nautilus.io/v1/chat/completions \
+  -H "Authorization: Bearer $KEY" -H "Content-Type: application/json" \
+  -d '{"model": "gemma-small", "messages": [{"role": "user", "content": [
+        {"type": "text", "text": "Transcribe this audio."},
+        {"type": "input_audio", "input_audio": {"data": "'"$(base64 -w0 speech.wav)"'", "format": "wav"}}]}]}'
+```
+
+A model without audio support answers 400 (e.g. `does not have an audio tower`) or 500. A dedicated Whisper deployment can be substituted by swapping this config block.
 
 ## Draw tool (optional)
 
