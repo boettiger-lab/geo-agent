@@ -12,7 +12,7 @@ place in a repo with no build step — it is committed on purpose. Read this fir
 | Version | **1.12.0** (pinned exactly in `devDependencies`) |
 | Built with | `esbuild` **0.28.2** (pinned exactly — see *Reproducibility*) |
 | Entry point | `scripts/mcp-sdk-entry.js` |
-| Rebuild | `npm run build:vendor` |
+| Rebuild | `pnpm run build:vendor` |
 | Consumed by | `app/mcp-client.js` |
 
 ### Why it is vendored rather than loaded from a CDN
@@ -54,7 +54,7 @@ build-time-only artifact would not exist at the CDN path.
 
 ### Reproducibility
 
-`npm run build:vendor` is byte-stable for a given esbuild version, so CI can
+`pnpm run build:vendor` is byte-stable for a given esbuild version, so CI can
 rebuild and diff to prove the committed artifact matches the source. It is
 **not** stable *across* esbuild versions — 0.28.2 and 0.21.5 produce different
 output for identical input. That is why `esbuild` is pinned to an exact version
@@ -62,7 +62,7 @@ rather than a caret range: a lockfile refresh that moved the minifier would
 otherwise fail the CI check with no real change.
 
 The same applies to the SDK version. Bumping it is a deliberate, separate
-change: update `devDependencies`, run `npm run build:vendor`, commit the new
+change: update `devDependencies`, run `pnpm run build:vendor`, commit the new
 artifact, and update the version in this file.
 
 ### Licenses

@@ -13,12 +13,13 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0, version from package.json
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
-      - run: npm ci
-      - run: npx vitest run --coverage --coverage.include='app/**' --coverage.reporter=json-summary --coverage.reporter=json --coverage.reporter=text
+          cache: 'pnpm'
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec vitest run --coverage --coverage.include='app/**' --coverage.reporter=json-summary --coverage.reporter=json --coverage.reporter=text
       - name: Coverage report comment
         if: github.event_name == 'pull_request'
         uses: davelosert/vitest-coverage-report-action@2500dafcee7dd64f85ab689c0b83798a8359770e # v2.9.3
@@ -26,14 +27,17 @@ jobs:
   vendor:
     name: Vendored bundle matches its source
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0, version from package.json
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
-      - run: npm ci
-      - run: npm run build:vendor
+          cache: 'pnpm'
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run build:vendor
       # esbuild output is byte-stable for a pinned version, so a fresh build must
       # reproduce the committed artifact exactly. Catches a hand-edited bundle, or
       # an SDK bump landed without rebuilding. --stat keeps a mismatch from dumping
@@ -45,6 +49,6 @@ jobs:
           if [ -n "$(git status --porcelain -- app/vendor/)" ]; then
             git status --short -- app/vendor/
             git diff --stat -- app/vendor/
-            echo "::error::app/vendor/ does not match a fresh build. Run 'npm run build:vendor' and commit the result. See app/vendor/README.md."
+            echo "::error::app/vendor/ does not match a fresh build. Run 'pnpm run build:vendor' and commit the result. See app/vendor/README.md."
             exit 1
           fi

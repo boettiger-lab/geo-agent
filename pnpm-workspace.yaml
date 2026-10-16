@@ -1,0 +1,18 @@
+# Supply-chain settings for pnpm (https://pnpm.io/supply-chain-security).
+#
+# No dependency runs an install script. pnpm blocks any that allowBuilds does
+# not approve, and fails the install on one it was not told about, so a new
+# dependency that wants a script stops here for a decision. esbuild needs none:
+# its binary arrives as a platform package (@esbuild/<os>-<arch>), and its
+# postinstall only re-checks that binary.
+allowBuilds:
+  esbuild: false
+#
+# A version must be a week old before pnpm will install it, so a hijacked
+# release is usually caught and pulled before it can reach us.
+minimumReleaseAge: 10080
+# Refuse a release published with weaker provenance than earlier ones (e.g. a
+# stolen token publishing where CI used to).
+trustPolicy: no-downgrade
+# Transitive dependencies come from the registry only, never git or a tarball URL.
+blockExoticSubdeps: true

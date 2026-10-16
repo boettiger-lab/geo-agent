@@ -136,11 +136,27 @@ Downstream apps serve a static HTML file that loads the pinned app code from jsD
 - Create a local `app/config.json` with LLM model configs for development
 - `config.json` is in `.gitignore` — never committed (contains API keys)
 
+### Development dependencies (pnpm)
+
+Node packages are for development only — tests, the docs site, and rebuilding
+the vendored bundle. None is served to users. They are installed with pnpm
+(version pinned in `package.json`'s `packageManager`; `corepack pnpm install`
+fetches it), never npm, because of the supply-chain settings in
+`pnpm-workspace.yaml`:
+
+- no dependency runs an install script (`allowBuilds`; a new dependency that
+  wants one fails the install until someone decides);
+- a version must be a week old before it can be installed (`minimumReleaseAge`);
+- a release with weaker provenance than earlier ones is refused (`trustPolicy`).
+
+Don't loosen these to get past an install error; say why in the PR if one has
+to change. CI installs with `--frozen-lockfile`.
+
 ### Vendored dependencies
 
 `app/vendor/mcp-sdk.js` is a **committed build artifact** — the MCP SDK,
 pre-bundled with esbuild so the app has no runtime dependency on a third-party
-ESM host (#343). Rebuild with `npm run build:vendor`; CI fails if the committed
+ESM host (#343). Rebuild with `pnpm run build:vendor`; CI fails if the committed
 file doesn't match a fresh build. Never hand-edit it, and see
 `app/vendor/README.md` before bumping the SDK version. Every other third-party
 library stays in the app's `index.html` as an SRI-hashed `<script>` tag — that
@@ -148,7 +164,7 @@ split is deliberate, see #344.
 
 ## Testing
 
-- `npm test` runs the suite; `npm run test:coverage` prints a per-module coverage table.
+- `pnpm test` runs the suite; `pnpm run test:coverage` prints a per-module coverage table.
 - Tests live in `test/`; CI runs them on every PR (`.github/workflows/test.yml`).
 - The test runner is [vitest](https://vitest.dev/). Browser-bound modules are not in jsdom — they're left to manual verification in deployed apps.
 
