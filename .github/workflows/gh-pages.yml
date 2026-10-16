@@ -6,6 +6,8 @@ on:
     paths:
       - 'docs/**'
       - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
       - '.github/workflows/gh-pages.yml'
 
   # Allow manual trigger. Dispatching on a `preview/*` branch also publishes
@@ -28,16 +30,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0, version from package.json
+
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: npm
+          cache: pnpm
 
       - name: Install dependencies
-        run: npm ci
+        run: pnpm install --frozen-lockfile
 
       - name: Build VitePress docs
-        run: npm run docs:build
+        run: pnpm run docs:build
 
       # Browser-bound modules (map, chat UI, layout) have no test harness, so
       # they are verified by eye. Every `preview/*` branch is staged into the

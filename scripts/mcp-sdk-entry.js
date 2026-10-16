@@ -9,7 +9,7 @@
  * Re-export only what `app/mcp-client.js` actually uses; esbuild tree-shakes
  * the rest (the server-side surface — express, cors — drops out).
  *
- * Rebuild with `npm run build:vendor`. See app/vendor/README.md.
+ * Rebuild with `pnpm run build:vendor`. See app/vendor/README.md.
  */
 export { Client } from '@modelcontextprotocol/sdk/client/index.js';
 export { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
