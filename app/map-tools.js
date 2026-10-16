@@ -515,14 +515,14 @@ Returns a single point. This tool does NOT move the map — call \`fly_to\` your
         // ---- Dynamic Hex Tile Layers ----
         {
             name: 'add_hex_tile_layer',
-            description: `Add a dynamic H3 hex tile layer to the map as an ADDITIVE overlay. Hex layers do not replace existing layers — they sit on top, and existing polygon/raster layers stay visible beneath. Use after calling the MCP \`register_hex_tiles\` tool, which returns a tile URL template + bounds + value columns + per-resolution value stats.
+            description: `Add a dynamic H3 hex tile layer to the map as an ADDITIVE overlay. Hex layers do not replace existing layers — they sit on top, and existing polygon/raster layers stay visible beneath. Use after calling the MCP \`register_hex_tiles\` tool, which returns a tile URL template + bounds + value columns + per-resolution value stats, or with a ready argument object that another tool's result supplies for this tool (e.g. a species distribution model's \`artifacts.map_layers\`).
 
 Common use cases:
   - Dense point data aggregated per hex (e.g. GBIF occurrence counts per h8 cell).
   - Polygon datasets summarized per hex (e.g. feature count or average attribute).
   - Pre-computed per-cell values (density rasters, model outputs).
 
-Flow:
+Flow (register_hex_tiles):
   1. Call \`register_hex_tiles\` (MCP) with SQL that returns (h3_index [, value1, ...]).
   2. Pass the returned \`tile_url\` to this tool. That is the ONLY required field.
      The color-scale metadata (value_stats, bounds, value_column, layer_name) is
@@ -538,17 +538,17 @@ Optional inputs:
   - format                ← format ("geojson" or "vector"; defaults to "vector")
   - geojson_url           ← geojson_url (REQUIRED when format="geojson"; ignored otherwise)
 
-For GeoJSON tilesets you MUST still pass format="geojson" + geojson_url from the register_hex_tiles return — those two are NOT in the fetched sidecar. The server auto-selects GeoJSON for small/single-resolution tilesets and vector tiles otherwise; for GeoJSON the \`.pbf\` tile_url 404s, so the layer renders blank unless you also pass format="geojson" + geojson_url.
+register_hex_tiles always builds a vector tile pyramid, so its layers use the default format="vector". format="geojson" is for layers whose producing tool supplies a geojson_url (a single FeatureCollection) — currently the species distribution model's \`artifacts.map_layers\`. When a tool result hands you a ready argument object for add_hex_tile_layer, pass it unchanged: format and geojson_url are NOT in the fetched sidecar, and without them the \`.pbf\` tile_url 404s and the layer renders blank.
 
 Hexes get finer as the user zooms in: the tile server's pyramid serves the appropriate H3 resolution for each zoom level automatically (vector format only). If the user wants a coarser overall view, re-run \`register_hex_tiles\` with the SQL projected to a coarser resolution by wrapping the first column in \`h3_cell_to_parent(<h3_col>, <target_res>)\` — the server auto-detects the H3 resolution from that column.
 
-IMPORTANT: tile_url must be the exact tile_url_template returned by register_hex_tiles — the tool rejects other URLs. It supplies the layer's content hash for both formats (the GeoJSON layer still keys off it).
+IMPORTANT: tile_url must be the exact tile URL template the producing tool returned (\`.../tiles/hex/<key>/{z}/{x}/{y}.pbf\`) — the tool rejects other URLs. It supplies the layer's content hash for both formats (the GeoJSON layer still keys off it).
 
 The returned layer_id can be used with show_layer / hide_layer / set_style / set_filter / get_map_state like any other vector layer, and with remove_hex_tile_layer to free the source.`,
             inputSchema: {
                 type: 'object',
                 properties: {
-                    tile_url: { type: 'string', description: 'tile_url_template from register_hex_tiles — the ONLY required field' },
+                    tile_url: { type: 'string', description: 'tile URL template from register_hex_tiles (tile_url_template) or from the producing tool\'s ready argument object — the ONLY required field' },
                     value_column: { type: 'string', description: 'Optional: which column from value_columns to style by (default: first; "count" for agg=COUNT)' },
                     value_stats: {
                         type: 'object',
@@ -563,9 +563,9 @@ The returned layer_id can be used with show_layer / hide_layer / set_style / set
                     format: {
                         type: 'string',
                         enum: ['vector', 'geojson'],
-                        description: 'Tileset format from register_hex_tiles.format. "vector" (default) reads MVT tiles from tile_url; "geojson" reads the whole FeatureCollection from geojson_url.'
+                        description: '"vector" (default; all register_hex_tiles layers) reads MVT tiles from tile_url; "geojson" reads the whole FeatureCollection from geojson_url, for tools that supply one.'
                     },
-                    geojson_url: { type: 'string', description: 'register_hex_tiles.geojson_url — REQUIRED when format="geojson"' },
+                    geojson_url: { type: 'string', description: 'FeatureCollection URL from the producing tool\'s result — REQUIRED when format="geojson"' },
                     display_name: { type: 'string', description: 'Optional human-readable layer name (default: "Hex: <value_column>")' },
                     palette: {
                         type: 'string',

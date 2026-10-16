@@ -791,7 +791,8 @@ export class MapManager {
      * registered returns {already_exists: true} without mutating the map.
      *
      * @param {Object} opts
-     * @param {string} opts.tileUrl - from register_hex_tiles.tile_url_template
+     * @param {string} opts.tileUrl - from register_hex_tiles.tile_url_template, or
+     *   the tile_url of another tool's ready argument object (glen-sdm map_layers)
      * @param {string} opts.valueColumn - which column to color by
      * @param {{by_res: Object<string,{min:number,max:number}>}} opts.valueStats -
      *   from register_hex_tiles.value_stats[valueColumn]
@@ -816,15 +817,15 @@ export class MapManager {
         const is3D = extrude === true;
         const sourceLayer = isGeoJson ? null : (layerName || 'layer');
 
-        // The hash always comes from tile_url_template (returned by
-        // register_hex_tiles for both formats), never from geojson_url whose
+        // The hash always comes from the tile URL template (supplied for both
+        // formats by the producing tool), never from geojson_url whose
         // shape (.../hex/<hash>/data.geojson) extractHashFromUrl doesn't parse.
         const hash = extractHashFromUrl(tileUrl);
         if (!hash) {
-            return { success: false, error: `Invalid tile_url — expected template from register_hex_tiles ending in /tiles/hex/<hash>/{z}/{x}/{y}.pbf` };
+            return { success: false, error: `Invalid tile_url — expected the tile URL template the producing tool returned, ending in /tiles/hex/<hash>/{z}/{x}/{y}.pbf` };
         }
         if (isGeoJson && !geojsonUrl) {
-            return { success: false, error: 'format "geojson" requires geojson_url from register_hex_tiles' };
+            return { success: false, error: 'format "geojson" requires geojson_url from the producing tool\'s result' };
         }
         const layerId = `hex-${hash}`;
 
