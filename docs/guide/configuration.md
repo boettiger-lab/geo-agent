@@ -149,6 +149,8 @@ The config above describes the layer as it loads. The agent can recolor any laye
 
 A layer with no `legend_type` at all gains a legend when the agent recolors it into a choropleth, and `reset_style` removes it again along with the restyle.
 
+A dynamic hex layer whose cells all hold the same value, such as a modelled species range where every cell is 1, shows a single swatch labelled with the layer's name instead of a colorbar from 1 to 1.
+
 Swatches derived from a `match` are labelled with the matched value itself (`1`, `2`, …), because the vector tiles carry only the code — what the code *means* usually lives in the SQL that produced the layer. Author-supplied `legend_classes` labels are used whenever the layer has not been recolored past them.
 
 The agent closes that last gap with `set_legend`, which names the classes (`{"1": "Amphibians"}`), retitles the layer, adds a colorbar unit, or hides the section. It cannot set colors or value ranges — those stay derived from the paint, so a legend can't be made to contradict the map. `reset_legend` restores the labels configured here. Nothing in this file needs to change to allow it; `set_legend` overrides `legend_label` and `legend_classes` names for the session only.
